@@ -1597,8 +1597,12 @@ public class SensorLineChart extends Chart {
         boolean hasAnomalySemantic = template.getDataMapping().getDataValues().stream()
                 .anyMatch(v -> v != null && Objects.equals(v.getSemantic(), filteredSeriesName));
         if (!hasAnomalySemantic) {
-            MessageBoxHelper.showError(
-                    "Cannot apply median correction to " + chart.plotData.semantic, "");
+            String errorMessage = """
+                    Cannot apply running median filter to "%s" \
+                    because there is no "%s" field \
+                    defined in import template.
+                    """.formatted(seriesName, filteredSeriesName);
+            MessageBoxHelper.showError(errorMessage, "");
             return;
         }
 

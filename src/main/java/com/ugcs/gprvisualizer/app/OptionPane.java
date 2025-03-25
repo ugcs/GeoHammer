@@ -884,12 +884,18 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		public QualityControlParams getParams() {
+			Double maxLineDistanceValue = getTextAsDouble(maxLineDistance);
+			if (maxLineDistanceValue != null && maxLineDistanceValue <= 0.0) {
+				maxLineDistanceValue = null;
+			}
+			Double lineDistanceToleranceValue = getTextAsDouble(lineDistanceTolerance);
+			Double maxAltitudeValue = getTextAsDouble(maxAltitude);
+			if (maxAltitudeValue != null && maxAltitudeValue <= 0.0) {
+				maxAltitudeValue = null;
+			}
+			Double altitudeToleranceValue = getTextAsDouble(altitudeTolerance);
 			return new QualityControlParams(
-					getTextAsDouble(maxLineDistance),
-					getTextAsDouble(lineDistanceTolerance),
-					getTextAsDouble(maxAltitude),
-					getTextAsDouble(altitudeTolerance)
-			);
+					maxLineDistanceValue, lineDistanceToleranceValue, maxAltitudeValue, altitudeToleranceValue);
 		}
 
 		private Double getTextAsDouble(TextField field) {

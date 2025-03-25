@@ -1,9 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -638,19 +635,26 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private List<QualityCheck> createQualityChecks(QualityControlParams params) {
-		return Arrays.asList(
-				new LineDistanceCheck(
-						params.maxLineDistance + params.lineDistanceTolerance
-				),
-				new DataCheck(
-						0.35 * params.maxLineDistance
-				),
-				new AltitudeCheck(
-						params.maxAltitude,
-						params.altitudeTolerance,
-						0.35 * params.maxLineDistance
-				)
-		);
+		List<QualityCheck> checks = new ArrayList<>();
+		if (params.maxLineDistance != null && params.lineDistanceTolerance != null) {
+			checks.add(new LineDistanceCheck(
+					params.maxLineDistance + params.lineDistanceTolerance
+			));
+		}
+		double lineDistance = params.maxLineDistance != null
+				? params.maxLineDistance
+				: QualityControlView.DEFAULT_MAX_LINE_DISTANCE;
+		checks.add(new DataCheck(
+				0.35 * lineDistance
+		));
+		if (params.maxAltitude != null && params.altitudeTolerance != null) {
+			checks.add(new AltitudeCheck(
+					params.maxAltitude,
+					params.altitudeTolerance,
+					0.35 * lineDistance
+			));
+		}
+		return checks;
 	}
 
 	private void applyQualityControl(QualityControlParams params) {
@@ -880,12 +884,18 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		public QualityControlParams getParams() {
+			Double maxLineDistanceValue = getTextAsDouble(maxLineDistance);
+			if (maxLineDistanceValue != null && maxLineDistanceValue <= 0.0) {
+				maxLineDistanceValue = null;
+			}
+			Double lineDistanceToleranceValue = getTextAsDouble(lineDistanceTolerance);
+			Double maxAltitudeValue = getTextAsDouble(maxAltitude);
+			if (maxAltitudeValue != null && maxAltitudeValue <= 0.0) {
+				maxAltitudeValue = null;
+			}
+			Double altitudeToleranceValue = getTextAsDouble(altitudeTolerance);
 			return new QualityControlParams(
-					getTextAsDouble(maxLineDistance),
-					getTextAsDouble(lineDistanceTolerance),
-					getTextAsDouble(maxAltitude),
-					getTextAsDouble(altitudeTolerance)
-			);
+					maxLineDistanceValue, lineDistanceToleranceValue, maxAltitudeValue, altitudeToleranceValue);
 		}
 
 		private Double getTextAsDouble(TextField field) {
@@ -926,14 +936,9 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		private void updateActionButtons() {
-			QualityControlParams params = getParams();
-			boolean canApply = params.maxLineDistance != null
-					&& params.lineDistanceTolerance != null
-					&& params.maxAltitude != null
-					&& params.altitudeTolerance != null;
-
-			applyButton.setDisable(!canApply);
-			applyToAllButton.setDisable(!canApply);
+			// always on
+			applyButton.setDisable(false);
+			applyToAllButton.setDisable(false);
 		}
 
 		private void disableAndShowIndicator() {

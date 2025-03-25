@@ -9,8 +9,10 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.draw.BaseLayer;
 import com.ugcs.gprvisualizer.draw.GpsTrack;
 import com.ugcs.gprvisualizer.draw.GridLayer;
@@ -126,7 +128,7 @@ public class MapView implements InitializingBean {
 		getLayers().add(gpsTrackMap);
 		getLayers().add(new FoundTracesLayer(model));
 
-		//TODO: bad
+		//TODO: bad style
 		traceCutter.setListener(listener);		
 		getLayers().add(traceCutter);
 
@@ -147,6 +149,12 @@ public class MapView implements InitializingBean {
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
+		toolBar.setDisable(!model.isActive() || !isGpsPresent());
+		updateUI();
+	}
+
+	@EventListener
+	private void fileClosed(FileClosedEvent event) {
 		toolBar.setDisable(!model.isActive() || !isGpsPresent());
 		updateUI();
 	}
@@ -289,32 +297,28 @@ public class MapView implements InitializingBean {
 		}
 		
 		return bi;
-	}	
-	
-	int entercount = 0;
-	
-	protected void updateUI() {
-		
-		Platform.runLater(() -> { //new Runnable() {
-		//	 @Override
-	    //     public void run() {		
-				 entercount++;
-		
-				 if (entercount > 1) {
-					System.err.println("entercount " + entercount);
-				 }	
+	}
 
-				if (isGpsPresent()) {
-					img = draw(windowSize.width, windowSize.height);
-				} else {
-					img = drawStub();
-				}
-			
-				toImageView();
-				
-				entercount--;
-			 });
-		//});
+	private static AtomicInteger entercount = new AtomicInteger(0);
+
+	protected void updateUI() {
+		if (windowSize.width <= 0 || windowSize.height <= 0) {
+			return;
+		}
+
+		Platform.runLater(() -> {
+			int currentCount = entercount.incrementAndGet();
+			if (currentCount > 1) {
+				System.err.println("entercount: " + currentCount);
+			}
+			if (isGpsPresent()) {
+				img = draw(windowSize.width, windowSize.height);
+			} else {
+				img = drawStub();
+			}
+			toImageView();
+			entercount.decrementAndGet();
+		});
 	}
 
 	protected void updateWindow() {

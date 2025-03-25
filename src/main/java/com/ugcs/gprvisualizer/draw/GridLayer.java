@@ -208,6 +208,10 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			}
 
 			dataPoints = getMedianValues(dataPoints);
+			if (dataPoints.isEmpty()) {
+				return;
+			}
+
 			double minLon = dataPoints.stream().mapToDouble(DataPoint::longitude).min().orElseThrow();
 			double maxLon = dataPoints.stream().mapToDouble(DataPoint::longitude).max().orElseThrow();
 			double minLat = dataPoints.stream().mapToDouble(DataPoint::latitude).min().orElseThrow();

@@ -163,7 +163,7 @@ public class Saver implements ToolProducer, InitializingBean {
 				}
 
 				List<File> files = fileChooser.showOpenMultipleDialog(AppContext.stage);
-				if (!files.isEmpty()) {
+				if (files != null && !files.isEmpty()) {
 					System.out.println("Selected: " + files);
 					lastOpenFolderPath = files.getFirst().getParentFile().getAbsolutePath();
 					prefSettings.saveSetting(SAVER_SETTINGS_GROUP_KEY, Map.of(LAST_OPEN_FOLDER_SETTING_KEY, lastOpenFolderPath));

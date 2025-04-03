@@ -9,10 +9,13 @@ import java.util.stream.Stream;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.layout.Pane;
 import org.springframework.beans.factory.InitializingBean;
@@ -38,6 +41,7 @@ public class ProfileView implements InitializingBean {
 	private final Model model;
 	private final Navigator navigator;
 	private final Saver saver;
+	private final TraceCutter traceCutter;
 
 	private final ToggleButton auxModeBtn = new ToggleButton("aux");
 
@@ -47,13 +51,17 @@ public class ProfileView implements InitializingBean {
 	private final Button zoomOutBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ZOOM_OUT, new Button());
 	private final Button fitBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.FIT_CHART, new Button());
 
+	private final Button splitTrace = ResourceImageHolder.setButtonImage(ResourceImageHolder.SPLIT_TRACE, new Button());
+	private final Button cropTrace = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP_TRACE, new Button());
+
 	private SgyFile currentFile;
 
 	public ProfileView(Model model, Navigator navigator,
-                       Saver saver) {
+                       Saver saver, TraceCutter traceCutter) {
 		this.model = model;
         this.navigator = navigator;
 		this.saver = saver;
+		this.traceCutter = traceCutter;
 	}
 
 	@Override
@@ -66,6 +74,11 @@ public class ProfileView implements InitializingBean {
 
 		fitBtn.setTooltip(new Tooltip("Fit current chart to window"));
 		fitBtn.setOnAction(this::fitCurrentFile);
+
+		splitTrace.setTooltip(new Tooltip("Split trace"));
+		splitTrace.setOnAction(this::splitTrace);
+		cropTrace.setTooltip(new Tooltip("Crop GPR trace"));
+		cropTrace.setOnAction(this::cropTrace);
 	}
 
 	private void fitCurrentFile(ActionEvent actionEvent) {
@@ -100,6 +113,22 @@ public class ProfileView implements InitializingBean {
 		}
 	}
 
+	private void splitTrace(ActionEvent actionEvent) {
+		Chart chart = model.getFileChart(currentFile);
+		if (chart == null) {
+			return;
+		}
+		ClickPlace mark = model.getSelectedTrace(chart);
+		if (mark == null) {
+			return;
+		}
+		Trace splitTrace = mark.getTrace();
+		traceCutter.splitTrace(splitTrace);
+	}
+
+	private void cropTrace(ActionEvent actionEvent) {
+	}
+
 	private void prepareToolbar() {
 		toolBar.getItems().addAll(saver.getToolNodes());
 		toolBar.getItems().add(getSpacer());
@@ -115,12 +144,33 @@ public class ProfileView implements InitializingBean {
 		toolBar.getItems().add(fitBtn);
 		toolBar.getItems().add(getSpacer());
 
+		toolBar.getItems().add(splitTrace);
+		toolBar.getItems().add(cropTrace);
+
 		enableToolbar();
 	}
 
 	private void enableToolbar() {
 		toolBar.getItems().forEach(toolBarItem -> toolBarItem.setDisable(!model.isActive()));
 		toolBar.getItems().getFirst().setDisable(false);
+
+		enableTraceSplit();
+		enableTraceCrop();
+	}
+
+	private void enableTraceSplit() {
+		boolean hasMark = false;
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			ClickPlace mark = model.getSelectedTrace(chart);
+			hasMark = mark != null;
+		}
+		splitTrace.setDisable(!hasMark);
+	}
+
+	private void enableTraceCrop() {
+		boolean gprSelected = currentFile instanceof GprFile;
+		cropTrace.setDisable(!gprSelected);
 	}
 
 	private VBox center;
@@ -158,10 +208,13 @@ public class ProfileView implements InitializingBean {
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (changed.isJustdraw() && currentFile != null
-				&& model.getProfileField(currentFile) instanceof GPRChart gprChart) {
-			gprChart.updateScroll();
-			gprChart.repaintEvent();
+		if (changed.isJustdraw()) {
+			if (currentFile != null
+					&& model.getProfileField(currentFile) instanceof GPRChart gprChart) {
+				gprChart.updateScroll();
+				gprChart.repaintEvent();
+			}
+			Platform.runLater(this::enableToolbar);
 		}
 	}
 
@@ -229,7 +282,7 @@ public class ProfileView implements InitializingBean {
 			});
 		});
 
-		enableToolbar();
+		Platform.runLater(this::enableToolbar);
 	}
 
 	private void setProfileScroll(ProfileScroll profileScroll) {
@@ -289,6 +342,8 @@ public class ProfileView implements InitializingBean {
 				((VBox) gprChart.getRootNode()).heightProperty().addListener(sp2SizeListener);
 			}
 		}
+
+		Platform.runLater(this::enableToolbar);
 	}
 
 	private Region getSpacer() {

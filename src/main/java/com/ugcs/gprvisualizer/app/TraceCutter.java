@@ -5,14 +5,20 @@ import java.awt.Graphics2D;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.FileNames;
 import javafx.geometry.Point2D;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -325,13 +331,8 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private File getPartFile(SgyFile file, int part, File nfolder) {
-		File nfile;
-		String name = file.getFile().getName();
-		int pos = name.lastIndexOf(".");
-		String onlyname = name.substring(0, pos);
-		String spart = String.format("%03d", part);
-		nfile = new File(nfolder, onlyname + "_" + spart + name.substring(pos));
-		return nfile;
+		String partFileName = FileNames.setGprPart(file.getFile().getName(), part);
+		return new File(nfolder, partFileName);
 	}
 	
 	private List<SgyFile> splitFile(SgyFile file, MapField field, List<Point2D> border) {
@@ -437,6 +438,172 @@ public class TraceCutter implements Layer, InitializingBean {
 		}
 
 		return splitList;
+	}
+
+	public void splitTrace(Trace splitTrace) {
+		if (splitTrace == null) {
+			return;
+		}
+
+		SgyFile file = splitTrace.getFile();
+		int splitIndex = splitTrace.getIndexInFile();
+
+		// first index of a new line
+		if (isStartOfLine(file, splitIndex)) {
+			// nothing to split
+			return;
+		}
+
+		if (file instanceof CsvFile csvFile) {
+			splitCsvTrace(csvFile, splitIndex);
+		} else if (file instanceof GprFile gprFile) {
+			splitGprTrace(gprFile, splitIndex);
+		}
+	}
+
+	private boolean isStartOfLine(SgyFile file, int traceIndex) {
+		Check.notNull(file);
+		Check.condition(traceIndex >= 0);
+
+		if (traceIndex == 0) {
+			return true;
+		}
+		if (file instanceof CsvFile csvFile) {
+			List<GeoData> values = csvFile.getGeoData();
+			return values.get(traceIndex).getLineIndex()
+					!= values.get(traceIndex - 1).getLineIndex();
+		}
+		return false;
+	}
+
+	private void splitCsvTrace(CsvFile csvFile, int splitIndex) {
+		Check.notNull(csvFile);
+		Check.condition(splitIndex >= 0);
+
+		List<GeoData> values = csvFile.getGeoData();
+		List<GeoData> newValues = new ArrayList<>(values.size());
+
+		// copy values and fill missing line indices
+		int lastLineIndex = 0;
+		for (GeoData value : values) {
+			GeoData newValue = new GeoData(value);
+			int lineIndex = value.getLineIndex(-1);
+			if (lineIndex == -1) {
+				lineIndex = lastLineIndex;
+				newValue.setLineIndex(lineIndex);
+			}
+			lastLineIndex = lineIndex;
+			newValues.add(newValue);
+		}
+
+		// shift lines after a split trace
+		int splitLine = newValues.get(splitIndex).getLineIndex();
+		Set<Integer> linesToShift = new HashSet<>();
+		linesToShift.add(splitLine);
+		for (int i = splitIndex; i < newValues.size(); i++) {
+			GeoData newValue = newValues.get(i);
+			int lineIndex = newValue.getLineIndex();
+			if (linesToShift.contains(lineIndex)) {
+				newValue.setLineIndex(lineIndex + 1);
+				linesToShift.add(lineIndex + 1);
+			}
+		}
+
+		CsvFile copy = csvFile.copy();
+		copy.setUnsaved(true);
+
+		copy.setTraces(csvFile.getTraces());
+		copy.setGeoData(newValues);
+		copy.setAuxElements(csvFile.getAuxElements());
+		copy.updateInternalIndexes();
+
+		// clear selection
+		model.clearSelectedTrace(model.getFileChart(csvFile));
+
+		// refresh chart
+		model.getFileManager().removeFile(csvFile);
+		model.getFileManager().addFile(copy);
+		model.updateChart(copy);
+
+		// update model
+		model.init();
+		model.initField();
+		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+	}
+
+	private void splitGprTrace(GprFile gprFile, int splitIndex) {
+		Check.notNull(gprFile);
+		Check.condition(splitIndex >= 0);
+
+		int splitPart = FileNames.getGprPart(gprFile.getFile().getName());
+		if (splitPart == -1) {
+			splitPart = 1;
+		}
+
+		// list of new/updated files
+		List<SgyFile> generated = new ArrayList<>();
+		// list of obsolete chart files that should be closed
+		List<SgyFile> obsolete = new ArrayList<>();
+
+		// shift all tail parts by one
+		Chart chart = model.getFileChart(gprFile);
+		List<SgyFile> chartFiles = new ArrayList<>(chart.getFiles());
+		chartFiles.sort(Comparator.comparing(f -> f.getFile().getName()));
+
+		int partToShift = splitPart + 1;
+		for (SgyFile file : chartFiles) {
+			int part = FileNames.getGprPart(file.getFile().getName());
+			if (part <= splitPart) {
+				continue;
+			}
+			if (part == partToShift) {
+				SgyFile shifted = generateSgyFileFrom(
+						file,
+						file.getTraces(),
+						part + 1);
+				generated.add(shifted);
+				obsolete.add(file);
+				partToShift = part + 1;
+			} else {
+				// just reload file
+				generated.add(file);
+				obsolete.add(file);
+			}
+		}
+
+		List<Trace> traces = gprFile.getTraces();
+		SgyFile part1 = generateSgyFileFrom(
+				gprFile,
+				traces.subList(0, splitIndex),
+				splitPart);
+		generated.add(part1);
+		SgyFile part2 = generateSgyFileFrom(
+				gprFile,
+				traces.subList(splitIndex, traces.size()),
+				splitPart + 1);
+		generated.add(part2);
+		obsolete.add(gprFile);
+
+		generated.sort(Comparator.comparing(f -> f.getFile().getName()));
+
+		// clear selection
+		model.clearSelectedTrace(chart);
+
+		// refresh chart
+		for (SgyFile file : obsolete) {
+			model.getFileManager().removeFile(file);
+			model.publishEvent(new FileClosedEvent(this, file));
+		}
+		for (SgyFile file : generated) {
+			model.getFileManager().addFile(file);
+		}
+		model.publishEvent(new FileOpenedEvent(this,
+				generated.stream().map(SgyFile::getFile).toList()));
+
+		// update model
+		model.init();
+		model.initField();
+		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 	}
 
 	public static List<BaseObject> copyAuxObjects(SgyFile file, SgyFile sgyFile, int begin, int end) {

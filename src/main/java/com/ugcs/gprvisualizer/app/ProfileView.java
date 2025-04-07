@@ -13,8 +13,9 @@ import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
-import javafx.scene.layout.Pane;
+import javafx.geometry.Insets;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -125,7 +126,7 @@ public class ProfileView implements InitializingBean {
 
 	private VBox center;
 
-	private Pane profileScrollPane;
+	private VBox profileScrollContainer;
 
 	//center
 	public Node getCenter() {
@@ -136,12 +137,10 @@ public class ProfileView implements InitializingBean {
 			ScrollPane centerScrollPane = new ScrollPane();
 			centerScrollPane.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
 
-			profileScrollPane = new Pane();
-			profileScrollPane.setMinHeight(ProfileScroll.HEIGHT);
-			profileScrollPane.setPrefHeight(ProfileScroll.HEIGHT);
-			profileScrollPane.setPrefWidth(center.getWidth());
+			profileScrollContainer = new VBox();
+			profileScrollContainer.setPadding(Insets.EMPTY);
 
-			center.getChildren().addAll(toolBar, centerScrollPane);
+			center.getChildren().addAll(toolBar, profileScrollContainer, centerScrollPane);
 
 			centerScrollPane.setFitToWidth(true);
 			centerScrollPane.setFitToHeight(true);
@@ -233,24 +232,24 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void setProfileScroll(ProfileScroll profileScroll) {
-		int index = 1; // default insert index
-		List<Node> container = center.getChildren();
-		for (int i = 0; i < container.size(); i++) {
-			if (container.get(i) instanceof ProfileScroll active) {
+		ObservableList<Node> container = profileScrollContainer.getChildren();
+		if (profileScroll == null) {
+			container.clear();
+			return;
+		}
+		if (!container.isEmpty()) {
+			if (container.getFirst() instanceof ProfileScroll active) {
 				if (Objects.equals(profileScroll, active)) {
 					// already active, nothing to change
 					active.setVisible(true);
 					return;
 				}
-				index = i;
-				container.remove(i);
-				break;
 			}
+			container.clear();
 		}
-		if (profileScroll != null) {
-			profileScroll.setVisible(true);
-			container.add(index, profileScroll);
-		}
+		profileScroll.setVisible(true);
+		VBox.setMargin(profileScroll, Insets.EMPTY);
+		container.add(profileScroll);
 	}
 
 	private ProfileScroll getFileProfileScroll(SgyFile file) {

@@ -6,13 +6,20 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
+import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
+import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.utils.Check;
+import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -56,15 +63,17 @@ public class TraceCutter implements Layer, InitializingBean {
 	private RepaintListener listener;
 	
 	private ToggleButton buttonCutMode = ResourceImageHolder.setButtonImage(ResourceImageHolder.SELECT_RECT, new ToggleButton());
-	private Button buttonSet = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP, new Button());
+	private Button buttonCrop = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP, new Button());
+	private Button buttonSplit = ResourceImageHolder.setButtonImage(ResourceImageHolder.SPLIT, new Button());
 	private Button buttonUndo = ResourceImageHolder.setButtonImage(ResourceImageHolder.UNDO, new Button());
 
 	private final List<SgyFile> undoFiles = new ArrayList<>();
 	
 	{
 		buttonCutMode.setTooltip(new Tooltip("Select Area"));
-		buttonUndo.setTooltip(new Tooltip("Undo Crop")); 
-		buttonSet.setTooltip(new Tooltip("Apply Crop"));
+		buttonUndo.setTooltip(new Tooltip("Undo"));
+		buttonCrop.setTooltip(new Tooltip("Apply Crop"));
+		buttonSplit.setTooltip(new Tooltip("Apply Split"));
 	}
 
 	public TraceCutter(Model model, ApplicationEventPublisher eventPublisher) {
@@ -208,7 +217,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		return Math.abs(dist1 + dist2 - dist) < 0.05;
 	}
 
-	private void apply() {
+	private void applyCrop() {
 		model.clearSelectedTraces();
 
 		MapField fld = new MapField(field);
@@ -237,8 +246,6 @@ public class TraceCutter implements Layer, InitializingBean {
 			model.updateChart((CsvFile) sf);
 		}
 
-
-
 		for (SgyFile sf : model.getFileManager().getGprFiles()) {
 			sf.updateInternalIndexes();
 			//model.getProfileFieldByPattern(sf);//.clear();
@@ -247,6 +254,38 @@ public class TraceCutter implements Layer, InitializingBean {
 		
 		model.init();
 		model.initField();
+	}
+
+	private void applySplit() {
+		ClickPlace mark = model.getSelectedTraceInCurrentChart();
+		if (mark == null) {
+			return;
+		}
+		Trace splitTrace = mark.getTrace();
+		if (splitTrace == null) {
+			return;
+		}
+
+		SgyFile file = splitTrace.getFile();
+		int splitIndex = splitTrace.getIndexInFile();
+
+		// first index of a new line
+		if (isStartOfLine(file, splitIndex)) {
+			// nothing to split
+			return;
+		}
+
+		// change undo state
+		undoFiles.clear();
+		undoFiles.addAll(model.getFileManager().getFiles());
+
+		if (file instanceof CsvFile csvFile) {
+			splitCsvTrace(csvFile, splitIndex);
+		} else if (file instanceof GprFile gprFile) {
+			// TODO GPR split not supported
+		}
+
+		buttonUndo.setDisable(false);
 	}
 
 	private void undo() {
@@ -439,6 +478,82 @@ public class TraceCutter implements Layer, InitializingBean {
 		return splitList;
 	}
 
+	private boolean isStartOfLine(SgyFile file, int traceIndex) {
+		Check.notNull(file);
+		Check.condition(traceIndex >= 0);
+
+		if (traceIndex == 0) {
+			return true;
+		}
+		if (file instanceof CsvFile csvFile) {
+			List<GeoData> values = csvFile.getGeoData();
+			return values.get(traceIndex).getLineIndex()
+					!= values.get(traceIndex - 1).getLineIndex();
+		}
+		return false;
+	}
+
+	private void splitCsvTrace(CsvFile csvFile, int splitIndex) {
+		Check.notNull(csvFile);
+		Check.condition(splitIndex >= 0);
+
+		List<GeoData> values = csvFile.getGeoData();
+		List<GeoData> newValues = new ArrayList<>(values.size());
+
+		// copy values and fill missing line indices
+		int lastLineIndex = 0;
+		for (GeoData value : values) {
+			GeoData newValue = new GeoData(value);
+			int lineIndex = value.getLineIndex(-1);
+			if (lineIndex == -1) {
+				lineIndex = lastLineIndex;
+				newValue.setLineIndex(lineIndex);
+			}
+			lastLineIndex = lineIndex;
+			newValues.add(newValue);
+		}
+
+		// shift lines after a split trace
+		int splitLine = newValues.get(splitIndex).getLineIndex();
+		Set<Integer> linesToShift = new HashSet<>();
+		linesToShift.add(splitLine);
+		for (int i = splitIndex; i < newValues.size(); i++) {
+			GeoData newValue = newValues.get(i);
+			int lineIndex = newValue.getLineIndex();
+			if (linesToShift.contains(lineIndex)) {
+				newValue.setLineIndex(lineIndex + 1);
+				linesToShift.add(lineIndex + 1);
+			}
+		}
+
+		CsvFile copy = csvFile.copy();
+		copy.setUnsaved(true);
+
+		// copy traces
+		List<Trace> newTraces = csvFile.getTraces().stream()
+				.map(t -> t.copy(copy))
+				.toList();
+
+		copy.setTraces(newTraces);
+		copy.setGeoData(newValues);
+		copy.setAuxElements(new ArrayList<>(csvFile.getAuxElements()));
+		copy.updateInternalIndexes();
+
+		// clear selection
+		model.clearSelectedTrace(model.getFileChart(csvFile));
+
+		// refresh chart
+		model.getFileManager().removeFile(csvFile);
+		model.getFileManager().addFile(copy);
+		model.updateChart(copy);
+
+		// update model
+		model.init();
+		model.initField();
+
+		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+	}
+
 	public static List<BaseObject> copyAuxObjects(SgyFile file, SgyFile sgyFile, int begin, int end) {
 		List<BaseObject> auxObjects = new ArrayList<>();				
 		for (BaseObject au : file.getAuxElements()) {
@@ -493,26 +608,40 @@ public class TraceCutter implements Layer, InitializingBean {
         initButtons();
     }
 
+	@EventListener
+	private void fileSelected(FileSelectedEvent event) {
+		Platform.runLater(this::updateSplit);
+	}
+
+	@EventListener
+	private void somethingChanged(WhatChanged changed) {
+		if (changed.isJustdraw()) {
+			Platform.runLater(this::updateSplit);
+		}
+	}
+
 	public List<Node> getToolNodes() {
 		return Arrays.asList();
 	}
 	
-
 	public List<Node> getToolNodes2() {
 		
 		initButtons();
 		
 		buttonCutMode.setOnAction(e -> updateCutMode());
 		
-		buttonSet.setOnAction(e -> {
-	    	apply();
+		buttonCrop.setOnAction(e -> {
+	    	applyCrop();
 	    	
 	    	buttonCutMode.setSelected(false);
 	    	updateCutMode();
 	    	buttonUndo.setDisable(false);
 	    	eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
-		
+
+		buttonSplit.setOnAction(e -> {
+			applySplit();
+		});
 		
 		buttonUndo.setOnAction(e -> {
 	    	undo();
@@ -523,24 +652,32 @@ public class TraceCutter implements Layer, InitializingBean {
 	    	eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
 		
-		return Arrays.asList(buttonCutMode, buttonSet, buttonUndo);
+		return Arrays.asList(buttonCutMode, buttonCrop, buttonSplit, buttonUndo);
 	}
 
 	public void initButtons() {
 		buttonCutMode.setSelected(false);
-		buttonSet.setDisable(true);
+		buttonCrop.setDisable(true);
+		buttonSplit.setDisable(true);
 		buttonUndo.setDisable(undoFiles.isEmpty());
 	}
-	
+
 	private void updateCutMode() {
 		if (buttonCutMode.isSelected()) {
     		init();
-    		buttonSet.setDisable(false);
+    		buttonCrop.setDisable(false);
     	} else {
     		clear();
-    		buttonSet.setDisable(true);
+    		buttonCrop.setDisable(true);
     	}
     	getListener().repaint();
+	}
+
+	private void updateSplit() {
+		ClickPlace mark = model.getSelectedTraceInCurrentChart();
+		boolean canSplit = mark != null
+				&& mark.getTrace().getFile() instanceof CsvFile;
+		buttonSplit.setDisable(!canSplit);
 	}
 
 	public RepaintListener getListener() {

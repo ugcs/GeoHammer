@@ -629,6 +629,13 @@ public class Model implements InitializingBean {
 		return null;
 	}
 
+	public ClickPlace getSelectedTraceInCurrentChart() {
+		Chart chart = getFileChart(currentFile);
+		return chart != null
+				? getSelectedTrace(chart)
+				: null;
+	}
+
 	public void selectNearestTrace(LatLon location) {
 		if (location == null) {
 			return;

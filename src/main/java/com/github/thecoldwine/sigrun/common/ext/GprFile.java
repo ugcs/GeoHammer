@@ -49,6 +49,9 @@ public class GprFile extends SgyFile {
 
     private SampleNormalizer sampleNormalizer = new SampleNormalizer();
 
+	public SampleNormalizer getSampleNormalizer() {
+		return sampleNormalizer;
+	}
 
 	public void open(File file) throws Exception {
 		setFile(file);

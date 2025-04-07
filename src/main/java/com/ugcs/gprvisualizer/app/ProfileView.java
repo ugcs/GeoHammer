@@ -8,11 +8,14 @@ import java.util.stream.Stream;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
+import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.gpr.Settings;
+import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
@@ -39,6 +42,7 @@ public class ProfileView implements InitializingBean {
 	private final Model model;
 	private final Navigator navigator;
 	private final Saver saver;
+	private final SampleCutter sampleCutter;
 
 	private final ToggleButton auxModeBtn = new ToggleButton("aux");
 
@@ -48,13 +52,16 @@ public class ProfileView implements InitializingBean {
 	private final Button zoomOutBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ZOOM_OUT, new Button());
 	private final Button fitBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.FIT_CHART, new Button());
 
+	private final Button cropSamples = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP_SAMPLES, new Button());
+
 	private SgyFile currentFile;
 
 	public ProfileView(Model model, Navigator navigator,
-                       Saver saver) {
+                       Saver saver, SampleCutter sampleCutter) {
 		this.model = model;
         this.navigator = navigator;
 		this.saver = saver;
+		this.sampleCutter = sampleCutter;
 	}
 
 	@Override
@@ -67,6 +74,9 @@ public class ProfileView implements InitializingBean {
 
 		fitBtn.setTooltip(new Tooltip("Fit current chart to window"));
 		fitBtn.setOnAction(this::fitCurrentFile);
+
+		cropSamples.setTooltip(new Tooltip("Crop samples"));
+		cropSamples.setOnAction(this::cropSamples);
 	}
 
 	private void fitCurrentFile(ActionEvent actionEvent) {
@@ -101,6 +111,18 @@ public class ProfileView implements InitializingBean {
 		}
 	}
 
+	private void cropSamples(ActionEvent actionEvent) {
+		Chart chart = model.getFileChart(currentFile);
+		if (chart instanceof GPRChart gprChart) {
+			ProfileField profileField = gprChart.getField();
+			Settings profileSettings = profileField.getProfileSettings();
+
+			int offset = profileSettings.getLayer();
+			int length = profileSettings.hpage;
+			sampleCutter.cropGprSamples(gprChart, offset, length);
+		}
+	}
+
 	private void prepareToolbar() {
 		toolBar.getItems().addAll(saver.getToolNodes());
 		toolBar.getItems().add(getSpacer());
@@ -116,12 +138,20 @@ public class ProfileView implements InitializingBean {
 		toolBar.getItems().add(fitBtn);
 		toolBar.getItems().add(getSpacer());
 
+		toolBar.getItems().add(cropSamples);
+
 		enableToolbar();
 	}
 
 	private void enableToolbar() {
 		toolBar.getItems().forEach(toolBarItem -> toolBarItem.setDisable(!model.isActive()));
+
+		// open file
 		toolBar.getItems().getFirst().setDisable(false);
+
+		// crop samples
+		Chart chart = model.getFileChart(currentFile);
+		cropSamples.setDisable(!(chart instanceof GPRChart));
 	}
 
 	private VBox center;
@@ -288,6 +318,8 @@ public class ProfileView implements InitializingBean {
 				((VBox) gprChart.getRootNode()).heightProperty().addListener(sp2SizeListener);
 			}
 		}
+
+		Platform.runLater(this::enableToolbar);
 	}
 
 	private Region getSpacer() {

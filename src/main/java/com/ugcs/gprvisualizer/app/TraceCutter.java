@@ -70,10 +70,10 @@ public class TraceCutter implements Layer, InitializingBean {
 	private final List<SgyFile> undoFiles = new ArrayList<>();
 	
 	{
-		buttonCutMode.setTooltip(new Tooltip("Select Area"));
+		buttonCutMode.setTooltip(new Tooltip("Select area"));
 		buttonUndo.setTooltip(new Tooltip("Undo"));
-		buttonCrop.setTooltip(new Tooltip("Apply Crop"));
-		buttonSplit.setTooltip(new Tooltip("Apply Split"));
+		buttonCrop.setTooltip(new Tooltip("Apply crop"));
+		buttonSplit.setTooltip(new Tooltip("Split the line"));
 	}
 
 	public TraceCutter(Model model, ApplicationEventPublisher eventPublisher) {

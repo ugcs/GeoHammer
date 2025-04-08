@@ -629,20 +629,25 @@ public class SensorLineChart extends Chart {
         plotData.setRendered(subsample);
     }
 
+    private int getValueLineIndex(int index) {
+        List<GeoData> values = file.getGeoData();
+        if (values == null || values.isEmpty()) {
+            return 0;
+        }
+        // correct out of range values to point to the first or last trace
+        index = Math.max(0, Math.min(index, values.size() - 1));
+        return values.get(index).getLineIndex();
+    }
+
     private int getViewLineIndex() {
         String seriesName = getSelectedSeriesName();
         LineChartWithMarkers selectedChart = getCharts().get(seriesName);
         if (selectedChart != null) {
             NumberAxis xAxis = (NumberAxis) selectedChart.getXAxis();
             int xCenter = (int) (0.5 * (xAxis.getLowerBound() + xAxis.getUpperBound()));
-            for (Map.Entry<Integer, Range> entry : lineRanges.entrySet()) {
-                Range range = entry.getValue();
-                if (xCenter >= range.getMin().intValue() && xCenter <= range.getMax().intValue()) {
-                    return entry.getKey();
-                }
-            }
+            return getValueLineIndex(xCenter);
         }
-        // default: first range key or null
+        // default: first range key or 0
         return !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
     }
 
@@ -704,7 +709,12 @@ public class SensorLineChart extends Chart {
     }
 
     public void zoomToCurrentLine() {
-        int lineIndex = getViewLineIndex();
+        int lineIndex;
+        if (currentVerticalMarker != null) {
+            lineIndex = getValueLineIndex(currentVerticalMarker.getXValue().intValue());
+        } else {
+            lineIndex = getViewLineIndex();
+        }
         zoomToLine(lineIndex);
         updateOnZoom(false);
     }

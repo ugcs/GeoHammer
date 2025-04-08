@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import org.springframework.context.event.EventListener;
@@ -88,7 +89,17 @@ public class Navigator implements ToolProducer {
 			});
 		} else {
 			var chart = model.getProfileField(currentFile);
-			var selectedFile = chart.getField().getSgyFileByTrace(chart.getMiddleTrace());
+			// if there's a selection mark present on the chart
+			// zoom to a file containing that mark;
+			// otherwise zoom to a file containing
+			// the middle trace
+			SgyFile selectedFile;
+			ClickPlace mark = model.getSelectedTrace(chart);
+			if (mark != null) {
+				selectedFile = mark.getTrace().getFile();
+			} else {
+				selectedFile = chart.getField().getSgyFileByTrace(chart.getMiddleTrace());
+			}
 			fitFile(selectedFile);
 		}
 	}

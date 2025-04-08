@@ -339,12 +339,16 @@ public class SensorLineChart extends Chart {
                             imageView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
                                 System.out.println(event.getX() + ", " + event.getY() + ", " + currentYValue);
 
+                                CsvFile copy = file.copy();
+                                copy.setUnsaved(true);
+
                                 List<GeoData> geoDataLinesList = new ArrayList<>();
-                                List<Trace> sublist = new ArrayList<>();
+                                List<Trace> traces = new ArrayList<>();
                                 List<BaseObject> auxElements = new ArrayList<>();
                                 for(GeoData geoData: file.getGeoData()) {
                                     if (geoData.getLine().data() != null && geoData.getLine().data().intValue() != currentYValue) {
-                                        sublist.add(file.getTraces().get(geoData.getTraceNumber()));
+                                        Trace trace = file.getTraces().get(geoData.getTraceNumber());
+                                        traces.add(trace.copy(copy));
                                         GeoData gd = new GeoData(geoData);
                                         if (geoData.getLine().data().intValue() > currentYValue) {
                                             gd.setLineIndex(gd.getLine().data().intValue() - 1);
@@ -356,18 +360,15 @@ public class SensorLineChart extends Chart {
                                         geoDataLinesList.add(gd);
                                     }
                                 }
-                                CsvFile subfile = file.copy();
-                                subfile.setUnsaved(true);
-
-                                subfile.setTraces(sublist);
-                                subfile.getGeoData().addAll(geoDataLinesList);
-                                subfile.setAuxElements(auxElements);
-                                subfile.updateInternalIndexes();
+                                copy.setTraces(traces);
+                                copy.setGeoData(geoDataLinesList);
+                                copy.setAuxElements(auxElements);
+                                copy.updateInternalIndexes();
 
                                 model.clearSelectedTrace(this);
                                 model.getFileManager().removeFile(file);
-                                model.getFileManager().addFile(subfile);
-                                model.updateChart(subfile);
+                                model.getFileManager().addFile(copy);
+                                model.updateChart(copy);
 
                                 model.init();
                                 model.initField();

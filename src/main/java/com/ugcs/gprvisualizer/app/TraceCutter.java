@@ -335,32 +335,32 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private SgyFile generateSgyFileFrom(SgyFile sourceFile, List<Trace> traces, List<GeoData> geoDataList, int part) {
-		
-		SgyFile sgyFile = sourceFile.copyHeader(); 
-		
-		sgyFile.setUnsaved(true);
-		
-		sgyFile.setTraces(traces);
-		sgyFile.setFile(getPartFile(sourceFile, part, sourceFile.getFile().getParentFile()));
 
-		//sgyFile.setFile(sourceFile.getFile());
-		//sgyFile.setParser(sourceFile.getParser());
-		//sgyFile.getGeoData().addAll(geoDataList);
-		
+		SgyFile copy = sourceFile.copyHeader();
+		copy.setFile(getPartFile(sourceFile, part, sourceFile.getFile().getParentFile()));
+		copy.setUnsaved(true);
+
+		// copy traces
+		List<Trace> newTraces = traces.stream()
+				.map(t -> t.copy(copy))
+				.toList();
+		copy.setTraces(newTraces);
+
+		// copy aux elements
 		if (!traces.isEmpty()) {
-			int begin = traces.get(0).getIndexInFile();
-			int end = traces.get(traces.size() - 1).getIndexInFile();
-			sgyFile.setAuxElements(copyAuxObjects(sourceFile, sgyFile, begin, end));
+			int begin = traces.getFirst().getIndexInFile();
+			int end = traces.getLast().getIndexInFile();
+			copy.setAuxElements(copyAuxObjects(sourceFile, copy, begin, end));
 			/// TODO:
-			if (sgyFile instanceof DztFile) {
-				DztFile dztfile = (DztFile) sgyFile;
+			if (copy instanceof DztFile) {
+				DztFile dztfile = (DztFile) copy;
 				dztfile.dzg = dztfile.dzg.cut(begin, end);
 			}
 			///
 		}
 
-		sgyFile.updateInternalIndexes();
-		return sgyFile;
+		copy.updateInternalIndexes();
+		return copy;
 	}
 
 	private File getPartFile(SgyFile file, int part, File nfolder) {
@@ -382,19 +382,24 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private List<SgyFile> splitCsvFile(CsvFile csvFile, MapField field, List<Point2D> border) {
-		List<Trace> sublist = new ArrayList<>();
+		CsvFile copy = csvFile.copy();
+		copy.setUnsaved(true);
 
+		// traces
+		List<Trace> newTraces = new ArrayList<>();
 		for(Trace trace: csvFile.getTraces()) {
 			boolean inside = isTraceInsideSelection(field, border, trace);
 			if (inside) {
-				sublist.add(trace);
+				newTraces.add(trace.copy(copy));
 			}
 		}
+		copy.setTraces(newTraces);
 
+		// values
 		// all filtered values
-		List<GeoData> geoDataList = new ArrayList<>();
+		List<GeoData> newGeoData = new ArrayList<>();
 		// filtered values of the current line
-		List<GeoData> geoDataLineList = new ArrayList<>();
+		List<GeoData> lineGeoData = new ArrayList<>();
 		// line index of the value in a source file
 		int lineIndex = 0;
 		// line index in a split file
@@ -404,44 +409,41 @@ public class TraceCutter implements Layer, InitializingBean {
 			boolean inside = isGeoDataInsideSelection(field, border, geoData);
 			int dataLineIndex = geoData.getLineIndex();
 			if (!inside || dataLineIndex != lineIndex) {
-				if (!geoDataLineList.isEmpty()) {
-					if (isGoodForFile(geoDataLineList)) { // filter too small lines
-						for(GeoData gd: geoDataLineList) {
+				if (!lineGeoData.isEmpty()) {
+					if (isGoodForFile(lineGeoData)) { // filter too small lines
+						for(GeoData gd: lineGeoData) {
 							gd.setLineIndex(splitLineIndex);
 						}
 						splitLineIndex++;
-						geoDataList.addAll(geoDataLineList);
+						newGeoData.addAll(lineGeoData);
 					}
-					geoDataLineList = new ArrayList<>();
+					lineGeoData = new ArrayList<>();
 				}
 				lineIndex = dataLineIndex;
 			}
 			if (inside) {
-				geoDataLineList.add(new GeoData(geoData));
+				lineGeoData.add(new GeoData(geoData));
 			}
 		}
-
 		// for last
-		if (!geoDataLineList.isEmpty()) {
-			if (isGoodForFile(geoDataLineList)) { // filter too small lines
-				for(GeoData gd: geoDataLineList) {
+		if (!lineGeoData.isEmpty()) {
+			if (isGoodForFile(lineGeoData)) { // filter too small lines
+				for(GeoData gd: lineGeoData) {
 					gd.setLineIndex(splitLineIndex);
 				}
-				geoDataList.addAll(geoDataLineList);
+				newGeoData.addAll(lineGeoData);
 			}
 		}
+		copy.setGeoData(newGeoData);
 
-		CsvFile subfile = csvFile.copy();
-		subfile.setUnsaved(true);
-
-		subfile.setAuxElements(csvFile.getAuxElements().stream()
+		// aux elements
+		copy.setAuxElements(csvFile.getAuxElements().stream()
 				.filter(aux -> isInsideSelection(field, border, ((FoundPlace) aux).getLatLon()))
 				.collect(Collectors.toList()));
-		subfile.setTraces(sublist);
-		subfile.setGeoData(geoDataList);
-		subfile.updateInternalIndexes();
 
-		return List.of(subfile);
+		copy.updateInternalIndexes();
+
+		return List.of(copy);
 	}
 
 	private List<SgyFile> splitGprFile(SgyFile file, MapField field, List<Point2D> border) {

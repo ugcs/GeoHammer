@@ -187,7 +187,7 @@ public class ProfileView implements InitializingBean {
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (changed.isJustdraw() && currentFile != null
+		if (changed.isJustdraw() && currentFile != null && !(currentFile instanceof CsvFile)
 				&& model.getProfileField(currentFile) instanceof GPRChart gprChart) {
 			gprChart.updateScroll();
 			gprChart.repaintEvent();

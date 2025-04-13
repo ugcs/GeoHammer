@@ -265,6 +265,7 @@ public class SensorLineChart extends Chart {
         comboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             selectLineChart(newVal.series(), true);
             selectLineChart(oldVal.series(), false);
+            selectFile();
         });
 
         comboBox.setValue(seriesList.isEmpty() ? null : getNonEmptySeries(seriesList));

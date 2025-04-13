@@ -558,7 +558,7 @@ public class Model implements InitializingBean {
 	private String extractBaseGprFileName(String fileName) {
 		String gprFileNamePattern =  prefSettings.getSetting("general", "gpr_file_name_pattern");
 		if (gprFileNamePattern == null) {
-			gprFileNamePattern = "^(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-gpr_)\\d{3}\\.sgy$";
+			gprFileNamePattern = "^(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-gpr.*)_\\d{3}.*\\.sgy$";
 		}
 
 		Pattern regex = Pattern.compile(gprFileNamePattern);

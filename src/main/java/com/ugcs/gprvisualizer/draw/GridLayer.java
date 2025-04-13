@@ -192,12 +192,14 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 	 */
 	private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
 
-		var minValue = optionPane.getGriddingRangeSlider().isDisabled() ? null : (float) optionPane.getGriddingRangeSlider().getLowValue();
-		var maxValue = optionPane.getGriddingRangeSlider().isDisabled() ? null : (float) optionPane.getGriddingRangeSlider().getHighValue();
+		var chart = model.getChart(csvFile);
+		String sensor = chart.get().getSelectedSeriesName();
+
+		var savedGriddingRange = optionPane.getSavedGriddingRangeValues(sensor);
+		var minValue = (float) savedGriddingRange.lowValue();
+		var maxValue = (float) savedGriddingRange.highValue();
 
 		if (recalcGrid) {
-			var chart = model.getChart(csvFile);
-			String sensor = chart.get().getSelectedSeriesName();
 
 			var startFiltering = System.currentTimeMillis();
 
@@ -427,10 +429,6 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			recalcGrid = false;
 		}
 
-		if (minValue == null || maxValue == null) {
-			return;
-		}
-
 		System.out.println("Printing minValue = " + minValue + " maxValue = " + maxValue);
 		print(g2, field, minValue, maxValue);
 	}
@@ -643,8 +641,8 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		this.file = event.getFile() instanceof CsvFile ? (CsvFile) event.getFile() : null;
 		toAll = false;
 		recalcGrid = true;
-		//setActive(false);
-		//q.add();
+		setActive(false);
+		q.add();
 	}
 
 	@EventListener
@@ -652,13 +650,14 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		if (changed.isZoom() || changed.isWindowresized()
 				|| changed.isAdjusting()
 				|| changed.isMapscroll()
-				|| changed.isJustdraw()) {
-			//if (isActive()) {
-				//q.add();
-			//}
-		} else if (changed.isGriddingRangeChanged()) {
+				|| changed.isJustdraw()
+				|| changed.isGriddingRangeChanged()) {
 			if (isActive()) {
-				q.add();
+				if (!recalcGrid) {
+					q.add();
+				} else {
+					setActive(false);
+				}
 			}
 		} else if (changed.isCsvDataFiltered()) {
 			recalcGrid = true;

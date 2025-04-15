@@ -676,7 +676,7 @@ public class Model implements InitializingBean {
 				updateSelectedTraceOnChart(chart, focusOnTrace);
 			}
 			if (focusOnChart) {
-				selectAndScrollToChart(traceChart);
+				scrollToChart(traceChart);
 			}
 		});
 	}

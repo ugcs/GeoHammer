@@ -128,8 +128,17 @@ public class LeftRulerController {
 		}
 
 		@Override
+		public boolean isPointInside(Point2D localPoint, ScrollableData scrollableData) {
+			if (scrollableData instanceof GPRChart gprChart) {
+				Rectangle rect = getRect(gprChart.getField());
+				return rect.contains(localPoint.getX(), localPoint.getY());
+			}
+			return false;
+		}
+
+		@Override
 		public boolean mousePressHandle(Point2D localPoint, ScrollableData scrollableData) {
-			if (scrollableData instanceof GPRChart gprChart && (getRect(gprChart.getField()).contains(localPoint.getX(), localPoint.getY()))) {
+			if (isPointInside(localPoint, scrollableData)) {
 				nextConverter();
 				return true;
 			}

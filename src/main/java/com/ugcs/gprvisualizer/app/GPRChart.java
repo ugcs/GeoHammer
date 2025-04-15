@@ -472,8 +472,14 @@ public class GPRChart extends Chart {
     }
 
     private void drawFileNames(int height, Graphics2D g2) {
-
-        SgyFile currentFile = profileField.getSgyFileByTrace(getMiddleTrace());
+        SgyFile currentFile = null;
+        ClickPlace mark = model.getSelectedTrace(this);
+        if (mark != null) {
+            currentFile = mark.getTrace().getFile();
+        }
+        if (currentFile == null) {
+            currentFile = profileField.getSgyFileByTrace(getMiddleTrace());
+        }
 
         int selectedX1 = 0;
         int selectedX2 = 0;

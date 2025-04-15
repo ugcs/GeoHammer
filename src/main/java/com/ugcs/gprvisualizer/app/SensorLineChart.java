@@ -590,27 +590,21 @@ public class SensorLineChart extends Chart {
             throw new IllegalArgumentException("Invalid range specified.");
         }
 
-        if (data.stream()
-                .skip(lowerIndex)
-                .limit(upperIndex - lowerIndex)
-                .allMatch(Objects::isNull)) {
-            return new ArrayList<>();
-        }
-
         // Calculate the number of points to sample within the specified range
         int range = upperIndex - lowerIndex;
         int desiredNumberOfPoints = 2000;
         int actualNumberOfPoints = Math.min(desiredNumberOfPoints, range);
 
         List<Data<Number, Number>> subsample = new ArrayList<>(actualNumberOfPoints);
-
-        if (actualNumberOfPoints > 0) {
-            int step = Math.max(1, range / actualNumberOfPoints);
-            for (int i = lowerIndex; i < upperIndex; i += step) {
-                Number key = i;
-                if (filter != null && filter.contains(key))
-                    continue;
-                subsample.add(new Data<>(key, data.get(i)));
+        int step = Math.max(1, range / actualNumberOfPoints);
+        for (int i = lowerIndex; i < upperIndex; i += step) {
+            Number key = i;
+            if (filter != null && filter.contains(key)) {
+                continue;
+            }
+            Number value = data.get(i);
+            if (value != null) {
+                subsample.add(new Data<>(key, value));
             }
         }
 
@@ -622,9 +616,10 @@ public class SensorLineChart extends Chart {
         List<Data<Number, Number>> subsample = getSubsampleInRange(
                 plotData.data, lowerIndex, upperIndex, plotData.renderedIndices);
 
-        boolean allNulls = subsample.stream().allMatch(v -> Objects.isNull(v.getYValue()));
-        if (subsample.isEmpty() || allNulls) {
-            series.getData().add(new Data<>(0, 0));
+        if (subsample.isEmpty()) {
+            if (series.getData().isEmpty()) {
+                series.getData().add(new Data<>(0, 0));
+            }
         } else {
             series.getData().addAll(subsample);
         }
@@ -973,12 +968,12 @@ public class SensorLineChart extends Chart {
                 .sorted()
                 .boxed()
                 .toList();
-        int offset = (int)(0.01 * data.size());
+        int offset = (int)(0.01 * sorted.size());
         double min = !sorted.isEmpty()
-                ? sorted.get(Math.min(offset, sorted.size() - 1))
+                ? sorted.get(offset)
                 : 0.0;
         double max = !sorted.isEmpty()
-                ? sorted.get(Math.max(sorted.size() - 1 - offset, 0))
+                ? sorted.get(sorted.size() - 1 - offset)
                 : 0.0;
 
         semanticMinValues.put(semantic, min);

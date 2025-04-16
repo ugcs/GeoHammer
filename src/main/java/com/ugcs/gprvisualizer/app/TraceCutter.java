@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +20,7 @@ import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.FileNames;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import org.springframework.beans.factory.InitializingBean;
@@ -282,7 +284,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		if (file instanceof CsvFile csvFile) {
 			splitCsvTrace(csvFile, splitIndex);
 		} else if (file instanceof GprFile gprFile) {
-			// TODO GPR split not supported
+			splitGprTrace(gprFile, splitIndex);
 		}
 
 		buttonUndo.setDisable(false);
@@ -330,14 +332,9 @@ public class TraceCutter implements Layer, InitializingBean {
 		return inside(p, border);
 	}
 
-	private SgyFile generateSgyFileFrom(SgyFile sourceFile, List<Trace> traces, int part) {
-		return generateSgyFileFrom(sourceFile, traces, new ArrayList<>(), part);
-	}
-
-	private SgyFile generateSgyFileFrom(SgyFile sourceFile, List<Trace> traces, List<GeoData> geoDataList, int part) {
-
+	private SgyFile generateSgyFileFrom(SgyFile sourceFile, List<Trace> traces, String partSuffix) {
 		SgyFile copy = sourceFile.copyHeader();
-		copy.setFile(getPartFile(sourceFile, part, sourceFile.getFile().getParentFile()));
+		copy.setFile(getPartFile(sourceFile, partSuffix, sourceFile.getFile().getParentFile()));
 		copy.setUnsaved(true);
 
 		// copy traces
@@ -363,16 +360,14 @@ public class TraceCutter implements Layer, InitializingBean {
 		return copy;
 	}
 
-	private File getPartFile(SgyFile file, int part, File nfolder) {
-		File nfile;
-		String name = file.getFile().getName();
-		int pos = name.lastIndexOf(".");
-		String onlyname = name.substring(0, pos);
-		String spart = String.format("%03d", part);
-		nfile = new File(nfolder, onlyname + "_" + spart + name.substring(pos));
-		return nfile;
+	private File getPartFile(SgyFile file, String partSuffix, File folder) {
+		String fileName = file.getFile().getName();
+		String baseName = FileNames.removeExtension(fileName);
+		String extension = FileNames.getExtension(fileName);
+
+		return new File(folder, baseName + "_" + partSuffix + "." + extension);
 	}
-	
+
 	private List<SgyFile> splitFile(SgyFile file, MapField field, List<Point2D> border) {
 		if(file instanceof CsvFile) {
 			return splitCsvFile((CsvFile)file, field, border);
@@ -458,8 +453,9 @@ public class TraceCutter implements Layer, InitializingBean {
 			} else {
 				if (!sublist.isEmpty()) {
 					if (isGoodForFile(sublist)) { //filter too small files
+						String partSuffix = String.format("%03d", part++);
 						SgyFile subfile = generateSgyFileFrom(
-								file, sublist, part++);
+								file, sublist, partSuffix);
 						splitList.add(subfile);
 					}
 					sublist = new ArrayList<>();
@@ -469,7 +465,8 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		//for last
 		if (isGoodForFile(sublist)) {
-			SgyFile subfile = generateSgyFileFrom(file, sublist, part++);
+			String partSuffix = String.format("%03d", part);
+			SgyFile subfile = generateSgyFileFrom(file, sublist, partSuffix);
 			splitList.add(subfile);
 		}
 
@@ -553,6 +550,73 @@ public class TraceCutter implements Layer, InitializingBean {
 		model.init();
 		model.initField();
 
+		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+	}
+
+	private void splitGprTrace(GprFile gprFile, int splitIndex) {
+		Check.notNull(gprFile);
+		Check.condition(splitIndex >= 0);
+
+		// list of new/updated files
+		List<SgyFile> generated = new ArrayList<>();
+		// list of obsolete chart files that should be closed
+		List<SgyFile> obsolete = new ArrayList<>();
+
+		// reload tail to the chart
+		Chart chart = model.getFileChart(gprFile);
+		Check.notNull(chart);
+
+		List<SgyFile> chartFiles = new ArrayList<>(chart.getFiles());
+		chartFiles.sort(Comparator.comparing(f -> f.getFile().getName()));
+
+		boolean isTail = false;
+		for (SgyFile file : chartFiles) {
+			boolean isSplitFile = file.equals(gprFile);
+			if (isSplitFile) {
+				isTail = true;
+			}
+			if (isTail) {
+				obsolete.add(file);
+				if (!isSplitFile) {
+					// reload all files except current as is
+					generated.add(file);
+				}
+			}
+		}
+
+		List<Trace> traces = gprFile.getTraces();
+		boolean hasPartSuffix = FileNames.hasGprPartSuffix(
+				gprFile.getFile().getName());
+		SgyFile part1 = generateSgyFileFrom(
+				gprFile,
+				traces.subList(0, splitIndex),
+				hasPartSuffix ? "1" : "001");
+		generated.add(part1);
+		SgyFile part2 = generateSgyFileFrom(
+				gprFile,
+				traces.subList(splitIndex, traces.size()),
+				hasPartSuffix ? "2" : "002");
+		generated.add(part2);
+
+		generated.sort(Comparator.comparing(f -> f.getFile().getName()));
+
+		// clear selection
+		model.clearSelectedTrace(chart);
+
+		// refresh chart
+		for (SgyFile file : obsolete) {
+			model.getFileManager().removeFile(file);
+			model.publishEvent(new FileClosedEvent(this, file));
+		}
+		for (SgyFile file : generated) {
+			model.getFileManager().addFile(file);
+		}
+		model.publishEvent(new FileOpenedEvent(this,
+				generated.stream().map(SgyFile::getFile).toList()));
+
+		// update model
+		model.init();
+		model.initField();
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 	}
 
@@ -677,9 +741,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	private void updateSplit() {
 		ClickPlace mark = model.getSelectedTraceInCurrentChart();
-		boolean canSplit = mark != null
-				&& mark.getTrace().getFile() instanceof CsvFile;
-		buttonSplit.setDisable(!canSplit);
+		buttonSplit.setDisable(mark == null);
 	}
 
 	public RepaintListener getListener() {

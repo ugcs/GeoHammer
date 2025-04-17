@@ -459,6 +459,14 @@ public class Model implements InitializingBean {
 		return selectedDataNode;   
 	}
 
+	public boolean isChartSelected(FileDataContainer fileDataContainer) {
+		if (fileDataContainer == null) {
+			return false;
+		}
+		Node root = fileDataContainer.getRootNode();
+		return root != null && root.equals(selectedDataNode);
+	}
+
 	public boolean selectChart(FileDataContainer fileDataContainer) {
 		Node node = fileDataContainer.getRootNode();
 
@@ -657,6 +665,8 @@ public class Model implements InitializingBean {
 		selectedTraces.add(toClickPlace(trace, true));
 
 		Chart traceChart = getFileChart(trace.getFile());
+		boolean traceOnSelectedChart = isChartSelected(traceChart);
+
 		for (Chart chart : getAllFileCharts()) {
 			if (Objects.equals(chart, traceChart)) {
 				continue;
@@ -667,16 +677,22 @@ public class Model implements InitializingBean {
 					traceLookupThreshold);
 			if (nearestInChart != null) {
 				selectedTraces.add(toClickPlace(nearestInChart, false));
+				traceOnSelectedChart = traceOnSelectedChart || isChartSelected(chart);
 			}
 		}
 
+		boolean keepSelection = traceOnSelectedChart;
 		Platform.runLater(() -> {
 			for (Chart chart : getAllFileCharts()) {
 				boolean focusOnTrace = focusOnChart || !Objects.equals(chart, traceChart);
 				updateSelectedTraceOnChart(chart, focusOnTrace);
 			}
 			if (focusOnChart) {
-				scrollToChart(traceChart);
+				if (keepSelection) {
+					scrollToChart(traceChart);
+				} else {
+					selectAndScrollToChart(traceChart);
+				}
 			}
 		});
 	}

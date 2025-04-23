@@ -226,13 +226,10 @@ public class GprFile extends SgyFile {
 				|| Math.abs(lat) < 0.0001 
 				|| Math.abs(lon) > 18000 
 				|| Math.abs(lat) > 18000) {
-		
-			return null;
+			// try handle source coordinates as scaled integers
+			return getScaledSourceLatLon(header);
 		}
 
-		
-		// prism: 65.3063232422°N 40.0569335938°W
-		// 65.3063232421875 -40.05693359375
 		double rlon = convertDegreeFraction(lon);
 		double rlat = convertDegreeFraction(lat);
 		
@@ -243,7 +240,33 @@ public class GprFile extends SgyFile {
 		if (v1 != null && Math.abs(v1) > 0.01) {
 			return v1;
 		}
-		return v2;
+		return v2 != null ? v2.doubleValue() : 0;
+	}
+
+	private LatLon getScaledSourceLatLon(TraceHeader header) {
+		Float sourceX = header.getSourceX();
+		Float sourceY = header.getSourceY();
+		if (sourceX == null || sourceY == null) {
+			return null;
+		}
+
+		// scaled arc seconds as integers
+		int x = Float.floatToIntBits(sourceX);
+		int y = Float.floatToIntBits(sourceY);
+
+		double k = 1.0;
+		Short scalar = header.getScalarForCoordinates();
+		if (scalar != null) {
+			k = scalar >= 0 ? scalar : 1.0 / -scalar;
+		}
+
+		// apply scale factor and convert to degrees
+		double lon = k * x / 3600.0;
+		double lat = k * y / 3600.0;
+
+		return LatLon.isValidLatitude(lat) && LatLon.isValidLongitude(lon)
+				? new LatLon(lat, lon)
+				: null;
 	}
 
 	private List<Trace> loadTraces(BinFile binFile) {

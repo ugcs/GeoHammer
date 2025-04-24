@@ -54,12 +54,6 @@ public class Trace {
         this.file = file;
     }
 
-    private Trace(SgyFile file, byte[] binHeader, TraceHeader header) {
-        this.file = file;
-        this.binHeader = binHeader;
-        this.header = header;
-    }
-
     public Trace(SgyFile file, byte[] binHeader, TraceHeader header, float[] originalvalues, LatLon latLon) {
         
     	this.file = file;
@@ -73,50 +67,6 @@ public class Trace {
         this.edge = new byte[originalvalues.length];
     }
 
-    public Trace copy() {
-        return copy(file);
-    }
-
-    public Trace copy(SgyFile newFile) {
-        byte[] newBinHeader = null;
-        TraceHeader newHeader = null;
-        if (binHeader != null) {
-            newBinHeader = Arrays.copyOf(binHeader, binHeader.length);
-            newHeader = GprFile.traceHeaderReader.read(newBinHeader);
-        }
-        Trace copy = new Trace(newFile, newBinHeader, newHeader);
-
-        if (originalvalues != null) {
-            copy.originalvalues = Arrays.copyOf(originalvalues, originalvalues.length);
-        }
-        if (normvalues != null) {
-            copy.normvalues = Arrays.copyOf(normvalues, normvalues.length);
-        }
-        if (latLon != null) {
-            copy.latLon = new LatLon(latLon.getLatDgr(), latLon.getLonDgr());
-        }
-        if (latLonOrigin != null) {
-            copy.latLonOrigin = new LatLon(latLonOrigin.getLatDgr(), latLonOrigin.getLonDgr());;
-        }
-        copy.end = end;
-        copy.marked = marked;
-        copy.prevDist = prevDist;
-        copy.maxindex = maxindex;
-        copy.verticalOffset = verticalOffset;
-        copy.indexInFile = indexInFile;
-        copy.indexInSet = indexInSet;
-        if (good != null) {
-            copy.good = Arrays.copyOf(good, good.length);
-        }
-        if (edge != null) {
-            copy.edge = Arrays.copyOf(edge, edge.length);
-        }
-        if (max != null) {
-            copy.max = new HashSet<>(max);
-        }
-        return copy;
-    }
-    
     public TraceHeader getHeader() {
         return header;
     }

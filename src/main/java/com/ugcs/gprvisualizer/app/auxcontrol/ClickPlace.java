@@ -39,10 +39,7 @@ public class ClickPlace extends BaseObjectImpl { //, MouseHandler {
 	
 	private final Trace trace;
 
-	private final SgyFile file;
-
-	public ClickPlace(SgyFile file, Trace trace) {
-		this.file = file;
+	public ClickPlace(Trace trace) {
 		this.trace = trace;
 	}
 
@@ -57,8 +54,8 @@ public class ClickPlace extends BaseObjectImpl { //, MouseHandler {
 
 	@Override
 	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
-		ClickPlace result = new ClickPlace(file, trace); 	
-		return result;
+		Trace newTrace = trace.getFile().getTraces().get(trace.getIndexInFile() - traceoffset);
+		return new ClickPlace(newTrace);
 	}
 
 	@Override
@@ -76,7 +73,7 @@ public class ClickPlace extends BaseObjectImpl { //, MouseHandler {
 
 	@Override
 	public void drawOnCut(Graphics2D g2, ScrollableData scrollableData) {
-		if (file instanceof CsvFile) {
+		if (trace.getFile() instanceof CsvFile) {
 			return;
 		}
 

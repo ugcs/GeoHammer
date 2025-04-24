@@ -71,7 +71,7 @@ public class GprFile extends SgyFile {
 		
 		setTraces(loadTraces(binFile));
 		
-		updateInternalIndexes();
+		updateTraces();
 		
 		markToAux();		
 		

@@ -4,6 +4,9 @@ import com.github.thecoldwine.sigrun.common.TraceHeader;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
+import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
+import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -102,17 +105,40 @@ public class SampleCutter {
         copy.setTraces(cropTraces);
         copy.getSampleNormalizer().normalize(cropTraces);
 
-        copy.updateInternalIndexes();
+        copy.updateTraces();
         copy.updateInternalDist();
 
         // copy aux elements
         if (!traces.isEmpty()) {
-            int begin = traces.getFirst().getIndexInFile();
-            int end = traces.getLast().getIndexInFile();
-            copy.setAuxElements(TraceCutter.copyAuxObjects(gprFile, copy, begin, end));
+            copy.setAuxElements(copyAuxElements(gprFile, copy));
         }
 
         return copy;
+    }
+
+    public List<BaseObject> copyAuxElements(SgyFile file, SgyFile target) {
+        List<Trace> traces = file.getTraces();
+        int begin = traces.getFirst().getIndexInFile();
+
+        List<BaseObject> auxElements = new ArrayList<>();
+        for (BaseObject auxElement : file.getAuxElements()) {
+            BaseObject copy;
+            if (auxElement instanceof ClickPlace clickPlace) {
+                Trace trace = clickPlace.getTrace();
+                Trace targetTrace = target.getTraces().get(trace.getIndexInFile() - begin);
+                copy = new ClickPlace(targetTrace);
+            } else if (auxElement instanceof FoundPlace foundPlace) {
+                Trace trace = foundPlace.getTrace();
+                Trace targetTrace = target.getTraces().get(trace.getIndexInFile() - begin);
+                copy = new FoundPlace(targetTrace, target.getOffset(), model);
+            } else {
+                copy = auxElement.copy(begin, target.getOffset());
+            }
+            if (copy != null) {
+                auxElements.add(copy);
+            }
+        }
+        return auxElements;
     }
 
     private void setNumSamlpes(byte[] binTraceHeader, int numSamples) {

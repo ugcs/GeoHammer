@@ -9,7 +9,7 @@ public class GainTopSlider extends BaseSlider {
 	public GainTopSlider(Settings settings, ChangeListener<Number> listenerExt) {
 		super(settings, listenerExt);
 		
-		name = "gain top";
+		name = "Top gain";
 		units = "%";
 		tickUnits = 200;
 	}

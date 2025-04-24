@@ -8,7 +8,7 @@ public class ThresholdSlider  extends BaseSlider {
 	
 	public ThresholdSlider(Settings settings, ChangeListener<Number> listenerExt) {
 		super(settings, listenerExt);
-		name = "threshold";
+		name = "Threshold";
 		units = "";
 		tickUnits = 200;
 	}

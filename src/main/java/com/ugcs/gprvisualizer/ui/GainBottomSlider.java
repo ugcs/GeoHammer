@@ -8,7 +8,7 @@ public class GainBottomSlider extends BaseSlider {
 
 	public GainBottomSlider(Settings settings, ChangeListener<Number> listenerExt) {
 		super(settings, listenerExt);
-		name = "gain bottom";
+		name = "Bottom gain";
 		units = "%";
 		tickUnits = 200;
 	}

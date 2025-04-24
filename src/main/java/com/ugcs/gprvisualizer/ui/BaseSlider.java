@@ -5,11 +5,12 @@ import com.ugcs.gprvisualizer.gpr.Settings;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 public abstract class BaseSlider {
 
@@ -48,16 +49,21 @@ public abstract class BaseSlider {
         slider.setShowTickMarks(true);
         slider.setMajorTickUnit(tickUnits);
         slider.setBlockIncrement(1);
- 
+
         label = new Label(name);
         
         listener.changed(null, null, null);
         
         HBox root = new HBox();
-        root.setAlignment(Pos.CENTER_RIGHT);
-        root.setPadding(new Insets(5));
-        root.setSpacing(5);        
-        root.getChildren().addAll(label, slider);
+        root.setPadding(new Insets(4, 8, 4, 0));
+        root.setSpacing(2.5);
+        root.setPrefWidth(Double.MAX_VALUE);
+
+        Region spacer = new Region();
+        spacer.setMinWidth(0);
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        root.getChildren().addAll(label, spacer, slider);
         
         updateUI();
         return root;

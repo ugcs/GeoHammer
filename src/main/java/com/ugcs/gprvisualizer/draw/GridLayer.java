@@ -5,28 +5,24 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.ugcs.gprvisualizer.app.MapView;
 import com.ugcs.gprvisualizer.app.OptionPane;
+import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.IDWInterpolator;
 import edu.mines.jtk.interp.SplinesGridder2;
-import javafx.application.Platform;
 import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.index.kdtree.KdNode;
 import org.locationtech.jts.index.kdtree.KdTree;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -40,19 +36,19 @@ import javafx.event.EventHandler;
 
 /**
  * Layer responsible for grid visualization of GPR data.
- * 
+ * <p>
  * This implementation supports two interpolation methods:
  * 1. Splines interpolation (default):
- *    - Uses SplinesGridder2 with high tension (0.9999f)
- *    - Suitable for dense, regular data
- *    - Works well with small to medium cell sizes
- * 
+ * - Uses SplinesGridder2 with high tension (0.9999f)
+ * - Suitable for dense, regular data
+ * - Works well with small to medium cell sizes
+ * <p>
  * 2. IDW (Inverse Distance Weighting):
- *    - Better handling of large cell sizes
- *    - Prevents artifacts in sparse data areas
- *    - Adaptive search radius based on data density
- *    - Configurable power parameter for distance weighting
- * 
+ * - Better handling of large cell sizes
+ * - Prevents artifacts in sparse data areas
+ * - Adaptive search radius based on data density
+ * - Configurable power parameter for distance weighting
+ * <p>
  * The interpolation method can be selected through GriddingParamsSetted event.
  * For large cell sizes or irregular data distribution, IDW is recommended
  * to avoid interpolation artifacts.
@@ -61,9 +57,7 @@ import javafx.event.EventHandler;
 public class GridLayer extends BaseLayer implements InitializingBean {
 
 	private final Model model;
-
 	private final MapView mapView;
-
 	private final OptionPane optionPane;
 
 	public GridLayer(Model model, MapView mapView, OptionPane optionPane) {
@@ -77,13 +71,13 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		public void handle(ActionEvent event) {
 			System.out.println("showMapListener: " + event);
 			setActive(optionPane.getGridding().isSelected());
-			getRepaintListener().repaint();				
+			getRepaintListener().repaint();
 		}
 	};
 
 	private ThrQueue q;
 
-	private CsvFile file;
+	private CsvFile currentFile;
 	private double cellSize;
 	private double blankingDistance;
 	private GriddingParamsSetted currentParams;
@@ -126,13 +120,8 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 
 	public void drawOnMapField(Graphics2D g2, MapField field) {
 		if (isActive()) {
-			if (recalcGrid) {
-				//setActive(false);
-				//getRepaintListener().repaint();
-			}
-
-			if (file != null && cellSize != 0 && blankingDistance != 0) {
-				drawFileOnMapField(g2, field, file);
+			if (currentFile != null && cellSize != 0 && blankingDistance != 0) {
+				drawFileOnMapField(g2, field, currentFile);
 			}
 			setActive(isActive() && optionPane.getGridding().isSelected());
 		}
@@ -172,39 +161,81 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		return new Color((float) color.getRed(), (float) color.getGreen(), (float) color.getBlue(), (float) color.getOpacity());
 	}
 
-	private List<DataPoint> dataPoints;
-	private LatLon minLatLon;
-	private LatLon maxLatLon;
-	private float[][] gridData;
+	// Map to store gridding results for each file
+	private final Map<CsvFile, GriddingResult> griddingResults = new LinkedHashMap<>();
+
+	// Class to store gridding result for a file
+	private static class GriddingResult {
+		private final float[][] gridData;
+		private final LatLon minLatLon;
+		private final LatLon maxLatLon;
+		private final double cellSize;
+		private final double blankingDistance;
+		private Float minValue;
+		private Float maxValue;
+		private final String sensor;
+
+		public GriddingResult(float[][] gridData, LatLon minLatLon, LatLon maxLatLon, double cellSize, double blankingDistance, Float minValue, Float maxValue, String sensor) {
+			// Deep clone the gridData array to avoid reference issues
+			this.gridData = new float[gridData.length][];
+			this.sensor = sensor;
+			for (int i = 0; i < gridData.length; i++) {
+				this.gridData[i] = gridData[i].clone();
+			}
+			this.minLatLon = minLatLon;
+			this.maxLatLon = maxLatLon;
+			this.cellSize = cellSize;
+			this.blankingDistance = blankingDistance;
+			this.minValue = minValue;
+			this.maxValue = maxValue;
+		}
+
+		public void setMinValue(float minValue) {
+			this.minValue = minValue;
+		}
+
+		public void setMaxValue(float maxValue) {
+			this.maxValue = maxValue;
+		}
+	}
 
 	/**
 	 * Draws the grid visualization for a given file on the map field.
-	 * 
+	 * <p>
 	 * The method performs the following steps:
 	 * 1. Collects data points from the file
 	 * 2. Creates a grid based on cell size
 	 * 3. Interpolates missing values using either:
-	 *    - IDW interpolation (for large cell sizes)
-	 *    - Splines interpolation (for small/medium cell sizes)
+	 * - IDW interpolation (for large cell sizes)
+	 * - Splines interpolation (for small/medium cell sizes)
 	 * 4. Renders the interpolated grid
-	 * 
+	 * <p>
 	 * The interpolation method is selected based on GriddingParamsSetted configuration.
+	 * <p>
+	 * For the current file, new minValue and maxValue are applied.
+	 * For other files, stored minValue and maxValue are used to ensure
+	 * they are displayed without changes from the previous application.
 	 */
 	private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
 
 		var chart = model.getChart(csvFile);
 		String sensor = chart.get().getSelectedSeriesName();
 
-		var savedGriddingRange = optionPane.getSavedGriddingRangeValues(sensor);
+		var savedGriddingRange = optionPane.getSavedGriddingRangeValues(chart.toString() + sensor);
 		var minValue = (float) savedGriddingRange.lowValue();
 		var maxValue = (float) savedGriddingRange.highValue();
 
-		if (recalcGrid) {
+		// Check if we have stored results for this file and if we need to recalculate
+		GriddingResult storedResult = griddingResults.get(csvFile);
+		boolean useStoredResult = !recalcGrid && storedResult != null &&
+				storedResult.cellSize == cellSize && storedResult.blankingDistance == blankingDistance;
+
+	if (recalcGrid) {
 
 			var startFiltering = System.currentTimeMillis();
 
-			dataPoints = new ArrayList<>();
-			for(CsvFile csvFile1: model.getFileManager().getCsvFiles().stream().map(f -> (CsvFile)f).filter(f ->
+			List<DataPoint> dataPoints = new ArrayList<>();
+			for (CsvFile csvFile1 : model.getFileManager().getCsvFiles().stream().map(f -> (CsvFile) f).filter(f ->
 					toAll ? f.isSameTemplate(csvFile) : f.equals(csvFile)).toList()) {
 				dataPoints.addAll(getDataPoints(csvFile1, sensor));
 			}
@@ -218,8 +249,9 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			double maxLon = dataPoints.stream().mapToDouble(DataPoint::longitude).max().orElseThrow();
 			double minLat = dataPoints.stream().mapToDouble(DataPoint::latitude).min().orElseThrow();
 			double maxLat = dataPoints.stream().mapToDouble(DataPoint::latitude).max().orElseThrow();
-			minLatLon = new LatLon(minLat, minLon);
-			maxLatLon = new LatLon(maxLat, maxLon);
+
+			var minLatLon = new LatLon(minLat, minLon);
+			var maxLatLon = new LatLon(maxLat, maxLon);
 
 			List<Double> valuesList = new ArrayList<>(dataPoints.stream().map(p -> p.value).toList());
 			var median = calculateMedian(valuesList);
@@ -238,7 +270,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			double lonStep = (maxLon - minLon) / gridSizeX;
 			double latStep = (maxLat - minLat) / gridSizeY;
 
-			gridData = new float[gridSizeX][gridSizeY];
+			var gridData = new float[gridSizeX][gridSizeY];
 
 			boolean[][] m = new boolean[gridSizeX][gridSizeY];
 			for (int i = 0; i < gridSizeX; i++) {
@@ -269,8 +301,8 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 					gridData[xIndex][yIndex] = (float) medianValue;
 					m[xIndex][yIndex] = false;
 
-					for (int dx = -(int)gridBDx; dx <= gridBDx; dx++) {
-						for (int dy = -(int)gridBDy; dy <= gridBDy; dy++) {
+					for (int dx = -(int) gridBDx; dx <= gridBDx; dx++) {
+						for (int dy = -(int) gridBDy; dy <= gridBDy; dy++) {
 							int nx = xIndex + dx;
 							int ny = yIndex + dy;
 							if (nx >= 0 && nx < gridSizeX && ny >= 0 && ny < gridSizeY) {
@@ -328,7 +360,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 					//gridData[i][j] = (float) average;//Float.NaN;
 
 					//if (neighbors.isEmpty()) {
-						//gridData[i][j] = (float) average;//Float.NaN;
+					//gridData[i][j] = (float) average;//Float.NaN;
 					//	m[i][j] = false;
 					//	count++;
 					//}
@@ -357,11 +389,11 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 
 				// Initialize IDW interpolator with configured parameters
 				var idwInterpolator = new IDWInterpolator(
-					kdTree,
-					currentParams.getIdwPower(),
-					currentParams.getIdwMinPoints(),
-					cellSize * 2, // max search radius
-					cellSize     // initial search radius
+						kdTree,
+						currentParams.getIdwPower(),
+						currentParams.getIdwMinPoints(),
+						cellSize * 2, // max search radius
+						cellSize     // initial search radius
 				);
 
 				// Interpolate missing values using IDW
@@ -417,20 +449,38 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 					//	gridData[i][j] = Float.NaN;
 					//} else {
 					//	var delta = 1;
-						//List<KdNode> neighbors = kdTree.query(new Envelope(lon - delta*lonStepBD, lon + delta*lonStepBD, lat - delta * latStepBD, lat + delta * latStepBD)); // maxNeighbors);
-						//if (neighbors.isEmpty()) {
-						//	gridData[i][j] = Float.NaN;
-						//count++;
-						//}
+					//List<KdNode> neighbors = kdTree.query(new Envelope(lon - delta*lonStepBD, lon + delta*lonStepBD, lat - delta * latStepBD, lat + delta * latStepBD)); // maxNeighbors);
+					//if (neighbors.isEmpty()) {
+					//	gridData[i][j] = Float.NaN;
+					//count++;
+					//}
 					//}
 				}
 			}
 
+			griddingResults.remove(csvFile);
+			// Store the gridding result for this file
+			griddingResults.put(csvFile, new GriddingResult(
+					gridData, // Deep cloning is done in the constructor
+					minLatLon,
+					maxLatLon,
+					cellSize,
+					blankingDistance,
+					minValue,
+					maxValue,
+					sensor
+			));
+
 			recalcGrid = false;
 		}
 
-		System.out.println("Printing minValue = " + minValue + " maxValue = " + maxValue);
-		print(g2, field, minValue, maxValue);
+		for (var griddingResultEntry : griddingResults.entrySet()) {
+			if (griddingResultEntry.getKey().equals(currentFile) && griddingResultEntry.getValue().sensor.equals(sensor)) {
+				griddingResultEntry.getValue().setMinValue(minValue);
+				griddingResultEntry.getValue().setMaxValue(maxValue);
+			}
+			print(g2, field, griddingResultEntry.getValue());
+		}
 	}
 
 
@@ -514,7 +564,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 				List<Integer> keepIndices = new ArrayList<>();
 				double step = (double) (count - 1) / (minRowTrue - 1);
 				for (int k = 0; k < minRowTrue; k++) {
-					int index = trueIndices.get((int)Math.round(k * step));
+					int index = trueIndices.get((int) Math.round(k * step));
 					keepIndices.add(index);
 				}
 				for (int j = 0; j < cols; j++) {
@@ -539,7 +589,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 				List<Integer> keepIndices = new ArrayList<>();
 				double step = (double) (count - 1) / (minColTrue - 1);
 				for (int k = 0; k < minColTrue; k++) {
-					int index = trueIndices.get((int)Math.round(k * step));
+					int index = trueIndices.get((int) Math.round(k * step));
 					keepIndices.add(index);
 				}
 				for (int i = 0; i < rows; i++) {
@@ -553,7 +603,16 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		return result;
 	}
 
-	private void print(Graphics2D g2, MapField field, Float minValue, Float maxValue) {
+	private void print(Graphics2D g2, MapField field, GriddingResult gr) {
+
+		Float minValue = gr.minValue;
+		Float maxValue = gr.maxValue;
+		System.out.println("Printing minValue = " + minValue + " maxValue = " + maxValue);
+
+		var gridData = gr.gridData;
+		var minLatLon = gr.minLatLon;
+		var maxLatLon = gr.maxLatLon;
+
 		int gridSizeX = gridData.length;
 		int gridSizeY = gridData[0].length;
 
@@ -606,14 +665,14 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 	}
 
 	private static boolean isInBlankingDistanceToKnownPoints(double lat, double lon, List<DataPoint> knownPoints, double blankingDistance) {
-        for (DataPoint point : knownPoints) {
-            double distance = CoordinatesMath.measure(lat, lon, point.latitude, point.longitude);
-            if (distance <= blankingDistance) {
-                return true;
-            }
-        }
-        return false;
-    }    
+		for (DataPoint point : knownPoints) {
+			double distance = CoordinatesMath.measure(lat, lon, point.latitude, point.longitude);
+			if (distance <= blankingDistance) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	private static List<DataPoint> getMedianValues(List<DataPoint> dataPoints) {
 		Map<String, List<Double>> dataMap = new HashMap<>();
@@ -638,11 +697,32 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 
 	@EventListener
 	public void handleFileSelectedEvent(FileSelectedEvent event) {
-		this.file = event.getFile() instanceof CsvFile ? (CsvFile) event.getFile() : null;
-		toAll = false;
-		recalcGrid = true;
-		setActive(false);
-		q.add();
+		this.currentFile = event.getFile() instanceof CsvFile ? (CsvFile) event.getFile() : null;
+		//toAll = false;
+		// Don't recalculate grid when file is selected, use stored results if available
+		//recalcGrid = false;
+
+		// Only clear the grid (setActive(false)) when a file is closed (this.file is null)
+		// This ensures the grid is not cleared when switching between files
+		//if (this.file == null) {
+		//	setActive(false);
+		//}
+
+		//q.add();
+	}
+
+	@EventListener
+	private void handleFileClosedEvent(FileClosedEvent event) {
+		if (event.getSgyFile() instanceof CsvFile csvFile) {
+			var gr = griddingResults.remove(csvFile);
+			if (gr != null) {
+				griddingResults.entrySet().stream().filter(e -> e.getValue()
+								.equals(gr))
+						.map(e -> e.getKey())
+						.forEach(k -> griddingResults.remove(k));
+				q.add();
+			}
+		}
 	}
 
 	@EventListener
@@ -662,22 +742,19 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		} else if (changed.isCsvDataFiltered()) {
 			recalcGrid = true;
 			q.add();
-		} else if (changed.isTraceCut()) {
-			recalcGrid = true;
-			setActive(false);
 		}
 	}
 
 	/**
 	 * Handles grid parameter updates from the UI.
-	 * 
+	 * <p>
 	 * Updates include:
 	 * - Cell size for grid resolution
 	 * - Blanking distance for data filtering
 	 * - Interpolation method selection
 	 * - IDW-specific parameters (when IDW is selected)
-	 * 
-	 * Triggers grid recalculation when parameters change.
+	 * <p>
+	 * Triggers grid recalculation only when explicitly requested through the UI.
 	 */
 	@EventListener(GriddingParamsSetted.class)
 	private void gridParamsSetted(GriddingParamsSetted griddingParamsSetted) {
@@ -685,7 +762,11 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		cellSize = griddingParamsSetted.getCellSize();
 		blankingDistance = griddingParamsSetted.getBlankingDistance();
 		toAll = griddingParamsSetted.isToAll();
+
+		// Only recalculate grid when explicitly requested through the UI
+		// This is triggered by the "Apply" or "Apply to all" buttons
 		recalcGrid = true;
+
 		setActive(true);
 		q.add();
 	}

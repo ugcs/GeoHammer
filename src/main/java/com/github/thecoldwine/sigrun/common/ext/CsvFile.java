@@ -6,11 +6,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -25,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.parcers.SensorValue;
 import com.ugcs.gprvisualizer.app.parcers.csv.CSVParsersFactory;
 import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
@@ -246,8 +242,8 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public void updateInternalIndexes() {
-        super.updateInternalIndexes();
+    public void updateTraces() {
+        super.updateTraces();
         for (int i = 0; i < Math.min(getGeoData().size(), getTraces().size()); i++) {
             getGeoData().get(i).setTraceNumber(i);
         }

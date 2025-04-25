@@ -16,7 +16,6 @@ import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.yaml.Template;
-import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
@@ -349,7 +348,7 @@ public class SensorLineChart extends Chart {
                                 for(GeoData geoData: file.getGeoData()) {
                                     if (geoData.getLine().data() != null && geoData.getLine().data().intValue() != currentYValue) {
                                         Trace trace = file.getTraces().get(geoData.getTraceNumber());
-                                        traces.add(trace.copy(copy));
+                                        traces.add(trace);
                                         GeoData gd = new GeoData(geoData);
                                         if (geoData.getLine().data().intValue() > currentYValue) {
                                             gd.setLineIndex(gd.getLine().data().intValue() - 1);
@@ -364,7 +363,7 @@ public class SensorLineChart extends Chart {
                                 copy.setTraces(traces);
                                 copy.setGeoData(geoDataLinesList);
                                 copy.setAuxElements(auxElements);
-                                copy.updateInternalIndexes();
+                                copy.updateTraces();
 
                                 model.clearSelectedTrace(this);
                                 model.getFileManager().removeFile(file);

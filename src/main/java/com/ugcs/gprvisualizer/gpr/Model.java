@@ -698,7 +698,7 @@ public class Model implements InitializingBean {
 	}
 
 	private ClickPlace toClickPlace(Trace trace, boolean selected) {
-		ClickPlace clickPlace = new ClickPlace(trace.getFile(), trace);
+		ClickPlace clickPlace = new ClickPlace(trace);
 		clickPlace.setSelected(selected);
 		return clickPlace;
 	}

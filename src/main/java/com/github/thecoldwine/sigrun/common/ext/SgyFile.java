@@ -79,10 +79,12 @@ public abstract class SgyFile {
 		}
 	}
 	
-	public void updateInternalIndexes() {
+	public void updateTraces() {
 		for (int i = 0; i < traces.size(); i++) {
-			traces.get(i).setIndexInFile(i);
-			traces.get(i).setEnd(false);			
+			Trace trace = traces.get(i);
+			trace.setFile(this);
+			trace.setIndexInFile(i);
+			trace.setEnd(false);
 		}
 		
 		if (!traces.isEmpty()) {

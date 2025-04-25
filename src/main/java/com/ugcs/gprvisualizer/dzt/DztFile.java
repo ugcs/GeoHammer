@@ -121,7 +121,7 @@ public class DztFile extends SgyFile {
 //		System.out.println(" sgyFile.SamplesToCmAir: " + getSamplesToCmAir());
 //		System.out.println(" sgyFile.SamplesToCmGrn: " + getSamplesToCmGrn());
 //		
-		updateInternalIndexes();
+		updateTraces();
 		
 		markToAux();		
 		

@@ -201,11 +201,8 @@ public class FoundPlace extends BaseObjectImpl { //, MouseHandler {
 
 	@Override
 	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
-		FoundPlace result = new FoundPlace(
-				traceInFile.getFile().getTraces().get(traceInFile.getIndexInFile() - traceoffset),
-				verticalCutPart,
-				model);
-		return result;
+		Trace newTrace = traceInFile.getFile().getTraces().get(traceInFile.getIndexInFile() - traceoffset);
+		return new FoundPlace(newTrace, verticalCutPart, model);
 	}
 
 	@Override

@@ -84,7 +84,7 @@ public class LevelGround implements Command {
 		
 		sgyFile.setGroundProfile(sourceFile.getGroundProfile());
 
-		sgyFile.updateInternalIndexes();
+		sgyFile.updateTraces();
 		return sgyFile;
 	}
 

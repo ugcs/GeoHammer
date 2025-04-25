@@ -249,7 +249,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		}
 
 		for (SgyFile sf : model.getFileManager().getGprFiles()) {
-			sf.updateInternalIndexes();
+			sf.updateTraces();
 			//model.getProfileFieldByPattern(sf);//.clear();
 		}
 		model.publishEvent(new FileOpenedEvent(this, model.getFileManager().getGprFiles().stream().map(SgyFile::getFile).collect(Collectors.toList())));
@@ -304,11 +304,12 @@ public class TraceCutter implements Layer, InitializingBean {
 			undoFiles.clear();
 			
 			for (SgyFile sf : model.getFileManager().getGprFiles()) {
-				sf.updateInternalIndexes();
+				sf.updateTraces();
 				//model.getProfileField(sf).clear();
 			}
 
 			for (SgyFile sf : model.getFileManager().getCsvFiles()) {
+				sf.updateTraces();
 				model.updateChart((CsvFile) sf);
 			}
 
@@ -337,11 +338,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		copy.setFile(getPartFile(sourceFile, partSuffix, sourceFile.getFile().getParentFile()));
 		copy.setUnsaved(true);
 
-		// copy traces
-		List<Trace> newTraces = traces.stream()
-				.map(t -> t.copy(copy))
-				.toList();
-		copy.setTraces(newTraces);
+		copy.setTraces(traces);
 
 		// copy aux elements
 		if (!traces.isEmpty()) {
@@ -356,7 +353,7 @@ public class TraceCutter implements Layer, InitializingBean {
 			///
 		}
 
-		copy.updateInternalIndexes();
+		copy.updateTraces();
 		return copy;
 	}
 
@@ -382,10 +379,10 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		// traces
 		List<Trace> newTraces = new ArrayList<>();
-		for(Trace trace: csvFile.getTraces()) {
+		for (Trace trace: csvFile.getTraces()) {
 			boolean inside = isTraceInsideSelection(field, border, trace);
 			if (inside) {
-				newTraces.add(trace.copy(copy));
+				newTraces.add(trace);
 			}
 		}
 		copy.setTraces(newTraces);
@@ -436,7 +433,7 @@ public class TraceCutter implements Layer, InitializingBean {
 				.filter(aux -> isInsideSelection(field, border, ((FoundPlace) aux).getLatLon()))
 				.collect(Collectors.toList()));
 
-		copy.updateInternalIndexes();
+		copy.updateTraces();
 
 		return List.of(copy);
 	}
@@ -528,15 +525,12 @@ public class TraceCutter implements Layer, InitializingBean {
 		CsvFile copy = csvFile.copy();
 		copy.setUnsaved(true);
 
-		// copy traces
-		List<Trace> newTraces = csvFile.getTraces().stream()
-				.map(t -> t.copy(copy))
-				.toList();
+		List<Trace> newTraces = csvFile.getTraces();
 
 		copy.setTraces(newTraces);
 		copy.setGeoData(newValues);
 		copy.setAuxElements(new ArrayList<>(csvFile.getAuxElements()));
-		copy.updateInternalIndexes();
+		copy.updateTraces();
 
 		// clear selection
 		model.clearSelectedTrace(model.getFileChart(csvFile));

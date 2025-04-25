@@ -64,6 +64,8 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private static final Insets DEFAULT_OPTIONS_INSETS = new Insets(10, 0, 10, 0);
 
+	private static final Insets DEFAULT_GPR_OPTIONS_INSETS = new Insets(10, 8, 10, 8);
+
 	private static final int RIGHT_BOX_WIDTH = 350;
 
 	private static final Logger log = LoggerFactory.getLogger(OptionPane.class);
@@ -155,9 +157,9 @@ public class OptionPane extends VBox implements InitializingBean {
 		medianCorrection.setMaxWidth(Double.MAX_VALUE);
 		qualityControl.setMaxWidth(Double.MAX_VALUE);
 
-		VBox t3 = new VBox();
-		t3.setPadding(new Insets(10,8,10,8));
-		t3.setSpacing(5);
+		VBox container = new VBox();
+		container.setPadding(new Insets(10, 8, 10, 8));
+		container.setSpacing(5);
 
 		FilterActions lowPassActions = new FilterActions();
 		lowPassActions.constraint = i -> {
@@ -209,7 +211,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		t3.getChildren().addAll(List.of(lowPassFilterButton, lowPassOptions,
+		container.getChildren().addAll(List.of(lowPassFilterButton, lowPassOptions,
 				gridding, griddingPane,
 				timeLagButton, timeLagOptions,
 				medianCorrection, medianCorrectionOptions,
@@ -221,7 +223,12 @@ public class OptionPane extends VBox implements InitializingBean {
 		medianCorrection.setOnAction(getChangeVisibleAction(medianCorrectionOptions));
 		qualityControl.setOnAction(getChangeVisibleAction(qualityControlView.getRoot()));
 
-		ScrollPane scrollPane = new ScrollPane(t3);
+		ScrollPane scrollContainer = createVerticalScrollContainer(container);
+		tab.setContent(scrollContainer);
+	}
+
+	private static ScrollPane createVerticalScrollContainer(Node content) {
+		ScrollPane scrollPane = new ScrollPane(content);
 		scrollPane.setFitToWidth(true);
 		scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 		scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -229,8 +236,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		// this seems the only way to force pane to fill container
 		// in height
 		scrollPane.setPrefHeight(10_000);
-
-		tab.setContent(scrollPane);
+		return scrollPane;
 	}
 
 	private static @NotNull EventHandler<ActionEvent> getChangeVisibleAction(StackPane filterOptionsStackPane) {
@@ -779,32 +785,81 @@ public class OptionPane extends VBox implements InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
-	private Tab prepareGprTab(Tab tab1, SgyFile file) {
-		VBox t1 = new VBox();
+	private Tab prepareGprTab(Tab gprTab, SgyFile file) {
 
-		//contrast
-		t1.getChildren().addAll(profileView.getRight(file));
-		// buttons
-		t1.getChildren().addAll(levelFilter.getToolNodes());
-		// map
-		t1.getChildren().addAll(mapView.getRight(file));
+		// background
+		StackPane backgroundOptions = createGprBackgroundOptions(file);
+		ToggleButton backgroundToggle = new ToggleButton("Background");
+		backgroundToggle.setMaxWidth(Double.MAX_VALUE);
+		backgroundToggle.setOnAction(getChangeVisibleAction(backgroundOptions));
 
-		t1.getChildren().addAll(getPositionCsvButtons(file.getGroundProfileSource()));
-        tab1.setContent(t1);
-		return tab1;
+		// gridding
+		StackPane griddingOptions = createGprGriddingOptions(file);
+		ToggleButton griddingToggle = new ToggleButton("Gridding");
+		griddingToggle.setMaxWidth(Double.MAX_VALUE);
+		griddingToggle.setOnAction(getChangeVisibleAction(griddingOptions));
+
+		// elevation
+		StackPane elevationOptions = createGprElevationOptions(file);
+		ToggleButton elevationToggle = new ToggleButton("Elevation");
+		elevationToggle.setMaxWidth(Double.MAX_VALUE);
+		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
+
+		VBox container = new VBox();
+		container.setPadding(new Insets(10, 8, 10, 8));
+		container.setSpacing(DEFAULT_SPACING);
+
+		container.getChildren().addAll(
+				backgroundToggle, backgroundOptions,
+				griddingToggle, griddingOptions,
+				elevationToggle, elevationOptions);
+
+		ScrollPane scrollContainer = createVerticalScrollContainer(container);
+		gprTab.setContent(scrollContainer);
+		return gprTab;
 	}
 
-	private List<Node> getPositionCsvButtons(PositionFile positionFile) {
-		VBox vBox = new VBox();
-		vBox.setPadding(new Insets(10, 10, 10, 10));
+	private StackPane createGprBackgroundOptions(SgyFile file) {
+		VBox options = new VBox(DEFAULT_SPACING);
+		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
-		vBox.setStyle(BORDER_STYLING);
+		// contrast
+		options.getChildren().addAll(profileView.getRight(file));
+		// buttons: remove bg / spread coordinates
+		options.getChildren().addAll(levelFilter.getToolNodes());
 
-		vBox.getChildren().add(new Label("Elevation source: " + getSourceName(positionFile)));
+		options.setVisible(false);
+		options.setManaged(false);
 
-		vBox.getChildren().addAll(levelFilter.getToolNodes2());
+		return new StackPane(options);
+	}
 
-		return List.of(vBox);	
+	private StackPane createGprGriddingOptions(SgyFile file) {
+		VBox options = new VBox(DEFAULT_SPACING);
+		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
+
+		// gpr gridding
+		options.getChildren().addAll(mapView.getRight(file));
+
+		options.setVisible(false);
+		options.setManaged(false);
+
+		return new StackPane(options);
+	}
+
+	private StackPane createGprElevationOptions(SgyFile file) {
+		VBox options = new VBox(DEFAULT_SPACING);
+		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
+
+		// elevation
+		options.getChildren().add(new Label("Elevation source: "
+				+ getSourceName(file.getGroundProfileSource())));
+		options.getChildren().addAll(levelFilter.getToolNodes2());
+
+		options.setVisible(false);
+		options.setManaged(false);
+
+		return new StackPane(options);
 	}
 
 	private String getSourceName(PositionFile positionFile) {

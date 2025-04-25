@@ -15,13 +15,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-import org.apache.commons.lang3.mutable.MutableInt;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.UiUtils;
@@ -30,7 +27,6 @@ import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
 import com.ugcs.gprvisualizer.app.commands.LevelClear;
 import com.ugcs.gprvisualizer.app.commands.LevelGround;
 import com.ugcs.gprvisualizer.app.commands.LevelManualSetter;
-import com.ugcs.gprvisualizer.app.commands.LevelScanHP;
 import com.ugcs.gprvisualizer.app.commands.LevelScanner;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.draw.ToolProducer;
@@ -127,9 +123,7 @@ public class LevelFilter implements ToolProducer {
 		var buttons = List.of(commandRegistry.createButton(new BackgroundNoiseRemover()), buttonSpreadCoord);
 
 		HBox hbox = new HBox();
-		hbox.setSpacing(5);
-		hbox.setStyle("-fx-padding: 5px;");
-		//hbox.setDisable(!model.isActive());
+		hbox.setSpacing(8);
 
 		buttons.forEach(b -> {
 			b.setMaxWidth(Double.MAX_VALUE);
@@ -222,7 +216,7 @@ public class LevelFilter implements ToolProducer {
 		    	));		
 		} else {
 			HBox hbox = new HBox();
-			hbox.setSpacing(5);
+			hbox.setSpacing(8);
 
 			buttonRemoveLevel.setMaxWidth(Double.MAX_VALUE);
 			buttonLevelGround.setMaxWidth(Double.MAX_VALUE);
@@ -242,6 +236,7 @@ public class LevelFilter implements ToolProducer {
 		}
 
 		VBox vbox = new VBox();
+		vbox.setSpacing(5);
 
 		updateButtons(selectedFile);
 

@@ -64,6 +64,22 @@ public class LatLon {
 		
 	}
 
+	public static boolean isValidLatitude(double latitude) {
+		if (Double.isNaN(latitude)) {
+			return false;
+		}
+		double abs = Math.abs(latitude);
+		return abs > 1e-6 && abs <= 90.0;
+	}
+
+	public static boolean isValidLongitude(double longitude) {
+		if (Double.isNaN(longitude)) {
+			return false;
+		}
+		double abs = Math.abs(longitude);
+		return abs > 1e-6 && abs <= 180.0;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof LatLon) {

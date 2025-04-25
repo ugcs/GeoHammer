@@ -71,13 +71,13 @@ public class OptionPane extends VBox implements InitializingBean {
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
 	private MapView mapView;
-		
+
 	private UiUtils uiUtils;
 
 	private ProfileView profileView;
-	
+
 	private CommandRegistry commandRegistry;
-	
+
 	private Model model;
 
 	private LevelFilter levelFilter;
@@ -129,11 +129,11 @@ public class OptionPane extends VBox implements InitializingBean {
 		prepareTabPane();
         this.getChildren().addAll(tabPane);
 	}
-	
+
 	private void prepareTabPane() {
 
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-        
+
         Tab tab2 = new Tab("Experimental");
 
 		prepareCsvTab(csvTab);
@@ -278,8 +278,15 @@ public class OptionPane extends VBox implements InitializingBean {
 		return savedGriddingRange.getOrDefault(seriesName, fetchGriddingRange());
 	}
 
+	@EventListener
+	public void on(WhatChanged changed) {
+		if (changed.isTraceCut()) {
+			showGridInputDataChangedWarning(true);
+		}
+	}
+
 	public record GriddingRange(double lowValue, double highValue, double min, double max) {}
-	
+
 	/**
 	 * Updates the gridding range slider min/max values if needed, while maintaining
 	 * the user's selected range proportionally.
@@ -294,8 +301,9 @@ public class OptionPane extends VBox implements InitializingBean {
 		double newMin = selectedChart.getSemanticMinValue();
 		double newMax = selectedChart.getSemanticMaxValue();
 
-		var savedValues = savedGriddingRange.getOrDefault(selectedChart.getSelectedSeriesName(),
+		var savedValues = savedGriddingRange.getOrDefault(selectedChart.toString()+selectedChart.getSelectedSeriesName(),
 				new GriddingRange(newMin, newMax, newMin, newMax));
+
 		// Only update min/max if they changed
 		if (savedValues.min != newMin || savedValues.max != newMax) {
 			// Calculate relative positions within the range
@@ -310,7 +318,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		} else {
 			updateGriddingRangeSlider(savedValues);
 		}
-		savedGriddingRange.put(selectedChart.getSelectedSeriesName(), fetchGriddingRange());
+		savedGriddingRange.put(selectedChart.toString()+selectedChart.getSelectedSeriesName(), fetchGriddingRange());
 		griddingRangeSlider.setDisable(false);
 	}
 
@@ -353,9 +361,31 @@ public class OptionPane extends VBox implements InitializingBean {
 		quality_altitude_tolerance
 	}
 
+	// Warning label for grid input data changes
+	private Label griddingWarningLabel;
+
+	/**
+	 * Shows or hides the warning about grid input data changes.
+	 * 
+	 * @param show true to show the warning, false to hide it
+	 */
+	private void showGridInputDataChangedWarning(boolean show) {
+		if (griddingWarningLabel != null) {
+			griddingWarningLabel.setVisible(show);
+			griddingWarningLabel.setManaged(show);
+		}
+	}
+
 	private VBox createGriddingOptions(ProgressIndicator progressIndicator) {
 		VBox griddingOptions = new VBox(5);
 		griddingOptions.setPadding(new Insets(10, 0, 10, 0));
+
+		// Create warning label
+		griddingWarningLabel = new Label("Warning: Grid needs to be recalculated.");
+		griddingWarningLabel.setStyle("-fx-text-fill: #E7AE3CFF; -fx-font-weight: bold;");
+		griddingWarningLabel.setVisible(false);
+		griddingWarningLabel.setManaged(false);
+		griddingOptions.getChildren().add(griddingWarningLabel);
 
 		VBox filterInput = new VBox(5);
 
@@ -374,7 +404,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 			model.publishEvent(new GriddingParamsSetted(this, Double.parseDouble(gridCellSize.getText()),
 					Double.parseDouble(gridBlankingDistance.getText())));
-			//griddingRangeSlider.setDisable(true);
+			showGridInputDataChangedWarning(false);
 		});
 		showGriddingButton.setDisable(true);
 
@@ -383,10 +413,9 @@ public class OptionPane extends VBox implements InitializingBean {
 			prefSettings.saveSetting(Filter.gridding_cellsize.name(), Map.of(((CsvFile) selectedFile).getParser().getTemplate().getName(), gridCellSize.getText()));
 			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), Map.of(((CsvFile) selectedFile).getParser().getTemplate().getName(), gridBlankingDistance.getText()));
 
-			//Platform.runLater(() -> setGriddingMinMax()); // min, max, min, max)); // minValue, maxValue));
-
 			model.publishEvent(new GriddingParamsSetted(this, Double.parseDouble(gridCellSize.getText()),
 					Double.parseDouble(gridBlankingDistance.getText()), true));
+			showGridInputDataChangedWarning(false);
 		});
 		showGriddingAllButton.setDisable(true);
 
@@ -402,6 +431,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				boolean blankingDistanceEmpty = gridBlankingDistance == null || gridBlankingDistance.getText().isEmpty();
 				showGriddingButton.setDisable(!isValid || blankingDistanceEmpty);
 				showGriddingAllButton.setDisable(!isValid || blankingDistanceEmpty);
+				showGridInputDataChangedWarning(true);
 			} catch (NumberFormatException e) {
 				showGriddingButton.setDisable(true);
 				showGriddingAllButton.setDisable(true);
@@ -419,6 +449,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				boolean isValid = !newValue.isEmpty() && value > 0 && value < 100;
 				showGriddingButton.setDisable(!isValid || gridCellSize.getText().isEmpty());
 				showGriddingAllButton.setDisable(!isValid || gridCellSize.getText().isEmpty());
+				showGridInputDataChangedWarning(true);
 			} catch (NumberFormatException e) {
 				showGriddingButton.setDisable(true);
 				showGriddingAllButton.setDisable(true);
@@ -446,13 +477,15 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		griddingRangeSlider.lowValueProperty().addListener((obs, oldVal, newVal) -> {
 			minLabel.setText("Min: " + newVal.intValue());//String.format("%.2f", newVal.doubleValue()));
-			savedGriddingRange.put(model.getChart((CsvFile) selectedFile).get().getSelectedSeriesName(), fetchGriddingRange());
+			var chart = model.getChart((CsvFile) selectedFile).get();
+			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.highValueProperty().addListener((obs, oldVal, newVal) -> {
 			maxLabel.setText("Max: " + newVal.intValue());//String.format("%.2f", newVal.doubleValue()));
-			savedGriddingRange.put(model.getChart((CsvFile) selectedFile).get().getSelectedSeriesName(), fetchGriddingRange());
+			var chart = model.getChart((CsvFile) selectedFile).get();
+			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
@@ -654,6 +687,7 @@ public class OptionPane extends VBox implements InitializingBean {
 	private void applyLowPassFilter(int value) {
 		var chart = model.getChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.lowPassFilter(c.getSelectedSeriesName(), value));
+		showGridInputDataChangedWarning(true);
 		//model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
@@ -665,12 +699,15 @@ public class OptionPane extends VBox implements InitializingBean {
 					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
 					.forEach(c -> c.lowPassFilter(seriesName, value));
 		});
+		showGridInputDataChangedWarning(true);
 		//model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
 	private void applyMedianCorrection(int value) {
 		var chart = model.getChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.medianCorrection(c.getSelectedSeriesName(), value));
+		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
+		showGridInputDataChangedWarning(true);
 	}
 
 	private void applyMedianCorrectionToAll(int value) {
@@ -681,6 +718,8 @@ public class OptionPane extends VBox implements InitializingBean {
 					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
 					.forEach(c -> c.medianCorrection(seriesName, value));
 		});
+		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
+		showGridInputDataChangedWarning(true);
 	}	
 
 	private void toggleQualityLayer(boolean active) {
@@ -758,9 +797,9 @@ public class OptionPane extends VBox implements InitializingBean {
 	private List<Node> getPositionCsvButtons(PositionFile positionFile) {
 		VBox vBox = new VBox();
 		vBox.setPadding(new Insets(10, 10, 10, 10));
-		
+
 		vBox.setStyle(BORDER_STYLING);
-				
+
 		vBox.getChildren().add(new Label("Elevation source: " + getSourceName(positionFile)));
 
 		vBox.getChildren().addAll(levelFilter.getToolNodes2());
@@ -774,25 +813,27 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private ToggleButton prepareToggleButton(String title, 
 			String imageName, MutableBoolean bool, Consumer<ToggleButton> consumer ) {
-		
+
 		ToggleButton btn = new ToggleButton(title, 
 				ResourceImageHolder.getImageView(imageName));
-		
+
 		btn.setSelected(bool.booleanValue());
-		
+
 		btn.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
 				bool.setValue(btn.isSelected());
-				
+
 				//eventPublisher.publishEvent(new WhatChanged(change));
-				
+
 				consumer.accept(btn);
 			}
 		});
-		
+
 		return btn;
 	}
+
+
 
 	@EventListener
     private void handleFileSelectedEvent(FileSelectedEvent event) {
@@ -811,6 +852,9 @@ public class OptionPane extends VBox implements InitializingBean {
             setSavedFilterInputValue(Filter.timelag);
             setSavedFilterInputValue(Filter.gridding_cellsize);
             setSavedFilterInputValue(Filter.gridding_blankingdistance);
+			//TODO: check if possible, that current file and sensor was not gridded with current parameters {
+				showGridInputDataChangedWarning(true);
+			//}
         } else {
             showTab(gprTab);
             prepareGprTab(gprTab, selectedFile);
@@ -836,10 +880,6 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	public ToggleButton getGridding() {
 		return gridding;
-	}
-
-	public void handleGriddingParamsSetted(double cellSize, double blankingDistance) {
-		model.publishEvent(new GriddingParamsSetted(this, cellSize, blankingDistance));
 	}
 
 	// quality control

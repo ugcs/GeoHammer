@@ -8,7 +8,7 @@ public class RadiusSlider extends BaseSlider {
 
 	public RadiusSlider(Settings settings, ChangeListener<Number> listenerExt) {
 		super(settings, listenerExt);
-		name = "radius";
+		name = "Radius";
 		units = "px";
 		tickUnits = 10;
 	}

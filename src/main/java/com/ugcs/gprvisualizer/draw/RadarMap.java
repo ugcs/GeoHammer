@@ -1,6 +1,5 @@
 package com.ugcs.gprvisualizer.draw;
 
-import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -10,12 +9,9 @@ import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import javafx.geometry.Point2D;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
@@ -320,9 +316,6 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	
 	public List<Node> getControlNodes(SgyFile dataFile) {
 		VBox vertBox = new VBox();
-
-		vertBox.setStyle(BORDER_STYLING);
-				
 		vertBox.getChildren().addAll(
 			List.of(
 				autoGainCheckbox.produce(),

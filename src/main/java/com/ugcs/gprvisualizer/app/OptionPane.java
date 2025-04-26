@@ -329,11 +329,10 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void updateGriddingRangeSlider(GriddingRange sliderRange) {
-		griddingRangeSlider.setMin(sliderRange.min);
 		griddingRangeSlider.setMax(sliderRange.max);
+		griddingRangeSlider.setMin(sliderRange.min);
 		double width = sliderRange.max - sliderRange.min;
 		if (width > 0.0) {
-			//TODO: change scale for small width
 			griddingRangeSlider.setMajorTickUnit(width / 100);
 			griddingRangeSlider.setMinorTickCount((int) (width / 1000));
 			griddingRangeSlider.setBlockIncrement(width / 2000);
@@ -482,14 +481,14 @@ public class OptionPane extends VBox implements InitializingBean {
 		coloursInput.getChildren().addAll(minLabel, center, maxLabel);
 
 		griddingRangeSlider.lowValueProperty().addListener((obs, oldVal, newVal) -> {
-			minLabel.setText("Min: " + newVal.intValue());//String.format("%.2f", newVal.doubleValue()));
+			setFormattedValue(newVal, "Min: ", minLabel);
 			var chart = model.getChart((CsvFile) selectedFile).get();
 			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.highValueProperty().addListener((obs, oldVal, newVal) -> {
-			maxLabel.setText("Max: " + newVal.intValue());//String.format("%.2f", newVal.doubleValue()));
+			setFormattedValue(newVal, "Max: ", maxLabel);
 			var chart = model.getChart((CsvFile) selectedFile).get();
 			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
@@ -513,6 +512,19 @@ public class OptionPane extends VBox implements InitializingBean {
 		griddingOptions.setManaged(false);
 
 		return griddingOptions;
+	}
+
+	private void setFormattedValue(Number newVal, String prefix, Label label) {
+		double range = griddingRangeSlider.getMax() - griddingRangeSlider.getMin();
+		String valueText;
+		if (range < 10) {
+			valueText = String.format(prefix + "%.2f", newVal.doubleValue());
+		} else if (range < 100) {
+			valueText = String.format(prefix + "%.1f", newVal.doubleValue());
+		} else {
+			valueText = prefix + newVal.intValue();
+		}
+		label.setText(valueText);
 	}
 
 	public void griddingProgress(boolean inProgress) {

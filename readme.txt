@@ -10,4 +10,4 @@ For support:
 
 To run the application:
 - On Windows - run geohammer.exe or start.cmd
-- On Mac or linux - run start.sh
+- On macOS - open GeoHammer.app

@@ -2,7 +2,7 @@ SPH Engineering's GeoHammer is a simple to use tool to quickly assess and proces
 
 User manual - https://github.com/ugcs/GeoHammer/wiki
 
-To download latest release please navigate here - https://github.com/ugcs/GeoHammer/releases - and download ZIP file and extract it to any folder.
+To download latest release please navigate here - https://github.com/ugcs/GeoHammer/releases/latest, download ZIP file and extract it to any folder.
 
 For support:
 - For free GeoHammer version please register issue here and wait for the reaction: https://github.com/ugcs/GeoHammer/issues

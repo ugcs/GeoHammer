@@ -1,7 +1,10 @@
 package com.ugcs.gprvisualizer.app.yaml.data;
 
+import org.jspecify.annotations.NullUnmarked;
+
 import java.util.List;
 
+@NullUnmarked
 public class DateTime extends BaseData {
 
     private String format;

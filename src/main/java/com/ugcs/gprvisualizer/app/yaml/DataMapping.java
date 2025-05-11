@@ -4,9 +4,11 @@ import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.Date;
 import com.ugcs.gprvisualizer.app.yaml.data.DateTime;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
+import org.jspecify.annotations.NullUnmarked;
 
 import java.util.List;
 
+@NullUnmarked
 public class DataMapping {
 
     private BaseData latitude;
@@ -29,11 +31,6 @@ public class DataMapping {
         return dataValues;
     }
 
-    /**
-     * Sets the sensors of the template.
-     *
-     * @param sensors the sensors of the template.
-     */
     public void setDataValues(List<SensorData> dataValues) {
         this.dataValues = dataValues;
     }

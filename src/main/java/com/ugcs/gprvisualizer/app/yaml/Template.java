@@ -3,11 +3,14 @@ package com.ugcs.gprvisualizer.app.yaml;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import org.jspecify.annotations.NullUnmarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
  * Represents a template for processing files.
  */
+@NullUnmarked
 public class Template {
 
     private String name;
@@ -159,7 +162,8 @@ public class Template {
 
     /**
      * Set data validation expression of the data values.
-     * @param dataValidation
+     *
+     * @param dataValidation the data validation expression.
      */
     public void setDataValidation(String dataValidation) {
         this.dataValidation = dataValidation;

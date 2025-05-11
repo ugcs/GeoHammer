@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.utils.Range;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,7 @@ public class CsvFile extends SgyFile {
 
     private List<GeoData> geoData = new ArrayList<>();
 
+    @Nullable
 	private CsvParser parser;
 
     private FileTemplates fileTemplates;
@@ -123,7 +125,8 @@ public class CsvFile extends SgyFile {
                 for(var semantic: semanticToSensorData.keySet()
                         .stream()
                         .filter(s -> s.contains("_anomaly")).toList()) {
-                    if (!skippedLines.contains(semanticToSensorData.get(semantic).getHeader())) {
+                    if (semanticToSensorData.get(semantic) instanceof SensorData sd
+                            && !skippedLines.contains(sd.getHeader())) {
                         // add "*_anomaly" to the end of the header if not exists
                         skippedLines = skippedLines.replaceAll(System.lineSeparator() + "$", "," + semanticToSensorData.get(semantic).getHeader() + System.lineSeparator());
                         getParser().setIndexByHeaderForSensorData(skippedLines, semanticToSensorData.get(semantic));
@@ -150,9 +153,7 @@ public class CsvFile extends SgyFile {
 
             	while ((line = reader.readLine()) != null) {
                 	lineNumber++;
-                	if (geoDataMap.keySet().contains(lineNumber)) {
-						GeoData gd = geoDataMap.get(lineNumber);
-
+                	if (geoDataMap.get(lineNumber) instanceof GeoData gd) {
                         for (var sv: gd.getSensorValues()) {   
                             if (sv.originalData() != sv.data()) {
                                 var template = semanticToSensorData.get(sv.semantic());
@@ -198,6 +199,7 @@ public class CsvFile extends SgyFile {
 		this.parser = parser;
     }
 
+    @Nullable
 	public CsvParser getParser() {
 		return parser;
 	}

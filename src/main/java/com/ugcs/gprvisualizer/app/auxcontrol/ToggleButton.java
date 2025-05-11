@@ -27,7 +27,8 @@ public class ToggleButton extends DragAnchor {
 		this.setSelected(selected);		
 		
 	}
-	
+
+	@Override
 	protected Image getImg() {
 		if (isSelected()) {
 			return selectedImg;

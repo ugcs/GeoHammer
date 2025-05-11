@@ -1,12 +1,14 @@
 package com.ugcs.gprvisualizer.math;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Arrays;
 
 public class ScanProfile {
 
-	
 	public double [] intensity;
-	public int[] radius = null;
+
+	public int @Nullable [] radius = null;
 	public double maxVal;
 	
 	public ScanProfile(int size) {

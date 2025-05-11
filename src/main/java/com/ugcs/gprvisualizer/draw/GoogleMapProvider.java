@@ -11,11 +11,13 @@ import javax.imageio.ImageIO;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
+import org.jspecify.annotations.Nullable;
 
 public class GoogleMapProvider implements MapProvider {
 
 	private static final int MAP_IMAGE_SIZE = 1280;
 
+	@Nullable
 	@Override
 	public BufferedImage loadimg(MapField field) {
 

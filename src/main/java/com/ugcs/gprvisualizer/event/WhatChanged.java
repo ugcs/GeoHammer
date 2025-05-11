@@ -3,7 +3,8 @@ package com.ugcs.gprvisualizer.event;
 public class WhatChanged extends BaseEvent {
 
 	private Change change;
-	
+
+	@Override
 	public String toString() {
 		return change.name();
 	}

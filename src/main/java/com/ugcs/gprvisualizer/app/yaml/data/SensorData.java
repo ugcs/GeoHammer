@@ -1,5 +1,9 @@
 package com.ugcs.gprvisualizer.app.yaml.data;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NullUnmarked;
+
+@NullUnmarked
 public class SensorData extends BaseData {
 
     String format;

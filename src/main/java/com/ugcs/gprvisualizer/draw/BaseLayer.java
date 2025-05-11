@@ -1,9 +1,12 @@
 package com.ugcs.gprvisualizer.draw;
 
+import org.jspecify.annotations.Nullable;
+
 public abstract class BaseLayer implements Layer {
 	
 	private boolean active = true;
-		
+
+	@Nullable
 	private RepaintListener listener;
 	
 	public boolean isActive() {
@@ -17,7 +20,8 @@ public abstract class BaseLayer implements Layer {
 	public void setRepaintListener(RepaintListener listener) {
 		this.listener = listener;
 	}
-	
+
+	@Nullable
 	public RepaintListener getRepaintListener() {
 		return listener;
 	}	

@@ -1,6 +1,8 @@
 package com.ugcs.gprvisualizer.app.yaml;
 
 import java.util.List;
+
+import org.jspecify.annotations.NullUnmarked;
 import org.springframework.util.StringUtils;
 
 import com.ugcs.gprvisualizer.app.yaml.data.Date;
@@ -10,6 +12,7 @@ import com.ugcs.gprvisualizer.app.yaml.data.Date;
  * The FileFormat class represents the format of a file, including its properties such as comment prefix,
  * separator, decimal separator, header presence, and column lengths.
  */
+@NullUnmarked
 public class FileFormat {
 
     private String commentPrefix;

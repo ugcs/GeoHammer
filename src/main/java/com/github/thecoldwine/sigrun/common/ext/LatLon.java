@@ -8,7 +8,8 @@ public class LatLon {
 
 	private double latDgr;
 	private double lonDgr;
-	
+
+	@Override
 	public String toString() {
 		
 		return dgrToDegreeMinSec(getLatDgr(), true) +  "  " + dgrToDegreeMinSec(getLonDgr(), false);
@@ -88,6 +89,11 @@ public class LatLon {
 					&& getLonDgr() == another.getLonDgr();
 		}
 		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return (int) (getLatDgr() * 1000000 + getLonDgr() * 1000);
 	}
 	
 }

@@ -17,7 +17,7 @@ import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-public class FoundPlace extends BaseObjectImpl { //, MouseHandler {
+public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 
 	//static int R_HOR = ResourceImageHolder.IMG_SHOVEL.getWidth(null) / 2;
 	//static int R_VER = ResourceImageHolder.IMG_SHOVEL.getHeight(null) / 2;
@@ -55,9 +55,9 @@ public class FoundPlace extends BaseObjectImpl { //, MouseHandler {
 	}*/
 	
 	public FoundPlace(Trace trace, VerticalCutPart offset, Model model) {
+		super(model);
 		this.offset = offset;
 		this.traceInFile = trace;
-		this.model = model;
 	}
 
 	@Override

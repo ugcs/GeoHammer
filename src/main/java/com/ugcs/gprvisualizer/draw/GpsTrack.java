@@ -32,21 +32,30 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 
 @Component
-public class GpsTrack extends BaseLayer implements InitializingBean {
+public class GpsTrack extends BaseLayer {
 
 	private final Model model;
-	private final MapView mapView;
+	private final ThrQueue q;
+
 
 	public GpsTrack(Model model, MapView mapView) {
 		this.model = model;
-		this.mapView = mapView;
+		this.q = new ThrQueue(model, mapView) {
+			protected void draw(BufferedImage backImg, MapField field) {
+				Graphics2D g2 = (Graphics2D) backImg.getGraphics();
+				g2.translate(backImg.getWidth() / 2, backImg.getHeight() / 2);
+				drawTrack(g2, field);
+			}
+			public void ready() {
+				getRepaintListener().repaint();
+			}
+		};
 	}
 
 	private EventHandler<ActionEvent> showMapListener = new EventHandler<ActionEvent>() {
 		@Override
 		public void handle(ActionEvent event) {
 			setActive(showLayerCheckbox.isSelected());
-			
 			getRepaintListener().repaint();				
 		}
 	};
@@ -57,24 +66,6 @@ public class GpsTrack extends BaseLayer implements InitializingBean {
 		showLayerCheckbox.setTooltip(new Tooltip("Toggle GPS track layer"));
 		showLayerCheckbox.setSelected(true);
 		showLayerCheckbox.setOnAction(showMapListener);
-	}
-	
-	ThrQueue q;
-	
-	@Override
-	public void afterPropertiesSet() throws Exception {
-		q = new ThrQueue(model, mapView) {
-			protected void draw(BufferedImage backImg, MapField field) {
-				Graphics2D g2 = (Graphics2D) backImg.getGraphics();
-				g2.translate(backImg.getWidth() / 2, backImg.getHeight() / 2);
-				drawTrack(g2, field);
-			}
-			
-			public void ready() {
-				getRepaintListener().repaint();
-			}			
-			
-		};
 	}
 		
 	@Override

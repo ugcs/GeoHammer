@@ -5,17 +5,22 @@ import com.ugcs.gprvisualizer.draw.HereMapProvider;
 import com.ugcs.gprvisualizer.draw.MapProvider;
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 import javafx.geometry.Point2D;
+import org.jspecify.annotations.Nullable;
 
 public class MapField {
 
+	@Nullable
 	private LatLon pathCenter;
-	private LatLon pathLt; 
+	@Nullable
+	private LatLon pathLt;
+	@Nullable
 	private LatLon pathRb;
-	
-	
+	@Nullable
 	private LatLon sceneCenter;
+
 	private int zoom;
-	
+
+	@Nullable
 	private MapProvider mapProvider;
 
 	public MapField() {		
@@ -60,7 +65,10 @@ public class MapField {
 		tst2(new Point2D(100, 100));
 	}
 	
-	public Point2D latLonToScreen(LatLon latlon) {
+	public Point2D latLonToScreen(@Nullable LatLon latlon) {
+		if (latlon == null || getSceneCenter() == null) {
+			return new Point2D(0, 0);
+		}
 		
 		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoom());
 		Point2D p2d = GoogleCoordUtils.createInfoWindowContent(latlon, getZoom());
@@ -73,7 +81,10 @@ public class MapField {
 	}
 	
 	public LatLon screenTolatLon(Point2D point) {
-		
+		if (getSceneCenter() == null) {
+			return GoogleCoordUtils.llFromP(new Point2D(0, 0), getZoom());
+		}
+
 		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoom());
 		Point2D p = new Point2D(
 			psc.getX() + point.getX(), 
@@ -108,6 +119,7 @@ public class MapField {
 		//this.zoom = Math.max(0, zoom);
 	}
 
+	@Nullable
 	public LatLon getSceneCenter() {
 		return sceneCenter;
 	}
@@ -120,6 +132,7 @@ public class MapField {
 		}
 	}	
 
+	@Nullable
 	public LatLon getPathCenter() {
 		return pathCenter;
 	}
@@ -134,10 +147,12 @@ public class MapField {
 		this.pathRb = rb;
 	}
 
+	@Nullable
 	public LatLon getPathLeftTop() {
 		return pathLt;
 	}
-	
+
+	@Nullable
 	public LatLon getPathRightBottom() {
 		return pathRb;
 	}
@@ -158,12 +173,13 @@ public class MapField {
 		}
 	}
 
-	public void setMapProvider(MapProvider mapProvider) {
+	public void setMapProvider(@Nullable MapProvider mapProvider) {
 		this.mapProvider = mapProvider;
 		
 		setZoom(getZoom());
 	}
 
+	@Nullable
 	public MapProvider getMapProvider() {
 		return mapProvider;
 	}

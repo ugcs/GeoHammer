@@ -18,6 +18,7 @@ import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import org.jspecify.annotations.Nullable;
 
 public final class ProfileScroll extends Canvas {
 
@@ -118,8 +119,10 @@ public final class ProfileScroll extends Canvas {
 			changeListener.changed(null, null, trCenter);
 		}
 	};	
-	
+
+	@Nullable
 	private MouseSInput selected;
+
 	private Set<MouseSInput> bars = Set.of(centerInput, leftInput, rightInput);
 
 	public ProfileScroll(Model model, ScrollableData scrollable) {
@@ -168,7 +171,7 @@ public final class ProfileScroll extends Canvas {
 		return HEIGHT;
 	}
 
-	protected EventHandler<MouseEvent> mouseReleaseHandler = 
+	EventHandler<MouseEvent> mouseReleaseHandler =
 			new EventHandler<MouseEvent>() {
         @Override
         public void handle(MouseEvent event) {        	
@@ -177,7 +180,7 @@ public final class ProfileScroll extends Canvas {
         }
 	};
 	
-	protected EventHandler<MouseEvent> dragDetectedHandler = new EventHandler<MouseEvent>() {
+	EventHandler<MouseEvent> dragDetectedHandler = new EventHandler<MouseEvent>() {
 	    @Override
 	    public void handle(MouseEvent mouseEvent) {
 	    	
@@ -211,7 +214,7 @@ public final class ProfileScroll extends Canvas {
 		return imgCoord;
 	}
 	
-	protected EventHandler<MouseDragEvent> dragReleaseHandler = 
+	EventHandler<MouseDragEvent> dragReleaseHandler =
 			new EventHandler<MouseDragEvent>() {
         @Override
         public void handle(MouseDragEvent event) {
@@ -224,7 +227,7 @@ public final class ProfileScroll extends Canvas {
         }
 	};
 	
-	protected EventHandler<MouseEvent> mouseMoveHandler = 
+	EventHandler<MouseEvent> mouseMoveHandler =
 			new EventHandler<MouseEvent>() {
         
 		@Override
@@ -335,49 +338,5 @@ public final class ProfileScroll extends Canvas {
 		double trCenter = scrCenter / (double) getWidth() * (double) scrollable.getTracesCount();
 		scrollable.setMiddleTrace((int) trCenter);
 		scrollable.setRealAspect(aspect);
-	}
-	
-	private Node makeDraggable(final Node node) {
-		class DragContext {
-			double mouseAnchorX;
-			double mouseAnchorY;
-			double initialTranslateX;
-			double initialTranslateY;
-
-		}
-		
-		final DragContext dragContext = new DragContext();
-		final Group wrapGroup = new Group(node);
-
-		//wrapGroup.addEventFilter(MouseEvent.ANY, new EventHandler<MouseEvent>() {
-		//	public void handle(final MouseEvent mouseEvent) {
-		//		mouseEvent.consume();
-		//	}
-		//});
-
-		wrapGroup.addEventFilter(MouseEvent.MOUSE_PRESSED, new EventHandler<MouseEvent>() {
-			public void handle(final MouseEvent mouseEvent) {
-					dragContext.mouseAnchorX = mouseEvent.getX();
-					dragContext.mouseAnchorY = mouseEvent.getY();
-					dragContext.initialTranslateX = node.getTranslateX();
-					dragContext.initialTranslateY = node.getTranslateY();
-			}
-		});
-
-		wrapGroup.addEventFilter(MouseEvent.MOUSE_DRAGGED, new EventHandler<MouseEvent>() {
-			public void handle(final MouseEvent mouseEvent) {
-					node.setTranslateX(
-							dragContext.initialTranslateX 
-							+ mouseEvent.getX() 
-							- dragContext.mouseAnchorX);
-					
-					node.setTranslateY(
-							dragContext.initialTranslateY 
-							+ mouseEvent.getY() 
-							- dragContext.mouseAnchorY);
-			}
-		});
-
-		return wrapGroup;
 	}
 }

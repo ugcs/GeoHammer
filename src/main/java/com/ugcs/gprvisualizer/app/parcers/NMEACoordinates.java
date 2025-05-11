@@ -35,7 +35,7 @@ public class NMEACoordinates extends GeoCoordinates {
     }
 
     public NMEACoordinates(NumberFormat format, String NMEALatitude, String NMEALongitude, String northOrSouth, String eastOrWest) {
-        this.format = format;
+        this(format);
         this.NMEALatitude = NMEALatitude;
         this.NMEALongitude = NMEALongitude;
         this.northOrSouth = northOrSouth;

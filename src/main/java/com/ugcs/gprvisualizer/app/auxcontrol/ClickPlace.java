@@ -124,13 +124,6 @@ public class ClickPlace extends BaseObjectImpl { //, MouseHandler {
 	//	return AppContext.model.getGprTraces().get(traceInAll);
 	//}
 
-
-
-	@Override
-	public List<BaseObject> getControls() {
-		return null;
-	}
-
 	@Override
 	public boolean saveTo(JSONObject json) {
 		return false;

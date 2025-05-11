@@ -5,14 +5,16 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.github.thecoldwine.sigrun.common.TraceHeader;
+import org.jspecify.annotations.Nullable;
 
 public class Trace {
-    
-	private final byte[] binHeader;
+
+    private final byte @Nullable [] binHeader;
+    @Nullable
     private final TraceHeader header;
     
     private float[] originalvalues;
-    private float[] normvalues;
+    private float @Nullable [] normvalues;
     
     private LatLon latLon;
     private LatLon latLonOrigin;
@@ -54,8 +56,7 @@ public class Trace {
         this.file = file;
     }
 
-    public Trace(SgyFile file, byte[] binHeader, TraceHeader header, float[] originalvalues, LatLon latLon) {
-        
+    public Trace(SgyFile file, byte @Nullable [] binHeader, @Nullable TraceHeader header, float[] originalvalues, LatLon latLon) {
     	this.file = file;
         this.header = header;
         this.binHeader = binHeader; 
@@ -67,6 +68,7 @@ public class Trace {
         this.edge = new byte[originalvalues.length];
     }
 
+    @Nullable
     public TraceHeader getHeader() {
         return header;
     }
@@ -117,8 +119,8 @@ public class Trace {
 	public void setPrevDist(double prevDist) {
 		this.prevDist = prevDist;
 	}
-    
-	public byte[] getBinHeader() {
+
+    public byte @Nullable [] getBinHeader() {
 		return binHeader;
 	}
 

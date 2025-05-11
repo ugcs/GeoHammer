@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.gpr.Model;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -20,13 +21,13 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
     public abstract List<SgyFile> getFiles();
 
     // trace == null -> clear current selection
-    public abstract void selectTrace(Trace trace, boolean focus);
+    public abstract void selectTrace(@Nullable Trace trace, boolean focus);
 
     // flags
 
     public abstract List<FoundPlace> getFlags();
 
-    public abstract void selectFlag(FoundPlace flag);
+    public abstract void selectFlag(@Nullable FoundPlace flag);
 
     public abstract void addFlag(FoundPlace flag);
 

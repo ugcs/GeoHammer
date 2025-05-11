@@ -1,5 +1,8 @@
 package com.ugcs.gprvisualizer.app.yaml.data;
 
+import org.jspecify.annotations.NullUnmarked;
+
+@NullUnmarked
 public class Date extends DateTime {
     
     private Source source;

@@ -4,6 +4,7 @@ import java.util.function.Consumer;
 
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import org.apache.commons.lang3.StringUtils;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
+
 
 @Component
 public class CommandRegistry {
@@ -114,7 +116,7 @@ public class CommandRegistry {
 	public Button createAsinqTaskButton(SingleCommand command, Consumer<Object> finish) {
 		
 		Button button = new Button(command.getButtonText());
-		
+
 		ProgressTask task = new ProgressTask() {
 			
 			@Override

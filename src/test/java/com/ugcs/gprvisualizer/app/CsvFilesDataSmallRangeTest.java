@@ -47,9 +47,6 @@ public class CsvFilesDataSmallRangeTest {
     private PrefSettings settings;
 
     @Mock
-    private AuxElementEditHandler auxEditHandler;
-
-    @Mock
     private SensorLineChart lineChart;
 
     private OptionPane optionPane;
@@ -91,7 +88,7 @@ public class CsvFilesDataSmallRangeTest {
         // Since it's private, we need to use reflection to access it
 
         // Create an instance of SensorLineChart
-        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, auxEditHandler);
+        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings);
 
         // Get the getScaleFactor method using reflection
         Method getScaleFactorMethod = 
@@ -114,7 +111,7 @@ public class CsvFilesDataSmallRangeTest {
         // Since it's private, we need to use reflection to access it
 
         // Create an instance of SensorLineChart
-        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, auxEditHandler);
+        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings);
 
         // Get the getValueRange method using reflection
         Method getValueRangeMethod = 

@@ -9,6 +9,7 @@ import org.json.simple.JSONObject;
 
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
+import org.jspecify.annotations.Nullable;
 //import com.ugcs.gprvisualizer.app.MouseHandler;
 
 public interface BaseObject {//extends MouseHandler {
@@ -25,8 +26,7 @@ public interface BaseObject {//extends MouseHandler {
 		return false;
 	}
 
-	default void signal(Object obj) {
-
+	default void signal(@Nullable Object obj) {
 	}
 	
 	default List<BaseObject> getControls() {

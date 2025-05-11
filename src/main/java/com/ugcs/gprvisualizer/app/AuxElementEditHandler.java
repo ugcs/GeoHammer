@@ -6,9 +6,11 @@ import java.util.Optional;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectImpl;
+import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectWithModel;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import javafx.event.ActionEvent;
 import javafx.geometry.Point2D;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,10 +27,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tooltip;
 
-public class AuxElementEditHandler extends BaseObjectImpl {
+public class AuxElementEditHandler extends BaseObjectWithModel {
 
 	private static final Logger log = LoggerFactory.getLogger(AuxElementEditHandler.class);
 
+	@Nullable
 	private BaseObject mouseInput;
 
 	private final Button createMarkButton = ResourceImageHolder.setButtonImage(
@@ -41,7 +44,7 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 			ResourceImageHolder.DELETE_ALL, new Button());
 
 	public AuxElementEditHandler(Model model) {
-		this.model = model;
+		super(model);
 		initButtons();
 	}
 
@@ -99,7 +102,9 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 			if (element instanceof FoundPlace flag) {
 				SgyFile traceFile = flag.getTrace().getFile();
 				Chart chart = model.getFileChart(traceFile);
-				chart.selectFlag(flag);
+				if (chart != null) {
+					chart.selectFlag(flag);
+				}
 			} else {
 				// select on a drag period
 				element.setSelected(true);
@@ -110,6 +115,7 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		return mouseInput != null;
 	}
 
+	@Nullable
 	private BaseObject lookupElement(Point2D localPoint, ScrollableData profField) {
 		if (profField instanceof GPRChart gprChart) {
 			for (BaseObject element : gprChart.getAuxElements()) {

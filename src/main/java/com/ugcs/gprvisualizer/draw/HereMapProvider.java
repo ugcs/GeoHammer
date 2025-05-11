@@ -12,6 +12,7 @@ import javax.imageio.ImageIO;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
+import org.jspecify.annotations.Nullable;
 
 public class HereMapProvider implements MapProvider {
 
@@ -22,10 +23,12 @@ public class HereMapProvider implements MapProvider {
 		this.apiKey = apiKey != null ? apiKey : DEFAULT_API_KEY;
 	}
 
+	@Override
 	public int getMaxZoom() {
 		return 20;
 	}
-	
+
+	@Nullable
 	@Override
 	public BufferedImage loadimg(MapField field) {
 		System.out.println(field.getZoom());
@@ -36,7 +39,9 @@ public class HereMapProvider implements MapProvider {
 		BufferedImage img = null;
 		
 		LatLon midlPoint = field.getSceneCenter();
-		int imgZoom = field.getZoom();
+		if (midlPoint == null) {
+			return img;
+		}
 
 		DecimalFormat df = new DecimalFormat("#.0000000", DecimalFormatSymbols.getInstance(Locale.US));
 		try {
@@ -45,7 +50,7 @@ public class HereMapProvider implements MapProvider {
 							+ "&style=explore.satellite.day",
 					df.format(midlPoint.getLatDgr()),
 					df.format(midlPoint.getLonDgr()),
-					imgZoom,
+					field.getZoom(),
 					apiKey);
 
 			System.out.println(url);

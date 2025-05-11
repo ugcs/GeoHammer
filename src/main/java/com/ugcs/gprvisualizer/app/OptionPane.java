@@ -18,9 +18,12 @@ import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.LevelFilter;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
@@ -31,9 +34,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.util.StringConverter;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.controlsfx.control.RangeSlider;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -239,7 +243,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return scrollPane;
 	}
 
-	private static @NotNull EventHandler<ActionEvent> getChangeVisibleAction(StackPane filterOptionsStackPane) {
+	private static @NonNull EventHandler<ActionEvent> getChangeVisibleAction(StackPane filterOptionsStackPane) {
 		return e -> {
 			filterOptionsStackPane.getChildren()
 					.stream().filter(n -> n instanceof VBox).forEach(options -> {
@@ -347,7 +351,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 	}
 
-	private @NotNull GriddingRange fetchGriddingRange() {
+	private @NonNull GriddingRange fetchGriddingRange() {
 		return new GriddingRange(griddingRangeSlider.getLowValue(),
 				griddingRangeSlider.getHighValue(),
 				griddingRangeSlider.getMin(),
@@ -359,11 +363,16 @@ public class OptionPane extends VBox implements InitializingBean {
 		timelag,
 		gridding_cellsize,
 		gridding_blankingdistance,
+		gridding_hillshading_enabled,
+		gridding_hillshading_azimuth,
+		gridding_hillshading_altitude,
+		gridding_hillshading_intensity,
 		median_correction,
 		quality_max_line_distance,
 		quality_line_distance_tolerance,
 		quality_max_altitude,
-		quality_altitude_tolerance
+		quality_altitude_tolerance,
+		gridding_smoothing_enabled;
 	}
 
 	// Warning label for grid input data changes
@@ -402,24 +411,231 @@ public class OptionPane extends VBox implements InitializingBean {
 		gridBlankingDistance.setPromptText("Enter blanking distance");
 		filterInputs.put(Filter.gridding_blankingdistance.name(), gridBlankingDistance);
 
+		// Hill-shading controls
+		//Label hillShadingLabel = new Label("Hill-shading");
+		//hillShadingLabel.setStyle("-fx-font-weight: bold;");
+
+		// Checkbox for enabling/disabling hill-shading
+		CheckBox hillShadingEnabled = new CheckBox("Enable hill-shading");
+		BooleanProperty hillShadingBoolProperty = new SimpleBooleanProperty(false);
+		hillShadingEnabled.selectedProperty().bindBidirectional(hillShadingBoolProperty);
+		TextField hillShadingEnabledText = new TextField("false");
+		hillShadingEnabledText.textProperty().addListener((observable, oldValue, newValue) -> {
+			hillShadingBoolProperty.set(Boolean.parseBoolean(newValue));
+		});
+
+		filterInputs.put(Filter.gridding_hillshading_enabled.name(), hillShadingEnabledText);
+		hillShadingEnabled.selectedProperty().addListener((obs, oldVal, newVal) -> {
+			filterInputs.get(Filter.gridding_hillshading_enabled.name()).setText(newVal.toString());
+			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
+			prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), Map.of(templateName, newVal.toString()));
+
+			// Publish GriddingParamsSetted event with current parameters
+			model.publishEvent(new GriddingParamsSetted(this, 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false,
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+			));
+		});
+
+		// Checkbox for enabling/disabling hill-shading
+		CheckBox smoothingEnabled = new CheckBox("Enable smoothing");
+		BooleanProperty smoothingBoolProperty = new SimpleBooleanProperty(false);
+		smoothingEnabled.selectedProperty().bindBidirectional(smoothingBoolProperty);
+		TextField smoothingEnabledText = new TextField("false");
+		smoothingEnabledText.textProperty().addListener((observable, oldValue, newValue) -> {
+			smoothingBoolProperty.set(Boolean.parseBoolean(newValue));
+		});
+
+		filterInputs.put(Filter.gridding_smoothing_enabled.name(), smoothingEnabledText);
+		smoothingEnabled.selectedProperty().addListener((obs, oldVal, newVal) -> {
+			filterInputs.get(Filter.gridding_smoothing_enabled.name()).setText(newVal.toString());
+			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
+			prefSettings.saveSetting(Filter.gridding_smoothing_enabled.name(), Map.of(templateName, newVal.toString()));
+
+			// Publish GriddingParamsSetted event with current parameters
+			model.publishEvent(new GriddingParamsSetted(this,
+					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+					false,
+					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
+							GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+					GriddingParamsSetted.DEFAULT_POWER,
+					GriddingParamsSetted.DEFAULT_MIN_POINTS,
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+			));
+		});
+
+		// Azimuth slider
+		Label azimuthLabel = new Label("Light direction (azimuth): 180°");
+		javafx.scene.control.Slider azimuthSlider = new javafx.scene.control.Slider(0, 360, 180);
+		azimuthSlider.setShowTickLabels(true);
+		azimuthSlider.setShowTickMarks(true);
+		azimuthSlider.setMajorTickUnit(90);
+		azimuthSlider.setMinorTickCount(3);
+		azimuthSlider.setSnapToTicks(false);
+		filterInputs.put(Filter.gridding_hillshading_azimuth.name(), new TextField("180.0"));
+		azimuthSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+			azimuthLabel.setText(String.format("Light direction (azimuth): %.0f°", newVal.doubleValue()));
+			filterInputs.get(Filter.gridding_hillshading_azimuth.name()).setText(newVal.toString());
+			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
+			prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), Map.of(templateName, newVal.toString()));
+
+			// Publish GriddingParamsSetted event with current parameters
+			model.publishEvent(new GriddingParamsSetted(this, 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false, Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+					GriddingParamsSetted.DEFAULT_POWER, GriddingParamsSetted.DEFAULT_MIN_POINTS,
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+			));
+		});
+
+		// Altitude slider
+		Label altitudeLabel = new Label("Light height (altitude): 45°");
+		javafx.scene.control.Slider altitudeSlider = new javafx.scene.control.Slider(0, 90, 45);
+		altitudeSlider.setShowTickLabels(true);
+		altitudeSlider.setShowTickMarks(true);
+		altitudeSlider.setMajorTickUnit(15);
+		altitudeSlider.setMinorTickCount(2);
+		altitudeSlider.setSnapToTicks(false);
+		filterInputs.put(Filter.gridding_hillshading_altitude.name(), new TextField("45.0"));
+		altitudeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+			altitudeLabel.setText(String.format("Light height (altitude): %.0f°", newVal.doubleValue()));
+			filterInputs.get(Filter.gridding_hillshading_altitude.name()).setText(newVal.toString());
+			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
+			prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), Map.of(templateName, newVal.toString()));
+
+			// Publish GriddingParamsSetted event with current parameters
+			model.publishEvent(new GriddingParamsSetted(this, 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false,
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+			));
+		});
+
+		// Intensity slider
+		Label intensityLabel = new Label("Effect intensity: 0.5");
+		javafx.scene.control.Slider intensitySlider = new javafx.scene.control.Slider(0, 1, 0.5);
+		intensitySlider.setShowTickLabels(true);
+		intensitySlider.setShowTickMarks(true);
+		intensitySlider.setMajorTickUnit(0.25);
+		intensitySlider.setMinorTickCount(1);
+		intensitySlider.setSnapToTicks(false);
+		filterInputs.put(Filter.gridding_hillshading_intensity.name(), new TextField("0.5"));
+		intensitySlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+			intensityLabel.setText(String.format("Effect intensity: %.2f", newVal.doubleValue()));
+			filterInputs.get(Filter.gridding_hillshading_intensity.name()).setText(newVal.toString());
+			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
+			prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, newVal.toString()));
+
+			// Publish GriddingParamsSetted event with current parameters
+			model.publishEvent(new GriddingParamsSetted(this, 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false,
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+			));
+		});
+
+		// Hill-shading controls container
+		VBox hillShadingControls = new VBox(5, 
+			//hillShadingLabel,
+				hillShadingEnabled, smoothingEnabled
+			//azimuthLabel, azimuthSlider,
+			//altitudeLabel, altitudeSlider,
+			//intensityLabel, intensitySlider
+		);
+		hillShadingControls.setPadding(new Insets(5, 0, 5, 0));
+		hillShadingControls.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 5;");
+
 		showGriddingButton = new Button("Apply");
 		showGriddingButton.setOnAction(e -> {
-			prefSettings.saveSetting(Filter.gridding_cellsize.name(), Map.of(((CsvFile) selectedFile).getParser().getTemplate().getName(), gridCellSize.getText()));
-			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), Map.of(((CsvFile) selectedFile).getParser().getTemplate().getName(), gridBlankingDistance.getText()));
+			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
+			prefSettings.saveSetting(Filter.gridding_cellsize.name(), Map.of(templateName, gridCellSize.getText()));
+			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), Map.of(templateName, gridBlankingDistance.getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText()));
 
-			model.publishEvent(new GriddingParamsSetted(this, Double.parseDouble(gridCellSize.getText()),
-					Double.parseDouble(gridBlankingDistance.getText())));
+			model.publishEvent(new GriddingParamsSetted(showGriddingButton,
+				Double.parseDouble(gridCellSize.getText()),
+				Double.parseDouble(gridBlankingDistance.getText()),
+				false,
+				Double.parseDouble(gridCellSize.getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+			));
 			showGridInputDataChangedWarning(false);
 		});
 		showGriddingButton.setDisable(true);
 
 		showGriddingAllButton = new Button("Apply to all");
 		showGriddingAllButton.setOnAction(e -> {
-			prefSettings.saveSetting(Filter.gridding_cellsize.name(), Map.of(((CsvFile) selectedFile).getParser().getTemplate().getName(), gridCellSize.getText()));
-			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), Map.of(((CsvFile) selectedFile).getParser().getTemplate().getName(), gridBlankingDistance.getText()));
+			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
+			prefSettings.saveSetting(Filter.gridding_cellsize.name(), Map.of(templateName, gridCellSize.getText()));
+			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), Map.of(templateName, gridBlankingDistance.getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()));
+			//prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText()));
 
-			model.publishEvent(new GriddingParamsSetted(this, Double.parseDouble(gridCellSize.getText()),
-					Double.parseDouble(gridBlankingDistance.getText()), true));
+			model.publishEvent(new GriddingParamsSetted(showGriddingAllButton,
+				Double.parseDouble(gridCellSize.getText()),
+				Double.parseDouble(gridBlankingDistance.getText()),
+				true,
+				Double.parseDouble(gridCellSize.getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
+					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+			));
 			showGridInputDataChangedWarning(false);
 		});
 		showGriddingAllButton.setDisable(true);
@@ -496,7 +712,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		VBox vbox = new VBox(10, griddingRangeSlider, coloursInput);
 
-		filterInput.getChildren().addAll(gridCellSize, gridBlankingDistance, label, vbox);
+		filterInput.getChildren().addAll(gridCellSize, gridBlankingDistance, label, vbox, hillShadingControls);
 
 		HBox filterButtons = new HBox(5);
 		HBox rightBox = new HBox();
@@ -555,7 +771,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 	}
 
-	private @NotNull StackPane createFilterOptions(Filter filter, String prompt, FilterActions actions) {
+	private @NonNull StackPane createFilterOptions(Filter filter, String prompt, FilterActions actions) {
 		VBox filterOptions = new VBox(5);
 		filterOptions.setPadding(new Insets(10, 0, 10, 0));
 
@@ -919,6 +1135,13 @@ public class OptionPane extends VBox implements InitializingBean {
             setSavedFilterInputValue(Filter.timelag);
             setSavedFilterInputValue(Filter.gridding_cellsize);
             setSavedFilterInputValue(Filter.gridding_blankingdistance);
+            // Load hill-shading parameters
+            setSavedFilterInputValue(Filter.gridding_hillshading_enabled);
+            setSavedFilterInputValue(Filter.gridding_hillshading_azimuth);
+            setSavedFilterInputValue(Filter.gridding_hillshading_altitude);
+            setSavedFilterInputValue(Filter.gridding_hillshading_intensity);
+
+			setSavedFilterInputValue(Filter.gridding_smoothing_enabled);
 			//TODO: check if possible, that current file and sensor was not gridded with current parameters {
 				showGridInputDataChangedWarning(true);
 			//}
@@ -930,7 +1153,9 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private void setSavedFilterInputValue(Filter filter) {
 		var savedValue = prefSettings.getSetting(filter.name(), ((CsvFile) selectedFile).getParser().getTemplate().getName());
-		filterInputs.get(filter.name()).setText(savedValue);
+		if (savedValue != null) {
+			filterInputs.get(filter.name()).setText(savedValue);
+		}
 	}
 
 	private void clear() {

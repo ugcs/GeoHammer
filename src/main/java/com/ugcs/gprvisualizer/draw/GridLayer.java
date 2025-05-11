@@ -21,7 +21,9 @@ import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.IDWInterpolator;
 import edu.mines.jtk.interp.SplinesGridder2;
+import javafx.scene.control.Button;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.index.kdtree.KdTree;
 import org.springframework.beans.factory.InitializingBean;
@@ -54,7 +56,7 @@ import javafx.event.EventHandler;
  * to avoid interpolation artifacts.
  */
 @Component
-public class GridLayer extends BaseLayer implements InitializingBean {
+public final class GridLayer extends BaseLayer implements InitializingBean {
 
 	private final Model model;
 	private final MapView mapView;
@@ -78,8 +80,6 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 	private ThrQueue q;
 
 	private CsvFile currentFile;
-	private double cellSize;
-	private double blankingDistance;
 	private GriddingParamsSetted currentParams;
 
 	private volatile boolean recalcGrid;
@@ -120,7 +120,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 
 	public void drawOnMapField(Graphics2D g2, MapField field) {
 		if (isActive()) {
-			if (currentFile != null && cellSize != 0 && blankingDistance != 0) {
+			if (currentFile != null) {
 				drawFileOnMapField(g2, field, currentFile);
 			}
 			setActive(isActive() && optionPane.getGridding().isSelected());
@@ -138,7 +138,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		}
 
 		@Override
-		public int compareTo(@NotNull DataPoint o) {
+		public int compareTo(DataPoint o) {
 			return latitude == o.latitude ? Double.compare(longitude, o.longitude) : Double.compare(latitude, o.latitude);
 		}
 	}
@@ -161,61 +161,131 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		return new Color((float) color.getRed(), (float) color.getGreen(), (float) color.getBlue(), (float) color.getOpacity());
 	}
 
+	/**
+	 * Calculates hill-shading illumination value for a given point in the grid.
+	 * 
+	 * @param gridData The grid data
+	 * @param x X coordinate in the grid
+	 * @param y Y coordinate in the grid
+	 * @param azimuth Light source direction in degrees (0-360, 0=North, 90=East)
+	 * @param altitude Light source height in degrees (0-90, 0=horizon, 90=zenith)
+	 * @return Illumination value between 0.0 (dark) and 1.0 (bright)
+	 */
+	private static double calculateHillShading(float[][] gridData, int x, int y, double azimuth, double altitude) {
+		// Skip edge cells
+		if (x <= 0 || y <= 0 || x >= gridData.length - 1 || y >= gridData[0].length - 1) {
+			return 1.0; // Default illumination for edges
+		}
+
+		// Check for NaN values in the neighborhood
+		if (Float.isNaN(gridData[x-1][y]) || Float.isNaN(gridData[x+1][y]) || 
+			Float.isNaN(gridData[x][y-1]) || Float.isNaN(gridData[x][y+1])) {
+			return 1.0; // Default illumination if neighbors have NaN
+		}
+
+		// Calculate slope components using central difference method
+		double dzdx = (gridData[x+1][y] - gridData[x-1][y]) / 2.0;
+		double dzdy = (gridData[x][y+1] - gridData[x][y-1]) / 2.0;
+
+		// Calculate slope and aspect
+		double slope = Math.atan(Math.sqrt(dzdx*dzdx + dzdy*dzdy));
+		double aspect = Math.atan2(dzdy, dzdx);
+
+		// Convert azimuth to radians and adjust to match aspect definition
+		double azimuthRad = Math.toRadians(azimuth);
+
+		// Convert altitude to radians
+		double altitudeRad = Math.toRadians(altitude);
+
+		// Calculate illumination using the hillshade formula
+		double illumination = Math.cos(slope) * Math.sin(altitudeRad) + 
+							  Math.sin(slope) * Math.cos(altitudeRad) * 
+							  Math.cos(azimuthRad - aspect);
+
+		// Normalize illumination to [0, 1] range
+		illumination = Math.max(0.0, illumination);
+
+		return illumination;
+	}
+
+	/**
+	 * Applies hill-shading effect to a color.
+	 * 
+	 * @param baseColor The original color
+	 * @param illumination Illumination value between 0.0 (dark) and 1.0 (bright)
+	 * @param intensity Intensity of the hill-shading effect (0.0-1.0)
+	 * @return The shaded color
+	 */
+	private static Color applyHillShading(Color baseColor, double illumination, double intensity) {
+		// Blend between original color and shaded color based on intensity
+		float shadeFactor = (float) (1.0 - (1.0 - illumination) * intensity);
+
+		// Convert int RGB values (0-255) to float (0.0-1.0), apply shading, and clamp to valid range
+		float r = Math.max(0.0f, Math.min(1.0f, (baseColor.getRed() / 255.0f) * shadeFactor));
+		float g = Math.max(0.0f, Math.min(1.0f, (baseColor.getGreen() / 255.0f) * shadeFactor));
+		float b = Math.max(0.0f, Math.min(1.0f, (baseColor.getBlue() / 255.0f) * shadeFactor));
+
+		// Keep the original alpha value
+		return new Color(r, g, b, baseColor.getAlpha() / 255.0f);
+	}
+
 	// Map to store gridding results for each file
 	private final Map<CsvFile, GriddingResult> griddingResults = new LinkedHashMap<>();
 
 	// Class to store gridding result for a file
-	private static class GriddingResult {
-		private final float[][] gridData;
-		private final LatLon minLatLon;
-		private final LatLon maxLatLon;
-		private final double cellSize;
-		private final double blankingDistance;
-		private Float minValue;
-		private Float maxValue;
-		private final String sensor;
+	private record GriddingResult(
+		float[][] gridData, float[][] smoothedGridData,
+		LatLon minLatLon, LatLon maxLatLon,
+		double cellSize, double blankingDistance,
+		Float minValue, Float maxValue,
+		String sensor,
+		// Hill-shading parameters
+		boolean hillShadingEnabled, boolean smoothingEnabled,
+		double hillShadingAzimuth,
+		double hillShadingAltitude,
+		double hillShadingIntensity) {
 
-		public GriddingResult(float[][] gridData, LatLon minLatLon, LatLon maxLatLon, double cellSize, double blankingDistance, Float minValue, Float maxValue, String sensor) {
-			// Deep clone the gridData array to avoid reference issues
-			this.gridData = new float[gridData.length][];
-			this.sensor = sensor;
-			for (int i = 0; i < gridData.length; i++) {
-				this.gridData[i] = gridData[i].clone();
-			}
-			this.minLatLon = minLatLon;
-			this.maxLatLon = maxLatLon;
-			this.cellSize = cellSize;
-			this.blankingDistance = blankingDistance;
-			this.minValue = minValue;
-			this.maxValue = maxValue;
-		}
-
-		public void setMinValue(float minValue) {
-			this.minValue = minValue;
-		}
-
-		public void setMaxValue(float maxValue) {
-			this.maxValue = maxValue;
+		public GriddingResult setValues(float minValue, float maxValue, boolean hillShadingEnabled, boolean smoothingEnabled) {
+			return new GriddingResult(
+					gridData, smoothedGridData,
+					minLatLon, maxLatLon,
+					cellSize, blankingDistance,
+					minValue, maxValue,
+					sensor,
+					hillShadingEnabled, smoothingEnabled,
+					hillShadingAzimuth,
+					hillShadingAltitude,
+					hillShadingIntensity
+			);
 		}
 	}
 
+	private static float[][] cloneGridData(float[][] gridData) {
+		var result = new float[gridData.length][];
+		for (int i = 0; i < gridData.length; i++) {
+			result[i] = gridData[i].clone();
+		}
+		return result;
+	}
+
 	/**
-	 * Draws the grid visualization for a given file on the map field.
-	 * <p>
-	 * The method performs the following steps:
-	 * 1. Collects data points from the file
-	 * 2. Creates a grid based on cell size
-	 * 3. Interpolates missing values using either:
-	 * - IDW interpolation (for large cell sizes)
-	 * - Splines interpolation (for small/medium cell sizes)
-	 * 4. Renders the interpolated grid
-	 * <p>
-	 * The interpolation method is selected based on GriddingParamsSetted configuration.
-	 * <p>
-	 * For the current file, new minValue and maxValue are applied.
-	 * For other files, stored minValue and maxValue are used to ensure
-	 * they are displayed without changes from the previous application.
-	 */
+  * Draws the grid visualization for a given file on the map field.
+  * <p>
+  * The method performs the following steps:
+  * 1. Collects data points from the file
+  * 2. Creates a grid based on cell size
+  * 3. Interpolates missing values using either:
+  * - IDW interpolation (for large cell sizes)
+  * - Splines interpolation (for small/medium cell sizes)
+  * 4. Applies a low-pass filter to smooth the interpolated data
+  * 5. Renders the filtered grid
+  * <p>
+  * The interpolation method is selected based on GriddingParamsSetted configuration.
+  * <p>
+  * For the current file, new minValue and maxValue are applied.
+  * For other files, stored minValue and maxValue are used to ensure
+  * they are displayed without changes from the previous application.
+  */
 	private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
 
 		var chart = model.getChart(csvFile);
@@ -227,8 +297,6 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 
 		// Check if we have stored results for this file and if we need to recalculate
 		GriddingResult storedResult = griddingResults.get(csvFile);
-		boolean useStoredResult = !recalcGrid && storedResult != null &&
-				storedResult.cellSize == cellSize && storedResult.blankingDistance == blankingDistance;
 
 	if (recalcGrid) {
 
@@ -260,12 +328,12 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			int gridSizeX = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
 					new LatLon(maxLat, minLon).getDistance(new LatLon(maxLat, maxLon)));
 
-			gridSizeX = (int) (gridSizeX / cellSize);
+			gridSizeX = (int) (gridSizeX / currentParams.getCellSize());
 
 			int gridSizeY = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
 					new LatLon(minLat, maxLon).getDistance(new LatLon(maxLat, maxLon)));
 
-			gridSizeY = (int) (gridSizeY / cellSize);
+			gridSizeY = (int) (gridSizeY / currentParams.getCellSize());
 
 			double lonStep = (maxLon - minLon) / gridSizeX;
 			double latStep = (maxLat - minLat) / gridSizeY;
@@ -288,8 +356,8 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 				points.computeIfAbsent(key, (k -> new ArrayList<Double>())).add(point.value);
 			}
 
-			var gridBDx = gridSizeX / (gridSizeX * cellSize / blankingDistance);
-			var gridBDy = gridSizeY / (gridSizeY * cellSize / blankingDistance);
+			var gridBDx = gridSizeX / (gridSizeX * currentParams.getCellSize() / currentParams.getBlankingDistance());
+			var gridBDy = gridSizeY / (gridSizeY * currentParams.getCellSize() / currentParams.getBlankingDistance());
 			var visiblePoints = new boolean[gridSizeX][gridSizeY];
 
 			for (Map.Entry<String, List<Double>> entry : points.entrySet()) {
@@ -380,34 +448,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			System.out.println("Filtering complete in " + (System.currentTimeMillis() - startFiltering) / 1000 + "s");
 			System.out.println("Aditional points: " + count);
 
-			if (1 != 1 && currentParams != null && currentParams.getInterpolationMethod() == GriddingParamsSetted.InterpolationMethod.IDW) {
-				System.out.println("IDW interpolation");
 
-				Collections.shuffle(dataPoints);
-				KdTree kdTree = buildKdTree(dataPoints);
-				System.out.println("kdTree depth: " + kdTree.depth());
-
-				// Initialize IDW interpolator with configured parameters
-				var idwInterpolator = new IDWInterpolator(
-						kdTree,
-						currentParams.getIdwPower(),
-						currentParams.getIdwMinPoints(),
-						cellSize * 2, // max search radius
-						cellSize     // initial search radius
-				);
-
-				// Interpolate missing values using IDW
-				for (int i = 0; i < gridData.length; i++) {
-					for (int j = 0; j < gridData[0].length; j++) {
-						if (m[i][j]) { // if point is missing
-							double lon = minLatLon.getLonDgr() + i * lonStep;
-							double lat = minLatLon.getLatDgr() + j * latStep;
-							double interpolatedValue = idwInterpolator.interpolate(lon, lat);
-							gridData[i][j] = (float) interpolatedValue;
-						}
-					}
-				}
-			} else {
 				System.out.println("Splines interpolation");
 				var start = System.currentTimeMillis();
 				// Use original splines interpolation
@@ -425,8 +466,7 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 					gridder.setMaxIterations(maxIterations);
 					gridder.gridMissing(m, gridData);
 				}
-				System.out.println("Iterations: " + gridder.getIterationCount() + " time: " + (System.currentTimeMillis() - start) / 1000 + "s" + " tension: " + tension + " maxIterations: " + maxIterations);
-			}
+ 			System.out.println("Iterations: " + gridder.getIterationCount() + " time: " + (System.currentTimeMillis() - start) / 1000 + "s" + " tension: " + tension + " maxIterations: " + maxIterations);
 
 			System.out.println("Interpolation complete");
 
@@ -462,13 +502,19 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			// Store the gridding result for this file
 			griddingResults.put(csvFile, new GriddingResult(
 					gridData, // Deep cloning is done in the constructor
+					applyLowPassFilter(gridData),
 					minLatLon,
 					maxLatLon,
-					cellSize,
-					blankingDistance,
+					currentParams.getCellSize(),
+					currentParams.getBlankingDistance(),
 					minValue,
 					maxValue,
-					sensor
+					sensor,
+					currentParams.isHillShadingEnabled(),
+					currentParams.isSmoothingEnabled(),
+					currentParams.getHillShadingAzimuth(),
+					currentParams.getHillShadingAltitude(),
+					currentParams.getHillShadingIntensity()
 			));
 
 			recalcGrid = false;
@@ -476,8 +522,10 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 
 		for (var griddingResultEntry : griddingResults.entrySet()) {
 			if (griddingResultEntry.getKey().equals(currentFile) && griddingResultEntry.getValue().sensor.equals(sensor)) {
-				griddingResultEntry.getValue().setMinValue(minValue);
-				griddingResultEntry.getValue().setMaxValue(maxValue);
+				griddingResultEntry.setValue(griddingResultEntry.getValue()
+						.setValues(minValue,maxValue,
+								currentParams.isHillShadingEnabled(),
+								currentParams.isSmoothingEnabled()));
 			}
 			print(g2, field, griddingResultEntry.getValue());
 		}
@@ -522,6 +570,88 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 			}
 		}
 		return new int[]{rowsum / (rowcount != 0 ? rowcount : 1), colsum / (colcount != 0 ? colcount : 1)};
+	}
+
+	/**
+	 * Applies a low-pass filter to the grid data to smooth out high-frequency variations.
+	 * Uses a Gaussian kernel for the convolution.
+	 * 
+	 * @param gridData The grid data to filter
+	 */
+	private float[][] applyLowPassFilter(float[][] gridData) {
+		if (gridData == null || gridData.length == 0 || gridData[0].length == 0) {
+			return gridData;
+		}
+
+		int kernelSize = 15;
+		int kernelRadius = 7;
+
+		System.out.println("Applying low-pass filter with " + kernelSize + "x" + kernelSize + " kernel");
+		long startTime = System.currentTimeMillis();
+
+		float[][] kernel = new float[kernelSize][kernelSize];
+
+		// Initialize kernel with Gaussian values
+		double sigma = 5.0;
+		double sum = 0.0;
+
+		for (int x = -kernelRadius; x <= kernelRadius; x++) {
+			for (int y = -kernelRadius; y <= kernelRadius; y++) {
+				double value = Math.exp(-(x*x + y*y) / (2 * sigma * sigma));
+				kernel[x+ kernelRadius][y+ kernelRadius] = (float)value;
+				sum += value;
+			}
+		}
+
+		// Normalize kernel
+		for (int i = 0; i < kernelSize; i++) {
+			for (int j = 0; j < kernelSize; j++) {
+				kernel[i][j] /= sum;
+			}
+		}
+
+		int width = gridData.length;
+		int height = gridData[0].length;
+
+		var resultData = cloneGridData(gridData);
+
+		// Apply convolution
+		for (int i = kernelRadius; i < width - kernelRadius; i++) {
+			for (int j = kernelRadius; j < height - kernelRadius; j++) {
+				// Skip NaN values
+				if (Float.isNaN(gridData[i][j])) {
+					continue;
+				}
+
+				float sum2 = 0;
+				float weightSum = 0;
+
+				// Apply kernel
+				for (int ki = -kernelRadius; ki <= kernelRadius; ki++) {
+					for (int kj = -kernelRadius; kj <= kernelRadius; kj++) {
+						int ni = i + ki;
+						int nj = j + kj;
+
+						// Skip out of bounds or NaN values
+						if (ni < 0 || ni >= width || nj < 0 || nj >= height || Float.isNaN(gridData[ni][nj])) {
+							continue;
+						}
+
+						float weight = kernel[ki+ kernelRadius][kj+ kernelRadius];
+						sum2 += gridData[ni][nj] * weight;
+						weightSum += weight;
+					}
+				}
+
+				// Normalize by the sum of weights
+				if (weightSum > 0) {
+					resultData[i][j] = sum2 / weightSum;
+				}
+			}
+		}
+
+		System.out.println("Low-pass filter applied in " + (System.currentTimeMillis() - startTime) + "ms");
+		return resultData;
 	}
 
 	/**
@@ -609,7 +739,9 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 		Float maxValue = gr.maxValue;
 		System.out.println("Printing minValue = " + minValue + " maxValue = " + maxValue);
 
-		var gridData = gr.gridData;
+		var gridData = gr.smoothingEnabled ? gr.smoothedGridData
+				: gr.gridData;
+
 		var minLatLon = gr.minLatLon;
 		var maxLatLon = gr.maxLatLon;
 
@@ -627,6 +759,12 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 
 		System.out.println("cellWidth = " + cellWidth + " cellHeight = " + cellHeight);
 
+		// Log hill-shading parameters if enabled
+		if (gr.hillShadingEnabled) {
+			System.out.println("Hill-shading enabled with azimuth=" + gr.hillShadingAzimuth + 
+				", altitude=" + gr.hillShadingAltitude + ", intensity=" + gr.hillShadingIntensity);
+		}
+
 		for (int i = 0; i < gridData.length; i++) {
 			for (int j = 0; j < gridData[0].length; j++) {
 				try {
@@ -635,7 +773,22 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 						continue;
 					}
 
+					// Get base color for the value
 					Color color = getColorForValue(value, minValue, maxValue);
+
+					// Apply hill-shading if enabled
+					if (gr.hillShadingEnabled) {
+						// Calculate illumination for this cell
+						double illumination = calculateHillShading(
+							gridData, i, j, 
+							gr.hillShadingAzimuth, 
+							gr.hillShadingAltitude
+						);
+
+						// Apply hill-shading to the color
+						color = applyHillShading(color, illumination, gr.hillShadingIntensity);
+					}
+
 					g2.setColor(color);
 
 					double lat = minLatLon.getLatDgr() + j * latStep;
@@ -759,13 +912,13 @@ public class GridLayer extends BaseLayer implements InitializingBean {
 	@EventListener(GriddingParamsSetted.class)
 	private void gridParamsSetted(GriddingParamsSetted griddingParamsSetted) {
 		currentParams = griddingParamsSetted;
-		cellSize = griddingParamsSetted.getCellSize();
-		blankingDistance = griddingParamsSetted.getBlankingDistance();
 		toAll = griddingParamsSetted.isToAll();
 
 		// Only recalculate grid when explicitly requested through the UI
 		// This is triggered by the "Apply" or "Apply to all" buttons
-		recalcGrid = true;
+		if (griddingParamsSetted.getSource() instanceof Button) {
+			recalcGrid = true;
+		}
 
 		setActive(true);
 		q.add();

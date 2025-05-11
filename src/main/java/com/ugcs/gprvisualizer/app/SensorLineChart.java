@@ -39,6 +39,7 @@ import javafx.scene.shape.Shape;
 import javafx.scene.shape.StrokeType;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -80,11 +81,10 @@ public class SensorLineChart extends Chart {
 
     private static final Logger log = LoggerFactory.getLogger(SensorLineChart.class);
 
-    private final Model model;
     private final ApplicationEventPublisher eventPublisher;
     private final PrefSettings settings;
-    private final AuxElementEditHandler auxEditHandler;
     private Map<SeriesData, BooleanProperty> itemBooleanMap = new HashMap<>();
+    @Nullable
     private LineChartWithMarkers lastLineChart = null;
     private Set<LineChartWithMarkers> charts = new HashSet<>();
     private Rectangle selectionRect = new Rectangle();
@@ -105,12 +105,10 @@ public class SensorLineChart extends Chart {
                 new Thread(scheduler::shutdownNow));
     }
 
-    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings, AuxElementEditHandler auxEditHandler) {
+    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings) {
         super(model);
-        this.model = model;
         this.eventPublisher = eventPublisher;
         this.settings = settings;
-        this.auxEditHandler = auxEditHandler;
     }
 
     private EventHandler<MouseEvent> mouseClickHandler = new EventHandler<MouseEvent>() {
@@ -1239,8 +1237,9 @@ public class SensorLineChart extends Chart {
         }
 
         /**
-         * Add horizontal value marker
-         * @param marker
+         * Add horizontal value marker.
+         *
+         * @param marker horizontal value marker.
          */
         public void addHorizontalValueMarker(Data<Number, Number> marker) {
             Objects.requireNonNull(marker, "the marker must not be null");
@@ -1252,8 +1251,9 @@ public class SensorLineChart extends Chart {
         }
 
         /**
-         * Remove horizontal value marker
-         * @param marker
+         * Remove horizontal value marker.
+         *
+         * @param marker horizontal value marker.
          */
         public void removeHorizontalValueMarker(Data<Number, Number> marker) {
             Objects.requireNonNull(marker, "the marker must not be null");
@@ -1316,8 +1316,9 @@ public class SensorLineChart extends Chart {
         }
 
         /**
-         * Remove vertical value marker
-         * @param marker
+         * Remove vertical value marker.
+         *
+         * @param marker vertical value marker.
          */
         public void removeVerticalValueMarker(Data<Number, Number> marker) {
             Objects.requireNonNull(marker, "the marker must not be null");

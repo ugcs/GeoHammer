@@ -1,8 +1,11 @@
 package com.ugcs.gprvisualizer.app.yaml;
 
+import org.jspecify.annotations.NullUnmarked;
+
 /**
  * This class represents a configuration for skipping lines in a file until a certain pattern is matched.
  */
+@NullUnmarked
 public class SkipLinesTo {
 
     private String matchRegex;

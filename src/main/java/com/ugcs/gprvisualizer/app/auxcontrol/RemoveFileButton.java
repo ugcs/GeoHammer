@@ -19,7 +19,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 
-public class RemoveFileButton extends BaseObjectImpl {
+public class RemoveFileButton extends BaseObjectWithModel {
 
 	static int R_HOR = ResourceImageHolder.IMG_CLOSE_FILE.getWidth(null);
 	static int R_VER = ResourceImageHolder.IMG_CLOSE_FILE.getHeight(null);
@@ -29,10 +29,10 @@ public class RemoveFileButton extends BaseObjectImpl {
 	private final SgyFile sgyFile;
 	
 	public RemoveFileButton(int trace, VerticalCutPart offset, SgyFile sgyFile, Model model) {
+		super(model);
 		this.offset = offset;
 		this.traceInFile = trace;
 		this.sgyFile = sgyFile;
-		this.model = model;
 	}
 
 	@Override

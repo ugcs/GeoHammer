@@ -24,7 +24,8 @@ import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.TraceUtils;
 import javafx.scene.layout.*;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -61,16 +62,16 @@ public class Model implements InitializingBean {
 	private static final Logger log = LoggerFactory.getLogger(Model.class);
 
 	@Value( "${trace.lookup.threshold}" )
-	private Double traceLookupThreshold;
+	private double traceLookupThreshold;
 
 	private boolean loading = false; 
-	
+
 	private final MapField field = new MapField();
 
 	private final FileManager fileManager;
 
 	private final Set<FileChangeType> changes = new HashSet<>();
-	
+
 	private final List<BaseObject> auxElements = new ArrayList<>();
 
 	private final List<ClickPlace> selectedTraces = new ArrayList<>();
@@ -89,6 +90,7 @@ public class Model implements InitializingBean {
 
 	private final ApplicationEventPublisher eventPublisher;
 
+	@Nullable
 	private SgyFile currentFile;
 
 	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher) {
@@ -102,18 +104,6 @@ public class Model implements InitializingBean {
 		return auxEditHandler;
 	}
 
-	//public Settings getSettings() {
-		//return gprChart.getField().getProfileSettings();
-	//}
-		
-	/*public void setBounds(Rectangle2D.Double bounds) {
-		this.bounds = bounds;		
-	}
-	
-	public Rectangle2D.Double getBounds() {
-		return bounds;
-	}*/
-
 	public MapField getMapField() {
 		return field;
 	}
@@ -122,6 +112,7 @@ public class Model implements InitializingBean {
 		return fileManager;
 	}
 
+	@Nullable
 	public SgyFile getCurrentFile() {
 		return currentFile;
 	}
@@ -156,6 +147,7 @@ public class Model implements InitializingBean {
 		return chartsContainer;
 	}
 
+	@Nullable
 	public GPRChart getProfileField(SgyFile sgyFile) {
 		if (!gprCharts.containsKey(sgyFile)) {
 			System.out.println(sgyFile + " not found in gprCharts");
@@ -181,27 +173,27 @@ public class Model implements InitializingBean {
 				System.out.println("null trace or ot latlon");
 				continue;
 			}
-			
+
 			if (trace.getLatLon() != null) {
 				latMid.put(trace.getLatLon().getLatDgr());
 				lonMid.put(trace.getLatLon().getLonDgr());
 			}
 		}
-		
+
 		if (latMid.isNotEmpty()) {
 			this.getMapField().setPathCenter(
 					new LatLon(latMid.getMid(), lonMid.getMid()));
 			this.getMapField().setSceneCenter(
 					new LatLon(latMid.getMid(), lonMid.getMid()));
-			
-			
+
+
 			LatLon lt = new LatLon(latMid.getMin(), lonMid.getMin());
 			LatLon rb = new LatLon(latMid.getMax(), lonMid.getMax());
-			
+
 			this.getMapField().setPathEdgeLL(lt, rb);
-			
+
 			this.getMapField().adjustZoom(CHART_MIN_HEIGHT, 700);
-			
+
 		} else {
 			//Sout.p("GPS coordinates not found");
 			//this.getMapField().setPathCenter(null);
@@ -221,13 +213,13 @@ public class Model implements InitializingBean {
 
 	public boolean stopUnsaved() {
     	if (getFileManager().isUnsavedExists()) {
-    		
+
 			Alert alert = new Alert(AlertType.CONFIRMATION);
 			alert.setTitle("Warning");
 			alert.setHeaderText("Current files are not saved. Continue?");
-			 
+
 			Optional<ButtonType> result = alert.showAndWait();
-			 
+
 			if (!result.isPresent() || result.get() != ButtonType.OK) {
 				return true;    			
 			}
@@ -261,7 +253,6 @@ public class Model implements InitializingBean {
 	/** 
 	 * Initialize chart for the given CSV file
 	 * @param csvFile CSV file to initialize chart for
-	 * @return void
 	 */
 	public void initChart(CsvFile csvFile) {
 		if (getChart(csvFile).isPresent()) {
@@ -307,7 +298,7 @@ public class Model implements InitializingBean {
 			}
 		}
 
-		chart = new SensorLineChart(this, eventPublisher, prefSettings, auxEditHandler);
+		chart = new SensorLineChart(this, eventPublisher, prefSettings);
 		csvFiles.remove(csvFile);
 		csvFiles.put(csvFile, chart);
 
@@ -378,11 +369,10 @@ public class Model implements InitializingBean {
 	Map<String, Color> semanticColors = new HashMap<>();
 
 	public void loadColorSettings(Map<String, Color> semanticColors) {
-		prefSettings.getAllSettings().get("colors")
-			.forEach((key, value) -> {
-			//if (key.startsWith("colors")) {
+		var colors = prefSettings.getAllSettings().get("colors");
+		if (colors != null)
+			colors.forEach((key, value) -> {
 				semanticColors.put(key, Color.web(value));
-			//}
 		});
 	}
 
@@ -424,6 +414,7 @@ public class Model implements InitializingBean {
 
 	Random rand = new Random();
 
+	@Nullable
 	private Node selectedDataNode;
 
 	// Generate random color
@@ -455,11 +446,12 @@ public class Model implements InitializingBean {
 		this.selectedDataNode = node;
 	}
 
+	@Nullable
     private Node getSelectedData() {
-		return selectedDataNode;   
+		return selectedDataNode;
 	}
 
-	public boolean isChartSelected(FileDataContainer fileDataContainer) {
+	public boolean isChartSelected(@Nullable FileDataContainer fileDataContainer) {
 		if (fileDataContainer == null) {
 			return false;
 		}
@@ -474,7 +466,7 @@ public class Model implements InitializingBean {
 			if (getSelectedData() == node) {
 				return false;
 			}
-			getChart(null); // clear selection
+			//getChart(null); // clear selection
 			getSelectedData().setStyle("-fx-border-width: 2px; -fx-border-color: transparent;");
 		}
 
@@ -486,7 +478,7 @@ public class Model implements InitializingBean {
 		return true;
 	}
 
-	public void scrollToChart(FileDataContainer fileDataContainer) {
+	public void scrollToChart(@Nullable FileDataContainer fileDataContainer) {
 		if (fileDataContainer == null) {
 			return;
 		}
@@ -504,6 +496,7 @@ public class Model implements InitializingBean {
 		return selected;
     }
 
+	@Nullable
 	private ScrollPane findScrollPane(Node node) {
         Parent parent = node.getParent();
         while (parent != null) {
@@ -543,7 +536,7 @@ public class Model implements InitializingBean {
 		eventPublisher.publishEvent(event);
 	}
 
-	public GPRChart getProfileFieldByPattern(@NotNull SgyFile f) {
+	public GPRChart getProfileFieldByPattern(@NonNull SgyFile f) {
 		if (gprCharts.containsKey(f)) {
 			return gprCharts.get(f);
 		}
@@ -608,7 +601,8 @@ public class Model implements InitializingBean {
 		return charts;
 	}
 
-	public Chart getFileChart(SgyFile file) {
+	@Nullable
+	public Chart getFileChart(@Nullable SgyFile file) {
 		if (file instanceof CsvFile csvFile) {
 			return getChart(csvFile).orElse(null);
 		}
@@ -624,6 +618,7 @@ public class Model implements InitializingBean {
 		return Collections.unmodifiableList(selectedTraces);
 	}
 
+	@Nullable
 	public ClickPlace getSelectedTrace(Chart chart) {
 		if (chart == null) {
 			return null;
@@ -637,6 +632,7 @@ public class Model implements InitializingBean {
 		return null;
 	}
 
+	@Nullable
 	public ClickPlace getSelectedTraceInCurrentChart() {
 		Chart chart = getFileChart(currentFile);
 		return chart != null
@@ -691,7 +687,9 @@ public class Model implements InitializingBean {
 				if (keepSelection) {
 					scrollToChart(traceChart);
 				} else {
-					selectAndScrollToChart(traceChart);
+					if (traceChart != null) {
+						selectAndScrollToChart(traceChart);
+					}
 				}
 			}
 		});
@@ -703,7 +701,7 @@ public class Model implements InitializingBean {
 		return clickPlace;
 	}
 
-	public void clearSelectedTrace(Chart chart) {
+	public void clearSelectedTrace(@Nullable Chart chart) {
 		selectedTraces.removeIf(x -> Objects.equals(chart, getFileChart(x.getTrace().getFile())));
 		Platform.runLater(() -> updateSelectedTraceOnChart(chart, false));
 	}
@@ -717,7 +715,7 @@ public class Model implements InitializingBean {
 		});
 	}
 
-	private void updateSelectedTraceOnChart(Chart chart, boolean focusOnTrace) {
+	private void updateSelectedTraceOnChart(@Nullable Chart chart, boolean focusOnTrace) {
 		if (chart == null) {
 			return;
 		}
@@ -759,6 +757,7 @@ public class Model implements InitializingBean {
 		publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
+	@Nullable
 	private FoundPlace toFlag(ClickPlace selectedTrace) {
 		if (selectedTrace == null) {
 			return null;
@@ -785,18 +784,18 @@ public class Model implements InitializingBean {
 		}
 
 		List<FoundPlace> flags = chart.getFlags();
-		FoundPlace selectedFlag = flags.stream()
+		var selectedFlag = flags.stream()
 				.filter(FoundPlace::isSelected)
-				.findFirst()
-				.orElse(null);
-		if (selectedFlag == null) {
+				.findFirst();
+
+		if (selectedFlag.isEmpty()) {
 			return;
 		}
 
-		chart.removeFlag(selectedFlag);
+		chart.removeFlag(selectedFlag.get());
 
-		SgyFile traceFile = selectedFlag.getTrace().getFile();
-		traceFile.getAuxElements().remove(selectedFlag);
+		SgyFile traceFile = selectedFlag.get().getTrace().getFile();
+		traceFile.getAuxElements().remove(selectedFlag.get());
 		traceFile.setUnsaved(true);
 
 		updateAuxElements();

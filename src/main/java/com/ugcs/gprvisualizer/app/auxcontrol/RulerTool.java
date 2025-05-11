@@ -18,7 +18,7 @@ import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 //import com.ugcs.gprvisualizer.app.MouseHandler;
-import com.ugcs.gprvisualizer.math.NumberUtils;
+import org.jspecify.annotations.Nullable;
 
 public class RulerTool extends BaseObjectImpl {
 	
@@ -30,12 +30,13 @@ public class RulerTool extends BaseObjectImpl {
 	private final VerticalCutPart offset;
 	private final SgyFile file;
 	
-	class RulerAnchor extends DragAnchor {
+	private static class RulerAnchor extends DragAnchor {
 		
 		public RulerAnchor(Image img, AlignRect alignRect, VerticalCutPart offset) {
 			super(img, alignRect, offset);
 		}
 
+		@Override
 		protected void realDraw(Graphics2D g2, Rectangle rect) {
 		
 			g2.setColor(Color.BLACK);
@@ -50,15 +51,16 @@ public class RulerTool extends BaseObjectImpl {
 	public RulerTool(SgyFile file, int s, int f, int smpStart, int smpFinish) {
 		this.file = file;
 		offset = file.getOffset();
-		
-		
+
 		anch1 = new RulerAnchor(ResourceImageHolder.IMG_VER_SLIDER, 
 				AlignRect.CENTER, offset) {
-			public void signal(Object obj) {
+
+			@Override
+			public void signal(@Nullable Object obj) {
 				anch1.setTrace(
-					NumberUtils.norm(anch1.getTrace(), 0, file.size() - 1));
+					Math.clamp(anch1.getTrace(), 0, file.size() - 1));
 				anch1.setSample(
-						NumberUtils.norm(anch1.getSample(), 
+						Math.clamp(anch1.getSample(),
 								0, file.getMaxSamples()));
 
 			}
@@ -66,13 +68,14 @@ public class RulerTool extends BaseObjectImpl {
 		
 		anch2 = new RulerAnchor(ResourceImageHolder.IMG_VER_SLIDER, 
 				AlignRect.CENTER, offset) {
-			
-			public void signal(Object obj) {
+
+			@Override
+			public void signal(@Nullable Object obj) {
 				anch2.setTrace(
-						NumberUtils.norm(anch2.getTrace(),
+						Math.clamp(anch2.getTrace(),
 								0, file.size() - 1));
 				anch2.setSample(
-						NumberUtils.norm(anch2.getSample(),
+						Math.clamp(anch2.getSample(),
 								0, file.getMaxSamples()));
 			}
 		};		
@@ -258,11 +261,6 @@ public class RulerTool extends BaseObjectImpl {
 	@Override
 	public List<BaseObject> getControls() {
 		return List.of(anch1, anch2);
-	}
-
-	@Override
-	public BaseObject copy(int offset, VerticalCutPart verticalCutPart) {
-		return null;
 	}
 
 	@Override

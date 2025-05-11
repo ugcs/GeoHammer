@@ -19,11 +19,13 @@ import com.ugcs.gprvisualizer.app.parcers.csv.CSVParsersFactory;
 import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
+import org.jspecify.annotations.Nullable;
 
 public class PositionFile {
 
 	private FileTemplates fileTemplates;
 
+	@Nullable
 	private File positionFile;
 
 	public PositionFile(FileTemplates fileTemplates) {
@@ -197,6 +199,7 @@ public class PositionFile {
 		return mrkupName != null ? Optional.of(new File(mrkupName)) : Optional.empty();
 	}
 
+	@Nullable
 	public File getPositionFile() {
 		return positionFile;
 	}

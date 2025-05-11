@@ -35,7 +35,7 @@ import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.jfree.fx.FXGraphics2D;
 
 import java.awt.*;
@@ -144,7 +144,7 @@ public class GPRChart extends Chart {
         return auxElements;
     }
 
-    public void addSgyFile(@NotNull SgyFile f) {
+    public void addSgyFile(@NonNull SgyFile f) {
         profileField.addSgyFile(f);
         updateAuxElements();
     }

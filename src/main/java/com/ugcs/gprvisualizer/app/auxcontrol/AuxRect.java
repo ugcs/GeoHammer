@@ -19,7 +19,6 @@ import com.github.thecoldwine.sigrun.common.ext.AreaType;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
-import com.ugcs.gprvisualizer.math.NumberUtils;
 
 import javafx.scene.control.ChoiceDialog;
 
@@ -235,7 +234,7 @@ public class AuxRect extends BaseObjectImpl {
 				AlignRect.CENTER, offset) {
 			public void signal(Object obj) {
 				
-				top.setSample(NumberUtils.norm(
+				top.setSample(Math.clamp(
 						top.getSample(), 0, bottom.getSample() - 2));
 				
 				clearCut();
@@ -251,7 +250,7 @@ public class AuxRect extends BaseObjectImpl {
 				AlignRect.CENTER, offset) {
 			public void signal(Object obj) {
 
-				bottom.setSample(NumberUtils.norm(bottom.getSample(), 
+				bottom.setSample(Math.clamp(bottom.getSample(),
 					top.getSample() + 2, offset.getMaxSamples()));
 				
 				clearCut();
@@ -267,7 +266,7 @@ public class AuxRect extends BaseObjectImpl {
 				AlignRect.CENTER, offset) {
 			public void signal(Object obj) {
 
-				left.setTrace(NumberUtils.norm(left.getTrace(), 
+				left.setTrace(Math.clamp(left.getTrace(),
 						0, right.getTrace() - 2));
 				
 				clearCut();
@@ -284,7 +283,7 @@ public class AuxRect extends BaseObjectImpl {
 			public void signal(Object obj) {
 
 				right.setTrace(
-						NumberUtils.norm(right.getTrace(), 
+						Math.clamp(right.getTrace(),
 							left.getTrace() + 2, offset.getTraces()));
 				
 				clearCut();
@@ -372,10 +371,10 @@ public class AuxRect extends BaseObjectImpl {
 			int halfWidth = (getTraceFinishLocal() - getTraceStartLocal()) / 2;
 			int halfHeight = getSampleHeight() / 2;
 			
-			int tr = NumberUtils.norm(ts.getTrace(), 
+			int tr = Math.clamp(ts.getTrace(),
 					halfWidth, offset.getTraces() - halfWidth);
 			
-			int sm = NumberUtils.norm(ts.getSample(), 
+			int sm = Math.clamp(ts.getSample(),
 					halfHeight, offset.getMaxSamples() - halfHeight);
 			
 			setTraceStart(tr - halfWidth);

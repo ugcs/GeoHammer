@@ -14,7 +14,7 @@ public class GeoData extends GeoCoordinates {
         ALTITUDE_AGL("Altitude AGL"),
         TMI("TMI"), MARK("Mark"),;
 
-        private String name;
+        private final String name;
 
         Semantic(String name) {
             this.name = name;

@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
+import org.apache.commons.lang3.NotImplementedException;
 
 import java.awt.Rectangle;
 
@@ -79,15 +80,16 @@ public abstract class ScrollableData {
 
     public void setCursor(Cursor aDefault) {
         // for GPRChart
+        throw new NotImplementedException("setCursor");
     }
 
     public TraceSample screenToTraceSample(Point2D point) {
         // for GPRChart
-        return null;
+        throw new NotImplementedException("screenToTraceSample");
     }
 
     public Point2D traceSampleToScreen(TraceSample traceSample) {
         // for GPRChart
-        return null;
+        throw new NotImplementedException("traceSampleToScreen");
     }
 }

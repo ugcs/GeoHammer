@@ -17,13 +17,8 @@ public class Settings {
 	
 	//
 	
-	
 	public boolean showGreenLine = true;
-	
-	
-	public Point2D middleLatLonDgr;
-	public Point2D middleLatLonRad;
-	
+
 	public boolean isRadarMapVisible = true;
 	
 	public int maxsamples = 400;
@@ -72,10 +67,7 @@ public class Settings {
 	public int widthZoomKf = 30;
 	public int heightZoomKf = 100;
 	public int heightStart = 0;
-	
-	
-	public File lastExportFolder = null;
-    
+
 	public int getWidth() {
 		return (int) (width * zoom / 100.0);
 	}

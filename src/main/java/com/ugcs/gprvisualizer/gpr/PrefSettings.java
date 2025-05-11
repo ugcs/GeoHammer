@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.gpr;
 
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResourceLoader;
@@ -16,7 +17,7 @@ import java.util.Properties;
 public class PrefSettings {
 
     @Value("${settings.prefix:geohammer.settings.}")
-    private String prefix;
+    private String prefix = "geohammer.settings.";
 
     //private final Resource resource = new ClassPathResource("dynamic-settings.properties");
 

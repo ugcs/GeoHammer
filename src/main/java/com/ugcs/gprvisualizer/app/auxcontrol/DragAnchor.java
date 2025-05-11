@@ -40,7 +40,7 @@ public class DragAnchor extends BaseObjectImpl {
 			VerticalCutPart offset) {
 		
 		this.offset = offset;
-		this.setImg(img);
+		this.img = img;
 		this.alignRect = alignRect;
 		
 		if (img != null) {
@@ -48,11 +48,7 @@ public class DragAnchor extends BaseObjectImpl {
 		}
 					
 	}
-	
-	public void signal(Object obj) {
-		
-	}
-	
+
 	@Override
 	public void drawOnMap(Graphics2D g2, MapField mapField) {
 		//is not visible on the map view
@@ -153,16 +149,8 @@ public class DragAnchor extends BaseObjectImpl {
 		sample.setValue(s);
 	}
 
-	public List<BaseObject> getControls() {
-		return null;
-	}
-
 	protected Image getImg() {
 		return img;
-	}
-
-	protected void setImg(Image img) {
-		this.img = img;
 	}
 
 	public boolean isVisible() {
@@ -171,11 +159,6 @@ public class DragAnchor extends BaseObjectImpl {
 
 	public void setVisible(boolean visible) {
 		this.visible = visible;
-	}
-
-	@Override
-	public BaseObject copy(int offset, VerticalCutPart verticalCutPart) {
-		return null;
 	}
 
 	public MutableInt getSampleMtl() {

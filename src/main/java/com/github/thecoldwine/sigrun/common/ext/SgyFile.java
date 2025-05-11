@@ -17,25 +17,31 @@ import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.math.ScanProfile;
+import org.jspecify.annotations.Nullable;
 
 public abstract class SgyFile {
 	
-    private List<Trace> traces = new ArrayList<>(); 
+    private List<Trace> traces = new ArrayList<>();
     
     private final VerticalCutPart offset = new VerticalCutPart();
-    
+
+	@Nullable
 	private File file;
 	
 	private boolean unsaved = true;
-	
+
+	@Nullable
     //horizontal cohesive lines of edges
     public List<HorizontalProfile> profiles;
 
+	@Nullable
     private HorizontalProfile groundProfile;
-    
+
+	@Nullable
     // hyperbola probability calculated by AlgoritmicScan
     public ScanProfile algoScan;
-    
+
+	@Nullable
     // amplitude
     public ScanProfile amplScan;
 
@@ -43,6 +49,7 @@ public abstract class SgyFile {
 	
 	private boolean spreadCoordinatesNecessary = false;
 
+	@Nullable
 	private PositionFile positionFile;
 	
 	protected static double SPEED_SM_NS_VACUUM = 30.0;
@@ -122,6 +129,7 @@ public abstract class SgyFile {
 		new EdgeFinder().execute(this, null);
 	}
 
+	@Nullable
 	public File getFile() {
 		return file;
 	}
@@ -238,7 +246,7 @@ public abstract class SgyFile {
 	}
 
 	@Override
-	public boolean equals(Object other) {
+	public boolean equals(@Nullable Object other) {
 		if (!(other instanceof SgyFile sgyFile)) {
 			return false;
 		}

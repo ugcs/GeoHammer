@@ -7,7 +7,7 @@ import java.util.List;
 
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.Settings;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 public class ProfileField {
 
@@ -26,7 +26,7 @@ public class ProfileField {
 	private Rectangle clipLeftMainRect = new Rectangle();
 	private Rectangle clipTopMainRect = new Rectangle();
 	private Rectangle clipInfoRect = new Rectangle();
-	
+
 	//
 	private int visibleStart;
 	//private int visibleFinish;
@@ -102,29 +102,29 @@ public class ProfileField {
 
 		int leftMargin = 30;
 		int ruleWidth = 90;
-		
+
 		topRuleRect = new Rectangle(leftMargin, 0, viewDimension.width - leftMargin - ruleWidth, Model.TOP_MARGIN - 1);
 		infoRect = new Rectangle(leftMargin + topRuleRect.width, 0, Model.TOP_MARGIN - 1, Model.TOP_MARGIN - 1);
 		leftRuleRect = new Rectangle(leftMargin + topRuleRect.width, Model.TOP_MARGIN, ruleWidth, viewDimension.height - leftMargin);
 		mainRectRect = new Rectangle(leftMargin, Model.TOP_MARGIN, viewDimension.width - leftMargin - ruleWidth, viewDimension.height - leftMargin);
-		
+
 		visibleStart = -mainRectRect.x -mainRectRect.width / 2;
-		
+
 		initClipRects();
  	}
 
 	public Rectangle getTopRuleRect() {
 		return topRuleRect;
 	}
-	
+
 	public Rectangle getLeftRuleRect() {
 		return leftRuleRect;
 	}
-	
+
 	public Rectangle getMainRect() {
 		return mainRectRect;
 	}
-	
+
 	public Rectangle getInfoRect() {
 		return infoRect;
 	}
@@ -132,24 +132,24 @@ public class ProfileField {
 	public Rectangle getClipMainRect() {
 		return clipMainRect;		
 	}
-	
+
 	public Rectangle getClipLeftMainRect() {
 		return clipLeftMainRect;
 	}
-	
+
 	public Rectangle getClipTopMainRect() {
 		return clipTopMainRect;
 	}
-	
+
 	public Rectangle getClipInfoRect() {
 		return clipInfoRect;
 	}
-	
+
 	public void initClipRects() {
 		clipMainRect = new Rectangle(
 				-getMainRect().width / 2, getMainRect().y, 
 				getMainRect().width, getMainRect().height);
-		
+
 		clipTopMainRect = new Rectangle(
 				-getMainRect().width / 2, 0, 
 				getMainRect().width, getMainRect().y + getMainRect().height);
@@ -192,7 +192,7 @@ public class ProfileField {
 		return 0;
 	}
 
-	public void addSgyFile(@NotNull SgyFile f) {
+	public void addSgyFile(@NonNull SgyFile f) {
 		sgyFiles.add(f);
 		sgyFiles.sort((f1, f2) -> {
 			return f1.getFile().getName().compareToIgnoreCase(f2.getFile().getName());

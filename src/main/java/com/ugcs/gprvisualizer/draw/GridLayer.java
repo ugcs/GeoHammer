@@ -22,7 +22,6 @@ import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.IDWInterpolator;
 import edu.mines.jtk.interp.SplinesGridder2;
 import javafx.scene.control.Button;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.index.kdtree.KdTree;

@@ -144,12 +144,6 @@ public class LeftRulerController {
 			}
 			return false;
 		}
-
-		@Override
-		public BaseObject copy(int offset, VerticalCutPart verticalCutPart) {
-			return null;
-		}
-
 	};
 
 }

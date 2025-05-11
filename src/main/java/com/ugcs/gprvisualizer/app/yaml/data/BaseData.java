@@ -1,5 +1,8 @@
 package com.ugcs.gprvisualizer.app.yaml.data;
 
+import org.jspecify.annotations.NullUnmarked;
+
+@NullUnmarked
 public class BaseData {
 
     private String header;

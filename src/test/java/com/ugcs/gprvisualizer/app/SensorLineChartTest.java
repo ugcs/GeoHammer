@@ -39,7 +39,7 @@ public class SensorLineChartTest {
     @Start
     private void start(Stage stage) {
         this.stage = stage;
-        sensorLineChart = new SensorLineChart(model, eventPublisher, settings, auxEditHandler);
+        sensorLineChart = new SensorLineChart(model, eventPublisher, settings);
 
         // Set up the initial scene
         VBox root = new VBox();

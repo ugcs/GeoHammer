@@ -23,6 +23,7 @@ import com.github.thecoldwine.sigrun.common.ext.Trace;
 
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 import com.ugcs.gprvisualizer.obm.ObjectByteMapper;
+import org.jspecify.annotations.Nullable;
 
 public class DztFile extends SgyFile {
 
@@ -33,8 +34,9 @@ public class DztFile extends SgyFile {
 	private static final int GPSAREASIZE = 2 * 12;
 	private static final int INFOAREASIZE = (MINHEADSIZE - PARAREASIZE- GPSAREASIZE) ; 
 	
-	
+	@Nullable
 	private File sourceFile;
+
 	private DztHeader header = new DztHeader();			
 	public DzgFile dzg = new DzgFile();
 	private MinMaxAvg valuesAvg = new MinMaxAvg();

@@ -7,8 +7,6 @@ import java.awt.Rectangle;
 
 public abstract class BaseObjectImpl implements BaseObject {
 
-    protected Model model;
-
     private boolean selected = false;
 
 	public void setSelected(boolean selected) {

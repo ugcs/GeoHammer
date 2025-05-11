@@ -11,6 +11,7 @@ import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -64,10 +65,13 @@ public class Saver implements ToolProducer, InitializingBean {
 	@Autowired
 	private PrefSettings prefSettings;
 
+	@Nullable
 	private SgyFile selectedFile;
-	
+
+	@Nullable
 	private File saveToFolder;
 
+	@Nullable
 	private File saveToFile;
 	
 	private final ProgressTask saveTask = listener -> {
@@ -89,6 +93,10 @@ public class Saver implements ToolProducer, InitializingBean {
 	private final ProgressTask saveToFileTask = listener -> {
 
 		listener.progressMsg("save now");
+
+		if (saveToFile == null) {
+			return;
+		}
 
 		CsvFile csvFile = model.getFileManager().getCsvFiles().stream()
 				.map(f -> (CsvFile) f)
@@ -123,6 +131,11 @@ public class Saver implements ToolProducer, InitializingBean {
 
 	private ProgressTask saveAsTask = listener -> {
 		listener.progressMsg("save now");
+
+		if (saveToFolder == null) {
+			return;
+		}
+
 		List<File> newfiles = saveAs(saveToFolder);
 		
 		listener.progressMsg("load now");

@@ -1,22 +1,22 @@
-  # Displayable name of Template
-  name: "GEM GSMP"
+  # Template display name
+  name: "GEM GSMP (comma)"
   # Code of template
-  code: "gemgspm"
+  code: "GEM-GSMP-comma"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
-    ^.*time,nT,L,H,FR,uA,ampl,RF-VDC,V-heater,V-supply,sensor-temp,box-temp,lat,lon,utmE,utmN,alt,sat,zone,laser,mm/dd/yyyy.*
+    .*time,.*nT,.*lat,lon,.*alt,.*laser,.*mm/dd/yyyy.*
   file-format:
   # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true
-    # The symbol which uses to make a comment
-    comment-prefix: '#'
+    # The symbol which used to make a comment
+    comment-prefix: '/'
     # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
       header: lat

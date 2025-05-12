@@ -1,10 +1,10 @@
-  # Displayable name of Template
-  name: "Medusa"
+  # Template display name
+  name: "Medusa CRS"
   # Code of template
-  code: "medusa"
+  code: "Medusa-CRS"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
     ^.*timestamp,lat,lon,Total,Countrate,U238,K40,Th232,Cs137,Height,Press,Temp,Hum
   file-format:
@@ -16,7 +16,7 @@
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
       header: lat

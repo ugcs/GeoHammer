@@ -1,12 +1,12 @@
-  # Displayable name of Template
-  name: "Geolux-LX-80-AB"
+  # Template display name
+  name: "MagNIMBUS"
   # Code of template
-  code: "Geolux-LX-80-AB"
+  code: "MagNIMBUS"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
-    ^.*Date,Time,.*Latitude,Longitude,Heading,Altitude RTK,.*LX:Distance.*
+    ^.*Date,Time,.*Latitude,Longitude,Heading,.*Altitude,Altitude AGL,.*alid,TMI.*
   file-format:
   # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true
@@ -17,15 +17,15 @@
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
   # Applied on a quality check to all data values
-  data-validation: '{LX:SNR} > 30 && {LX:SD} < 100'
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  data-validation: '{Valid} == 1'
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
       header: Latitude
     longitude:
       header: Longitude
     altitude:
-      header: Altitude RTK
+      header: Altitude
     time:
       header: Time
       format: 'H:mm:ss.fff'
@@ -33,27 +33,24 @@
       header: Date
       format: 'yyyy/MM/dd'
     data-values:
-      - header: "Heading"
-        semantic: "Heading"
-        units: "deg"
-      - header: "Altitude RTK"
-        semantic: "Altitude RTK"
+      - header: "TMI"
+        semantic: "TMI"
+        units: "nT"
+      - header: "ScSensitivity"
+        semantic: "Sensitivity"
+        units: ""
+      - header: "Altitude"
+        semantic: "Altitude"
         units: "m"
       - header: "Altitude AGL"
         semantic: "Altitude AGL"
         units: "m"
-      - header: "LX:Distance"
-        semantic: "LX:Distance"
-        units: "m"
-      - header: "LX:Temperature"
-        semantic: "LX:Temperature"
-        units: "C"
-      - header: "LX:SNR"
-        semantic: "LX:SNR"
-        units: ""
-      - header: "LX:SD"
-        semantic: "LX:SD"
-        units: ""
-      - header: "Line"
+      - header: "Next WP"
         semantic: "Line"
+        units: ""
+      - header: "TMI_anomaly"
+        semantic: "TMI_anomaly"
+        units: "nT"
+      - header: "Valid"
+        semantic: "Data valid"
         units: ""

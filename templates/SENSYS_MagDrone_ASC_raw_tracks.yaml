@@ -1,22 +1,26 @@
-  # Displayable name of Template
-  name: "MagDrone ASC old"
+  # Template display name
+  name: "MagDrone ASC RTR"
   # Code of template
   code: "magdrone"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
-    ^\s*Timestamp.*Sensor ID.*Latitude.*Longitude.*Total field anomaly.*
+    ^\s*Timestamp.*Track ID.*Sensor ID.*Latitude.*Longitude.*Total field.*Declination.*Inclination.*
   file-format:
   # Applies to CSV type. 'true' if the file has headers, otherwise false
     has-header: true
-    # The symbol which uses to make a comment
+    # The symbol which used to make a comment
     comment-prefix: '%'
     # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: '	'
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  # Data before the header that have to be skipped
+  skip-lines-to:
+    match-regex: Raw track data
+    skip-matched-line: true
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
       header: 'Latitude [°]'
@@ -27,17 +31,28 @@
     timestamp:
       header: 'Timestamp [ms]'
     date:
-      # Source to parse date. Avaliable values are FileName and Column. Column is default value
+      # Source to parse date. Available values are FileName and Column. Column is default value
       source: FileName
-      regex: '\d{4}\d{2}\d{2}'
-      format: 'yyyyMMdd'
+      regex: '\d{4}-\d{2}-\d{2}|\d{4}\d{2}\d{2}'
+      formats:
+        - 'yyyy-MM-dd'
+        - 'yyyyMMdd'
     data-values:
-      - header: "Total field anomaly [nT]"
+      - header: "Total field [nT]"
         semantic: "TMI"
         units: "nT"
       - header: "TMI anomaly"
         semantic: "TMI_anomaly"
         units: "nT"
+      - header: "Track ID"
+        semantic: "Track ID"
+        units: ""
+      - header: "Sensor ID"
+        semantic: "Sensor ID"
+        units: ""
+      - header: "Altitude [m]"
+        semantic: "Altitude"
+        units: "m"
       - header: "Mag-X [nT]"
         semantic: "Bx"
         units: "nT"
@@ -47,6 +62,12 @@
       - header: "Mag-Z [nT]"
         semantic: "Bz"
         units: "nT"
+      - header: "Declination [°]"
+        semantic: "Declination"
+        units: "°"
+      - header: "Inclination [°]"
+        semantic: "Inclination"
+        units: "°"
       - header: "Line"
         semantic: "Line"
         units: ""

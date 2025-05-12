@@ -1,10 +1,10 @@
-  # Displayable name of Template
+  # Template display name
   name: "SkyHub"
   # Code of template
-  code: "skyhub"
+  code: "SkyHub"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
     ^.*Elapsed,Date,Time,Pitch,Roll,.*Latitude,Longitude,Altitude,.*Velocity.*RTK.*
   file-format:
@@ -16,7 +16,7 @@
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
       header: Latitude
@@ -39,6 +39,9 @@
         units: "m"
       - header: "ALT:Altitude"
         semantic: "Altitude AGL"
+        units: "m"
+      - header: "Ellipsoidal Height"
+        semantic: "Ellipsoidal Height"
         units: "m"
       - header: "Next WP"
         semantic: "Line"

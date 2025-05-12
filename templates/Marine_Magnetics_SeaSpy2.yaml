@@ -1,50 +1,51 @@
-  # Displayable name of Template
-  name: "MagArrow"
+  # Template display name
+  name: "SeaSPY2"
   # Code of template
-  code: "MagArrow"
+  code: "SeaSPY2"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
-    ^.*Date,Time,Latitude,Longitude,Mag.*
+    ^.*Reading_Date,Reading_Time,.*Magnetic_Field,.*Mag_Latitude,Mag_Longitude.*
   file-format:
   # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true
     # The symbol which uses to make a comment
-    comment-prefix: '%'
+    comment-prefix: '#'
     # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
   # Applied on a quality check to all data values
-  data-validation: '{MagValid} == 1'
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  data-validation: '{Valid} == 1'
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
-      header: 'Latitude'
+      header: Mag_Latitude
     longitude:
-      header: 'Longitude'
+      header: Mag_Longitude
     altitude:
-      header: 'Altitude'
+      header: Altitude
     time:
-      header: 'Time'
-      format: 'H:mm:ss.fff' # Format to parse time from column;
+      header: Reading_Time
+      format: 'H:mm:ss.fff'
     date:
-      header: 'Date'
-      format: 'yyyy/MM/dd' # Format to parse date from column;
+      header: Reading_Date
+      format: 'd-MMM-yyyy'
     data-values:
-      - header: "Mag"
-        semantic: "Mag"
+      - header: "Magnetic_Field"
+        semantic: "TMI"
         units: "nT"
-      - header: "MagValid"
-        semantic: "MagValid"
-        units: ""
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
-      - header: "Line"
+      - header: "Depth"
+        semantic: "Depth"
+        units: "m"
+      - header: "Line_Name"
         semantic: "Line"
         units: ""
-      - header: "Mag_anomaly"
-        semantic: "Mag_anomaly"
+      - header: "TMI_anomaly"
+        semantic: "TMI_anomaly"
         units: "nT"
+

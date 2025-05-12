@@ -1,0 +1,48 @@
+  # Template display name
+  name: "GEM GSMP (semicolon)"
+  # Code of template
+  code: "GEM-GSMP-semicolon"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: CSV
+  # Applies to the first 10 non-empty lines of the file to detect template
+  match-regex: >-
+    .*time;.*nT;.*lat;lon;.*alt;.*laser;.*mm/dd/yyyy.*
+  file-format:
+  # Applies to CSV type. 'true' if file has headers, otherwise false
+    has-header: true
+    # The symbol which used to make a comment
+    comment-prefix: '/'
+    # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+    # Applies to CSV type. The symbol to separate values from line in CSV file;
+    separator: ';'
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  data-mapping:
+    latitude:
+      header: lat
+    longitude:
+      header: lon
+    altitude:
+      header: alt
+    time:
+      header: time
+      format: 'HH:mm:ss.ff'
+    date:
+      header: mm/dd/yyyy
+      format: 'MM/dd/yyyy'
+    data-values:
+      - header: "nT"
+        semantic: "TMI"
+        units: "nT"
+      - header: "alt"
+        semantic: "Altitude"
+        units: "m"
+      - header: "laser"
+        semantic: "Altitude AGL"
+        units: "m"
+      - header: "Next WP"
+        semantic: "Line"
+        units: ""
+      - header: "nT_anomaly"
+        semantic: "TMI_anomaly"
+        units: "nT"

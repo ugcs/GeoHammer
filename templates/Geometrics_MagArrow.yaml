@@ -1,0 +1,50 @@
+  # Template display name
+  name: "MagArrow"
+  # Code of template
+  code: "MagArrow"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: CSV
+  # Applies to the first 10 non-empty lines of the file to detect template
+  match-regex: >-
+    ^.*Date,Time,Latitude,Longitude,Mag.*
+  file-format:
+  # Applies to CSV type. 'true' if file has headers, otherwise false
+    has-header: true
+    # The symbol which used to make a comment
+    comment-prefix: '%'
+    # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+    # Applies to CSV type. The symbol to separate values from line in CSV file;
+    separator: ','
+  # Applied on a quality check to all data values
+  data-validation: '{MagValid} == 1'
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  data-mapping:
+    latitude:
+      header: 'Latitude'
+    longitude:
+      header: 'Longitude'
+    altitude:
+      header: 'Altitude'
+    time:
+      header: 'Time'
+      format: 'H:mm:ss.fff' # Format to parse time from column;
+    date:
+      header: 'Date'
+      format: 'yyyy/MM/dd' # Format to parse date from column;
+    data-values:
+      - header: "Mag"
+        semantic: "Mag"
+        units: "nT"
+      - header: "MagValid"
+        semantic: "MagValid"
+        units: ""
+      - header: "Altitude"
+        semantic: "Altitude"
+        units: "m"
+      - header: "Line"
+        semantic: "Line"
+        units: ""
+      - header: "Mag_anomaly"
+        semantic: "Mag_anomaly"
+        units: "nT"

@@ -1,10 +1,10 @@
-  # Displayable name of Template
+  # Template display name
   name: "MagDrone R1"
   # Code of template
-  code: "magdrone-r1"
+  code: "MagDrone-r1"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
     ^.*Date,Time,Latitude,Longitude,Heading.*Altitude AGL,TMI,Bx,By,Bz.*
   file-format:
@@ -16,7 +16,7 @@
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
       header: 'Latitude'

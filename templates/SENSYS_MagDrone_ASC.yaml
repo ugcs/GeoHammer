@@ -1,12 +1,12 @@
-  # Displayable name of Template
-  name: "MagDrone ASC RTR"
+  # Template display name
+  name: "MagDrone ASC"
   # Code of template
-  code: "magdrone_ASC_RTR"
+  code: "magdrone"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
-  # Applies to the first 10 not empty lines of the file to detect template
+  # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
-    ^\s*Timestamp.*Track ID.*Sensor ID.*Latitude.*Longitude.*Total field.*Declination.*Inclination.*
+    ^\s*Timestamp.*Sensor ID.*Latitude.*Longitude.*Total field anomaly.*
   file-format:
   # Applies to CSV type. 'true' if the file has headers, otherwise false
     has-header: true
@@ -16,11 +16,7 @@
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: '	'
-  # Data before the header that have to be skipped
-  skip-lines-to:
-    match-regex: Raw track data
-    skip-matched-line: true
-  # Mapping data from source file to data. Requierd fields (latitude, longitude, time and date or date-time)
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
       header: 'Latitude [°]'
@@ -38,7 +34,7 @@
         - 'yyyy-MM-dd'
         - 'yyyyMMdd'
     data-values:
-      - header: "Total field [nT]"
+      - header: "Total field anomaly [nT]"
         semantic: "TMI"
         units: "nT"
       - header: "TMI anomaly"
@@ -46,9 +42,6 @@
         units: "nT"
       - header: "Track ID"
         semantic: "Track ID"
-        units: ""
-      - header: "Sensor ID"
-        semantic: "Sensor ID"
         units: ""
       - header: "Altitude [m]"
         semantic: "Altitude"
@@ -62,12 +55,6 @@
       - header: "Mag-Z [nT]"
         semantic: "Bz"
         units: "nT"
-      - header: "Declination [°]"
-        semantic: "Declination"
-        units: "°"
-      - header: "Inclination [°]"
-        semantic: "Inclination"
-        units: "°"
       - header: "Line"
         semantic: "Line"
         units: ""

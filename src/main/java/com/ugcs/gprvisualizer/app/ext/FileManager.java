@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
@@ -116,28 +115,16 @@ public class FileManager {
 		}
 	}
 
-	/*public List<SgyFile> getFiles() {
-		return files;
-	}*/
-
-
-	/*public void setFiles(List<SgyFile> fl) {
-		clear();
-		files = fl;
-	}*/
-
 	private List<Trace> gprTraces = new ArrayList<>();
 
 	public List<Trace> getGprTraces() {
 		if (gprTraces.isEmpty()) {
-			int traceIndex = 0;
 			for (SgyFile file : files) {
 				if (file instanceof CsvFile) {
 					continue;
 				}
 				for (Trace trace : file.getTraces()) {
 					gprTraces.add(trace);
-					trace.setIndexInSet(traceIndex++);
 				}
 			}
 		}
@@ -148,14 +135,12 @@ public class FileManager {
 
 	public List<Trace> getCsvTraces() {
 		if (csvTraces.isEmpty()) {
-			int traceIndex = 0;
 			for (SgyFile file : files) {
 				if (!(file instanceof CsvFile)) {
 					continue;
 				}
 				for (Trace trace : file.getTraces()) {
 					csvTraces.add(trace);
-					trace.setIndexInSet(traceIndex++);
 				}
 			}
 		}
@@ -221,5 +206,4 @@ public class FileManager {
 		clear();
 		files.addAll(slicedSgyFiles);
     }
-
 }

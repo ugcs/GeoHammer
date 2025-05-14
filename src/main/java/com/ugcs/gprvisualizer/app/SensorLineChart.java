@@ -369,7 +369,6 @@ public class SensorLineChart extends Chart {
                                 model.updateChart(copy);
 
                                 model.init();
-                                model.initField();
 
                                 eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
                             });
@@ -820,7 +819,6 @@ public class SensorLineChart extends Chart {
                 // remove files and traces from map
                 model.getFileManager().removeFile(file);
                 model.removeChart(file);
-                model.initField();
                 model.init();
                 model.publishEvent(new FileClosedEvent(this, file));
             }

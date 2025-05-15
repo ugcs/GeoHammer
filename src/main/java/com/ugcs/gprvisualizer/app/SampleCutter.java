@@ -61,7 +61,6 @@ public class SampleCutter {
 
         // update model
         model.init();
-        model.initField();
         eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
     }
 

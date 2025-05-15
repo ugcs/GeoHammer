@@ -255,7 +255,6 @@ public class TraceCutter implements Layer, InitializingBean {
 		model.publishEvent(new FileOpenedEvent(this, model.getFileManager().getGprFiles().stream().map(SgyFile::getFile).collect(Collectors.toList())));
 		
 		model.init();
-		model.initField();
 	}
 
 	private void applySplit() {
@@ -316,7 +315,6 @@ public class TraceCutter implements Layer, InitializingBean {
 			model.publishEvent(new FileOpenedEvent(this, model.getFileManager().getGprFiles().stream().map(SgyFile::getFile).collect(Collectors.toList())));
 
 			model.init();
-			model.initField();
 		}
 	}
 	
@@ -545,7 +543,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		// update model
 		model.init();
-		model.initField();
 
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 	}
@@ -613,7 +610,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		// update model
 		model.init();
-		model.initField();
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 	}
 

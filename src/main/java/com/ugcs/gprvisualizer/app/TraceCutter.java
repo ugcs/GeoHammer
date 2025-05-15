@@ -453,6 +453,7 @@ public class TraceCutter implements Layer, InitializingBean {
 						String partSuffix = String.format("%03d", part++);
 						SgyFile subfile = generateSgyFileFrom(
 								file, sublist, partSuffix);
+						System.out.println("Target file name: " + subfile.getFile().getName());
 						splitList.add(subfile);
 					}
 					sublist = new ArrayList<>();
@@ -468,7 +469,9 @@ public class TraceCutter implements Layer, InitializingBean {
 		}
 
 		if (splitList.size() == 1) {
-			splitList.get(0).setFile(file.getFile());
+			SgyFile first = splitList.getFirst();
+			first.setFile(file.getFile());
+			first.updateTraces();
 		}
 
 		return splitList;

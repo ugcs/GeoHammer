@@ -237,7 +237,7 @@ public class GPRChart extends Chart {
     }
 
     private void select() {
-        model.selectAndScrollToChart(this);
+        model.selectChart(this);
     }
 
     @Override

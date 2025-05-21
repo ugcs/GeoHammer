@@ -958,18 +958,26 @@ public class SensorLineChart extends Chart {
     }
 
     private Range getValueRange(List<Number> data, String semantic) {
-        List<Double> sorted = data.stream().filter(Objects::nonNull)
-                .mapToDouble(Number::doubleValue)
-                .sorted()
-                .boxed()
-                .toList();
-        int offset = (int)(0.01 * sorted.size());
-        double min = !sorted.isEmpty()
-                ? sorted.get(offset)
-                : 0.0;
-        double max = !sorted.isEmpty()
-                ? sorted.get(sorted.size() - 1 - offset)
-                : 0.0;
+        Double min = null;
+        Double max = null;
+        for (Number value : data) {
+            if (value == null) {
+                continue;
+            }
+            double unboxed = value.doubleValue();
+            if (min == null || unboxed < min) {
+                min = unboxed;
+            }
+            if (max == null || unboxed > max) {
+                max = unboxed;
+            }
+        }
+        if (min == null) {
+            min = 0.0;
+        }
+        if (max == null) {
+            max = 0.0;
+        }
 
         semanticMinValues.put(semantic, min);
         semanticMaxValues.put(semantic, max);

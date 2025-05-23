@@ -1,0 +1,51 @@
+  # Template display name
+  name: "SMAGALL 3-axis"
+  # Code of template
+  code: "SMAGALL-3-axis"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: CSV
+  # Applies to the first 10 non-empty lines of the file to detect template
+  match-regex: >-
+    ^.*Time,magneticX,magneticY,magneticZ,magneticTotal,longitude,latitude,altitude.*
+  file-format:
+  # Applies to CSV type. 'true' if the file has headers, otherwise false
+    has-header: true
+    # The symbol which uses to make a comment
+    comment-prefix: '%'
+    # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+    # Applies to CSV type. The symbol to separate values from line in CSV file;
+    separator: ','
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  data-mapping:
+    latitude:
+      header: 'latitude'
+    longitude:
+      header: 'longitude'
+    altitude:
+      header: 'altitude'
+    date-time:
+      header: 'Time'
+      format: 'yyyy-MM-dd [ ]HH:mm:ss[.fff]'
+    data-values:
+      - header: "magneticTotal"
+        semantic: "TMI"
+        units: "nT"
+      - header: "TMI anomaly"
+        semantic: "TMI_anomaly"
+        units: "nT"
+      - header: "altitude"
+        semantic: "Altitude"
+        units: "m"
+      - header: "magneticX"
+        semantic: "Bx"
+        units: "nT"
+      - header: "magneticY"
+        semantic: "By"
+        units: "nT"
+      - header: "magneticZ"
+        semantic: "Bz"
+        units: "nT"
+      - header: "Line"
+        semantic: "Line"
+        units: ""

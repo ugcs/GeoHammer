@@ -1145,6 +1145,12 @@ public class OptionPane extends VBox implements InitializingBean {
 			//TODO: check if possible, that current file and sensor was not gridded with current parameters {
 				showGridInputDataChangedWarning(true);
 			//}
+
+			setSavedFilterInputValue(Filter.median_correction);
+			setSavedFilterInputValue(Filter.quality_max_line_distance);
+			setSavedFilterInputValue(Filter.quality_line_distance_tolerance);
+			setSavedFilterInputValue(Filter.quality_max_altitude);
+			setSavedFilterInputValue(Filter.quality_altitude_tolerance);
         } else {
             showTab(gprTab);
             prepareGprTab(gprTab, selectedFile);

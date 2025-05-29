@@ -1447,9 +1447,7 @@ public class SensorLineChart extends Chart {
         chart.setFilterOptions(chart.getFilterOptions().withTimeLagShift(timeLagShift));
         applyFilters(chart);
 
-        Platform.runLater(() -> {
-            chart.updateLineChartData();
-        });
+        Platform.runLater(chart::updateLineChartData);
     }
 
     public void lowPassFilter(String seriesName, int lowPassOrder) {
@@ -1461,9 +1459,7 @@ public class SensorLineChart extends Chart {
         chart.setFilterOptions(chart.getFilterOptions().withLowPassOrder(lowPassOrder));
         applyFilters(chart);
 
-        Platform.runLater(() -> {
-            chart.updateLineChartData();
-        });
+        Platform.runLater(chart::updateLineChartData);
     }
 
     private void applyFilters(LineChartWithMarkers chart) {
@@ -1513,6 +1509,8 @@ public class SensorLineChart extends Chart {
         for (int i = 0; i < file.getGeoData().size(); i++) {
             file.getGeoData().get(i).setSensorValue(chart.plotData.semantic, filtered.get(i));
         }
+        file.setUnsaved(true);
+        Platform.runLater(this::updateChartName);
     }
 
     private List<Number> gnssTimeLag(List<Number> values, int shift) {

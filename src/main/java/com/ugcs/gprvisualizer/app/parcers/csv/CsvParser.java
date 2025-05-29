@@ -69,8 +69,11 @@ public class CsvParser extends Parser {
                 }};
 
                 if (template.getFileFormat().isHasHeader()) {
-                    if (line == null) {
+                    // handle empty lines and comments before header
+                    boolean eof = false;
+                    while (!eof && isBlankOrCommented(line)) {
                         line = reader.readLine();
+                        eof = line == null;
                     }
 
                     findIndexesByHeaders(line);
@@ -89,7 +92,7 @@ public class CsvParser extends Parser {
 
                     lineNumber++;
 
-                    if (line.startsWith(template.getFileFormat().getCommentPrefix()) || !StringUtils.hasText(line)) {
+                    if (isBlankOrCommented(line)) {
                         log.warn("Row #" + line + " was commented or empty: " + line);
                         continue;
                     }

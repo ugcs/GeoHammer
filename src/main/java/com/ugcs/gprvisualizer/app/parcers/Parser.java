@@ -332,4 +332,11 @@ public abstract class Parser implements IGeoCoordinateParser {
         return skippedLines.toString();
     }
 
+    protected boolean isBlankOrCommented(String line) {
+        if (!StringUtils.hasText(line)) {
+            return true;
+        }
+        String commentPrefix = template.getFileFormat().getCommentPrefix();
+        return StringUtils.hasText(commentPrefix) && line.startsWith(commentPrefix);
+    }
 }

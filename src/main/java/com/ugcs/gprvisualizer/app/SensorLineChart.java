@@ -599,21 +599,33 @@ public class SensorLineChart extends Chart {
             throw new IllegalArgumentException("Invalid range specified.");
         }
 
-        // Calculate the number of points to sample within the specified range
-        int range = upperIndex - lowerIndex;
-        int desiredNumberOfPoints = 2000;
-        int actualNumberOfPoints = Math.min(desiredNumberOfPoints, range);
+        int numValues = 0;
+        for (int i = lowerIndex; i < upperIndex; i++) {
+            if (data.get(i) != null) {
+                numValues++;
+            }
+        }
+        if (numValues == 0) {
+            return List.of();
+        }
 
-        List<Data<Number, Number>> subsample = new ArrayList<>(actualNumberOfPoints);
-        int step = Math.max(1, range / actualNumberOfPoints);
-        for (int i = lowerIndex; i < upperIndex; i += step) {
+        // Calculate the number of points to sample within the specified range
+        int limit = Math.min(numValues, 2000);
+        int step = Math.max(1, numValues / limit);
+
+        List<Data<Number, Number>> subsample = new ArrayList<>(limit);
+        int k = 0; // step counter
+        for (int i = lowerIndex; i < upperIndex; i++) {
             Number key = i;
             if (filter != null && filter.contains(key)) {
                 continue;
             }
             Number value = data.get(i);
             if (value != null) {
-                subsample.add(new Data<>(key, value));
+                if (k == 0) {
+                    subsample.add(new Data<>(key, value));
+                }
+                k = (k + 1) % step;
             }
         }
 

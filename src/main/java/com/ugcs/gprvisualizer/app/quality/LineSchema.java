@@ -54,7 +54,7 @@ public class LineSchema {
             if (value == null)
                 continue;
 
-            int valueLineIndex = value.getLineIndex();
+            int valueLineIndex = value.getLineIndexOrDefault();
             if (valueLineIndex != lineIndex) {
                 if (i > lineStart) {
                     ranges.put(lineIndex, new Range(lineStart, i - 1));

@@ -336,41 +336,7 @@ public class SensorLineChart extends Chart {
                             });
                             imageView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
                                 System.out.println(event.getX() + ", " + event.getY() + ", " + currentYValue);
-
-                                CsvFile copy = file.copy();
-                                copy.setUnsaved(true);
-
-                                List<GeoData> geoDataLinesList = new ArrayList<>();
-                                List<Trace> traces = new ArrayList<>();
-                                List<BaseObject> auxElements = new ArrayList<>();
-                                for(GeoData geoData: file.getGeoData()) {
-                                    if (geoData.getLine().data() != null && geoData.getLine().data().intValue() != currentYValue) {
-                                        Trace trace = file.getTraces().get(geoData.getTraceNumber());
-                                        traces.add(trace);
-                                        GeoData gd = new GeoData(geoData);
-                                        if (geoData.getLine().data().intValue() > currentYValue) {
-                                            gd.setLineIndex(gd.getLine().data().intValue() - 1);
-                                        }
-                                        file.getAuxElements().stream().filter(FoundPlace.class::isInstance)
-                                                .map(o -> ((FoundPlace) o))
-                                                .filter(fp -> fp.getTraceInFile() == geoData.getTraceNumber())
-                                                .forEach(fp -> auxElements.add(fp));
-                                        geoDataLinesList.add(gd);
-                                    }
-                                }
-                                copy.setTraces(traces);
-                                copy.setGeoData(geoDataLinesList);
-                                copy.setAuxElements(auxElements);
-                                copy.updateTraces();
-
-                                model.clearSelectedTrace(this);
-                                model.getFileManager().removeFile(file);
-                                model.getFileManager().addFile(copy);
-                                model.updateChart(copy);
-
-                                model.init();
-
-                                eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+                                removeLine(currentYValue);
                             });
 
                             imageView.setTranslateX(1);
@@ -438,6 +404,53 @@ public class SensorLineChart extends Chart {
         updateProfileScroll();
 
         return root;
+    }
+
+    private void removeLine(int lineIndex) {
+        // if target line is last in a file, close the file
+        if (lineRanges.size() == 1) {
+            close();
+        }
+
+        CsvFile copy = file.copy();
+        copy.setUnsaved(true);
+
+        List<GeoData> values = new ArrayList<>();
+        List<Trace> traces = new ArrayList<>();
+        List<BaseObject> auxElements = new ArrayList<>();
+
+        for (GeoData value: file.getGeoData()) {
+            Optional<Integer> valueLineIndex = value.getLineIndex();
+            if (!Objects.equals(valueLineIndex.orElse(null), lineIndex)) {
+                Trace trace = file.getTraces().get(value.getTraceNumber());
+                traces.add(trace);
+                GeoData newValue = new GeoData(value);
+                valueLineIndex.ifPresent(i -> {
+                    if (i > lineIndex) {
+                        newValue.setLineIndex(i - 1);
+                    }
+                });
+                file.getAuxElements().stream().filter(FoundPlace.class::isInstance)
+                        .map(o -> ((FoundPlace) o))
+                        .filter(fp -> fp.getTraceInFile() == value.getTraceNumber())
+                        .forEach(fp -> auxElements.add(fp));
+                values.add(newValue);
+            }
+        }
+
+        copy.setTraces(traces);
+        copy.setGeoData(values);
+        copy.setAuxElements(auxElements);
+        copy.updateTraces();
+
+        model.clearSelectedTrace(this);
+        model.getFileManager().removeFile(file);
+        model.getFileManager().addFile(copy);
+        model.updateChart(copy);
+
+        model.init();
+
+        eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
     }
 
     private LineChartWithMarkers createLineChart(PlotData plotData, boolean primary) {
@@ -629,7 +642,7 @@ public class SensorLineChart extends Chart {
         }
         // correct out of range values to point to the first or last trace
         index = Math.max(0, Math.min(index, values.size() - 1));
-        return values.get(index).getLineIndex();
+        return values.get(index).getLineIndexOrDefault();
     }
 
     private int getViewLineIndex() {

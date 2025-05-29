@@ -110,7 +110,7 @@ public class GpsTrack extends BaseLayer {
 			var ranges = csvFile.getLineRanges();
 			for(Range range: ranges.values()) {
 				Point2D prevPoint = null;
-				var traces = csvFile.getTraces().subList(range.getMin().intValue(), range.getMax().intValue());
+				var traces = csvFile.getTraces().subList(range.getMin().intValue(), range.getMax().intValue() + 1);
 				sumdist = renderTraceLines(g2, field, sumdist, threshold, traces, prevPoint);
 			}
 		} else {

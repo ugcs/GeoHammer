@@ -106,7 +106,7 @@ public class DataCheck extends FileQualityCheck {
         if (last == null) {
             return false;
         }
-        if (value.getLineIndex() != last.getLineIndex()) {
+        if (value.getLineIndexOrDefault() != last.getLineIndexOrDefault()) {
             return false;
         }
         LatLon latlon = new LatLon(value.getLatitude(), value.getLongitude());

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -89,7 +90,26 @@ public class CsvFile extends SgyFile {
             }            
         }
 
+        reorderLines();
+
         setUnsaved(false);
+    }
+
+    private void reorderLines() {
+        if (geoData == null) {
+            return;
+        }
+        Integer prevLineIndex = null;
+        int sequence = 0;
+        for (int i = 0; i < geoData.size(); i++) {
+            GeoData value = geoData.get(i);
+            Integer lineIndex = value.getLineIndex().orElse(null);
+            if (i > 0 && !Objects.equals(lineIndex, prevLineIndex)) {
+                sequence++;
+            }
+            value.setLineIndex(sequence);
+            prevLineIndex = lineIndex;
+        }
     }
 
     @Override
@@ -265,7 +285,7 @@ public class CsvFile extends SgyFile {
             if (value == null)
                 continue;
 
-            int valueLineIndex = value.getLineIndex();
+            int valueLineIndex = value.getLineIndexOrDefault();
             if (valueLineIndex != lineIndex) {
                 if (i > lineStart) {
                     ranges.put(lineIndex, new Range(lineStart, i - 1));

@@ -397,7 +397,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		for(GeoData geoData : csvFile.getGeoData()) {
 			boolean inside = isGeoDataInsideSelection(field, border, geoData);
-			int dataLineIndex = geoData.getLineIndex();
+			int dataLineIndex = geoData.getLineIndexOrDefault();
 			if (!inside || dataLineIndex != lineIndex) {
 				if (!lineGeoData.isEmpty()) {
 					if (isGoodForFile(lineGeoData)) { // filter too small lines
@@ -484,8 +484,8 @@ public class TraceCutter implements Layer, InitializingBean {
 		}
 		if (file instanceof CsvFile csvFile) {
 			List<GeoData> values = csvFile.getGeoData();
-			return values.get(traceIndex).getLineIndex()
-					!= values.get(traceIndex - 1).getLineIndex();
+			return values.get(traceIndex).getLineIndexOrDefault()
+					!= values.get(traceIndex - 1).getLineIndexOrDefault();
 		}
 		return false;
 	}
@@ -497,26 +497,19 @@ public class TraceCutter implements Layer, InitializingBean {
 		List<GeoData> values = csvFile.getGeoData();
 		List<GeoData> newValues = new ArrayList<>(values.size());
 
-		// copy values and fill missing line indices
-		int lastLineIndex = 0;
+		// copy values
 		for (GeoData value : values) {
 			GeoData newValue = new GeoData(value);
-			int lineIndex = value.getLineIndex(-1);
-			if (lineIndex == -1) {
-				lineIndex = lastLineIndex;
-				newValue.setLineIndex(lineIndex);
-			}
-			lastLineIndex = lineIndex;
 			newValues.add(newValue);
 		}
 
 		// shift lines after a split trace
-		int splitLine = newValues.get(splitIndex).getLineIndex();
+		int splitLine = newValues.get(splitIndex).getLineIndexOrDefault();
 		Set<Integer> linesToShift = new HashSet<>();
 		linesToShift.add(splitLine);
 		for (int i = splitIndex; i < newValues.size(); i++) {
 			GeoData newValue = newValues.get(i);
-			int lineIndex = newValue.getLineIndex();
+			int lineIndex = newValue.getLineIndexOrDefault();
 			if (linesToShift.contains(lineIndex)) {
 				newValue.setLineIndex(lineIndex + 1);
 				linesToShift.add(lineIndex + 1);

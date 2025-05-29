@@ -2,6 +2,7 @@ package com.ugcs.gprvisualizer.app.parcers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
@@ -67,18 +68,15 @@ public class GeoData extends GeoCoordinates {
         setSensorValue(Semantic.LINE.name, lineNumber);
     }
 
-    public int getLineIndex() {
-        return getLineIndex(0);
+    public int getLineIndexOrDefault() {
+        return getLineIndex().orElse(0);
     }
 
-    public int getLineIndex(int defaultIndex) {
+    public Optional<Integer> getLineIndex() {
         SensorValue line = getSensorValue(Semantic.LINE);
-        if (line == null)
-            return defaultIndex;
-        Number data = line.data();
-        if (data == null)
-            return defaultIndex;
-        return data.intValue();
+        return line != null && line.data() != null
+                ? Optional.of(line.data().intValue())
+                : Optional.empty();
     }
 
     public SensorValue getLine() {

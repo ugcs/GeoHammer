@@ -1466,11 +1466,6 @@ public class SensorLineChart extends Chart {
             return;
         }
 
-        // shared by all lines
-        double lowPassSamplingRate = filterOptions.lowPassOrder() != 0
-                ? getLowPassSamplingRate()
-                : 0.0;
-
         List<Number> values = chart.plotData.data;
         List<Number> filtered = new ArrayList<>(values.size());
         for (Range range : lineRanges.values()) {
@@ -1482,8 +1477,7 @@ public class SensorLineChart extends Chart {
             try {
                 if (filterOptions.lowPassOrder() != 0) {
                     rangeValues = lowPass(rangeValues,
-                            filterOptions.lowPassOrder(),
-                            lowPassSamplingRate);
+                            filterOptions.lowPassOrder());
                 }
             } catch (Exception e) {
                 log.error("Low-pass filter error", e);
@@ -1534,7 +1528,7 @@ public class SensorLineChart extends Chart {
         return Arrays.asList(filtered);
     }
 
-    private List<Number> lowPass(List<Number> values, int order, double samplingRate) {
+    private List<Number> lowPass(List<Number> values, int order) {
         if (values == null || values.isEmpty()) {
             return values;
         }
@@ -1543,8 +1537,7 @@ public class SensorLineChart extends Chart {
         // min filter order = (size - 1) / 2
         order = Math.min(order, (values.size() - 1) / 2);
         int shift = order / 2;
-        double cutoffFrequency = samplingRate / order;
-        FIRFilter filter = new FIRFilter(order, cutoffFrequency, samplingRate);
+        FIRFilter filter = new FIRFilter(order);
 
         var filtered = filter.filterList(values).subList(shift, values.size() + shift);
         assert filtered.size() == values.size();
@@ -1566,22 +1559,6 @@ public class SensorLineChart extends Chart {
             }
         }
         return filtered;
-    }
-
-    private double getLowPassSamplingRate() {
-        int seriesLimit = 2000;
-        if (!lineRanges.isEmpty()) {
-            Range firstRange = lineRanges.firstEntry().getValue();
-            seriesLimit = Math.min(seriesLimit, (int)firstRange.getWidth());
-            seriesLimit = Math.max(seriesLimit, 2);
-        }
-        List<Long> timestamps = file.getGeoData().stream()
-                .limit(seriesLimit)
-                .map(GeoCoordinates::getDateTime)
-                .map(dt -> dt.toInstant(ZoneOffset.UTC).toEpochMilli())
-                .collect(Collectors.toList());
-
-        return FIRFilter.calculateSamplingRate(timestamps);
     }
 
     private static double calculateRMS(double[] signal) {

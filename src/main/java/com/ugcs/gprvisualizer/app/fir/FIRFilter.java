@@ -27,21 +27,19 @@ public class FIRFilter {
      * Constructs a new FIR filter with the specified filter order, cutoff frequency, and sample rate.
      *
      * @param filterOrder the filter order
-     * @param cutoffFrequency the cutoff frequency in Hertz
-     * @param sampleRate the sample rate in Hertz
      */
-    public FIRFilter(int filterOrder, double cutoffFrequency, double sampleRate) {
-        this.coefficients = createFIRCoefficients(filterOrder, cutoffFrequency, sampleRate);
+    public FIRFilter(int filterOrder) {
+        this.coefficients = createFIRCoefficients(filterOrder);
         this.buffer = new double[filterOrder];
         this.bufferIndex = 0;
     }
 
-    private double[] createFIRCoefficients(int filterOrder, double cutOffFrequency, double sampleRate) {
+    private double[] createFIRCoefficients(int filterOrder) {
         double[] coefficients = new double[filterOrder];
         double[] window = createHammingWindow(filterOrder);
 
         // Normalized cut-off frequency
-        double normalizedCutoff = 2 * cutOffFrequency / sampleRate;
+        double normalizedCutoff = 2.0 / filterOrder;
         int m = filterOrder / 2;
 
         for (int i = 0; i < filterOrder; i++) {
@@ -114,14 +112,5 @@ public class FIRFilter {
             bufferIndex = 0;
         }
         return result;
-    }
-
-    public static double calculateSamplingRate(List<Long> timestamps) {        
-        double totalInterval = 0;
-        for (int i = 1; i < timestamps.size(); i++) {
-            totalInterval += (timestamps.get(i) - timestamps.get(i - 1));
-        }
-        double averageInterval = totalInterval / (timestamps.size() - 1);
-        return 1000.0 / averageInterval; // Conversion from milliseconds to Hertz
     }
 }

@@ -3,12 +3,14 @@ package com.ugcs.gprvisualizer.draw;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
@@ -229,7 +231,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 	}
 
 	// Map to store gridding results for each file
-	private final Map<CsvFile, GriddingResult> griddingResults = new LinkedHashMap<>();
+	private final Map<File, GriddingResult> griddingResults = new ConcurrentHashMap<>();
 
 	// Class to store gridding result for a file
 	private record GriddingResult(
@@ -285,9 +287,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
   * For other files, stored minValue and maxValue are used to ensure
   * they are displayed without changes from the previous application.
   */
-	private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
+	synchronized private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
 
 		var chart = model.getChart(csvFile);
+		if (chart.isEmpty()) {
+			return;
+		}
 		String sensor = chart.get().getSelectedSeriesName();
 
 		var savedGriddingRange = optionPane.getSavedGriddingRangeValues(chart.toString() + sensor);
@@ -295,7 +300,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		var maxValue = (float) savedGriddingRange.highValue();
 
 		// Check if we have stored results for this file and if we need to recalculate
-		GriddingResult storedResult = griddingResults.get(csvFile);
+		//GriddingResult storedResult = griddingResults.get(csvFile);
 
 	if (recalcGrid) {
 
@@ -497,9 +502,9 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 				}
 			}
 
-			griddingResults.remove(csvFile);
+			//removeFromGriddingResults(csvFile);
 			// Store the gridding result for this file
-			griddingResults.put(csvFile, new GriddingResult(
+			griddingResults.put(csvFile.getFile(), new GriddingResult(
 					gridData, // Deep cloning is done in the constructor
 					applyLowPassFilter(gridData),
 					minLatLon,
@@ -519,14 +524,20 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 			recalcGrid = false;
 		}
 
-		for (var griddingResultEntry : griddingResults.entrySet()) {
-			if (griddingResultEntry.getKey().equals(currentFile) && griddingResultEntry.getValue().sensor.equals(sensor)) {
-				griddingResultEntry.setValue(griddingResultEntry.getValue()
-						.setValues(minValue,maxValue,
-								currentParams.isHillShadingEnabled(),
-								currentParams.isSmoothingEnabled()));
-			}
-			print(g2, field, griddingResultEntry.getValue());
+		if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor.equals(sensor)) {
+			griddingResults.put(csvFile.getFile(), gr.setValues(minValue,maxValue,
+					currentParams.isHillShadingEnabled(),
+					currentParams.isSmoothingEnabled()));
+		}
+
+		var gr = griddingResults.remove(csvFile.getFile());
+		for (var griddingResult : griddingResults.values()) {
+			print(g2, field, griddingResult);
+		}
+
+		if (gr != null) {
+			print(g2, field, gr);
+			griddingResults.put(csvFile.getFile(), gr);
 		}
 	}
 
@@ -849,7 +860,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
 	@EventListener
 	public void handleFileSelectedEvent(FileSelectedEvent event) {
-		this.currentFile = event.getFile() instanceof CsvFile ? (CsvFile) event.getFile() : null;
+		this.currentFile = event.getFile() instanceof CsvFile csvFile ? csvFile : null;
 		//toAll = false;
 		// Don't recalculate grid when file is selected, use stored results if available
 		//recalcGrid = false;
@@ -860,20 +871,82 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		//	setActive(false);
 		//}
 
-		//q.add();
+		if (this.currentFile != null) {
+			q.add();
+		}
 	}
 
 	@EventListener
 	private void handleFileClosedEvent(FileClosedEvent event) {
 		if (event.getSgyFile() instanceof CsvFile csvFile) {
-			var gr = griddingResults.remove(csvFile);
-			if (gr != null) {
-				griddingResults.entrySet().stream().filter(e -> e.getValue()
-								.equals(gr))
-						.map(e -> e.getKey())
-						.forEach(k -> griddingResults.remove(k));
+			System.out.println(this + " catched that file has been closed: " + event.getSgyFile() + ", source: " + event.getSource());
+			int before = griddingResults.size();
+			removeFromGriddingResults(csvFile);
+			if (before <= griddingResults.size()) {
+				System.err.println("was not deleted: " + griddingResults);
+			}
+			if (griddingResults.size() == 0) {
 				q.add();
 			}
+		}
+
+			//var gr = griddingResults.remove(csvFile);
+			//if (gr != null) {
+			//	griddingResults.entrySet().stream().filter(e -> e.getValue()
+			//					.equals(gr))
+			//			.map(e -> e.getKey())
+			//			.forEach(k -> griddingResults.remove(k));
+			//	q.add();
+			//}
+		//}
+	}
+	
+	/**
+	 * Handles file rename events to invalidate cached gridding results.
+	 * <p>
+	 * When a file is renamed, the cached gridding results for that file
+	 * need to be invalidated to ensure that the grid is recomputed with
+	 * the new file path. This method removes the old gridding results
+	 * from the cache and triggers a grid recalculation.
+	 *
+	 * @param event the file rename event
+	 */
+	@EventListener
+	private void handleFileRenameEvent(com.ugcs.gprvisualizer.event.FileRenameEvent event) {
+		if (event.getSgyFile() instanceof CsvFile csvFile) {
+			System.out.println(this + " detected file rename: " + event.getOldFile() + " -> " + csvFile.getFile());
+			int before = griddingResults.size();
+			// Remove the old gridding results for this file
+			//removeFromGriddingResults(csvFile);
+			switchGriddingResult(csvFile, event.getOldFile());
+			if (before < griddingResults.size()) {
+				System.err.println("was not changed: " + griddingResults);
+			}
+			// Force a grid recalculation
+			//if (csvFile.equals(currentFile)) {
+			//	recalcGrid = true;
+			//	q.add();
+			//}
+		}
+	}
+
+	private void switchGriddingResult(CsvFile csvFile, File oldFile) {
+		//var copy = csvFile.copy();
+		//var newFile = csvFile.getFile();
+		//csvFile.setFile(oldFile);
+		if (griddingResults.remove(oldFile) instanceof GriddingResult gr) {
+			//csvFile.setFile(newFile);
+			griddingResults.put(csvFile.getFile(), gr);
+		}
+	}
+
+	private void removeFromGriddingResults(CsvFile csvFile) {
+		System.out.println("griddingResultsCount: " + griddingResults.size() + ", griddingResults: " + griddingResults);
+		griddingResults.remove(csvFile.getFile());
+		System.out.println("griddingResultsCount: " + griddingResults.size() + ", griddingResults: " + griddingResults);
+		if (model.getFileManager().getCsvFiles().isEmpty() && griddingResults.size() > 0) {
+			System.err.println("Have to clear griddingResultsCount: " + griddingResults.size() + ", griddingResults: " + griddingResults);
+			griddingResults.clear();
 		}
 	}
 
@@ -882,13 +955,14 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		if (changed.isZoom() || changed.isWindowresized()
 				|| changed.isAdjusting()
 				|| changed.isMapscroll()
-				|| changed.isJustdraw()
+				//|| changed.isJustdraw()
 				|| changed.isGriddingRangeChanged()) {
 			if (isActive()) {
+				System.out.println("GridLayer: " + changed + ", griddingResults: " + griddingResults);
 				if (!recalcGrid) {
 					q.add();
 				} else {
-					setActive(false);
+					//setActive(false);
 				}
 			}
 		} else if (changed.isCsvDataFiltered()) {

@@ -307,11 +307,15 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		// Get new min/max values
-		SensorLineChart selectedChart = model.getChart((CsvFile) selectedFile).get();
+		SensorLineChart selectedChart = model.getChart((CsvFile) selectedFile).orElse(null);
+		if (selectedChart == null) {
+			return;
+		}
+
 		double newMin = selectedChart.getSemanticMinValue();
 		double newMax = selectedChart.getSemanticMaxValue();
 
-		var savedValues = savedGriddingRange.getOrDefault(selectedChart.toString()+selectedChart.getSelectedSeriesName(),
+		var savedValues = savedGriddingRange.getOrDefault(selectedChart.toString() + selectedChart.getSelectedSeriesName(),
 				new GriddingRange(newMin, newMax, newMin, newMax));
 
 		// Only update min/max if they changed

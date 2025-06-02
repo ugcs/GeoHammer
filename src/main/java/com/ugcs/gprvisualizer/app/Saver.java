@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
@@ -116,11 +117,13 @@ public class Saver implements ToolProducer, InitializingBean {
 			return;
 		}
 
+		File oldFile = csvFile.getFile();
 		File newFile = saveTo(csvFile, saveToFile);
 		if (newFile != null) {
 			model.updateChartFile(csvFile, newFile);
 			csvFile.setUnsaved(false);
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+			model.publishEvent(new FileRenameEvent(this, csvFile, oldFile));
 		} else {
 			MessageBoxHelper.showError("Error saving file", "");
 		}
@@ -311,6 +314,9 @@ public class Saver implements ToolProducer, InitializingBean {
 			
 			if (!r) {
 				System.out.println("!!!   rename problem!");
+			} else {
+				// Publish a file rename event to notify components that the file has been renamed
+				eventPublisher.publishEvent(new com.ugcs.gprvisualizer.event.FileRenameEvent(this, sgyFile, oldFile));
 			}
 			
 			if (suffix.contains("sgy")) {

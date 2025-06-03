@@ -71,27 +71,28 @@ public abstract class Parser implements IGeoCoordinateParser {
     }
 
     protected String skipLines(BufferedReader reader) throws IOException {
-        String line;
         skippedLines = new StringBuilder();
-        if (template.getSkipLinesTo() != null) {
-            while ((line = reader.readLine()) != null) {
-                skippedLines.append(line + System.lineSeparator());
-                var regex = Pattern.compile(template.getSkipLinesTo().getMatchRegex());
-                if (regex.asMatchPredicate().test(line)) {
-                    break;
-                }
-            }
 
-            if (template.getSkipLinesTo().isSkipMatchedLine()) {
-                line = reader.readLine();
-                skippedLines.append(line + System.lineSeparator());
-                return line;
-            }
-
-            return line;
+        if (template.getSkipLinesTo() == null) {
+            return null;
         }
 
-        return null;
+        var regex = Pattern.compile(template.getSkipLinesTo().getMatchRegex());
+
+        String line;
+        while ((line = reader.readLine()) != null) {
+            skippedLines.append(line).append(System.lineSeparator());
+            if (regex.asMatchPredicate().test(line)) {
+                break;
+            }
+        }
+
+        if (template.getSkipLinesTo().isSkipMatchedLine() && line != null) {
+            line = reader.readLine();
+            skippedLines.append(line).append(System.lineSeparator());
+        }
+
+        return line;
     }
 
     protected Number parseNumber(BaseData data, String column) {

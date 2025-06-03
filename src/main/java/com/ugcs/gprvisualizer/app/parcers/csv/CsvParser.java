@@ -20,6 +20,7 @@ import java.util.stream.StreamSupport;
 import com.ugcs.gprvisualizer.app.parcers.*;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
+import com.ugcs.gprvisualizer.utils.Check;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -63,6 +64,8 @@ public class CsvParser extends Parser {
 
             try (var reader = new BufferedReader(new FileReader(logPath))) {
                 String line = skipLines(reader);
+                // tells if current line value is already in a skipped list
+                boolean lineSkipped = line != null;
 
                 var markSensorData = new SensorData() {{
                     setHeader(GeoData.Semantic.MARK.getName());
@@ -70,15 +73,18 @@ public class CsvParser extends Parser {
 
                 if (template.getFileFormat().isHasHeader()) {
                     // handle empty lines and comments before header
-                    boolean eof = false;
+                    boolean eof = template.getSkipLinesTo() != null && line == null;
                     while (!eof && isBlankOrCommented(line)) {
                         line = reader.readLine();
+                        lineSkipped = false;
                         eof = line == null;
                     }
-
+                    Check.notNull(line, "No header found");
                     findIndexesByHeaders(line);
                     setIndexByHeaderForSensorData(line, markSensorData);
-                    skippedLines.append(line + System.lineSeparator());
+                    if (!lineSkipped) {
+                        skippedLines.append(line).append(System.lineSeparator());
+                    }
                 }
 
                 //format = new CultureInfo("en-US", false);

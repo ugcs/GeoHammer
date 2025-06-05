@@ -121,8 +121,8 @@ public class SensorLineChart extends Chart {
                     Number xValue = xAxis.getValueForDisplay(point.getX());
 
                     int traceIndex = xValue.intValue();
-                    if (traceIndex >= 0 && traceIndex < file.getTraces().size()) {//model.getCsvTracesCount()) {
-                        Trace trace = file.getTraces().get(traceIndex);
+                    if (traceIndex >= 0 && traceIndex < file.size()) {
+                        TraceKey trace = new TraceKey(file, traceIndex);
                         model.selectTrace(trace);
                         model.focusMapOnTrace(trace);
                     }
@@ -416,14 +416,11 @@ public class SensorLineChart extends Chart {
         copy.setUnsaved(true);
 
         List<GeoData> values = new ArrayList<>();
-        List<Trace> traces = new ArrayList<>();
         List<BaseObject> auxElements = new ArrayList<>();
 
         for (GeoData value: file.getGeoData()) {
             Optional<Integer> valueLineIndex = value.getLineIndex();
             if (!Objects.equals(valueLineIndex.orElse(null), lineIndex)) {
-                Trace trace = file.getTraces().get(value.getTraceNumber());
-                traces.add(trace);
                 GeoData newValue = new GeoData(value);
                 valueLineIndex.ifPresent(i -> {
                     if (i > lineIndex) {
@@ -438,10 +435,8 @@ public class SensorLineChart extends Chart {
             }
         }
 
-        copy.setTraces(traces);
         copy.setGeoData(values);
         copy.setAuxElements(auxElements);
-        copy.updateTraces();
 
         model.clearSelectedTrace(this);
         model.getFileManager().removeFile(file);
@@ -1516,7 +1511,6 @@ public class SensorLineChart extends Chart {
             filtered.addAll(rangeValues);
         }
 
-        assert filtered.size() == file.getTraces().size();
         chart.filteredData = chart.plotData.withData(filtered);
         for (int i = 0; i < file.getGeoData().size(); i++) {
             file.getGeoData().get(i).setSensorValue(chart.plotData.semantic, filtered.get(i));
@@ -1637,7 +1631,6 @@ public class SensorLineChart extends Chart {
             filtered.addAll(rangeValues);
         }
 
-        assert filtered.size() == file.getTraces().size();
         for (int i = 0; i < file.getGeoData().size(); i++) {
             file.getGeoData().get(i).setSensorValue(filteredSeriesName, filtered.get(i));
         }
@@ -1697,7 +1690,7 @@ public class SensorLineChart extends Chart {
     }
 
     @Override
-    public void selectTrace(Trace trace, boolean focus) {
+    public void selectTrace(TraceKey trace, boolean focus) {
         if (trace == null) {
             // clear selection
             removeVerticalMarker();
@@ -1706,7 +1699,7 @@ public class SensorLineChart extends Chart {
 
         // TODO focus does not affect behavior
 
-        int selectedX = trace.getIndexInFile();
+        int selectedX = trace.getIndex();
         NumberAxis xAxis = (NumberAxis) lastLineChart.getXAxis();
         var dataSize = lastLineChart.plotData.data().size();
 

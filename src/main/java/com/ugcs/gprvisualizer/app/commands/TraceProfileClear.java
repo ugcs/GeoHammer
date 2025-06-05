@@ -1,12 +1,12 @@
 package com.ugcs.gprvisualizer.app.commands;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 
 public class TraceProfileClear implements Command {
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		file.profiles = null;
 	}
 
@@ -14,5 +14,4 @@ public class TraceProfileClear implements Command {
 	public String getButtonText() {
 		return "Clear";
 	}
-
 }

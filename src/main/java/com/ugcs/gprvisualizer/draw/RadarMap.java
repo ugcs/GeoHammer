@@ -2,8 +2,10 @@ package com.ugcs.gprvisualizer.draw;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.MapView;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -265,7 +267,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	}
 
 	public void drawCircles(MapField field, DblArray da) {
-		for (SgyFile file : model.getFileManager().getGprFiles()) {
+		for (TraceFile file : model.getFileManager().getGprFiles()) {
 			
 			ScanProfile profile = getFileScanProfile(file);
 			

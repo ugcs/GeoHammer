@@ -16,12 +16,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.*;
 import com.ugcs.gprvisualizer.app.auxcontrol.*;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.TraceUtils;
 import javafx.scene.layout.*;
 import org.jspecify.annotations.NonNull;
@@ -74,7 +78,7 @@ public class Model implements InitializingBean {
 
 	private final List<BaseObject> auxElements = new ArrayList<>();
 
-	private final List<ClickPlace> selectedTraces = new ArrayList<>();
+	private final List<TraceKey> selectedTraces = new ArrayList<>();
 
 	private boolean kmlToFlagAvailable = false;
 
@@ -138,7 +142,7 @@ public class Model implements InitializingBean {
 		getFileManager().getCsvFiles().forEach(sf -> {
             auxElements.addAll(sf.getAuxElements());
             sf.getAuxElements().forEach(element -> {
-                getChart((CsvFile) sf).get().addFlag((FoundPlace) element);
+                getChart(sf).get().addFlag((FoundPlace) element);
             });
         });
 	}
@@ -168,15 +172,15 @@ public class Model implements InitializingBean {
 		// center
 		MinMaxAvg lonMid = new MinMaxAvg();
 		MinMaxAvg latMid = new MinMaxAvg();
-		for (Trace trace : getTraces()) {
-			if (trace == null) {
-				System.out.println("null trace or ot latlon");
-				continue;
-			}
 
-			if (trace.getLatLon() != null) {
-				latMid.put(trace.getLatLon().getLatDgr());
-				lonMid.put(trace.getLatLon().getLonDgr());
+		for (SgyFile file : fileManager.getFiles()) {
+			for (GeoData value : Nulls.toEmpty(file.getGeoData())) {
+				LatLon latlon = value.getLatLon();
+				if (latlon == null) {
+					continue;
+				}
+				latMid.put(latlon.getLatDgr());
+				lonMid.put(latlon.getLonDgr());
 			}
 		}
 
@@ -228,7 +232,7 @@ public class Model implements InitializingBean {
 	}
 
 	public boolean isSpreadCoordinatesNecessary() {
-		for (SgyFile file : getFileManager().getGprFiles()) {
+		for (TraceFile file : getFileManager().getGprFiles()) {
 			if (file.isSpreadCoordinatesNecessary()) {
 				return true;
 			}
@@ -422,24 +426,8 @@ public class Model implements InitializingBean {
         return brightColors.get(rand.nextInt(brightColors.size()));
     }
 
-	/*public boolean isOnlyCsvLoaded() {
-		return fileManager.getFiles().stream()
-				.allMatch(SgyFile::isCsvFile);
-	}*/
-
 	public List<Trace> getGprTraces() {
 		return getFileManager().getGprTraces();
-	}
-
-	public List<Trace> getCsvTraces() {
-		return getFileManager().getCsvTraces();
-	}
-
-	public List<Trace> getTraces() {
-		List<Trace> result = new ArrayList<>();
-		result.addAll(getGprTraces());
-		result.addAll(getCsvTraces());
-		return result;
 	}
 
 	private void setSelectedData(Node node) {
@@ -519,7 +507,7 @@ public class Model implements InitializingBean {
         scrollPane.setVvalue(vValue < 0 ? Double.POSITIVE_INFINITY : vValue);
     }
 
-	public void focusMapOnTrace(Trace trace) {
+	public void focusMapOnTrace(TraceKey trace) {
 		if (trace == null) {
 			return;
 		}
@@ -536,7 +524,7 @@ public class Model implements InitializingBean {
 		eventPublisher.publishEvent(event);
 	}
 
-	public GPRChart getProfileFieldByPattern(@NonNull SgyFile f) {
+	public GPRChart getProfileFieldByPattern(@NonNull TraceFile f) {
 		if (gprCharts.containsKey(f)) {
 			return gprCharts.get(f);
 		}
@@ -614,26 +602,25 @@ public class Model implements InitializingBean {
 
 	// trace selection
 
-	public List<ClickPlace> getSelectedTraces() {
+	public List<TraceKey> getSelectedTraces() {
 		return Collections.unmodifiableList(selectedTraces);
 	}
 
 	@Nullable
-	public ClickPlace getSelectedTrace(Chart chart) {
+	public TraceKey getSelectedTrace(Chart chart) {
 		if (chart == null) {
 			return null;
 		}
-		for (ClickPlace clickPlace : selectedTraces) {
-			SgyFile traceFile = clickPlace.getTrace().getFile();
-			if (Objects.equals(chart, getFileChart(traceFile))) {
-				return clickPlace;
+		for (TraceKey trace : selectedTraces) {
+			if (Objects.equals(chart, getFileChart(trace.getFile()))) {
+				return trace;
 			}
 		}
 		return null;
 	}
 
 	@Nullable
-	public ClickPlace getSelectedTraceInCurrentChart() {
+	public TraceKey getSelectedTraceInCurrentChart() {
 		Chart chart = getFileChart(currentFile);
 		return chart != null
 				? getSelectedTrace(chart)
@@ -644,21 +631,23 @@ public class Model implements InitializingBean {
 		if (location == null) {
 			return;
 		}
-		Trace nearestTrace = TraceUtils.findNearestTrace(getTraces(), location);
-		selectTrace(nearestTrace, true);
+		Optional<TraceKey> nearestTrace = TraceUtils.findNearestTraceInFiles(fileManager.getFiles(), location);
+        nearestTrace.ifPresent(trace -> {
+			selectTrace(trace, true);
+		});
 	}
 
-	public void selectTrace(Trace trace) {
+	public void selectTrace(TraceKey trace) {
 		selectTrace(trace, false);
 	}
 
-	public void selectTrace(Trace trace, boolean focusOnChart) {
+	public void selectTrace(TraceKey trace, boolean focusOnChart) {
 		if (trace == null) {
 			return;
 		}
 
 		selectedTraces.clear();
-		selectedTraces.add(toClickPlace(trace, true));
+		selectedTraces.add(trace);
 
 		Chart traceChart = getFileChart(trace.getFile());
 		boolean traceOnSelectedChart = isChartSelected(traceChart);
@@ -667,12 +656,12 @@ public class Model implements InitializingBean {
 			if (Objects.equals(chart, traceChart)) {
 				continue;
 			}
-			Trace nearestInChart = TraceUtils.findNearestTraceInFiles(
+			Optional<TraceKey> nearestInChart = TraceUtils.findNearestTraceInFiles(
 					chart.getFiles(),
 					trace.getLatLon(),
 					traceLookupThreshold);
-			if (nearestInChart != null) {
-				selectedTraces.add(toClickPlace(nearestInChart, false));
+			if (nearestInChart.isPresent()) {
+				selectedTraces.add(nearestInChart.get());
 				traceOnSelectedChart = traceOnSelectedChart || isChartSelected(chart);
 			}
 		}
@@ -695,14 +684,8 @@ public class Model implements InitializingBean {
 		});
 	}
 
-	private ClickPlace toClickPlace(Trace trace, boolean selected) {
-		ClickPlace clickPlace = new ClickPlace(trace);
-		clickPlace.setSelected(selected);
-		return clickPlace;
-	}
-
 	public void clearSelectedTrace(@Nullable Chart chart) {
-		selectedTraces.removeIf(x -> Objects.equals(chart, getFileChart(x.getTrace().getFile())));
+		selectedTraces.removeIf(x -> Objects.equals(chart, getFileChart(x.getFile())));
 		Platform.runLater(() -> updateSelectedTraceOnChart(chart, false));
 	}
 
@@ -719,10 +702,7 @@ public class Model implements InitializingBean {
 		if (chart == null) {
 			return;
 		}
-		ClickPlace clickPlace = getSelectedTrace(chart);
-		Trace trace = clickPlace != null
-				? clickPlace.getTrace()
-				: null;
+		TraceKey trace = getSelectedTrace(chart);
 		chart.selectTrace(trace, focusOnTrace);
 	}
 
@@ -733,7 +713,7 @@ public class Model implements InitializingBean {
 			return;
 		}
 
-		ClickPlace selectedTrace = getSelectedTrace(chart);
+		TraceKey selectedTrace = getSelectedTrace(chart);
 		if (selectedTrace == null) {
 			return; // no trace selected in a chart
 		}
@@ -747,7 +727,7 @@ public class Model implements InitializingBean {
 		chart.selectFlag(null);
 		chart.addFlag(flag);
 
-		SgyFile traceFile = selectedTrace.getTrace().getFile();
+		SgyFile traceFile = selectedTrace.getFile();
 		traceFile.getAuxElements().add(flag);
 		traceFile.setUnsaved(true);
 
@@ -758,24 +738,30 @@ public class Model implements InitializingBean {
 	}
 
 	@Nullable
-	private FoundPlace toFlag(ClickPlace selectedTrace) {
-		if (selectedTrace == null) {
+	private FoundPlace toFlag(TraceKey trace) {
+		if (trace == null) {
 			return null;
 		}
 
-		Trace trace = selectedTrace.getTrace();
 		SgyFile traceFile = trace.getFile();
-		int traceIndex = traceFile instanceof CsvFile
-				? trace.getIndexInFile()
-				: trace.getIndexInSet();
+		int traceIndex = trace.getIndex();
 
 		int localTraceIndex = traceFile.getOffset().globalToLocal(traceIndex);
-		if (localTraceIndex < 0 || localTraceIndex >= traceFile.getTraces().size()) {
+		if (localTraceIndex < 0 || localTraceIndex >= traceFile.size()) {
 			log.warn("Flag outside of the current file bounds");
 			return null;
 		}
 
-		return new FoundPlace(trace, traceFile.getOffset(), this);
+		// TODO GPR_LINES
+		Trace t = null;
+		if (traceFile instanceof TraceFile f) {
+			t = f.getTraces().get(traceIndex);
+		} else if (traceFile instanceof CsvFile f) {
+			LatLon latlon = f.getGeoData().get(traceIndex).getLatLon();
+			t = new Trace(f, null, null, new float[0], null);
+		}
+		// -------------
+		return new FoundPlace(t, traceFile.getOffset(), this);
 	}
 
 	public void removeSelectedFlag(Chart chart) {

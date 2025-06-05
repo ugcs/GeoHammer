@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.app;
 import java.io.File;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.kml.KmlReader;
 
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
@@ -125,7 +126,7 @@ public class Loader {
 		ConstPointsFile cpf = new ConstPointsFile();
 		cpf.load(files.get(0));
 
-		for (SgyFile sgyFile : model.getFileManager().getGprFiles()) {
+		for (TraceFile sgyFile : model.getFileManager().getGprFiles()) {
 			cpf.calcVerticalCutNearestPoints(sgyFile);
 		}
 
@@ -166,8 +167,6 @@ public class Loader {
 		
 					//when open file by dnd (not after save)
 					model.initField();
-
-					csvFile.updateTraces();
 
 					model.initChart(csvFile);
 

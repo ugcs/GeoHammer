@@ -25,7 +25,7 @@ import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.gpr.SgyLoader;
 
-public class GprFile extends SgyFile {
+public class GprFile extends TraceFile {
 	
 	private static final int MARK_BYTE_POS = 238;
 	private static final Charset charset = StandardCharsets.UTF_8;
@@ -142,7 +142,7 @@ public class GprFile extends SgyFile {
 		binFile.save(file);
 	}
 
-	public SgyFile copy() {
+	public GprFile copy() {
 		//TODO: not a full copy, the result can't be saved
 		GprFile file2 = new GprFile();
 		
@@ -331,7 +331,7 @@ public class GprFile extends SgyFile {
 
 
 	@Override
-	public SgyFile copyHeader() {
+	public GprFile copyHeader() {
 		
 		GprFile gprFile = new GprFile();
 		gprFile.setBinHdr(this.getBinHdr());

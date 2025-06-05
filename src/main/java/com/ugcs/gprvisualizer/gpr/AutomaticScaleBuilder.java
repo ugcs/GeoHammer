@@ -1,7 +1,7 @@
 package com.ugcs.gprvisualizer.gpr;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 
 public class AutomaticScaleBuilder implements ArrayBuilder {
 
@@ -21,7 +21,7 @@ public class AutomaticScaleBuilder implements ArrayBuilder {
 	}
 	
 	@Override
-	public double[][] build(SgyFile file) {
+	public double[][] build(TraceFile file) {
 		
 		for (Trace trace: file.getTraces()) {
 			analyze(trace.getNormValues());			
@@ -57,5 +57,4 @@ public class AutomaticScaleBuilder implements ArrayBuilder {
 		}
 		avgcount++;
 	}
-	
 }

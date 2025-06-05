@@ -1,12 +1,16 @@
 package com.ugcs.gprvisualizer.app;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import org.aspectj.weaver.tools.Trace;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -87,24 +91,27 @@ public class Navigator implements ToolProducer {
 			model.getChart(csvFile).ifPresent(sensorLineChart -> {
 				sensorLineChart.zoomToCurrentLine();
 			});
-		} else {
-			var chart = model.getProfileField(currentFile);
+		} else if (currentFile instanceof TraceFile traceFile) {
+			var chart = model.getProfileField(traceFile);
 			// if there's a selection mark present on the chart
 			// zoom to a file containing that mark;
 			// otherwise zoom to a file containing
 			// the middle trace
 			SgyFile selectedFile;
-			ClickPlace mark = model.getSelectedTrace(chart);
+			TraceKey mark = model.getSelectedTrace(chart);
 			if (mark != null) {
-				selectedFile = mark.getTrace().getFile();
+				selectedFile = mark.getFile();
 			} else {
 				selectedFile = chart.getField().getSgyFileByTrace(chart.getMiddleTrace());
 			}
-			fitFile(selectedFile);
+			// TODO GPR_LINES
+			if (selectedFile instanceof TraceFile) {
+				fitFile((TraceFile)selectedFile);
+			}
 		}
 	}
 
-	private void fitFile(SgyFile sgyFile) {
+	private void fitFile(TraceFile sgyFile) {
 		if (sgyFile == null) {
 			return;
 		}

@@ -1006,10 +1006,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private void applyQualityControlToAll(QualityControlParams params) {
 		QualityControl qualityControl = new QualityControl();
-		List<CsvFile> files = model.getFileManager().getCsvFiles().stream()
-				.filter(f -> f instanceof CsvFile)
-				.map(f -> (CsvFile)f)
-				.toList();
+		List<CsvFile> files = model.getFileManager().getCsvFiles();
 		List<QualityCheck> checks = createQualityChecks(params);
 		List<QualityIssue> issues = qualityControl.getQualityIssues(files, checks);
 

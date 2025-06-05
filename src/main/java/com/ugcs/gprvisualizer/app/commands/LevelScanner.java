@@ -1,10 +1,12 @@
 package com.ugcs.gprvisualizer.app.commands;
 
+import java.io.File;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.AmplitudeMatrix;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
@@ -16,14 +18,13 @@ import com.ugcs.gprvisualizer.event.WhatChanged;
 public class LevelScanner implements Command {
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		
 		// copy sgyfile
-		SgyFile file2 = file.copy(); 
+		TraceFile file2 = file.copy();
 		
 		// remove noise
 		new BackgroundNoiseRemover().execute(file2, listener);
-		
 		
 		List<Trace> lst = file2.getTraces();
 

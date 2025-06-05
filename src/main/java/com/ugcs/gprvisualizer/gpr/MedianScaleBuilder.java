@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 
 public class MedianScaleBuilder implements ArrayBuilder {
 
@@ -22,7 +22,7 @@ public class MedianScaleBuilder implements ArrayBuilder {
 	}
 	
 	@Override
-	public double[][] build(SgyFile file) {
+	public double[][] build(TraceFile file) {
 		
 		if (scale != null) {
 			return scale;

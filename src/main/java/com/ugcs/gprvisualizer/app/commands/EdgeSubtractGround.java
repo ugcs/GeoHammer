@@ -7,6 +7,7 @@ import java.util.Queue;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -79,7 +80,7 @@ public class EdgeSubtractGround implements Command {
 	private static final int MARGIN = 5;
 	
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		if (file.getGroundProfile() == null) {
 			System.out.println("!!!!!!!!!!!!!1 file.groundProfile == null");
 			return;
@@ -144,7 +145,7 @@ public class EdgeSubtractGround implements Command {
 		return hp;
 	}
 
-	public int getMaxGroundSmp(SgyFile file) {
+	public int getMaxGroundSmp(TraceFile file) {
 		int maxGroundDeep = 0;
 		for (Trace trace : file.getTraces()) {
 			maxGroundDeep = Math.max(maxGroundDeep, trace.maxindex);
@@ -152,7 +153,7 @@ public class EdgeSubtractGround implements Command {
 		return maxGroundDeep;
 	}
 
-	private void processDeep(SgyFile file, HorizontalProfile hp, int shift, double minDst) {
+	private void processDeep(TraceFile file, HorizontalProfile hp, int shift, double minDst) {
 		List<Trace> list = file.getTraces();
 		
 		EdgeQueue[] edges = createQueuesForEdgeType(list);
@@ -213,5 +214,4 @@ public class EdgeSubtractGround implements Command {
 	public WhatChanged.Change getChange() {
 		return WhatChanged.Change.traceValues;
 	}
-	
 }

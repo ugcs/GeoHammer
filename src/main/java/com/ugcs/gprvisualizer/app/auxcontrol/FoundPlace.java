@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
+import java.io.File;
 
 import com.github.thecoldwine.sigrun.common.ext.*;
 import com.ugcs.gprvisualizer.app.GPRChart;
@@ -17,7 +18,7 @@ import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
+public class FoundPlace extends BaseObjectWithModel {
 
 	//static int R_HOR = ResourceImageHolder.IMG_SHOVEL.getWidth(null) / 2;
 	//static int R_VER = ResourceImageHolder.IMG_SHOVEL.getHeight(null) / 2;
@@ -100,24 +101,17 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 
 	@Override
 	public boolean mouseMoveHandle(Point2D point, ScrollableData profField) {
-		
-		TraceSample ts = profField.screenToTraceSample(point); //, offset);
-		
-		traceInFile = traceInFile.getFile()
-				.getTraces().get(
-						Math.min(offset.getTraces() - 1,
-						Math.max(
-								0,
-								offset.globalToLocal(ts.getTrace()))));
 
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		
+		if (traceInFile.getFile() instanceof TraceFile traceFile) {
+			TraceSample ts = profField.screenToTraceSample(point);
+			traceInFile = traceFile.getTraces().get(
+					Math.min(offset.getTraces() - 1,
+							Math.max(0, offset.globalToLocal(ts.getTrace()))));
+			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+		}
 		coordinatesToStatus();
-		
 		return true;
 	}
-	
-	
 
 	@Override
 	public void drawOnMap(Graphics2D g2, MapField mapField) {
@@ -201,7 +195,9 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 
 	@Override
 	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
-		Trace newTrace = traceInFile.getFile().getTraces().get(traceInFile.getIndexInFile() - traceoffset);
+		// TODO GPR_LINES
+		//Trace newTrace = traceInFile.getFile().getTraces().get(traceInFile.getIndexInFile() - traceoffset);
+		Trace newTrace = traceInFile;
 		return new FoundPlace(newTrace, verticalCutPart, model);
 	}
 

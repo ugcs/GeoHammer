@@ -34,9 +34,13 @@ public class FoundTracesLayer implements Layer {
 			bo.drawOnMap(g2, fixedField);
 		}
 
+		// TODO GPR_LINES
+		// create a new click place
+		/*
 		for (ClickPlace clickPlace : model.getSelectedTraces()) {
 			clickPlace.drawOnMap(g2, fixedField);
 		}
+		*/
 	}
 
 	@Override

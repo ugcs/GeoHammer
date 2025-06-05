@@ -14,6 +14,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
@@ -95,8 +97,7 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	public void init() {		
-		points = new TraceCutInitializer()
-			.initialRect(model, model.getTraces());
+		points = new TraceCutInitializer().initialRect(model);
 		activePoints.clear();
 	}
 	
@@ -231,26 +232,25 @@ public class TraceCutter implements Layer, InitializingBean {
 		undoFiles.clear();
 		undoFiles.addAll(model.getFileManager().getGprFiles());
 
-		for (SgyFile file : model.getFileManager().getGprFiles()) {
+		for (TraceFile file : model.getFileManager().getGprFiles()) {
 			slicedSgyFiles.addAll(splitFile(file, fld, border));
 			model.getProfileField(file).clear();
 			model.publishEvent(new FileClosedEvent(this, file));
 		}
 
-		for (SgyFile file : model.getFileManager().getCsvFiles()) {
+		for (CsvFile file : model.getFileManager().getCsvFiles()) {
 			slicedSgyFiles.addAll(splitFile(file, fld, border));
 		}
 		undoFiles.addAll(model.getFileManager().getCsvFiles());
 
 		model.getFileManager().updateFiles(slicedSgyFiles);
 
-		for (SgyFile sf : model.getFileManager().getCsvFiles()) {
-			model.updateChart((CsvFile) sf);
+		for (CsvFile sf : model.getFileManager().getCsvFiles()) {
+			model.updateChart(sf);
 		}
 
-		for (SgyFile sf : model.getFileManager().getGprFiles()) {
+		for (TraceFile sf : model.getFileManager().getGprFiles()) {
 			sf.updateTraces();
-			//model.getProfileFieldByPattern(sf);//.clear();
 		}
 		model.publishEvent(new FileOpenedEvent(this, model.getFileManager().getGprFiles().stream().map(SgyFile::getFile).collect(Collectors.toList())));
 		
@@ -258,17 +258,13 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private void applySplit() {
-		ClickPlace mark = model.getSelectedTraceInCurrentChart();
+		TraceKey mark = model.getSelectedTraceInCurrentChart();
 		if (mark == null) {
 			return;
 		}
-		Trace splitTrace = mark.getTrace();
-		if (splitTrace == null) {
-			return;
-		}
 
-		SgyFile file = splitTrace.getFile();
-		int splitIndex = splitTrace.getIndexInFile();
+		SgyFile file = mark.getFile();
+		int splitIndex = mark.getIndex();
 
 		// first index of a new line
 		if (isStartOfLine(file, splitIndex)) {
@@ -294,7 +290,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		if (!undoFiles.isEmpty()) {
 
-			for (SgyFile file : model.getFileManager().getGprFiles()) {
+			for (TraceFile file : model.getFileManager().getGprFiles()) {
 				model.getProfileField(file).clear();
 				model.publishEvent(new FileClosedEvent(this, file));
 			}
@@ -302,14 +298,12 @@ public class TraceCutter implements Layer, InitializingBean {
 			model.getFileManager().updateFiles(undoFiles);
 			undoFiles.clear();
 			
-			for (SgyFile sf : model.getFileManager().getGprFiles()) {
+			for (TraceFile sf : model.getFileManager().getGprFiles()) {
 				sf.updateTraces();
-				//model.getProfileField(sf).clear();
 			}
 
-			for (SgyFile sf : model.getFileManager().getCsvFiles()) {
-				sf.updateTraces();
-				model.updateChart((CsvFile) sf);
+			for (CsvFile sf : model.getFileManager().getCsvFiles()) {
+				model.updateChart(sf);
 			}
 
 			model.publishEvent(new FileOpenedEvent(this, model.getFileManager().getGprFiles().stream().map(SgyFile::getFile).collect(Collectors.toList())));
@@ -331,8 +325,8 @@ public class TraceCutter implements Layer, InitializingBean {
 		return inside(p, border);
 	}
 
-	private SgyFile generateSgyFileFrom(SgyFile sourceFile, List<Trace> traces, String partSuffix) {
-		SgyFile copy = sourceFile.copyHeader();
+	private TraceFile generateSgyFileFrom(TraceFile sourceFile, List<Trace> traces, String partSuffix) {
+		TraceFile copy = sourceFile.copyHeader();
 		copy.setFile(getPartFile(sourceFile, partSuffix, sourceFile.getFile().getParentFile()));
 		copy.setUnsaved(true);
 
@@ -355,7 +349,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		return copy;
 	}
 
-	private File getPartFile(SgyFile file, String partSuffix, File folder) {
+	private File getPartFile(TraceFile file, String partSuffix, File folder) {
 		String fileName = file.getFile().getName();
 		String baseName = FileNames.removeExtension(fileName);
 		String extension = FileNames.getExtension(fileName);
@@ -364,11 +358,12 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private List<SgyFile> splitFile(SgyFile file, MapField field, List<Point2D> border) {
-		if(file instanceof CsvFile) {
-			return splitCsvFile((CsvFile)file, field, border);
-		} else {
-			return splitGprFile(file, field, border);
+		if (file instanceof CsvFile csvFile) {
+			return splitCsvFile(csvFile, field, border);
+		} else if (file instanceof TraceFile traceFile) {
+			return splitGprFile(traceFile, field, border);
 		}
+		return List.of();
 	}
 
 	private List<SgyFile> splitCsvFile(CsvFile csvFile, MapField field, List<Point2D> border) {
@@ -376,6 +371,8 @@ public class TraceCutter implements Layer, InitializingBean {
 		copy.setUnsaved(true);
 
 		// traces
+		// TODO GPR_LINES
+		/*
 		List<Trace> newTraces = new ArrayList<>();
 		for (Trace trace: csvFile.getTraces()) {
 			boolean inside = isTraceInsideSelection(field, border, trace);
@@ -384,6 +381,7 @@ public class TraceCutter implements Layer, InitializingBean {
 			}
 		}
 		copy.setTraces(newTraces);
+		*/
 
 		// values
 		// all filtered values
@@ -431,13 +429,11 @@ public class TraceCutter implements Layer, InitializingBean {
 				.filter(aux -> isInsideSelection(field, border, ((FoundPlace) aux).getLatLon()))
 				.collect(Collectors.toList()));
 
-		copy.updateTraces();
-
 		return List.of(copy);
 	}
 
-	private List<SgyFile> splitGprFile(SgyFile file, MapField field, List<Point2D> border) {
-		List<SgyFile> splitList = new ArrayList<>();
+	private List<SgyFile> splitGprFile(TraceFile file, MapField field, List<Point2D> border) {
+		List<TraceFile> splitList = new ArrayList<>();
 		List<Trace> sublist = new ArrayList<>();
 
 		int part = 1;
@@ -449,7 +445,7 @@ public class TraceCutter implements Layer, InitializingBean {
 				if (!sublist.isEmpty()) {
 					if (isGoodForFile(sublist)) { //filter too small files
 						String partSuffix = String.format("%03d", part++);
-						SgyFile subfile = generateSgyFileFrom(
+						TraceFile subfile = generateSgyFileFrom(
 								file, sublist, partSuffix);
 						System.out.println("Target file name: " + subfile.getFile().getName());
 						splitList.add(subfile);
@@ -462,17 +458,17 @@ public class TraceCutter implements Layer, InitializingBean {
 		//for last
 		if (isGoodForFile(sublist)) {
 			String partSuffix = String.format("%03d", part);
-			SgyFile subfile = generateSgyFileFrom(file, sublist, partSuffix);
+			TraceFile subfile = generateSgyFileFrom(file, sublist, partSuffix);
 			splitList.add(subfile);
 		}
 
 		if (splitList.size() == 1) {
-			SgyFile first = splitList.getFirst();
+			TraceFile first = splitList.getFirst();
 			first.setFile(file.getFile());
 			first.updateTraces();
 		}
 
-		return splitList;
+		return new ArrayList<>(splitList);
 	}
 
 	private boolean isStartOfLine(SgyFile file, int traceIndex) {
@@ -519,12 +515,14 @@ public class TraceCutter implements Layer, InitializingBean {
 		CsvFile copy = csvFile.copy();
 		copy.setUnsaved(true);
 
+		// TODO GPR_LINES
+		/*
 		List<Trace> newTraces = csvFile.getTraces();
-
 		copy.setTraces(newTraces);
+		*/
+
 		copy.setGeoData(newValues);
 		copy.setAuxElements(new ArrayList<>(csvFile.getAuxElements()));
-		copy.updateTraces();
 
 		// clear selection
 		model.clearSelectedTrace(model.getFileChart(csvFile));
@@ -540,7 +538,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 	}
 
-	private void splitGprTrace(GprFile gprFile, int splitIndex) {
+	private void splitGprTrace(TraceFile gprFile, int splitIndex) {
 		Check.notNull(gprFile);
 		Check.condition(splitIndex >= 0);
 
@@ -574,12 +572,12 @@ public class TraceCutter implements Layer, InitializingBean {
 		List<Trace> traces = gprFile.getTraces();
 		boolean hasPartSuffix = FileNames.hasGprPartSuffix(
 				gprFile.getFile().getName());
-		SgyFile part1 = generateSgyFileFrom(
+		TraceFile part1 = generateSgyFileFrom(
 				gprFile,
 				traces.subList(0, splitIndex),
 				hasPartSuffix ? "1" : "001");
 		generated.add(part1);
-		SgyFile part2 = generateSgyFileFrom(
+		TraceFile part2 = generateSgyFileFrom(
 				gprFile,
 				traces.subList(splitIndex, traces.size()),
 				hasPartSuffix ? "2" : "002");
@@ -726,7 +724,7 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private void updateSplit() {
-		ClickPlace mark = model.getSelectedTraceInCurrentChart();
+		TraceKey mark = model.getSelectedTraceInCurrentChart();
 		buttonSplit.setDisable(mark == null);
 	}
 

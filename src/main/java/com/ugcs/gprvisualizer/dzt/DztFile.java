@@ -21,11 +21,12 @@ import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 import com.ugcs.gprvisualizer.obm.ObjectByteMapper;
 import org.jspecify.annotations.Nullable;
 
-public class DztFile extends SgyFile {
+public class DztFile extends TraceFile {
 
 	private static final int MINHEADSIZE = 1024;
 	private static final int PARAREASIZE = 128;
@@ -315,7 +316,7 @@ public class DztFile extends SgyFile {
 	}
 	
 	@Override
-	public SgyFile copyHeader() {
+	public DztFile copyHeader() {
 		
 		DztFile newInstance = new DztFile();
 		
@@ -331,11 +332,8 @@ public class DztFile extends SgyFile {
 
 	
 	@Override
-	public SgyFile copy() {
-		
-		
-		DztFile copy = (DztFile) copyHeader(); 
-		
+	public DztFile copy() {
+		DztFile copy = copyHeader();
 		copy.setFile(this.getFile());
 		
 		List<Trace> traces = new ArrayList<>();

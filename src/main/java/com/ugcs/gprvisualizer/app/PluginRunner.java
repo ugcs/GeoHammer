@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONArray;
@@ -25,7 +26,7 @@ public class PluginRunner implements SingleCommand {
 
 	private Model model;
 	
-	private void processSgyFiles(ProgressListener listener, List<SgyFile> sgfl) {
+	private void processSgyFiles(ProgressListener listener, List<TraceFile> sgfl) {
 		try {
 			
 			StringBuilder sb = new StringBuilder();
@@ -92,7 +93,7 @@ public class PluginRunner implements SingleCommand {
 		this.model = model;
 	}
 
-	private void processV2(List<SgyFile> sgyFileList, String line) throws Exception {
+	private void processV2(List<TraceFile> sgyFileList, String line) throws Exception {
 		if (line.startsWith("{")) {
 
 			JSONParser jsonParser = new JSONParser();
@@ -135,7 +136,7 @@ public class PluginRunner implements SingleCommand {
 	}
 
 	@Override
-	public void execute(List<SgyFile> files, ProgressListener listener) {
+	public void execute(List<TraceFile> files, ProgressListener listener) {
 		processSgyFiles(listener, model.getFileManager().getGprFiles());
 	}
 

@@ -11,6 +11,7 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,7 +87,7 @@ public class FileManager {
 
 	private void processFile(File fl) throws Exception {
 		
-		SgyFile sgyFile = null;
+		TraceFile sgyFile = null;
 		if (fl.getName().toLowerCase().endsWith("sgy")) {
 			sgyFile = new GprFile();
 		} else if (fl.getName().toLowerCase().endsWith("dzt")) {
@@ -120,36 +121,18 @@ public class FileManager {
 	public List<Trace> getGprTraces() {
 		if (gprTraces.isEmpty()) {
 			for (SgyFile file : files) {
-				if (file instanceof CsvFile) {
-					continue;
-				}
-				for (Trace trace : file.getTraces()) {
-					gprTraces.add(trace);
+				if (file instanceof TraceFile traceFile) {
+					for (Trace trace : traceFile.getTraces()) {
+						gprTraces.add(trace);
+					}
 				}
 			}
 		}
 		return gprTraces;
 	}
 
-	private  List<Trace> csvTraces = new ArrayList<>();
-
-	public List<Trace> getCsvTraces() {
-		if (csvTraces.isEmpty()) {
-			for (SgyFile file : files) {
-				if (!(file instanceof CsvFile)) {
-					continue;
-				}
-				for (Trace trace : file.getTraces()) {
-					csvTraces.add(trace);
-				}
-			}
-		}
-		return csvTraces;
-	}
-
 	public void clearTraces() {
 		gprTraces.clear();
-		csvTraces.clear();
 	}
 
 	public boolean isUnsavedExists() {
@@ -170,28 +153,30 @@ public class FileManager {
 
 	public void addFile(SgyFile sgyFile) {
 		files.add(sgyFile);
-		if (sgyFile instanceof CsvFile) {
-			csvTraces.clear();
-		} else {
-			gprTraces.clear();		
+		if (sgyFile instanceof TraceFile) {
+			gprTraces.clear();
 		}
 	}
 
 	public void removeFile(SgyFile sgyFile) {
 		boolean removed = files.remove(sgyFile);
-		if (removed && sgyFile instanceof CsvFile) {
-			csvTraces.clear();
-		} else if (removed) {
-			gprTraces.clear();		
+		if (removed && sgyFile instanceof TraceFile) {
+			gprTraces.clear();
 		}
 	}
 
-	public List<SgyFile> getGprFiles() {
-		return files.stream().filter(Predicate.not(CsvFile.class::isInstance)).collect(Collectors.toList());
+	public List<TraceFile> getGprFiles() {
+		return files.stream()
+				.filter(TraceFile.class::isInstance)
+				.map(TraceFile.class::cast)
+				.collect(Collectors.toList());
 	}
 
-	public List<SgyFile> getCsvFiles() {
-		return files.stream().filter(CsvFile.class::isInstance).collect(Collectors.toList());
+	public List<CsvFile> getCsvFiles() {
+		return files.stream()
+				.filter(CsvFile.class::isInstance)
+				.map(CsvFile.class::cast)
+				.collect(Collectors.toList());
 	}
 
 	public List<SgyFile> getFiles() {

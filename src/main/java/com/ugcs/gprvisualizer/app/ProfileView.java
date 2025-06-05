@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -10,6 +11,7 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -201,7 +203,10 @@ public class ProfileView implements InitializingBean {
 		if (model.getProfileField(closedFile) instanceof GPRChart gprPane) {
 			var vbox = (VBox) gprPane.getRootNode();
 
-			gprPane.getField().removeSgyFile(closedFile);
+			// TODO GPR_LINES
+			if (closedFile instanceof TraceFile traceFile) {
+				gprPane.getField().removeSgyFile(traceFile);
+			}
 			model.getFileManager().removeFile(closedFile);
 
 			if (gprPane.getField().getGprTraces().isEmpty()) {
@@ -212,7 +217,8 @@ public class ProfileView implements InitializingBean {
 			} else {
 				if (currentFile != null && currentFile.equals(closedFile)) {
 					//TODO: maybe need to fix
-					model.publishEvent(new FileSelectedEvent(this, gprPane.getField().getSgyFiles()));
+					model.publishEvent(new FileSelectedEvent(this,
+							new ArrayList<>(gprPane.getField().getSgyFiles())));
 				}
 			}
 			gprPane.fitFull();

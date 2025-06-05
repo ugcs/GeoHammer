@@ -2,6 +2,7 @@ package com.ugcs.gprvisualizer.app.auxcontrol;
 
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
@@ -11,6 +12,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 
 import java.awt.*;
+import java.io.File;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +30,7 @@ public class CloseAllFilesButton extends RemoveFileButton {
 
         if (isPointInside(localPoint, profField) && profField instanceof GPRChart gprChart) {
 
-            List<SgyFile> sgyFiles = gprChart.getField().getSgyFiles();
+            List<TraceFile> sgyFiles = gprChart.getField().getSgyFiles();
 
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Close files");

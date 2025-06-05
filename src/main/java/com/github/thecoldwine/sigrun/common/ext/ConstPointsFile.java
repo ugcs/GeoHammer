@@ -37,7 +37,7 @@ public class ConstPointsFile {
 		return list;
 	}
 	
-	public void calcVerticalCutNearestPoints(SgyFile fl) {
+	public void calcVerticalCutNearestPoints(TraceFile fl) {
 		
 		for(LatLon ll : list) {
 		

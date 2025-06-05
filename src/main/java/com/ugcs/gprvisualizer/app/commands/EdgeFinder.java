@@ -2,8 +2,8 @@ package com.ugcs.gprvisualizer.app.commands;
 
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -17,7 +17,7 @@ public class EdgeFinder implements Command {
 	private Model model = AppContext.model;
 	
 	
-	public void execute(SgyFile sgyFile, ProgressListener listener) {
+	public void execute(TraceFile sgyFile, ProgressListener listener) {
 		
 		List<Trace> traces = sgyFile.getTraces();
 		
@@ -57,5 +57,4 @@ public class EdgeFinder implements Command {
 	public WhatChanged.Change getChange() {
 		return WhatChanged.Change.traceValues;
 	}
-
 }

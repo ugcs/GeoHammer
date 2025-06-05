@@ -5,6 +5,8 @@ import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
@@ -41,6 +43,7 @@ import org.jfree.fx.FXGraphics2D;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -93,7 +96,7 @@ public class GPRChart extends Chart {
     private final ProfileField profileField;
     private final List<BaseObject> auxElements = new ArrayList<>();
 
-    public GPRChart(Model model, AuxElementEditHandler auxEditHandler, List<SgyFile> sgyFiles) {
+    public GPRChart(Model model, AuxElementEditHandler auxEditHandler, List<TraceFile> sgyFiles) {
         super(model);
         this.model = model;
         this.auxEditHandler = auxEditHandler;
@@ -144,7 +147,7 @@ public class GPRChart extends Chart {
         return auxElements;
     }
 
-    public void addSgyFile(@NonNull SgyFile f) {
+    public void addSgyFile(@NonNull TraceFile f) {
         profileField.addSgyFile(f);
         updateAuxElements();
     }
@@ -324,9 +327,9 @@ public class GPRChart extends Chart {
         int startTrace = getFirstVisibleTrace();
         int finishTrace = getLastVisibleTrace();
 
-        List<SgyFile> visibleFiles = profileField.getFilesInRange(startTrace, finishTrace);
+        List<TraceFile> visibleFiles = profileField.getFilesInRange(startTrace, finishTrace);
 
-        for (SgyFile currentFile : visibleFiles) {
+        for (TraceFile currentFile : visibleFiles) {
 
             if (currentFile.profiles != null) {
                 // pf
@@ -380,18 +383,21 @@ public class GPRChart extends Chart {
             }
         }
 
+        // TODO GPR_LINES
+        /*
         for (ClickPlace clickPlace : model.getSelectedTraces()) {
             Trace trace = clickPlace.getTrace();
             if (trace != null && equals(model.getFileChart(trace.getFile()))) {
                 clickPlace.drawOnCut(g2, this);
             }
         }
+        */
     }
 
 
         public void updateAuxElements() {
             auxElements.clear();
-            for (SgyFile sf : profileField.getSgyFiles()) {
+            for (TraceFile sf : profileField.getSgyFiles()) {
                 auxElements.addAll(sf.getAuxElements());
 
                 Trace lastTrace = sf.getTraces().get(sf.getTraces().size() - 1);
@@ -473,9 +479,9 @@ public class GPRChart extends Chart {
 
     private void drawFileNames(int height, Graphics2D g2) {
         SgyFile currentFile = null;
-        ClickPlace mark = model.getSelectedTrace(this);
+        TraceKey mark = model.getSelectedTrace(this);
         if (mark != null) {
-            currentFile = mark.getTrace().getFile();
+            currentFile = mark.getFile();
         }
         if (currentFile == null) {
             currentFile = profileField.getSgyFileByTrace(getMiddleTrace());
@@ -489,7 +495,7 @@ public class GPRChart extends Chart {
         int leftMargin = -getField().getMainRect().width / 2;
 
         g2.setStroke(AMP_STROKE);
-        for (SgyFile fl : profileField.getSgyFiles()) {
+        for (TraceFile fl : profileField.getSgyFiles()) {
 
             p = traceSampleToScreen(new TraceSample(
                     fl.getTraces().get(0).getIndexInSet(), 0));
@@ -578,7 +584,10 @@ public class GPRChart extends Chart {
 
                 int traceIndex = screenToTraceSample(p).getTrace();
                 if (traceIndex >= 0 && traceIndex < getField().getGprTracesCount()) {
-                    Trace trace = getField().getGprTraces().get(traceIndex);
+                    // TODO GPR_LINES
+                    TraceKey trace = new TraceKey(
+                            profileField.getSgyFileByTrace(traceIndex),
+                            traceIndex);
                     model.selectTrace(trace);
                     model.focusMapOnTrace(trace);
                 }
@@ -774,9 +783,9 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public void selectTrace(Trace trace, boolean focus) {
+    public void selectTrace(TraceKey trace, boolean focus) {
         if (trace != null && focus) {
-            setMiddleTrace(trace.getIndexInSet());
+            setMiddleTrace(trace.getIndex());
         }
         // no data stored in a chart,
         // and is taken from model on repaint

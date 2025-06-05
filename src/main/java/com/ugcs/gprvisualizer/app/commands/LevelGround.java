@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.app.TraceCutter;
 import com.ugcs.gprvisualizer.dzt.DztFile;
@@ -21,7 +22,7 @@ public class LevelGround implements Command {
 	}
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 
 		HorizontalProfile hp = file.getGroundProfile();
 		if (hp == null) {
@@ -54,16 +55,16 @@ public class LevelGround implements Command {
 			processedTraces.add(newTrace);	
 		}
 
-		SgyFile oldFile = generateSgyFileFrom(file, processedTraces);
+		TraceFile oldFile = generateSgyFileFrom(file, processedTraces);
  		levelFilter.setUndoFiles(List.of(oldFile));
 		
 		file.setGroundProfile(null);
 		file.setUnsaved(true);
 	}
 
-	private SgyFile generateSgyFileFrom(SgyFile sourceFile, List<Trace> traces) {
+	private TraceFile generateSgyFileFrom(TraceFile sourceFile, List<Trace> traces) {
 		
-		SgyFile sgyFile = sourceFile.copyHeader(); 
+		TraceFile sgyFile = sourceFile.copyHeader();
 		
 		sgyFile.setUnsaved(true);
 		

@@ -7,8 +7,10 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
+import java.io.File;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import javafx.geometry.Point2D;
 
@@ -28,7 +30,7 @@ public class RulerTool extends BaseObjectImpl {
 	private final DragAnchor anch1;
 	private final DragAnchor anch2;
 	private final VerticalCutPart offset;
-	private final SgyFile file;
+	private final TraceFile file;
 	
 	private static class RulerAnchor extends DragAnchor {
 		
@@ -48,7 +50,7 @@ public class RulerTool extends BaseObjectImpl {
 		}
 	}
 	
-	public RulerTool(SgyFile file, int s, int f, int smpStart, int smpFinish) {
+	public RulerTool(TraceFile file, int s, int f, int smpStart, int smpFinish) {
 		this.file = file;
 		offset = file.getOffset();
 
@@ -184,7 +186,7 @@ public class RulerTool extends BaseObjectImpl {
 		
 	}
 	
-	public static double distanceCm(SgyFile file, int tr1, int tr2, double smp1, double smp2) {
+	public static double distanceCm(TraceFile file, int tr1, int tr2, double smp1, double smp2) {
 		double grndLevel = 0;
 		if (file.getGroundProfile() != null) {
 			grndLevel = file.getGroundProfile().deep[(tr1 + tr2) / 2];
@@ -233,7 +235,7 @@ public class RulerTool extends BaseObjectImpl {
 		return i;
 	}
 		
-	public static int diagonalToSmp2(SgyFile file, int tr, int smp, double c) {
+	public static int diagonalToSmp2(TraceFile file, int tr, int smp, double c) {
 		
 		int grn = file.getGroundProfile().deep[tr];
 		

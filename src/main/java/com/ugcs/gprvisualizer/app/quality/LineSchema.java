@@ -51,8 +51,9 @@ public class LineSchema {
         int lineStart = 0;
         for (int i = 0; i < values.size(); i++) {
             GeoData value = values.get(i);
-            if (value == null)
+            if (value == null) {
                 continue;
+            }
 
             int valueLineIndex = value.getLineIndexOrDefault();
             if (valueLineIndex != lineIndex) {

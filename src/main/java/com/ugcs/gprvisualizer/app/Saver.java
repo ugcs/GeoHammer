@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -100,7 +101,6 @@ public class Saver implements ToolProducer, InitializingBean {
 		}
 
 		CsvFile csvFile = model.getFileManager().getCsvFiles().stream()
-				.map(f -> (CsvFile) f)
 				.filter(f -> f.equals(selectedFile))
 				.findAny()
 				.orElse(null);
@@ -109,7 +109,7 @@ public class Saver implements ToolProducer, InitializingBean {
 		}
 
 		// check that target option is not open
-		Optional<SgyFile> alreadyOpened = model.getFileManager().getCsvFiles().stream()
+		Optional<CsvFile> alreadyOpened = model.getFileManager().getCsvFiles().stream()
 				.filter(f -> Objects.equals(f.getFile(), saveToFile))
 				.findAny();
 		if (alreadyOpened.isPresent()) {
@@ -196,7 +196,7 @@ public class Saver implements ToolProducer, InitializingBean {
 		    	if (!model.getFileManager().getGprFiles().isEmpty() && !(selectedFile instanceof CsvFile)) {
 					DirectoryChooser dirChooser = new DirectoryChooser();				
 		    		
-		    		SgyFile firstFile = model.getFileManager().getGprFiles().get(0);
+		    		TraceFile firstFile = model.getFileManager().getGprFiles().get(0);
 					dirChooser.setInitialDirectory(firstFile.getFile().getParentFile());
 
 					saveToFolder = dirChooser.showDialog(AppContext.stage); 
@@ -233,12 +233,12 @@ public class Saver implements ToolProducer, InitializingBean {
 	private List<File> saveTheSame() {
 		List<File> newfiles = new ArrayList<>();
 		
-		for (SgyFile file : model.getFileManager().getGprFiles()) {
+		for (TraceFile file : model.getFileManager().getGprFiles()) {
 			model.publishEvent(new FileClosedEvent(this, file));
 			newfiles.add(save(file));
 		}
 
-		for (SgyFile file : model.getFileManager().getCsvFiles()) {
+		for (CsvFile file : model.getFileManager().getCsvFiles()) {
 			File newFile = save(file);
 			if (newFile != null) {
 				file.setUnsaved(false);

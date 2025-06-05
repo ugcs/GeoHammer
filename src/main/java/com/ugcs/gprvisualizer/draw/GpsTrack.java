@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -14,7 +15,9 @@ import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.MapView;
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Range;
@@ -96,39 +99,35 @@ public class GpsTrack extends BaseLayer {
 		//
 		g2.setColor(Color.RED);
 		
-		for (SgyFile sgyFile : model.getFileManager().getGprFiles()) {
+		for (TraceFile sgyFile : model.getFileManager().getGprFiles()) {
 			sumdist = drawTraceLines(g2, field, sumdist, threshold, sgyFile);
 		}
 
-		for (SgyFile sgyFile : model.getFileManager().getCsvFiles()) {
+		for (CsvFile sgyFile : model.getFileManager().getCsvFiles()) {
 			sumdist = drawTraceLines(g2, field, sumdist, threshold, sgyFile);
 		}
 	}
 
 	private double drawTraceLines(Graphics2D g2, MapField field, double sumdist, double threshold, SgyFile sgyFile) {
-		if (sgyFile instanceof CsvFile csvFile) {
-			var ranges = csvFile.getLineRanges();
-			for(Range range: ranges.values()) {
-				Point2D prevPoint = null;
-				var traces = csvFile.getTraces().subList(range.getMin().intValue(), range.getMax().intValue() + 1);
-				sumdist = renderTraceLines(g2, field, sumdist, threshold, traces, prevPoint);
-			}
-		} else {
+		var ranges = sgyFile.getLineRanges();
+		for (Range range: ranges.values()) {
 			Point2D prevPoint = null;
-			var traces = sgyFile.getTraces();
+			var traces = sgyFile.getGeoData().subList(range.getMin().intValue(), range.getMax().intValue() + 1);
 			sumdist = renderTraceLines(g2, field, sumdist, threshold, traces, prevPoint);
 		}
 		return sumdist;
 	}
 
-	private static double renderTraceLines(Graphics2D g2, MapField field, double sumdist, double threshold, List<Trace> traces, Point2D prevPoint) {
-		for(Trace trace : traces) {
+	private static double renderTraceLines(Graphics2D g2, MapField field, double sumdist, double threshold, List<GeoData> traces, Point2D prevPoint) {
+		for (GeoData trace : traces) {
 			if (prevPoint == null) {
 				prevPoint = field.latLonToScreen(trace.getLatLon());
 				sumdist = 0;
 			} else {
 				//prev point exists
-				sumdist += trace.getPrevDist();
+				// TODO GPR_LINES
+				//sumdist += trace.getPrevDist();
+				sumdist = Double.MAX_VALUE;
 				if (sumdist >= threshold) {
 					Point2D pointNext = field.latLonToScreen(trace.getLatLon());
 					g2.drawLine((int) prevPoint.getX(),

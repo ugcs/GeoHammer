@@ -1,19 +1,17 @@
 package com.ugcs.gprvisualizer.app.commands;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 
 public class RemoveGroundLevel implements Command {
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		file.setGroundProfile(null);
 	}
 
 	@Override
 	public String getButtonText() {
-
 		return "Remove ground level";
 	}
-
 }

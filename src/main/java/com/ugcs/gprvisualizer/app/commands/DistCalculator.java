@@ -2,8 +2,8 @@ package com.ugcs.gprvisualizer.app.commands;
 
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.math.CoordinatesMath;
 
@@ -16,7 +16,7 @@ public class DistCalculator implements Command {
 	}
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		calcDistances(file.getTraces());
 	}
 
@@ -52,5 +52,4 @@ public class DistCalculator implements Command {
 		}
 		traces.get(0).setPrevDist(traces.get(1).getPrevDist());
 	}
-
 }

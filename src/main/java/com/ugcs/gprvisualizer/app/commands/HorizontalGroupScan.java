@@ -3,11 +3,9 @@ package com.ugcs.gprvisualizer.app.commands;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
-import com.ugcs.gprvisualizer.app.AppContext;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
-import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 
 /**
@@ -19,7 +17,7 @@ public class HorizontalGroupScan implements Command {
 	private static final int[] LOOKINGORDER = {0, -1, 1, -2, 2};
 	
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		List<HorizontalProfile> result = new ArrayList<>();
 		
 		Trace trace = file.getTraces().get(0);
@@ -87,5 +85,4 @@ public class HorizontalGroupScan implements Command {
 	public String getButtonText() {
 		return "Cohesive scan";
 	}
-
 }

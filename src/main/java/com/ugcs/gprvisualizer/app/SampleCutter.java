@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.TraceHeader;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
@@ -15,6 +16,7 @@ import com.ugcs.gprvisualizer.utils.Check;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -115,7 +117,7 @@ public class SampleCutter {
         return copy;
     }
 
-    public List<BaseObject> copyAuxElements(SgyFile file, SgyFile target) {
+    public List<BaseObject> copyAuxElements(GprFile file, GprFile target) {
         List<Trace> traces = file.getTraces();
         int begin = traces.getFirst().getIndexInFile();
 

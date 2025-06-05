@@ -2,74 +2,57 @@ package com.ugcs.gprvisualizer.utils;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
 
 import java.util.List;
+import java.util.Optional;
 
 public class TraceUtils {
 
-    public static int findNearestTraceIndex(List<Trace> traces, LatLon ll) {
-
-        int resultIndex = 0;
-        double mindst = ll.getDistance(traces.get(0).getLatLon());
-
-        for (int i = 0; i < traces.size(); i++) {
-            double dst = ll.getDistance(traces.get(i).getLatLon());
-            if (dst < mindst) {
-                resultIndex = i;
-                mindst = dst;
-            }
-        }
-        return resultIndex;
-    }    
-
-    public static Trace findNearestTrace(List<Trace> traces, LatLon ll) {
-        if (traces == null || traces.isEmpty()) {
-            return null;
-        }
-        if (ll == null) {
-            return null;
-        }
-
-        Trace result = traces.getFirst();
-        double mindst = ll.getDistance(result.getLatLon());
-
-        for (Trace current : traces) {
-            double dst = ll.getDistance(current.getLatLon());
-            if (dst < mindst) {
-                result = current;
-                mindst = dst;
-            }
-        }
-        
-        return result;
+    public static int findNearestTraceIndex(SgyFile file, LatLon latlon) {
+        return findNearestTrace(file, latlon)
+                .map(TraceKey::getIndex)
+                .orElse(0);
     }
 
-    public static Trace findNearestTrace(List<Trace> traces, LatLon ll, double maxDistance) {
-        Trace nearest = findNearestTrace(traces, ll);
-        if (nearest == null) {
-            return null;
-        }
-        double distance = nearest.getLatLon().getDistance(ll);
-        return distance <= maxDistance ? nearest : null;
+    public static Optional<TraceKey> findNearestTrace(SgyFile file, LatLon latLon) {
+        return findNearestTrace(file, latLon, Double.MAX_VALUE);
     }
 
-    public static Trace findNearestTraceInFiles(Iterable<SgyFile> files, LatLon ll, double maxDistance) {
-        Trace nearest = null;
+    public static Optional<TraceKey> findNearestTrace(SgyFile file, LatLon latlon,
+            double distanceLimit) {
+        return findNearestTraceInFiles(List.of(file), latlon, distanceLimit);
+    }
+
+    public static Optional<TraceKey> findNearestTraceInFiles(Iterable<SgyFile> files, LatLon latlon) {
+        return findNearestTraceInFiles(files, latlon, Double.MAX_VALUE);
+    }
+
+    public static Optional<TraceKey> findNearestTraceInFiles(Iterable<SgyFile> files, LatLon latlon,
+            double distanceLimit) {
+        if (files == null) {
+            return Optional.empty();
+        }
+        if (latlon == null) {
+            return Optional.empty();
+        }
+
+        TraceKey nearest = null;
+        double minDistance = Double.MAX_VALUE;
         for (SgyFile file : files) {
-            Trace nearestInFile = findNearestTrace(file.getTraces(), ll, maxDistance);
-            if (nearestInFile == null) {
-                continue;
-            }
-
-            if (nearest == null) {
-                nearest = nearestInFile;
-            } else {
-                if (nearestInFile.getLatLon().getDistance(ll) < nearest.getLatLon().getDistance(ll)) {
-                    nearest = nearestInFile;
+            for (GeoData value : Nulls.toEmpty(file.getGeoData())) {
+                LatLon p = value.getLatLon();
+                if (p == null) {
+                    continue;
+                }
+                double d = latlon.getDistance(p);
+                if (d < minDistance && d <= distanceLimit) {
+                    nearest = new TraceKey(file, value.getTraceNumber());
+                    minDistance = d;
                 }
             }
         }
-        return nearest;
+        return Optional.ofNullable(nearest);
     }
 }

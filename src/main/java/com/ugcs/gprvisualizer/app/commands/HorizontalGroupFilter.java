@@ -4,7 +4,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 
@@ -15,7 +15,7 @@ import com.ugcs.gprvisualizer.math.HorizontalProfile;
 public class HorizontalGroupFilter implements Command {
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		System.out.println("  -- -HorizontalGroupFilter- " + file.getFile().getName());
 		
 		List<HorizontalProfile> tmpStraight = new ArrayList<>();
@@ -43,7 +43,7 @@ public class HorizontalGroupFilter implements Command {
 		
 	}
 
-	public static HorizontalProfile createMirroredLine(SgyFile file,
+	public static HorizontalProfile createMirroredLine(TraceFile file,
 			HorizontalProfile brightestTop,
 			HorizontalProfile brightestGrn) {
 		

@@ -3,8 +3,8 @@ package com.ugcs.gprvisualizer.app.commands;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
@@ -13,7 +13,6 @@ public class SpreadCoordinates implements Command {
 	@Override
 	public String getButtonText() {
 		return "Spread coordinates";
-		//return "Spread coordinates (recommended)";
 	}
 
 	@Override
@@ -22,7 +21,7 @@ public class SpreadCoordinates implements Command {
 	}
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		
 		new DistCalculator().execute(file, null);	
 		
@@ -30,10 +29,7 @@ public class SpreadCoordinates implements Command {
 		prolongDistances(file.getTraces());
 		
 		new DistCalculator().execute(file, null);		
-		
 		new DistancesSmoother().execute(file, null);
-
-		
 	}
 
 	private void prolongDistances(List<Trace> traces) {
@@ -73,27 +69,24 @@ public class SpreadCoordinates implements Command {
 				lastGoodIndex = i;
 			}
 		}
-		
 	}
 
-	public static boolean isSpreadingNecessary(SgyFile file) {
+	public static boolean isSpreadingNecessary(TraceFile file) {
 		int zeroCount = 0;
 		for (Trace trace : file.getTraces()) {
 			if (trace.getPrevDist() < 0.001) {
 				zeroCount++;				
 			}
 		}
-		//Sout.p(zeroCount + " > " +  file.size());
 		return zeroCount > file.size() / 2;
 	}
 
-	public static boolean isSpreadingNecessary(List<SgyFile> files) {
-		for (SgyFile file : files) {
+	public static boolean isSpreadingNecessary(List<TraceFile> files) {
+		for (TraceFile file : files) {
 			if (isSpreadingNecessary(file)) {
 				return true;
 			}
 		}
 		return false;
 	}
-
 }

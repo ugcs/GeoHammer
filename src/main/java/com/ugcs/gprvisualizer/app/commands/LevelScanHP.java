@@ -1,10 +1,12 @@
 package com.ugcs.gprvisualizer.app.commands;
 
 import java.awt.Color;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
@@ -16,7 +18,7 @@ import com.ugcs.gprvisualizer.math.HorizontalProfile;
 public class LevelScanHP implements Command {
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 
 		
 		// find edges
@@ -24,19 +26,9 @@ public class LevelScanHP implements Command {
 		
 		// find HPs
 		new HorizontalGroupScan().execute(file, listener);
-		
-		// lines  
-//		List<HorizontalProfile> lines = findStraightLines(file);
-//		
-//		if(lines.isEmpty()) {
-//			System.out.println("no top line :(");
-//			return;
-//		}
-//		// select top straight line !
-//		HorizontalProfile top = HorizontalGroupFilter.getBrightest(lines);
-		
+
 		// copy sgyfile
-		SgyFile file2 = file.copy(); 
+		TraceFile file2 = file.copy();
 		
 		// remove noise
 		new BackgroundNoiseRemover().execute(file2, listener);
@@ -107,5 +99,4 @@ public class LevelScanHP implements Command {
 	public WhatChanged.Change getChange() {
 		return WhatChanged.Change.traceValues;
 	}
-
 }

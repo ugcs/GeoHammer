@@ -2,8 +2,8 @@ package com.ugcs.gprvisualizer.math;
 
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 /*
@@ -28,7 +28,7 @@ public class AvgShiftFilter {
 	}
 	
 	public void execute2() {
-		for (SgyFile sf : model.getFileManager().getGprFiles()) {
+		for (TraceFile sf : model.getFileManager().getGprFiles()) {
 			execute2(sf.getTraces());
 			
 		}
@@ -58,8 +58,7 @@ public class AvgShiftFilter {
 	}
 	
 	public void execute() {
-		
-		for (SgyFile sf : model.getFileManager().getGprFiles()) {
+		for (TraceFile sf : model.getFileManager().getGprFiles()) {
 			execute(sf.getTraces());			
 		}		
 	}

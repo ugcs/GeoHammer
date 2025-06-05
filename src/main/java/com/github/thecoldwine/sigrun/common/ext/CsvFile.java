@@ -11,13 +11,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
-import com.ugcs.gprvisualizer.utils.Range;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +48,11 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
+    public int size() {
+        return geoData.size();
+    }
+
+    @Override
     public void open(File csvFile) throws Exception {
 
         String csvFileAbsolutePath = csvFile.getAbsolutePath();
@@ -80,7 +82,8 @@ public class CsvFile extends SgyFile {
                             - getGeoData().get(0).getLongitude().intValue()) <= 1))) {
                 Trace tr = new Trace(this, null, null, new float[] {},
                         new LatLon(coord.getLatitude(), coord.getLongitude()));
-                getTraces().add(tr);
+                // TODO GPR_LINES
+                //getTraces().add(tr);
                 if (coord instanceof GeoData) {
                     getGeoData().add((GeoData) coord);
                 }
@@ -207,6 +210,7 @@ public class CsvFile extends SgyFile {
         return String.join(",", parts);
     }
 
+    @Override
     public List<GeoData> getGeoData() {
         return geoData;
     }
@@ -248,12 +252,6 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public SgyFile copyHeader() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'copyHeader'");
-    }
-
-    @Override
     public int getSampleInterval() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getSampleInterval'");
@@ -263,6 +261,8 @@ public class CsvFile extends SgyFile {
         return file.getParser().getTemplate().equals(getParser().getTemplate());
     }
 
+    // TODO GPR_LINES
+    /*
     @Override
     public void updateTraces() {
         super.updateTraces();
@@ -270,34 +270,5 @@ public class CsvFile extends SgyFile {
             getGeoData().get(i).setTraceNumber(i);
         }
     }
-
-    public SortedMap<Integer, Range> getLineRanges() {
-        List<GeoData> values = getGeoData();
-        // line index -> [first index, last index]
-        TreeMap<Integer, Range> ranges = new TreeMap<>();
-        if (values == null)
-            return ranges;
-
-        int lineIndex = 0;
-        int lineStart = 0;
-        for (int i = 0; i < values.size(); i++) {
-            GeoData value = values.get(i);
-            if (value == null)
-                continue;
-
-            int valueLineIndex = value.getLineIndexOrDefault();
-            if (valueLineIndex != lineIndex) {
-                if (i > lineStart) {
-                    ranges.put(lineIndex, new Range(lineStart, i - 1));
-                }
-                lineIndex = valueLineIndex;
-                lineStart = i;
-            }
-        }
-        if (values.size() > lineStart) {
-            ranges.put(lineIndex, new Range(lineStart, values.size() - 1));
-        }
-        return ranges;
-    }
-
+    */
 }

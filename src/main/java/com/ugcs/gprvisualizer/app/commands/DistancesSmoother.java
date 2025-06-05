@@ -1,9 +1,11 @@
 package com.ugcs.gprvisualizer.app.commands;
 
+import java.io.File;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.app.auxcontrol.RulerTool;
 
@@ -17,11 +19,9 @@ public class DistancesSmoother implements Command {
 	}
 
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		
 		smoothDist = RulerTool.distanceVCm(file, 0, 0, file.getMaxSamples() / 2) * 0.25 * 0.5;
-		
-		//Sout.p(" smoothDist " + smoothDist);
 		
 		smoothDistances(file.getTraces());
 	}
@@ -43,8 +43,6 @@ public class DistancesSmoother implements Command {
 		
 		for (int i = 0; i < dst.length; i++) {
 			traces.get(i).setPrevDist(dst[i]);
-			
-			//Sout.p("ds2: " + traces.get(i).getPrevDist());
 		}
 	}
 
@@ -87,5 +85,4 @@ public class DistancesSmoother implements Command {
 		
 		return (sl + sr) / c;
 	}
-	
 }

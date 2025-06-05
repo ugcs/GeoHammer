@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.RulerTool;
 
 public class HalfHyperDst {
@@ -15,7 +16,7 @@ public class HalfHyperDst {
 	//double sampleToCm_air;
 	//double sampleToCm_grn;
 	
-	SgyFile sgyFile;
+	TraceFile sgyFile;
 	
 	//int traceIndex;
 	//Trace trace;
@@ -129,7 +130,7 @@ public class HalfHyperDst {
 		return (ycm * 0.41);
 	}
 
-	public static HalfHyperDst getHalfHyper(SgyFile sgyFile, 
+	public static HalfHyperDst getHalfHyper(TraceFile sgyFile,
 			int pnclTr, int pnclSmp, int side, double factorX) {
 		
 		List<Trace> traces = sgyFile.getTraces();

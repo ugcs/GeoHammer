@@ -1,7 +1,9 @@
 package com.ugcs.gprvisualizer.app.commands;
 
+import java.io.File;
 import java.util.function.Consumer;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NullMarked;
@@ -66,7 +68,7 @@ public class CommandRegistry {
 		var files = model.getFileManager().getGprFiles();
 		int count = files.size();
 		
-		for (SgyFile sgyFile : files) {
+		for (TraceFile sgyFile : files) {
 			
 			try {
 				listener.progressMsg("process file '" 

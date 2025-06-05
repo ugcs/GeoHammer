@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.gpr;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 
 public class ScaleArrayBuilder implements ArrayBuilder {
 
@@ -16,7 +16,7 @@ public class ScaleArrayBuilder implements ArrayBuilder {
 	 * @see com.ugcs.gprvisualizer.gpr.ArrayBuilder#build()
 	 */
 	@Override
-	public double[][] build(SgyFile file) {
+	public double[][] build(TraceFile file) {
 		
 		if (scaleArray != null) {
 			return scaleArray;

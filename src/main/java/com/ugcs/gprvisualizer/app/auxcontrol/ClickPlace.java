@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
-import java.util.List;
 
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
@@ -14,14 +13,12 @@ import org.json.simple.JSONObject;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-public class ClickPlace extends BaseObjectImpl { //, MouseHandler {
+public class ClickPlace extends BaseObjectImpl {
 
 	private final static int R_HOR = ResourceImageHolder.IMG_GPS.getWidth(null) / 2;
 	private final static int R_VER = ResourceImageHolder.IMG_GPS.getHeight(null) / 2;
@@ -54,7 +51,9 @@ public class ClickPlace extends BaseObjectImpl { //, MouseHandler {
 
 	@Override
 	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
-		Trace newTrace = trace.getFile().getTraces().get(trace.getIndexInFile() - traceoffset);
+		// TODO GPR_LINES
+		//Trace newTrace = trace.getFile().getTraces().get(trace.getIndexInFile() - traceoffset);
+		Trace newTrace = trace;
 		return new ClickPlace(newTrace);
 	}
 

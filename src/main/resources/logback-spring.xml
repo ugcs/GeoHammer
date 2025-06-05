@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <!-- Консольный аппендер -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- Файловый аппендер -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/app.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <!-- ежедневно создается новый лог-файл -->
             <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <!-- количество архивных лог-файлов -->
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
@@ -22,11 +18,9 @@
         </encoder>
     </appender>
 
-    <!-- Настройки уровней логирования -->
     <logger name="org.springframework" level="INFO"/>
-    <logger name="com.yourcompany.yourapp" level="DEBUG"/>
+    <logger name="org.apache.commons.beanutils.converters" level="INFO"/>
 
-    <!-- Корневой логгер -->
     <root level="DEBUG">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>

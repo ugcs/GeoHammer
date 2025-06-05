@@ -7,7 +7,16 @@ import com.ugcs.gprvisualizer.app.commands.DistancesSmoother;
 import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.FileNames;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,14 +24,45 @@ public abstract class TraceFile extends SgyFile {
 
     private List<Trace> traces = new ArrayList<>();
 
-    public abstract TraceFile copyHeader();
+    private MetaFile metaFile;
+
+    protected void loadMeta() throws IOException {
+        File source = getFile();
+        Check.notNull(source);
+
+        Path metaPath = MetaFile.getMetaPath(source);
+        metaFile = new MetaFile();
+        if (Files.exists(metaPath)) {
+            // load existing meta
+            metaFile.load(metaPath);
+        } else {
+            // init meta
+            metaFile.init(traces);
+        }
+
+        metaFile.initLocations(traces);
+    }
+
+    protected void saveMeta() throws IOException {
+        Check.notNull(metaFile);
+
+        File source = getFile();
+        Check.notNull(source);
+
+        Path metaPath = MetaFile.getMetaPath(source);
+        metaFile.save(metaPath);
+    }
 
     @Override
     public abstract TraceFile copy();
 
+    public abstract TraceFile copyHeader();
+
     @Override
     public List<GeoData> getGeoData() {
-        return List.of();
+        return metaFile != null
+                ? metaFile.getValues()
+                : List.of();
     }
 
     @Override
@@ -51,6 +91,25 @@ public abstract class TraceFile extends SgyFile {
             traces.get(traces.size() - 1).setEnd(true);
         }
     }
+
+    public void updateTraceDistances() {
+        //	calcDistances();
+        //	prolongDistances();
+        new DistCalculator().execute(this, null);
+        setSpreadCoordinatesNecessary(SpreadCoordinates.isSpreadingNecessary(this));
+        //smoothDistances();
+        new DistancesSmoother().execute(this, null);
+    }
+
+    public void copyMarkedTracesToAuxElements() {
+        for (Trace trace: getTraces()) {
+            if (trace.isMarked()) {
+                this.getAuxElements().add(
+                        new FoundPlace(trace, getOffset(), AppContext.model));
+            }
+        }
+    }
+
     public int getMaxSamples() {
         return getTraces().get(0).getNormValues().length;
     }
@@ -87,32 +146,4 @@ public abstract class TraceFile extends SgyFile {
 //
 //		return traceIndex;
     }
-
-    public void markToAux() {
-        for (Trace trace: getTraces()) {
-            if (trace.isMarked()) {
-                this.getAuxElements().add(
-                        new FoundPlace(trace, getOffset(), AppContext.model));
-            }
-        }
-    }
-
-    public void updateInternalDist() {
-        //	calcDistances();
-
-
-        //	prolongDistances();
-
-
-        new DistCalculator().execute(this, null);
-
-        setSpreadCoordinatesNecessary(SpreadCoordinates.isSpreadingNecessary(this));
-
-        //smoothDistances();
-        new DistancesSmoother().execute(this, null);
-
-    }
-
-
-
 }

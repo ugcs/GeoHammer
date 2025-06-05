@@ -11,7 +11,6 @@ public class DistCalculator implements Command {
 
 	@Override
 	public String getButtonText() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -21,11 +20,9 @@ public class DistCalculator implements Command {
 	}
 
 	private void calcDistances(List<Trace> traces) {
-		int zero = 0;
-				
 		for (int i = 1; i < traces.size(); i++) {
 			Trace tracePrev = traces.get(i - 1);
-			Trace trace 	= traces.get(i);
+			Trace trace = traces.get(i);
 			
 			if (tracePrev.getLatLon() != null 
 					&& trace.getLatLon() != null) {
@@ -38,13 +35,6 @@ public class DistCalculator implements Command {
 				
 				//to cm
 				trace.setPrevDist(dist * 100.0);
-				
-				if (trace.getPrevDist() > 0.0001) {
-					//Sout.p("p " + zero + " d " + trace.getPrevDist());
-					zero = 0;
-				} else {
-					zero++;
-				}
 			} else {
 				//some not null value. For example 5 cm.
 				trace.setPrevDist(5.0);

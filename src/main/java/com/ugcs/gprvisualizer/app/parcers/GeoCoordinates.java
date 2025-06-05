@@ -35,6 +35,16 @@ public class GeoCoordinates {
         return new LatLon(latitude, longitude);
     }
 
+    public void setLatLon(LatLon latLon) {
+        if (latLon != null) {
+            latitude = latLon.getLatDgr();
+            longitude = latLon.getLonDgr();
+        } else {
+            latitude = null;
+            longitude = null;
+        }
+    }
+
     public Double getLatitude() {
         return latitude;
     }

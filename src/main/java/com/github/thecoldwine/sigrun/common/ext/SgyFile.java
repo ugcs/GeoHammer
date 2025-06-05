@@ -87,10 +87,6 @@ public abstract class SgyFile {
 
 	public abstract int getSampleInterval();
 	
-	
-
-
-
 	protected void write(BlockFile blockFile, FileChannel writechan, Block block)
 			throws IOException {
 		writechan.write(ByteBuffer.wrap(block.read(blockFile).array()));

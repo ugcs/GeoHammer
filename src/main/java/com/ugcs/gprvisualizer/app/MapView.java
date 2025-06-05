@@ -8,7 +8,6 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
@@ -22,7 +21,6 @@ import com.ugcs.gprvisualizer.draw.RadarMap;
 import com.ugcs.gprvisualizer.draw.RepaintListener;
 import com.ugcs.gprvisualizer.draw.SatelliteMap;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.utils.TraceUtils;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
@@ -34,11 +32,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.FoundTracesLayer;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 import javafx.application.Platform;

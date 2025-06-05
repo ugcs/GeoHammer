@@ -26,7 +26,7 @@ import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Nulls;
-import com.ugcs.gprvisualizer.utils.TraceUtils;
+import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.scene.layout.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -631,7 +631,7 @@ public class Model implements InitializingBean {
 		if (location == null) {
 			return;
 		}
-		Optional<TraceKey> nearestTrace = TraceUtils.findNearestTraceInFiles(fileManager.getFiles(), location);
+		Optional<TraceKey> nearestTrace = Traces.findNearestTraceInFiles(fileManager.getFiles(), location);
         nearestTrace.ifPresent(trace -> {
 			selectTrace(trace, true);
 		});
@@ -656,7 +656,7 @@ public class Model implements InitializingBean {
 			if (Objects.equals(chart, traceChart)) {
 				continue;
 			}
-			Optional<TraceKey> nearestInChart = TraceUtils.findNearestTraceInFiles(
+			Optional<TraceKey> nearestInChart = Traces.findNearestTraceInFiles(
 					chart.getFiles(),
 					trace.getLatLon(),
 					traceLookupThreshold);

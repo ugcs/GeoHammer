@@ -41,7 +41,7 @@ public class RemoveFileButton extends BaseObjectWithModel {
 			Alert alert = new Alert(AlertType.CONFIRMATION);
 			alert.setTitle("Close file");
 			alert.setContentText(
-					(sgyFile.isUnsaved() ? "File is not saved!\n" : "") 
+					(sgyFile.isUnsaved() ? "File is not saved\n" : "")
 					+ "Confirm to close file");
 			 
 			Optional<ButtonType> result = alert.showAndWait();

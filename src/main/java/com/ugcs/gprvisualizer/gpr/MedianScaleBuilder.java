@@ -29,7 +29,7 @@ public class MedianScaleBuilder implements ArrayBuilder {
 		}
 
 		List<Trace> traces = file.getTraces();
-		var maxHeightInSamples = model.getProfileField(file).getField().getMaxHeightInSamples();
+		var maxHeightInSamples = model.getGprChart(file).getField().getMaxHeightInSamples();
 
 		double[][] underconstruction = new double[2][maxHeightInSamples];
 		

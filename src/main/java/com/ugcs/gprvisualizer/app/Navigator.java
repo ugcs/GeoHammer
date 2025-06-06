@@ -1,16 +1,9 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.github.thecoldwine.sigrun.common.ext.TraceKey;
-import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
-import com.ugcs.gprvisualizer.event.WhatChanged;
-import org.aspectj.weaver.tools.Trace;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -60,78 +53,30 @@ public class Navigator implements ToolProducer {
 		
 		return Arrays.asList(backBtn, fitBtn, nextBtn);
 	}
-	
 
 	public void fitNext() {
-		if (currentFile instanceof CsvFile csvFile) {
-			model.getChart(csvFile).ifPresent(sensorLineChart -> {
-				sensorLineChart.zoomToNextLine();
-			});
-		} else {
-			var chart = model.getProfileField(currentFile);
-			var selectedFile = chart.getField().getSgyFileByTrace(chart.getMiddleTrace());
-			fitFile(chart.getField().getNextSgyFile(selectedFile));
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomToNextLine();
 		}
 	}
 
 	public void fitBack() {
-		if (currentFile instanceof CsvFile csvFile) {
-			model.getChart(csvFile).ifPresent(sensorLineChart -> {
-				sensorLineChart.zoomToPreviousLine();
-			});
-		} else {
-			var chart = model.getProfileField(currentFile);
-			var selectedFile = chart.getField().getSgyFileByTrace(chart.getMiddleTrace());
-			fitFile(chart.getField().getPrevSgyFile(selectedFile));
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomToPreviousLine();
 		}
 	}
 
 	public void fitCurrent() {
-		if (currentFile instanceof CsvFile csvFile) {
-			model.getChart(csvFile).ifPresent(sensorLineChart -> {
-				sensorLineChart.zoomToCurrentLine();
-			});
-		} else if (currentFile instanceof TraceFile traceFile) {
-			var chart = model.getProfileField(traceFile);
-			// if there's a selection mark present on the chart
-			// zoom to a file containing that mark;
-			// otherwise zoom to a file containing
-			// the middle trace
-			SgyFile selectedFile;
-			TraceKey mark = model.getSelectedTrace(chart);
-			if (mark != null) {
-				selectedFile = mark.getFile();
-			} else {
-				selectedFile = chart.getField().getSgyFileByTrace(chart.getMiddleTrace());
-			}
-			// TODO GPR_LINES
-			if (selectedFile instanceof TraceFile) {
-				fitFile((TraceFile)selectedFile);
-			}
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomToCurrentLine();
 		}
-	}
-
-	private void fitFile(TraceFile sgyFile) {
-		if (sgyFile == null) {
-			return;
-		}
-		
-		model.getProfileField(sgyFile).setMiddleTrace(
-				(sgyFile.getOffset().getStartTrace() 
-				+ sgyFile.getOffset().getFinishTrace()) 
-				/ 2);
-		
-		int maxSamples = sgyFile.getOffset().getMaxSamples();
-		int tracesCount = sgyFile.getTraces().size(); 
-		
-		model.getProfileField(sgyFile).fit(maxSamples, tracesCount);
-		
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
 	@EventListener
 	public void onFileSelected(FileSelectedEvent event) {
 		currentFile =  event.getFile();
 	}
-
 }

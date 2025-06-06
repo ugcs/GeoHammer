@@ -2,17 +2,16 @@ package com.github.thecoldwine.sigrun.common.ext;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.Settings;
-import org.jspecify.annotations.NonNull;
 
 public class ProfileField {
 
-	private final List<TraceFile> traceFiles = new ArrayList<>();
+	private final TraceFile traceFile;
+	private List<Trace> gprTraces = new ArrayList<>();
 
 	// screen coordinates
 	private Dimension viewDimension = new Dimension();
@@ -34,17 +33,15 @@ public class ProfileField {
 	private int maxHeightInSamples = 0;
 	private final Settings profileSettings = new Settings();
 
-
 	public int getMaxHeightInSamples() {
 		return maxHeightInSamples;
 	}
 
 	private void updateMaxHeightInSamples() {
-
-		//set index of traces
+		// set index of traces
 		int maxHeight = 0;
-		for (Trace tr: getGprTraces()) {
-			maxHeight = Math.max(maxHeight, tr.getNormValues().length);
+		for (Trace trace: getGprTraces()) {
+			maxHeight = Math.max(maxHeight, trace.getNormValues().length);
 		}
 
 		this.maxHeightInSamples = maxHeight;
@@ -54,23 +51,20 @@ public class ProfileField {
 			getProfileSettings().setLayer(maxHeightInSamples / 4);
 			getProfileSettings().hpage = maxHeightInSamples / 4;
 		}
-
 	}
 
 	public Settings getProfileSettings() {
 		return profileSettings;
 	}
 
-	List<Trace> gprTraces = new java.util.ArrayList<>();
-
 	public List<Trace> getGprTraces() {
+		// TODO GPR_LINES
+		// just return traceFile.getTraces()
 		if (gprTraces.isEmpty()) {
 			int traceIndex = 0;
-			for (TraceFile file : traceFiles) {
-				for (Trace trace : file.getTraces()) {
-					gprTraces.add(trace);
-					trace.setIndexInSet(traceIndex++);
-				}
+			for (Trace trace : traceFile.getTraces()) {
+				gprTraces.add(trace);
+				trace.setIndexInSet(traceIndex++);
 			}
 		}
 		return gprTraces;
@@ -80,10 +74,11 @@ public class ProfileField {
 		return getGprTraces().size();
 	}
 
-	public ProfileField(List<TraceFile> traceFiles) {
-		this.traceFiles.addAll(traceFiles);
+	public ProfileField(TraceFile traceFile) {
+		this.traceFile = traceFile;
+
 		updateMaxHeightInSamples();
-		updateSgyFilesOffsets();
+		updateFileOffsets();
 	}
 
 	public int getVisibleStart() {
@@ -163,79 +158,15 @@ public class ProfileField {
 		return mainRectRect.y;
 	}
 
-	public List<TraceFile> getSgyFiles() {
-		return List.copyOf(traceFiles);
+	public TraceFile getFile() {
+		return traceFile;
 	}
 
-	public TraceFile getSgyFileByTrace(int i) {
-		for (TraceFile fl : getSgyFiles()) {
-			Trace lastTrace = fl.getTraces().get(fl.getTraces().size() - 1);
-			if (i <= lastTrace.getIndexInSet()) {
-				return fl;
-			}
-		}
-		return null;
-	}
-
-	public int getSgyFileIndexByTrace(int i) {
-		for (int index = 0;
-			 index < getSgyFiles().size(); index++) {
-			TraceFile fl =  getSgyFiles().get(index);
-
-			if (i <= fl.getTraces().get(fl.getTraces().size() - 1).getIndexInSet()) {
-				return index;
-			}
-		}
-		return 0;
-	}
-
-	public void addSgyFile(@NonNull TraceFile f) {
-		traceFiles.add(f);
-		traceFiles.sort((f1, f2) -> {
-			return f1.getFile().getName().compareToIgnoreCase(f2.getFile().getName());
-		});
-		gprTraces.clear();
-		updateMaxHeightInSamples();
-		updateSgyFilesOffsets();
-	}
-
-	public void removeSgyFile(TraceFile closedFile) {
-		traceFiles.remove(closedFile);
-		gprTraces.clear();
-		updateMaxHeightInSamples();
-		updateSgyFilesOffsets();
-	}
-
-	private void updateSgyFilesOffsets() {
-		int startTraceNum = 0;
-		for (TraceFile sgyFile : getSgyFiles()) {
-			sgyFile.getOffset().setStartTrace(startTraceNum);
-			startTraceNum += sgyFile.getTraces().size();
-			sgyFile.getOffset().setFinishTrace(startTraceNum);
-			sgyFile.getOffset().setMaxSamples(getMaxHeightInSamples());
-		}
-	}
-
-	public List<TraceFile> getFilesInRange(int startTrace, int finishTrace) {
-		int f1 = getSgyFiles().indexOf(getSgyFileByTrace(startTrace));
-		int f2 = getSgyFiles().indexOf(getSgyFileByTrace(finishTrace));
-
-		List<TraceFile> result = new ArrayList<>();
-		for (int i = f1; i <= f2; i++) {
-			result.add(getSgyFiles().get(i));
-		}
-		return result;
-	}
-
-	public TraceFile getNextSgyFile(TraceFile selectedFile) {
-		var index = traceFiles.indexOf(selectedFile);
-		index = Math.min(traceFiles.size() - 1, index + 1);
-		return traceFiles.get(index);
-	}
-
-	public TraceFile getPrevSgyFile(TraceFile selectedFile) {
-		var index = traceFiles.indexOf(selectedFile);
-		index = Math.max(0, index - 1);
-		return traceFiles.get(index);
+	// TODO GPR_LINES
+	@Deprecated
+	private void updateFileOffsets() {
+		traceFile.getOffset().setStartTrace(0);
+		traceFile.getOffset().setFinishTrace(traceFile.getTraces().size());
+		traceFile.getOffset().setMaxSamples(getMaxHeightInSamples());
 	}
 }

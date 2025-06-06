@@ -34,7 +34,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.util.StringConverter;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.controlsfx.control.RangeSlider;
 import org.jspecify.annotations.NonNull;
@@ -263,8 +262,8 @@ public class OptionPane extends VBox implements InitializingBean {
 			return;
 		}
 
-		double max = model.getChart((CsvFile) selectedFile).get().getSemanticMaxValue();
-		double min = model.getChart((CsvFile) selectedFile).get().getSemanticMinValue();
+		double max = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMaxValue();
+		double min = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMinValue();
 
 		griddingRangeSlider.setMin(min);
 		griddingRangeSlider.setMax(max);
@@ -307,7 +306,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		// Get new min/max values
-		SensorLineChart selectedChart = model.getChart((CsvFile) selectedFile).orElse(null);
+		SensorLineChart selectedChart = model.getCsvChart((CsvFile) selectedFile).orElse(null);
 		if (selectedChart == null) {
 			return;
 		}
@@ -702,14 +701,14 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		griddingRangeSlider.lowValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Min: ", minLabel);
-			var chart = model.getChart((CsvFile) selectedFile).get();
+			var chart = model.getCsvChart((CsvFile) selectedFile).get();
 			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.highValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Max: ", maxLabel);
-			var chart = model.getChart((CsvFile) selectedFile).get();
+			var chart = model.getCsvChart((CsvFile) selectedFile).get();
 			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
@@ -906,13 +905,13 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyGnssTimeLag(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.gnssTimeLag(c.getSelectedSeriesName(), value));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
 	private void applyGnssTimeLagToAll(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()
@@ -923,14 +922,14 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyLowPassFilter(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.lowPassFilter(c.getSelectedSeriesName(), value));
 		showGridInputDataChangedWarning(true);
 		//model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
 	private void applyLowPassFilterToAll(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()
@@ -942,14 +941,14 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyMedianCorrection(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.medianCorrection(c.getSelectedSeriesName(), value));
 		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
 		showGridInputDataChangedWarning(true);
 	}
 
 	private void applyMedianCorrectionToAll(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()

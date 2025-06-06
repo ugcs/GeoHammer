@@ -36,7 +36,7 @@ public class LeftRulerController {
 	
 	public LeftRulerController(ProfileField profileField) {
 		list = new Converter[] {
-                new SamplConverter(), new NanosecConverter(profileField.getSgyFiles().getFirst())
+                new SamplConverter(), new NanosecConverter(profileField.getFile())
         };
 	}
 	

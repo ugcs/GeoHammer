@@ -2,12 +2,10 @@ package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
-import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.math.LevelFilter;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.controlsfx.control.RangeSlider;
@@ -15,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.framework.junit5.Start;
 import org.testfx.util.WaitForAsyncUtils;
@@ -95,7 +92,7 @@ public class OptionPaneTest {
     @Test
     public void testUpdateGriddingMinMaxPreserveUserRange() throws Exception {
         // Mock new chart values
-        when(model.getChart(any(CsvFile.class))).thenReturn(Optional.of(lineChart));
+        when(model.getCsvChart(any(CsvFile.class))).thenReturn(Optional.of(lineChart));
         when(lineChart.getSemanticMinValue()).thenReturn(-50.0); // New min
         when(lineChart.getSemanticMaxValue()).thenReturn(150.0); // New max
 
@@ -132,7 +129,7 @@ public class OptionPaneTest {
         griddingRangeSlider.setHighValue(80.0); // that should be preserved
 
         // Mock chart values that are the same as current min/max
-        when(model.getChart(any(CsvFile.class))).thenReturn(Optional.of(lineChart));
+        when(model.getCsvChart(any(CsvFile.class))).thenReturn(Optional.of(lineChart));
         when(lineChart.getSemanticMinValue()).thenReturn(0.0); // Same min
         when(lineChart.getSemanticMaxValue()).thenReturn(100.0); // Same max
 

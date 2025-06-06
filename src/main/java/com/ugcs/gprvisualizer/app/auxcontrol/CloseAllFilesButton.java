@@ -12,8 +12,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 
 import java.awt.*;
-import java.io.File;
-import java.util.List;
 import java.util.Optional;
 
 public class CloseAllFilesButton extends RemoveFileButton {
@@ -29,21 +27,18 @@ public class CloseAllFilesButton extends RemoveFileButton {
     public boolean mousePressHandle(Point2D localPoint, ScrollableData profField) {
 
         if (isPointInside(localPoint, profField) && profField instanceof GPRChart gprChart) {
-
-            List<TraceFile> sgyFiles = gprChart.getField().getSgyFiles();
+            TraceFile traceFile = gprChart.getField().getFile();
 
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Close files");
+            alert.setTitle("Close file");
             alert.setContentText(
-                    (sgyFiles.stream().anyMatch(SgyFile::isUnsaved) ? "Files is not saved!\n" : "")
-                            + "Confirm to close files");
+                    (traceFile.isUnsaved() ? "File is not saved\n" : "")
+                            + "Confirm to close file");
 
             Optional<ButtonType> result = alert.showAndWait();
 
             if ((result.isPresent()) && (result.get() == ButtonType.OK)) {
-                for (SgyFile sgyFile : sgyFiles) {
-                    model.publishEvent(new FileClosedEvent(this, sgyFile));
-                }
+                model.publishEvent(new FileClosedEvent(this, traceFile));
             }
             return true;
         }

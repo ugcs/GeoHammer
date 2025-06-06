@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
-import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -234,7 +233,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		for (TraceFile file : model.getFileManager().getGprFiles()) {
 			slicedSgyFiles.addAll(splitFile(file, fld, border));
-			model.getProfileField(file).clear();
+			model.getGprChart(file).clear();
 			model.publishEvent(new FileClosedEvent(this, file));
 		}
 
@@ -291,7 +290,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		if (!undoFiles.isEmpty()) {
 
 			for (TraceFile file : model.getFileManager().getGprFiles()) {
-				model.getProfileField(file).clear();
+				model.getGprChart(file).clear();
 				model.publishEvent(new FileClosedEvent(this, file));
 			}
 

@@ -12,8 +12,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
@@ -90,7 +88,7 @@ public class Model implements InitializingBean {
 
 	private final Map<CsvFile, SensorLineChart> csvFiles = new HashMap<>();
 
-	private final Map<SgyFile, GPRChart> gprCharts = new HashMap<>();
+	private final Map<TraceFile, GPRChart> gprCharts = new HashMap<>();
 
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -142,22 +140,13 @@ public class Model implements InitializingBean {
 		getFileManager().getCsvFiles().forEach(sf -> {
             auxElements.addAll(sf.getAuxElements());
             sf.getAuxElements().forEach(element -> {
-                getChart(sf).get().addFlag((FoundPlace) element);
+                getCsvChart(sf).get().addFlag((FoundPlace) element);
             });
         });
 	}
 
 	public VBox getChartsContainer() {
 		return chartsContainer;
-	}
-
-	@Nullable
-	public GPRChart getProfileField(SgyFile sgyFile) {
-		if (!gprCharts.containsKey(sgyFile)) {
-			System.out.println(sgyFile + " not found in gprCharts");
-		}
-		return gprCharts.get(sgyFile); //computeIfAbsent(sgyFile, f -> new GPRChart(this, auxEditHandler, f));
-		//return gprChart;
 	}
 
 	public boolean isLoading() {
@@ -259,7 +248,7 @@ public class Model implements InitializingBean {
 	 * @param csvFile CSV file to initialize chart for
 	 */
 	public void initChart(CsvFile csvFile) {
-		if (getChart(csvFile).isPresent()) {
+		if (getCsvChart(csvFile).isPresent()) {
 			return;
 		}
 		var sensorLineChart = createSensorLineChart(csvFile);
@@ -271,7 +260,7 @@ public class Model implements InitializingBean {
 	}
 
 	public void updateChart(CsvFile csvFile) {
-		Optional<SensorLineChart> currentChart = getChart(csvFile);
+		Optional<SensorLineChart> currentChart = getCsvChart(csvFile);
 		if (currentChart.isEmpty()) {
 			return;
 		}
@@ -338,7 +327,7 @@ public class Model implements InitializingBean {
 	 * @param csvFile CSV file to get chart for
 	 * @return Optional of SensorLineChart
 	 */
-    public Optional<SensorLineChart> getChart(CsvFile csvFile) {
+    public Optional<SensorLineChart> getCsvChart(CsvFile csvFile) {
 		return Optional.ofNullable(csvFiles.get(csvFile));
     }
 
@@ -356,17 +345,16 @@ public class Model implements InitializingBean {
 		gprCharts.clear();
 	}
 
-	public void removeChart(SgyFile sgyFile) {
-		if (sgyFile instanceof CsvFile csvFile) {
+	public void removeChart(SgyFile file) {
+		if (file instanceof CsvFile csvFile) {
 			csvFiles.remove(csvFile);
 			if (!csvFiles.isEmpty()) {
 				selectAndScrollToChart(csvFiles.values().stream().toList().getFirst());
 			} else {
 				publishEvent(new FileSelectedEvent(this, (SgyFile) null));
 			}
-
-		} else {
-			gprCharts.remove(sgyFile);
+		} else if (file instanceof TraceFile traceFile) {
+			gprCharts.remove(traceFile);
 		}
     }
 
@@ -524,40 +512,19 @@ public class Model implements InitializingBean {
 		eventPublisher.publishEvent(event);
 	}
 
-	public GPRChart getProfileFieldByPattern(@NonNull TraceFile f) {
-		if (gprCharts.containsKey(f)) {
-			return gprCharts.get(f);
-		}
-
-		//compare files by pattern
-
-
-		var key = gprCharts.keySet().stream().filter(sgyFile -> sgyFile.getFile().getName()
-				.contains(extractBaseGprFileName(f.getFile().getName()))).findAny().orElseGet(() -> f);
-		var chart = gprCharts.get(key);
-		if (chart != null) {
-			chart.addSgyFile(f);
-		} else {
-			chart = new GPRChart(this, auxEditHandler, List.of(f));
-		}
-		gprCharts.put(f, chart);
-		return chart;
+	@Nullable
+	public GPRChart getGprChart(SgyFile sgyFile) {
+		return gprCharts.get(sgyFile);
 	}
 
-	private String extractBaseGprFileName(String fileName) {
-		String gprFileNamePattern =  prefSettings.getSetting("general", "gpr_file_name_pattern");
-		if (gprFileNamePattern == null) {
-			gprFileNamePattern = "^(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-gpr.*)_\\d{3}.*\\.sgy$";
+	public GPRChart getOrCreateGprChart(@NonNull TraceFile file) {
+		GPRChart chart = gprCharts.get(file);
+		if (chart != null) {
+			return chart;
 		}
-
-		Pattern regex = Pattern.compile(gprFileNamePattern);
-		Matcher matcher = regex.matcher(fileName);
-
-		if (matcher.find()) {
-			return matcher.group(1);
-		} else {
-			return fileName;
-		}
+		chart = new GPRChart(this, auxEditHandler, file);
+		gprCharts.put(file, chart);
+		return chart;
 	}
 
 	@EventListener
@@ -592,10 +559,10 @@ public class Model implements InitializingBean {
 	@Nullable
 	public Chart getFileChart(@Nullable SgyFile file) {
 		if (file instanceof CsvFile csvFile) {
-			return getChart(csvFile).orElse(null);
+			return getCsvChart(csvFile).orElse(null);
 		}
-		if (file instanceof GprFile gprFile) {
-			return getProfileField(gprFile);
+		if (file instanceof TraceFile traceFile) {
+			return getGprChart(traceFile);
 		}
 		return null;
 	}

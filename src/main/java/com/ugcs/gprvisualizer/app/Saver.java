@@ -250,13 +250,15 @@ public class Saver implements ToolProducer, InitializingBean {
 	}
 	
 	private List<File> saveAs(File folder) {
-		List<File> newfiles = new ArrayList<>();
-		for (SgyFile file : model.getProfileField(selectedFile).getField().getSgyFiles()) {
-			newfiles.add(save(file, folder));
+		List<File> newFiles = new ArrayList<>();
+		GPRChart gprChart = model.getGprChart(selectedFile);
+		if (gprChart != null) {
+			TraceFile file = gprChart.getField().getFile();
+			newFiles.add(save(file, folder));
 			model.publishEvent(new FileClosedEvent(this, file));
 			model.getFileManager().removeFile(file);
 		}
-		return newfiles;
+		return newFiles;
 	}
 
 	private File save(SgyFile sgyFile, File folder) {

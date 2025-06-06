@@ -35,4 +35,18 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
     public abstract void removeFlag(FoundPlace flag);
 
     public abstract void clearFlags();
+
+    // zoom
+
+    public abstract void zoomToCurrentLine();
+
+    public abstract void zoomToPreviousLine();
+
+    public abstract void zoomToNextLine();
+
+    public abstract void zoomToFit();
+
+    public abstract void zoomIn();
+
+    public abstract void zoomOut();
 }

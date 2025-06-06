@@ -721,6 +721,7 @@ public class SensorLineChart extends Chart {
         }
     }
 
+    @Override
     public void zoomToCurrentLine() {
         int lineIndex;
         if (currentVerticalMarker != null) {
@@ -732,6 +733,7 @@ public class SensorLineChart extends Chart {
         updateOnZoom(false);
     }
 
+    @Override
     public void zoomToPreviousLine() {
         int lineIndex = getViewLineIndex();
         int firstLineIndex = !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
@@ -739,6 +741,7 @@ public class SensorLineChart extends Chart {
         updateOnZoom(false);
     }
 
+    @Override
     public void zoomToNextLine() {
         int lineIndex = getViewLineIndex();
         int lastLineIndex = !lineRanges.isEmpty() ? lineRanges.lastKey() : 0;
@@ -749,6 +752,7 @@ public class SensorLineChart extends Chart {
     /**
      * Zoom to full range
      */
+    @Override
     public void zoomToFit() {
         for (LineChartWithMarkers chart : charts) {
             chart.resetZoomRect();
@@ -756,12 +760,14 @@ public class SensorLineChart extends Chart {
         updateOnZoom(false);
     }
 
+    @Override
     public void zoomIn() {
         double scale = 1.0 / ZOOM_STEP;
         zoom(scale, 1.0, null);
         updateOnZoom(false);
     }
 
+    @Override
     public void zoomOut() {
         double scale = ZOOM_STEP;
         zoom(scale, 1.0, null);

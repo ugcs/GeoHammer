@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
-import java.io.File;
 
 import com.github.thecoldwine.sigrun.common.ext.*;
 import com.ugcs.gprvisualizer.app.GPRChart;
@@ -67,9 +66,9 @@ public class FoundPlace extends BaseObjectWithModel {
 		if (r.contains(point.getX(), point.getY())) {
 			ScrollableData scrollable;
 			if (traceInFile.getFile() instanceof CsvFile csvFile) {
-				scrollable = model.getChart(csvFile).get();
+				scrollable = model.getCsvChart(csvFile).get();
 			} else {
-				scrollable = model.getProfileField(traceInFile.getFile());
+				scrollable = model.getGprChart(traceInFile.getFile());
 			}
 			scrollable.setMiddleTrace(offset.localToGlobal(traceInFile.getIndexInFile()));
 

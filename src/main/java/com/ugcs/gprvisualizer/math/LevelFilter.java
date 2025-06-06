@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.commands.CancelKmlToFlag;
 import com.ugcs.gprvisualizer.app.commands.KmlToFlag;
 
@@ -17,6 +18,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -70,11 +72,15 @@ public class LevelFilter implements ToolProducer {
 
 	Settings levelSettings = new Settings();
 
-	private SgyFile selectedFile;
+	private TraceFile selectedFile;
 
 	@EventListener
 	private void selectFile(FileSelectedEvent event) {
-		this.selectedFile = event.getFile();
+		if (event.getFile() instanceof TraceFile traceFile) {
+			selectedFile = traceFile;
+		} else {
+			selectedFile = null;
+		}
 		clearForNewFile(selectedFile);
 	}
 
@@ -137,10 +143,18 @@ public class LevelFilter implements ToolProducer {
 			traces""", 	new ChangeListener<Number>() {
 				@Override
 				public void changed(
-					ObservableValue<? extends Number> observable, 
+					ObservableValue<? extends Number> observable,
 					Number oldValue,
 					Number newValue) {
-					SgyFile file = model.getProfileField(selectedFile).getField().getSgyFiles().getFirst();
+					if (selectedFile == null) {
+						return;
+					}
+					GPRChart gprChart = model.getGprChart(selectedFile);
+					if (gprChart == null) {
+						return;
+					}
+
+					TraceFile file = gprChart.getField().getFile();
 					file.getGroundProfile().shift(newValue.intValue());
 					model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
 				}
@@ -191,7 +205,7 @@ public class LevelFilter implements ToolProducer {
 		return List.of(vbox);
 	}
 
-	private void updateButtons(SgyFile file) {
+	private void updateButtons(TraceFile file) {
 
 		if (buttonSpreadCoord != null) {
 			buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
@@ -215,12 +229,13 @@ public class LevelFilter implements ToolProducer {
 		return undoFiles != null && !undoFiles.isEmpty();
 	}
 
-	protected boolean isGroundProfileExists(SgyFile file) {
-		return model.getProfileField(file) != null &&
-				model.getProfileField(file).getField().getSgyFiles().get(0).getGroundProfile() != null;
+	protected boolean isGroundProfileExists(TraceFile file) {
+		GPRChart gprChart = model.getGprChart(file);
+		return gprChart != null
+				&& gprChart.getField().getFile().getGroundProfile() != null;
 	}
 	
-	private void clearForNewFile(SgyFile file) {
+	private void clearForNewFile(TraceFile file) {
 		updateButtons(file);
 	}
 	

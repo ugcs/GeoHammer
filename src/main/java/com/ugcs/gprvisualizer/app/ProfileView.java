@@ -1,10 +1,8 @@
 package com.ugcs.gprvisualizer.app;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
@@ -82,34 +80,23 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void fitCurrentFile(ActionEvent actionEvent) {
-		if (currentFile instanceof CsvFile csvFile) {
-			model.getChart(csvFile).ifPresent(SensorLineChart::zoomToFit);
-		} else {
-			var chart = model.getProfileField(currentFile);
-			chart.fitFull();
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomToFit();
 		}
 	}
 
 	private void zoomIn(ActionEvent event) {
-		if (currentFile instanceof CsvFile csvFile) {
-			Optional<SensorLineChart> chart = model.getChart(csvFile);
-			chart.ifPresent(SensorLineChart::zoomIn);
-		} else {
-			if (currentFile != null) {
-				model.getProfileField(currentFile).zoom(1, false); //zoom(1, width / 2, height / 2, false);
-			}
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomIn();
 		}
 	}
 
 	private void zoomOut(ActionEvent event) {
-		if (currentFile instanceof CsvFile csvFile) {
-			Optional<SensorLineChart> chart = model.getChart(csvFile);
-			chart.ifPresent(SensorLineChart::zoomOut);
-		} else {
-			if (currentFile != null) {
-				model.getProfileField(currentFile).zoom(-1, false); //zoom(-1, width / 2, height / 2, false);
-			}
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomOut();
 		}
 	}
 
@@ -183,14 +170,14 @@ public class ProfileView implements InitializingBean {
 	}
 
 	public List<Node> getRight(SgyFile file) {
-		var contrastNode = model.getProfileField(file).getContrastSlider().produce();
+		var contrastNode = model.getGprChart(file).getContrastSlider().produce();
 		return List.of(contrastNode);
 	}
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
 		if (changed.isJustdraw() && currentFile != null && !(currentFile instanceof CsvFile)
-				&& model.getProfileField(currentFile) instanceof GPRChart gprChart) {
+				&& model.getGprChart(currentFile) instanceof GPRChart gprChart) {
 			gprChart.updateScroll();
 			gprChart.repaintEvent();
 		}
@@ -200,28 +187,18 @@ public class ProfileView implements InitializingBean {
 	private void fileClosed(FileClosedEvent event) {
 		SgyFile closedFile = event.getSgyFile();
 
-		if (model.getProfileField(closedFile) instanceof GPRChart gprPane) {
-			var vbox = (VBox) gprPane.getRootNode();
+		if (closedFile instanceof TraceFile traceFile) {
+			GPRChart gprChart = model.getGprChart(traceFile);
+			if (gprChart != null) {
+				model.getFileManager().removeFile(closedFile);
+				gprChart.getProfileScroll().setVisible(false);
 
-			// TODO GPR_LINES
-			if (closedFile instanceof TraceFile traceFile) {
-				gprPane.getField().removeSgyFile(traceFile);
-			}
-			model.getFileManager().removeFile(closedFile);
-
-			if (gprPane.getField().getGprTraces().isEmpty()) {
-				gprPane.getProfileScroll().setVisible(false);
+				VBox vbox = (VBox)gprChart.getRootNode();
 				model.getChartsContainer().getChildren().remove(vbox);
+
 				currentFile = null;
 				model.publishEvent(new FileSelectedEvent(this, currentFile));
-			} else {
-				if (currentFile != null && currentFile.equals(closedFile)) {
-					//TODO: maybe need to fix
-					model.publishEvent(new FileSelectedEvent(this,
-							new ArrayList<>(gprPane.getField().getSgyFiles())));
-				}
 			}
-			gprPane.fitFull();
 		}
 
 		if (closedFile instanceof CsvFile csvFile) {
@@ -244,7 +221,7 @@ public class ProfileView implements InitializingBean {
 			System.out.println("ProfileView.fileOpened " + file.getAbsolutePath());
 			model.getFileManager().getGprFiles().stream().filter(f -> f.getFile().equals(file)).findFirst().ifPresent(f -> {
 				System.out.println("Loaded traces: " + f.getTraces().size());
-				var gprPane = model.getProfileFieldByPattern(f);
+				var gprPane = model.getOrCreateGprChart(f);
 				var vbox = (VBox) gprPane.getRootNode();
 
 				//TODO:
@@ -290,13 +267,13 @@ public class ProfileView implements InitializingBean {
 
 	private ProfileScroll getFileProfileScroll(SgyFile file) {
 		if (file instanceof GprFile gprFile) {
-			var gprChart = model.getProfileField(gprFile);
+			var gprChart = model.getGprChart(gprFile);
 			return gprChart != null
 					? gprChart.getProfileScroll()
 					: null;
 		}
 		if (file instanceof CsvFile csvFile) {
-			var csvChart = model.getChart(csvFile);
+			var csvChart = model.getCsvChart(csvFile);
 			return csvChart.isPresent()
 					? csvChart.get().getProfileScroll()
 					: null;
@@ -312,7 +289,7 @@ public class ProfileView implements InitializingBean {
 		if (event.getFile() != null) {
 			currentFile = event.getFile();
 			if (currentFile instanceof GprFile) {
-				var gprChart = model.getProfileField(currentFile);
+				var gprChart = model.getGprChart(currentFile);
 
 				ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> {
 					if (Math.abs(newValue.intValue() - oldValue.intValue()) > 1) {

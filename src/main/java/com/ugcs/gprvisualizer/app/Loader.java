@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.ConstPointsFile;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
@@ -159,7 +158,7 @@ public class Loader {
 				CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
 				csvFile.open(file);
 
-				if (model.getChart(csvFile).isEmpty()) {
+				if (model.getCsvChart(csvFile).isEmpty()) {
 
 					model.getFileManager().addFile(csvFile);	
 

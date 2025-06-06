@@ -25,7 +25,7 @@ public class RadarMapScan implements Command {
 			file.amplScan = new ScanProfile(file.size());
 		}
 
-		if (model.getProfileField(file) instanceof GPRChart gprChart) {
+		if (model.getGprChart(file) instanceof GPRChart gprChart) {
 			var field = gprChart.getField();
 			int start = Math.clamp(field.getProfileSettings().getLayer(),
 					0, field.getMaxHeightInSamples());

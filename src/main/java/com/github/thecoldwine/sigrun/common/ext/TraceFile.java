@@ -8,10 +8,6 @@ import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.FileNames;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -104,14 +100,14 @@ public abstract class TraceFile extends SgyFile {
     public void copyMarkedTracesToAuxElements() {
         for (Trace trace: getTraces()) {
             if (trace.isMarked()) {
-                this.getAuxElements().add(
-                        new FoundPlace(trace, AppContext.model));
+                TraceKey traceKey = new TraceKey(this, trace.getIndexInFile());
+                getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
             }
         }
     }
 
     public int getMaxSamples() {
-        return getTraces().get(0).getNormValues().length;
+        return getTraces().getFirst().getNormValues().length;
     }
 
     public int getLeftDistTraceIndex(int traceIndex, double distCm) {

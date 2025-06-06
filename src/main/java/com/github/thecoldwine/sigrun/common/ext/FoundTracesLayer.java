@@ -35,12 +35,11 @@ public class FoundTracesLayer implements Layer {
 		}
 
 		// TODO GPR_LINES
-		// create a new click place
-		/*
-		for (ClickPlace clickPlace : model.getSelectedTraces()) {
+		// do not create object on every draw
+		for (TraceKey mark : model.getSelectedTraces()) {
+			ClickPlace clickPlace = new ClickPlace(mark);
 			clickPlace.drawOnMap(g2, fixedField);
 		}
-		*/
 	}
 
 	@Override

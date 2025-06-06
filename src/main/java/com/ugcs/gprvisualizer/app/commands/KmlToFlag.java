@@ -6,6 +6,7 @@ import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.app.auxcontrol.ConstPlace;
+import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Traces;
@@ -33,16 +34,10 @@ public class KmlToFlag implements Command {
                         model.getFileManager().getFiles(),
                         c.getLatLon());
                 if (traceKey.isPresent()) {
-                    SgyFile sf = traceKey.get().getFile();
-                    // TODO GPR_LINES
-                    /*
-                    FoundPlace rect = new FoundPlace(
-                            sf.getTraces().get(sf.getOffset().globalToLocal(traceIndex)),
-                            sf.getOffset(),
-                            AppContext.model);
-                    sf.getAuxElements().add(rect);
-                    sf.setUnsaved(true);
-                    */
+                    FoundPlace rect = new FoundPlace(traceKey.get(), AppContext.model);
+                    SgyFile traceFile = traceKey.get().getFile();
+                    traceFile.getAuxElements().add(rect);
+                    traceFile.setUnsaved(true);
                 }
             });
 

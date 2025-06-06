@@ -225,7 +225,7 @@ public class AuxRect extends BaseObjectImpl {
 			public void signal(Object obj) {
 
 				bottom.setSample(Math.clamp(bottom.getSample(),
-					top.getSample() + 2, offset.getTraces() - 1));
+					top.getSample() + 2, offset.getNumTraces() - 1));
 				
 				clearCut();
 				updateMaskImg();

@@ -6,6 +6,7 @@ import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
+import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.CloseAllFilesButton;
 import com.ugcs.gprvisualizer.app.auxcontrol.DepthHeight;
 import com.ugcs.gprvisualizer.app.auxcontrol.DepthStart;
@@ -367,14 +368,14 @@ public class GPRChart extends Chart {
         }
 
         // TODO GPR_LINES
-        /*
-        for (ClickPlace clickPlace : model.getSelectedTraces()) {
-            Trace trace = clickPlace.getTrace();
-            if (trace != null && equals(model.getFileChart(trace.getFile()))) {
-                clickPlace.drawOnCut(g2, this);
+        // do not create click place on every draw
+        for (TraceKey mark : model.getSelectedTraces()) {
+            if (!Objects.equals(mark.getFile(), getFile())) {
+                continue;
             }
+            ClickPlace clickPlace = new ClickPlace(mark);
+            clickPlace.drawOnCut(g2, this);
         }
-        */
     }
 
     public void updateAuxElements() {

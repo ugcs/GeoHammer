@@ -75,22 +75,20 @@ public class CsvFile extends SgyFile {
         for (GeoCoordinates coord : coordinates) {
             // Added points if lat and lon are not 0 and point is close to the first point
             if (coord.getLatitude().intValue() != 0
-                    && (getGeoData().isEmpty()  
+                    && (geoData.isEmpty()
                         || (Math.abs(coord.getLatitude().intValue() 
-                            - getGeoData().get(0).getLatitude().intValue()) <= 1  
+                            - geoData.getFirst().getLatitude().intValue()) <= 1
                         && Math.abs(coord.getLongitude().intValue() 
-                            - getGeoData().get(0).getLongitude().intValue()) <= 1))) {
-                Trace tr = new Trace(this, null, null, new float[] {},
-                        new LatLon(coord.getLatitude(), coord.getLongitude()));
-                // TODO GPR_LINES
-                //getTraces().add(tr);
-                if (coord instanceof GeoData) {
-                    getGeoData().add((GeoData) coord);
+                            - geoData.getFirst().getLongitude().intValue()) <= 1))) {
+                if (coord instanceof GeoData value) {
+                    int traceIndex = geoData.size();
+                    geoData.add(value);
+                    if (value.isMarked()) {
+                        TraceKey traceKey = new TraceKey(this, traceIndex);
+                        getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
+                    }
                 }
-                if (((GeoData) coord).isMarked()) {
-                    getAuxElements().add(new FoundPlace(tr, AppContext.model));
-                }
-            }            
+            }
         }
 
         reorderLines();

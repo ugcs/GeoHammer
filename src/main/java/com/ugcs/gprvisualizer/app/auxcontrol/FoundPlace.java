@@ -35,23 +35,23 @@ public class FoundPlace extends BaseObjectWithModel {
                 10.0f, dash1, 0.0f);
 
 	private final Color flagColor = Color.getHSBColor((float) Math.random(), 0.9f, 0.97f);
-	private Trace traceInFile;
+	private TraceKey trace;
 
-	public Trace getTrace() {
-		return traceInFile;
+	public TraceKey getTrace() {
+		return trace;
 	}
 
 	public int getTraceIndex() {
-		return traceInFile.getIndexInFile();
+		return trace.getIndex();
 	}
 
 	public Color getFlagColor() {
 		return flagColor;
 	}
 	
-	public FoundPlace(Trace trace, Model model) {
+	public FoundPlace(TraceKey traceKey, Model model) {
 		super(model);
-		this.traceInFile = trace;
+		this.trace = traceKey;
 	}
 
 	@Override
@@ -59,10 +59,10 @@ public class FoundPlace extends BaseObjectWithModel {
 		Rectangle r = getRect(field);
 		if (r.contains(point.getX(), point.getY())) {
 			ScrollableData scrollable;
-			if (traceInFile.getFile() instanceof CsvFile csvFile) {
+			if (trace.getFile() instanceof CsvFile csvFile) {
 				scrollable = model.getCsvChart(csvFile).get();
 			} else {
-				scrollable = model.getGprChart(traceInFile.getFile());
+				scrollable = model.getGprChart(trace.getFile());
 			}
 			int traceIndex = getTraceIndex();
 			scrollable.setMiddleTrace(traceIndex);
@@ -76,9 +76,12 @@ public class FoundPlace extends BaseObjectWithModel {
 	}
 
 	public void coordinatesToStatus() {
-		Trace tr = traceInFile;//getTrace();
-		if (tr != null && tr.getLatLon() != null) {
-			AppContext.status.showProgressText(tr.getLatLon().toString());
+		if (trace == null) {
+			return;
+		}
+		LatLon latlon = trace.getLatLon();
+		if (latlon != null) {
+			AppContext.status.showProgressText(latlon.toString());
 		}
 	}
 	
@@ -95,11 +98,11 @@ public class FoundPlace extends BaseObjectWithModel {
 
 	@Override
 	public boolean mouseMoveHandle(Point2D point, ScrollableData profField) {
-		if (traceInFile.getFile() instanceof TraceFile traceFile) {
+		if (trace.getFile() instanceof TraceFile traceFile) {
 			TraceSample ts = profField.screenToTraceSample(point);
 			List<Trace> traces = traceFile.getTraces();
-			traceInFile = traces.get(
-					Math.min(traces.size() - 1, Math.max(0, ts.getTrace())));
+			int traceIndex = Math.clamp(ts.getTrace(), 0, traces.size() - 1);
+			trace = new TraceKey(trace.getFile(), traceIndex);
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 		}
 		coordinatesToStatus();
@@ -167,8 +170,7 @@ public class FoundPlace extends BaseObjectWithModel {
 	}
 	
 	private Rectangle getRect(MapField mapField) {
-		Trace tr = traceInFile;//getTrace();
-		Point2D p =  mapField.latLonToScreen(tr.getLatLon());		
+		Point2D p = mapField.latLonToScreen(trace.getLatLon());
 		
 		Rectangle rect = new Rectangle((int) p.getX(), (int) p.getY() - R_VER_M * 2, 
 				R_HOR_M * 2, R_VER_M * 2);
@@ -183,9 +185,7 @@ public class FoundPlace extends BaseObjectWithModel {
 
 	@Override
 	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
-		// TODO GPR_LINES
-		//Trace newTrace = traceInFile.getFile().getTraces().get(getTraceIndex() - traceoffset);
-		Trace newTrace = traceInFile;
+		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
 		return new FoundPlace(newTrace, model);
 	}
 
@@ -196,6 +196,6 @@ public class FoundPlace extends BaseObjectWithModel {
 	}
 
 	public LatLon getLatLon() {
-		return traceInFile.getLatLon();
+		return trace.getLatLon();
 	}
 }

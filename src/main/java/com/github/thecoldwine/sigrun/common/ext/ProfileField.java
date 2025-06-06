@@ -155,8 +155,7 @@ public class ProfileField {
 	// TODO GPR_LINES
 	@Deprecated
 	private void updateFileOffsets() {
-		traceFile.getOffset().setStartTrace(0);
-		traceFile.getOffset().setFinishTrace(traceFile.getTraces().size());
+		traceFile.getOffset().setNumTraces(traceFile.getTraces().size());
 		traceFile.getOffset().setMaxSamples(getMaxHeightInSamples());
 	}
 }

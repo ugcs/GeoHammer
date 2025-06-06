@@ -369,19 +369,6 @@ public class TraceCutter implements Layer, InitializingBean {
 		CsvFile copy = csvFile.copy();
 		copy.setUnsaved(true);
 
-		// traces
-		// TODO GPR_LINES
-		/*
-		List<Trace> newTraces = new ArrayList<>();
-		for (Trace trace: csvFile.getTraces()) {
-			boolean inside = isTraceInsideSelection(field, border, trace);
-			if (inside) {
-				newTraces.add(trace);
-			}
-		}
-		copy.setTraces(newTraces);
-		*/
-
 		// values
 		// all filtered values
 		List<GeoData> newGeoData = new ArrayList<>();
@@ -513,12 +500,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		CsvFile copy = csvFile.copy();
 		copy.setUnsaved(true);
-
-		// TODO GPR_LINES
-		/*
-		List<Trace> newTraces = csvFile.getTraces();
-		copy.setTraces(newTraces);
-		*/
 
 		copy.setGeoData(newValues);
 		copy.setAuxElements(new ArrayList<>(csvFile.getAuxElements()));

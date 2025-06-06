@@ -6,6 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import javafx.geometry.Point2D;
@@ -14,7 +15,6 @@ import org.json.simple.JSONObject;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.gpr.Model;
 
@@ -34,14 +34,18 @@ public class ClickPlace extends BaseObjectImpl {
 
 	private Color flagColor = Color.getHSBColor((float) Math.random(), 1, 1f); 
 	
-	private final Trace trace;
+	private final TraceKey trace;
 
-	public ClickPlace(Trace trace) {
+	public ClickPlace(TraceKey trace) {
 		this.trace = trace;
 	}
 
-	public Trace getTrace() {
+	public TraceKey getTrace() {
 		return trace;
+	}
+
+	public int getTraceIndex() {
+		return trace.getIndex();
 	}
 
 	@Override
@@ -51,9 +55,7 @@ public class ClickPlace extends BaseObjectImpl {
 
 	@Override
 	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
-		// TODO GPR_LINES
-		//Trace newTrace = trace.getFile().getTraces().get(trace.getIndexInFile() - traceoffset);
-		Trace newTrace = trace;
+		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
 		return new ClickPlace(newTrace);
 	}
 
@@ -90,15 +92,14 @@ public class ClickPlace extends BaseObjectImpl {
 			g2.setColor(Color.blue);
 			g2.setXORMode(Color.gray);
 			g2.drawLine(R_HOR, R_VER * 2 , R_HOR,
-			gprChart.sampleToScreen(gprChart.getField().getMaxHeightInSamples()) - Model.TOP_MARGIN + R_VER * 2);
+			gprChart.sampleToScreen(profField.getMaxHeightInSamples()) - Model.TOP_MARGIN + R_VER * 2);
 			g2.setPaintMode();
 			g2.translate(-rect.x, -rect.y);
 		}
 	}
 	
 	private Rectangle getRect(GPRChart gprChart) {
-		
-		int x = gprChart.traceToScreen(trace.getIndexInFile());
+		int x = gprChart.traceToScreen(trace.getIndex());
 				
 		Rectangle rect = new Rectangle(
 				x - R_HOR, Model.TOP_MARGIN - R_VER * 2,
@@ -116,20 +117,8 @@ public class ClickPlace extends BaseObjectImpl {
 		return rect;
 	}
 
-	//private Trace getTrace() {
-	//	if (file != null) {
-	//		return file.getTraces().get(traceInAll);
-	//	}
-	//	return AppContext.model.getGprTraces().get(traceInAll);
-	//}
-
 	@Override
 	public boolean saveTo(JSONObject json) {
 		return false;
 	}
-
-	/*public int getGlobalTrace() {
-		return traceInAll;
-	}*/
-
 }

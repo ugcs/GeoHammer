@@ -23,6 +23,7 @@ import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.scene.layout.*;
@@ -706,9 +707,7 @@ public class Model implements InitializingBean {
 
 	@Nullable
 	private FoundPlace toFlag(TraceKey trace) {
-		if (trace == null) {
-			return null;
-		}
+		Check.notNull(trace);
 
 		SgyFile traceFile = trace.getFile();
 		int traceIndex = trace.getIndex();
@@ -718,16 +717,7 @@ public class Model implements InitializingBean {
 			return null;
 		}
 
-		// TODO GPR_LINES
-		Trace t = null;
-		if (traceFile instanceof TraceFile f) {
-			t = f.getTraces().get(traceIndex);
-		} else if (traceFile instanceof CsvFile f) {
-			LatLon latlon = f.getGeoData().get(traceIndex).getLatLon();
-			t = new Trace(f, null, null, new float[0], null);
-		}
-		// -------------
-		return new FoundPlace(t, this);
+		return new FoundPlace(trace, this);
 	}
 
 	public void removeSelectedFlag(Chart chart) {

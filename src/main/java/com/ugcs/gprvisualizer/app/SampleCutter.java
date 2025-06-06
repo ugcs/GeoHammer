@@ -5,6 +5,7 @@ import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
@@ -116,23 +117,20 @@ public class SampleCutter {
         return copy;
     }
 
-    public List<BaseObject> copyAuxElements(GprFile file, GprFile target) {
-        List<Trace> traces = file.getTraces();
-        int begin = traces.getFirst().getIndexInFile();
-
+    private List<BaseObject> copyAuxElements(GprFile file, GprFile target) {
         List<BaseObject> auxElements = new ArrayList<>();
         for (BaseObject auxElement : file.getAuxElements()) {
             BaseObject copy;
             if (auxElement instanceof ClickPlace clickPlace) {
-                Trace trace = clickPlace.getTrace();
-                Trace targetTrace = target.getTraces().get(trace.getIndexInFile() - begin);
+                TraceKey trace = clickPlace.getTrace();
+                TraceKey targetTrace = new TraceKey(target, trace.getIndex());
                 copy = new ClickPlace(targetTrace);
             } else if (auxElement instanceof FoundPlace foundPlace) {
-                Trace trace = foundPlace.getTrace();
-                Trace targetTrace = target.getTraces().get(trace.getIndexInFile() - begin);
+                TraceKey trace = foundPlace.getTrace();
+                TraceKey targetTrace = new TraceKey(target, trace.getIndex());
                 copy = new FoundPlace(targetTrace, model);
             } else {
-                copy = auxElement.copy(begin, target.getOffset());
+                copy = auxElement.copy(0, target.getOffset());
             }
             if (copy != null) {
                 auxElements.add(copy);

@@ -623,8 +623,8 @@ public class Model implements InitializingBean {
 			if (Objects.equals(chart, traceChart)) {
 				continue;
 			}
-			Optional<TraceKey> nearestInChart = Traces.findNearestTraceInFiles(
-					chart.getFiles(),
+			Optional<TraceKey> nearestInChart = Traces.findNearestTrace(
+					chart.getFile(),
 					trace.getLatLon(),
 					traceLookupThreshold);
 			if (nearestInChart.isPresent()) {
@@ -761,12 +761,11 @@ public class Model implements InitializingBean {
 		}
 
 		chart.clearFlags();
-		for (SgyFile file : chart.getFiles()) {
-			boolean modified = file.getAuxElements().removeIf(
-					x -> x instanceof FoundPlace);
-			if (modified) {
-				file.setUnsaved(true);
-			}
+		SgyFile file = chart.getFile();
+		boolean modified = file.getAuxElements().removeIf(
+				x -> x instanceof FoundPlace);
+		if (modified) {
+			file.setUnsaved(true);
 		}
 		updateAuxElements();
 		publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));

@@ -546,28 +546,6 @@ public class TraceCutter implements Layer, InitializingBean {
 		// list of obsolete chart files that should be closed
 		List<SgyFile> obsolete = new ArrayList<>();
 
-		// reload tail to the chart
-		Chart chart = model.getFileChart(gprFile);
-		Check.notNull(chart);
-
-		List<SgyFile> chartFiles = new ArrayList<>(chart.getFiles());
-		chartFiles.sort(Comparator.comparing(f -> f.getFile().getName()));
-
-		boolean isTail = false;
-		for (SgyFile file : chartFiles) {
-			boolean isSplitFile = file.equals(gprFile);
-			if (isSplitFile) {
-				isTail = true;
-			}
-			if (isTail) {
-				obsolete.add(file);
-				if (!isSplitFile) {
-					// reload all files except current as is
-					generated.add(file);
-				}
-			}
-		}
-
 		List<Trace> traces = gprFile.getTraces();
 		boolean hasPartSuffix = FileNames.hasGprPartSuffix(
 				gprFile.getFile().getName());
@@ -585,7 +563,10 @@ public class TraceCutter implements Layer, InitializingBean {
 		generated.sort(Comparator.comparing(f -> f.getFile().getName()));
 
 		// clear selection
-		model.clearSelectedTrace(chart);
+		Chart chart = model.getFileChart(gprFile);
+		if (chart != null) {
+			model.clearSelectedTrace(chart);
+		}
 
 		// refresh chart
 		for (SgyFile file : obsolete) {

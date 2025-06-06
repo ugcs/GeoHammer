@@ -733,8 +733,8 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public List<SgyFile> getFiles() {
-        return List.of(profileField.getFile());
+    public TraceFile getFile() {
+        return profileField.getFile();
     }
 
     @Override

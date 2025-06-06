@@ -1,5 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
+import java.io.File;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -1691,8 +1692,8 @@ public class SensorLineChart extends Chart {
     }
 
     @Override
-    public List<SgyFile> getFiles() {
-        return List.of(file);
+    public CsvFile getFile() {
+        return file;
     }
 
     @Override

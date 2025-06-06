@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.TraceHeader;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
@@ -38,11 +39,11 @@ public class SampleCutter {
 
         List<SgyFile> obsolete = new ArrayList<>();
         List<SgyFile> cropped = new ArrayList<>();
-        for (SgyFile file : gprChart.getFiles()) {
-            if (file instanceof GprFile gprFile) {
-                cropped.add(cropGprSamples(gprFile, offset, length));
-                obsolete.add(gprFile);
-            }
+
+        TraceFile chartFile = gprChart.getFile();
+        if (chartFile instanceof GprFile gprFile) {
+            cropped.add(cropGprSamples(gprFile, offset, length));
+            obsolete.add(gprFile);
         }
 
         // clear selection

@@ -19,7 +19,7 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
         this.model = model;
     }
 
-    public abstract List<SgyFile> getFiles();
+    public abstract SgyFile getFile();
 
     // trace == null -> clear current selection
     public abstract void selectTrace(@Nullable TraceKey trace, boolean focus);

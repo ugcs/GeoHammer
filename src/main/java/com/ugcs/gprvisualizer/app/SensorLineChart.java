@@ -1,7 +1,5 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.io.File;
-import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -15,7 +13,6 @@ import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
-import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -430,7 +427,7 @@ public class SensorLineChart extends Chart {
                 });
                 file.getAuxElements().stream().filter(FoundPlace.class::isInstance)
                         .map(o -> ((FoundPlace) o))
-                        .filter(fp -> fp.getTraceInFile() == value.getTraceNumber())
+                        .filter(fp -> fp.getTraceIndex() == value.getTraceNumber())
                         .forEach(fp -> auxElements.add(fp));
                 values.add(newValue);
             }
@@ -530,7 +527,7 @@ public class SensorLineChart extends Chart {
     private Map<FoundPlace, Data<Number, Number>> foundPlaces = new HashMap<>();
 
     private void putFoundPlace(FoundPlace fp) {
-        Data<Number, Number> verticalMarker = new Data<>(fp.getTraceInFile(), 0);
+        Data<Number, Number> verticalMarker = new Data<>(fp.getTraceIndex(), 0);
 
         var color = javafx.scene.paint.Color.rgb(
             fp.getFlagColor().getRed(),

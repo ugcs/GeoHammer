@@ -88,7 +88,7 @@ public class CsvFile extends SgyFile {
                     getGeoData().add((GeoData) coord);
                 }
                 if (((GeoData) coord).isMarked()) {
-                    getAuxElements().add(new FoundPlace(tr, getOffset(), AppContext.model));
+                    getAuxElements().add(new FoundPlace(tr, AppContext.model));
                 }
             }            
         }
@@ -120,7 +120,7 @@ public class CsvFile extends SgyFile {
 			Path inputFile = getFile().toPath();
         	Path tempFile = file.toPath();
 
-            var foundPalces = getAuxElements().stream().filter(bo -> bo instanceof FoundPlace).map(bo -> ((FoundPlace) bo).getTraceInFile()).collect(Collectors.toSet());
+            var foundPalces = getAuxElements().stream().filter(bo -> bo instanceof FoundPlace).map(bo -> ((FoundPlace) bo).getTraceIndex()).collect(Collectors.toSet());
             getGeoData().forEach(gd -> {
                 gd.setSensorValue(GeoData.Semantic.MARK.getName(), gd.isMarked() ? 1 : 0);
                 gd.setSensorValue(GeoData.Semantic.MARK.getName(), foundPalces.contains(gd.getTraceNumber()) ? 1 : 0);

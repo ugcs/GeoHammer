@@ -130,7 +130,7 @@ public class SampleCutter {
             } else if (auxElement instanceof FoundPlace foundPlace) {
                 Trace trace = foundPlace.getTrace();
                 Trace targetTrace = target.getTraces().get(trace.getIndexInFile() - begin);
-                copy = new FoundPlace(targetTrace, target.getOffset(), model);
+                copy = new FoundPlace(targetTrace, model);
             } else {
                 copy = auxElement.copy(begin, target.getOffset());
             }

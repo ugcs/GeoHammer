@@ -5,7 +5,6 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Rectangle;
-import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.ugcs.gprvisualizer.app.GPRChart;
@@ -15,38 +14,27 @@ import org.apache.commons.lang3.mutable.MutableInt;
 
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
-//import com.ugcs.gprvisualizer.app.MouseHandler;
 
 public class DragAnchor extends BaseObjectImpl {
-	//implements BaseObject {//, MouseHandler {
 
 	private MutableInt trace = new MutableInt();
 	private MutableInt sample = new MutableInt();
 
 	private AlignRect alignRect;
-	private VerticalCutPart offset;
-	
+
 	private Image img;
 	
 	private Dimension dim = new Dimension(16, 16);
 	
 	private boolean visible = true;
 	
-	
-	public DragAnchor(
-			Image img,
-			AlignRect alignRect,
-			VerticalCutPart offset) {
-		
-		this.offset = offset;
+	public DragAnchor(Image img, AlignRect alignRect) {
 		this.img = img;
 		this.alignRect = alignRect;
 		
 		if (img != null) {
 			dim = new Dimension(img.getWidth(null), img.getHeight(null));
 		}
-					
 	}
 
 	@Override
@@ -82,8 +70,7 @@ public class DragAnchor extends BaseObjectImpl {
 	}
 
 	private Rectangle getRect(ScrollableData profField) {
-		TraceSample ts = new TraceSample(offset.localToGlobal(
-				this.getTrace()), getSample());
+		TraceSample ts = new TraceSample(this.getTrace(), getSample());
 		Point2D scr = profField.traceSampleToScreen(ts);
 		Rectangle rect = alignRect.getRect(scr, dim);
 		return rect;

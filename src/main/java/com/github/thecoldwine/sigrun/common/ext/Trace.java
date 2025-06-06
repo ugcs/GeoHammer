@@ -30,8 +30,7 @@ public class Trace {
     public int verticalOffset;
     
     private int indexInFile;
-    private int indexInSet;
-    
+
     public byte[] good;
 
     /*
@@ -138,13 +137,5 @@ public class Trace {
 
     public void setIndexInFile(int indexInFile) {
         this.indexInFile = indexInFile;
-    }
-
-    public int getIndexInSet() {
-        return indexInSet;
-    }
-
-    public void setIndexInSet(int indexInSet) {
-        this.indexInSet = indexInSet;
     }
 }

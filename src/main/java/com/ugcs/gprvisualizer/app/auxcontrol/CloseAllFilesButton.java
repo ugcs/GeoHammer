@@ -19,7 +19,7 @@ public class CloseAllFilesButton extends RemoveFileButton {
     private final Model model;
 
     public CloseAllFilesButton(Model model) {
-        super(0, null, null, model);
+        super(0, null, model);
         this.model = model;
     }
 

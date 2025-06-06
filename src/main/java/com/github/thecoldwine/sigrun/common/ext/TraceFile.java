@@ -88,7 +88,7 @@ public abstract class TraceFile extends SgyFile {
         }
 
         if (!traces.isEmpty()) {
-            traces.get(traces.size() - 1).setEnd(true);
+            traces.getLast().setEnd(true);
         }
     }
 
@@ -105,7 +105,7 @@ public abstract class TraceFile extends SgyFile {
         for (Trace trace: getTraces()) {
             if (trace.isMarked()) {
                 this.getAuxElements().add(
-                        new FoundPlace(trace, getOffset(), AppContext.model));
+                        new FoundPlace(trace, AppContext.model));
             }
         }
     }

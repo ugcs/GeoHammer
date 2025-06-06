@@ -42,7 +42,7 @@ public class DepthStart extends BaseObjectImpl {
 	}
 
 	@Override
-	public BaseObject copy(int offset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
 		return null;
 	}
 

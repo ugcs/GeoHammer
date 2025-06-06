@@ -26,14 +26,13 @@ public class KmlReader {
     }
 
     public void read(File file, Model model) {
-
         Kml kml = Kml.unmarshal(file);
 
         Document doc = (Document) kml.getFeature();
-        List<Feature> list = doc.getFeature();
+        List<Feature> features = doc.getFeature();
 
         //Placemark> placemarks =
-        list.stream()
+        features.stream()
             .flatMap(f -> {
                 if (f instanceof Placemark) {
                     return Stream.of((((Placemark) f)));
@@ -43,22 +42,17 @@ public class KmlReader {
                         .map(x -> (Placemark) x);
                 }
                 throw new RuntimeException("Uknown format of KML");
-
             })
         .forEach(f -> {
-
             Point pm = (Point) f.getGeometry();
-            Coordinate c = pm.getCoordinates().get(0);
+            Coordinate c = pm.getCoordinates().getFirst();
 
-            LatLon ll = new LatLon(c.getLatitude(), c.getLongitude());
+            LatLon latlon = new LatLon(c.getLatitude(), c.getLongitude());
 
-
-            ConstPlace cp = new ConstPlace(0, ll, null);
-            model.getAuxElements().add(cp);
-
+            ConstPlace constPlace = new ConstPlace(0, latlon);
+            model.getAuxElements().add(constPlace);
         });
 
         model.setKmlToFlagAvailable(true);
     }
-
 }

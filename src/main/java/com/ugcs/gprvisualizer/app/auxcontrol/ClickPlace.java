@@ -50,7 +50,7 @@ public class ClickPlace extends BaseObjectImpl {
 	}
 
 	@Override
-	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
 		// TODO GPR_LINES
 		//Trace newTrace = trace.getFile().getTraces().get(trace.getIndexInFile() - traceoffset);
 		Trace newTrace = trace;
@@ -98,7 +98,7 @@ public class ClickPlace extends BaseObjectImpl {
 	
 	private Rectangle getRect(GPRChart gprChart) {
 		
-		int x = gprChart.traceToScreen(trace.getIndexInSet());
+		int x = gprChart.traceToScreen(trace.getIndexInFile());
 				
 		Rectangle rect = new Rectangle(
 				x - R_HOR, Model.TOP_MARGIN - R_VER * 2,

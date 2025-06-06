@@ -12,7 +12,6 @@ import org.json.simple.JSONObject;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
@@ -21,22 +20,20 @@ import com.ugcs.gprvisualizer.gpr.Model;
 
 public class ConstPlace extends BaseObjectImpl {
 
-	private final LatLon latLon;
-	private final int traceInFile;
-	private final VerticalCutPart offset;
 	static int R_HOR = ShapeHolder.flag2.getBounds().width / 2;
 	static int R_VER = ShapeHolder.flag2.getBounds().height / 2;
 
-		
+	private final LatLon latLon;
+	private final int traceIndex;
+
 	public static ConstPlace loadFromJson(JSONObject json, Model model, SgyFile sgyFile) {
 		int traceNum = (int) (long) (Long) json.get("trace");
-		return new ConstPlace(traceNum, null, sgyFile.getOffset());
+		return new ConstPlace(traceNum, null);
 	}
 	
-	public ConstPlace(int trace, LatLon latLon,  VerticalCutPart offset) {
-		this.offset = offset;
+	public ConstPlace(int traceIndex, LatLon latLon) {
 		this.latLon = latLon;
-		this.traceInFile = trace;
+		this.traceIndex = traceIndex;
 	}
 
 	@Override
@@ -50,7 +47,7 @@ public class ConstPlace extends BaseObjectImpl {
 	}
 
 	@Override
-	public BaseObject copy(int offset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
 		return null;
 	}
 
@@ -91,12 +88,11 @@ public class ConstPlace extends BaseObjectImpl {
 	}
 
 	private Trace getTrace() {
-		return AppContext.model.getGprTraces()
-				.get(offset.localToGlobal(traceInFile));
+		// TODO is it ok to address all GPR traces here?
+		return AppContext.model.getGprTraces().get(traceIndex);
 	}
 
 	public LatLon getLatLon() {
 		return latLon;
 	}
-
 }

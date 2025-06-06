@@ -16,7 +16,7 @@ public final class AuxElements {
         Set<Integer> markIndices = new HashSet<>();
         for (BaseObject element : Nulls.toEmpty(elements)) {
             if (element instanceof FoundPlace mark) {
-                markIndices.add(mark.getTraceInFile());
+                markIndices.add(mark.getTraceIndex());
             }
         }
         return markIndices;

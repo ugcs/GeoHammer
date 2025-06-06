@@ -11,7 +11,6 @@ import com.ugcs.gprvisualizer.gpr.Settings;
 public class ProfileField {
 
 	private final TraceFile traceFile;
-	private List<Trace> gprTraces = new ArrayList<>();
 
 	// screen coordinates
 	private Dimension viewDimension = new Dimension();
@@ -58,16 +57,7 @@ public class ProfileField {
 	}
 
 	public List<Trace> getGprTraces() {
-		// TODO GPR_LINES
-		// just return traceFile.getTraces()
-		if (gprTraces.isEmpty()) {
-			int traceIndex = 0;
-			for (Trace trace : traceFile.getTraces()) {
-				gprTraces.add(trace);
-				trace.setIndexInSet(traceIndex++);
-			}
-		}
-		return gprTraces;
+		return traceFile.getTraces();
 	}
 
 	public int getGprTracesCount() {

@@ -7,7 +7,6 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
-import java.io.File;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
@@ -18,8 +17,6 @@ import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
-//import com.ugcs.gprvisualizer.app.MouseHandler;
 import org.jspecify.annotations.Nullable;
 
 public class RulerTool extends BaseObjectImpl {
@@ -29,13 +26,12 @@ public class RulerTool extends BaseObjectImpl {
 		
 	private final DragAnchor anch1;
 	private final DragAnchor anch2;
-	private final VerticalCutPart offset;
 	private final TraceFile file;
 	
 	private static class RulerAnchor extends DragAnchor {
 		
-		public RulerAnchor(Image img, AlignRect alignRect, VerticalCutPart offset) {
-			super(img, alignRect, offset);
+		public RulerAnchor(Image img, AlignRect alignRect) {
+			super(img, alignRect);
 		}
 
 		@Override
@@ -52,10 +48,8 @@ public class RulerTool extends BaseObjectImpl {
 	
 	public RulerTool(TraceFile file, int s, int f, int smpStart, int smpFinish) {
 		this.file = file;
-		offset = file.getOffset();
 
-		anch1 = new RulerAnchor(ResourceImageHolder.IMG_VER_SLIDER, 
-				AlignRect.CENTER, offset) {
+		anch1 = new RulerAnchor(ResourceImageHolder.IMG_VER_SLIDER, AlignRect.CENTER) {
 
 			@Override
 			public void signal(@Nullable Object obj) {
@@ -68,8 +62,7 @@ public class RulerTool extends BaseObjectImpl {
 			}
 		};
 		
-		anch2 = new RulerAnchor(ResourceImageHolder.IMG_VER_SLIDER, 
-				AlignRect.CENTER, offset) {
+		anch2 = new RulerAnchor(ResourceImageHolder.IMG_VER_SLIDER, AlignRect.CENTER) {
 
 			@Override
 			public void signal(@Nullable Object obj) {
@@ -91,9 +84,9 @@ public class RulerTool extends BaseObjectImpl {
 	@Override
 	public void drawOnCut(Graphics2D g2, ScrollableData profField) {
 		Point2D lt = profField.traceSampleToScreen(new TraceSample(
-				offset.localToGlobal(anch1.getTrace()), anch1.getSample()));
+				anch1.getTrace(), anch1.getSample()));
 		Point2D rb = profField.traceSampleToScreen(new TraceSample(
-				offset.localToGlobal(anch2.getTrace()), anch2.getSample()));
+				anch2.getTrace(), anch2.getSample()));
 		
 		g2.setColor(Color.RED);
 		g2.drawLine((int) lt.getX(), (int) lt.getY(), (int) rb.getX(), (int) rb.getY());
@@ -103,8 +96,6 @@ public class RulerTool extends BaseObjectImpl {
 		g2.drawLine((int) lt.getX(), (int) rb.getY(), (int) rb.getX(), (int) rb.getY());
 		
 		g2.setColor(Color.GRAY);
-		
-		
 		
 		g2.setFont(fontB);
 		int fontHeight = g2.getFontMetrics().getHeight();
@@ -121,7 +112,6 @@ public class RulerTool extends BaseObjectImpl {
 		
 		drawText(g2, (lt.getX() + rb.getX()) / 2 + 5 * fontHeight,
 				(lt.getY() + rb.getY()) / 2 + 2 * fontHeight, distDsp);
-		
 	}
 	
 	private void drawText(Graphics2D g2, double x, double y, String str) {
@@ -153,7 +143,6 @@ public class RulerTool extends BaseObjectImpl {
 	}
 	
 	private double dist() {
-
 		int tr1 = anch1.getTrace();
 		int tr2 = anch2.getTrace();
 		int smp1 = anch1.getSample();
@@ -163,8 +152,6 @@ public class RulerTool extends BaseObjectImpl {
 		
 		return diag;
 	}
-
-	
 
 	public static double distanceVCm(SgyFile file, int tr, double smp1, double smp2) {
 		double grndLevel = 0;
@@ -180,10 +167,8 @@ public class RulerTool extends BaseObjectImpl {
 		
 		double vertDistCm =  file.getSamplesToCmAir() * hair 
 				+ file.getSamplesToCmGrn() * hgrn;
-		
-		
+
 		return vertDistCm;
-		
 	}
 	
 	public static double distanceCm(TraceFile file, int tr1, int tr2, double smp1, double smp2) {
@@ -218,7 +203,6 @@ public class RulerTool extends BaseObjectImpl {
 	}
 
 	public static int diagonalToSmp(SgyFile file, int tr, int smp, double c) {
-		
 		int grn = file.getGroundProfile().deep[tr];
 	
 		int i=0;
@@ -236,7 +220,6 @@ public class RulerTool extends BaseObjectImpl {
 	}
 		
 	public static int diagonalToSmp2(TraceFile file, int tr, int smp, double c) {
-		
 		int grn = file.getGroundProfile().deep[tr];
 		
 		//part of air
@@ -254,9 +237,7 @@ public class RulerTool extends BaseObjectImpl {
 		double smpGrn = diagGrn / file.getSamplesToCmGrn();
 		
 		double smpSum = smpAir + smpGrn;
-		
-		
-		
+
 		return (int) smpSum;
 	}
 
@@ -269,5 +250,4 @@ public class RulerTool extends BaseObjectImpl {
 	public boolean isFit(int begin, int end) {
 		return true;
 	}
-
 }

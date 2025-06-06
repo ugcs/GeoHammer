@@ -2,12 +2,9 @@ package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.CloseAllFilesButton;
 import com.ugcs.gprvisualizer.app.auxcontrol.DepthHeight;
@@ -33,7 +30,6 @@ import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
-import javafx.scene.chart.NumberAxis;
 import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
@@ -325,7 +321,7 @@ public class GPRChart extends Chart {
             graphicsContext.setStroke(AMP_STROKE);
             for (HorizontalProfile pf : file.profiles) {
                 drawHorizontalProfile(graphicsContext,
-                        file.getOffset().getStartTrace(), pf, 0);
+                        0, pf, 0);
             }
         }
 
@@ -334,7 +330,7 @@ public class GPRChart extends Chart {
             graphicsContext.setColor(new Color(210, 105, 30));
             graphicsContext.setStroke(LEVEL_STROKE);
             drawHorizontalProfile(graphicsContext,
-                    file.getOffset().getStartTrace(), file.getGroundProfile(),
+                    0, file.getGroundProfile(),
                     shiftGround.intValue());
         }
     }
@@ -389,7 +385,7 @@ public class GPRChart extends Chart {
 
         // close line button
         RemoveFileButton rfb = new RemoveFileButton(
-                0, file.getOffset(), file, model);
+                0, file, model);
 
         auxElements.add(rfb);
 
@@ -701,16 +697,6 @@ public class GPRChart extends Chart {
         return t2.getTrace();
     }
 
-    public TraceSample screenToTraceSample(Point2D point, VerticalCutPart vcp) {
-        int trace = vcp.globalToLocal(getMiddleTrace()
-                + (int)((point.getX()) / getHScale()));
-
-        int sample = getStartSample()
-                + (int) ((point.getY() - getField().getTopMargin()) / getVScale());
-
-        return new TraceSample(trace, sample);
-    }
-
     public TraceSample screenToTraceSample(Point2D point) {
         int trace = getMiddleTrace() + (int) (-1 + (point.getX()) / getHScale());
         int sample = getStartSample() + (int) ((point.getY() - getField().getTopMargin()) / getVScale());
@@ -805,7 +791,7 @@ public class GPRChart extends Chart {
         int centerIndex = (int)range.getCenter();
         setMiddleTrace(centerIndex);
 
-        int maxSamples = file.getOffset().getMaxSamples();
+        int maxSamples = profileField.getMaxHeightInSamples();
         int tracesCount = range.getMax().intValue() - range.getMin().intValue() + 1;
 
         fit(maxSamples, tracesCount);

@@ -2,7 +2,6 @@ package com.ugcs.gprvisualizer.app.auxcontrol;
 
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.util.List;
 import java.util.Optional;
 
 import com.ugcs.gprvisualizer.app.GPRChart;
@@ -10,9 +9,7 @@ import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
-import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
-import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.geometry.Point2D;
 import javafx.scene.control.Alert;
@@ -24,14 +21,12 @@ public class RemoveFileButton extends BaseObjectWithModel {
 	static int R_HOR = ResourceImageHolder.IMG_CLOSE_FILE.getWidth(null);
 	static int R_VER = ResourceImageHolder.IMG_CLOSE_FILE.getHeight(null);
 
-	private final int traceInFile;
-	private final VerticalCutPart offset;
+	private final int traceIndex;
 	private final SgyFile sgyFile;
 	
-	public RemoveFileButton(int trace, VerticalCutPart offset, SgyFile sgyFile, Model model) {
+	public RemoveFileButton(int traceIndex, SgyFile sgyFile, Model model) {
 		super(model);
-		this.offset = offset;
-		this.traceInFile = trace;
+		this.traceIndex = traceIndex;
 		this.sgyFile = sgyFile;
 	}
 
@@ -55,15 +50,15 @@ public class RemoveFileButton extends BaseObjectWithModel {
 	}
 
 	@Override
-	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
 		RemoveFileButton result = new RemoveFileButton(
-				traceInFile, verticalCutPart, sgyFile, model);
+				traceIndex - traceOffset, sgyFile, model);
 		return result;
 	}
 
 	@Override
 	public boolean isFit(int begin, int end) {
-		return traceInFile >= begin && traceInFile <= end;
+		return traceIndex >= begin && traceIndex <= end;
 	}
 
 	@Override
@@ -87,7 +82,7 @@ public class RemoveFileButton extends BaseObjectWithModel {
 	
 	private Rectangle getRect(ScrollableData scrollableData) {
 		if (scrollableData instanceof GPRChart gprChart) {
-			int x = gprChart.traceToScreen(offset.localToGlobal(traceInFile));
+			int x = gprChart.traceToScreen(traceIndex);
 			int leftMargin = - gprChart.getField().getMainRect().width / 2;
 			Rectangle rect = new Rectangle(Math.abs(x - leftMargin) < gprChart.getField().getMainRect().width ? Math.max(x, leftMargin) : x, 0,
 					R_HOR, R_VER);
@@ -102,5 +97,4 @@ public class RemoveFileButton extends BaseObjectWithModel {
 		Rectangle rect = getRect(profField);
 		return rect.contains(localPoint.getX(), localPoint.getY());
 	}
-
 }

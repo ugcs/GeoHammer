@@ -713,8 +713,7 @@ public class Model implements InitializingBean {
 		SgyFile traceFile = trace.getFile();
 		int traceIndex = trace.getIndex();
 
-		int localTraceIndex = traceFile.getOffset().globalToLocal(traceIndex);
-		if (localTraceIndex < 0 || localTraceIndex >= traceFile.size()) {
+		if (traceIndex < 0 || traceIndex >= traceFile.size()) {
 			log.warn("Flag outside of the current file bounds");
 			return null;
 		}
@@ -728,7 +727,7 @@ public class Model implements InitializingBean {
 			t = new Trace(f, null, null, new float[0], null);
 		}
 		// -------------
-		return new FoundPlace(t, traceFile.getOffset(), this);
+		return new FoundPlace(t, this);
 	}
 
 	public void removeSelectedFlag(Chart chart) {

@@ -15,53 +15,41 @@ public class ConstPointsFile {
 	public void load(File file) {
 		list = new ArrayList<>();
 		
-		///
 		try (BufferedReader br = new BufferedReader(new FileReader(file))) {
 		    String line;
 		    while ((line = br.readLine()) != null) {
-		       
 		    	String[] dbls = line.split(" ");
 		    	double d1 = Double.parseDouble(dbls[0]);
 		    	double d2 = Double.parseDouble(dbls[1]);
 		    	
 		    	list.add(new LatLon(d1, d2));
-		    	
 		    }
-		}catch(Exception e) {
+		} catch(Exception e) {
 			e.printStackTrace();
 		}		
 	}
 	
 	public List<LatLon> getList(){
-		
 		return list;
 	}
 	
-	public void calcVerticalCutNearestPoints(TraceFile fl) {
-		
-		for(LatLon ll : list) {
-		
-			Trace nearestTrace = null;			
-			double nearestTraceDst = -1;
+	public void calcVerticalCutNearestPoints(TraceFile file) {
+		for(LatLon latlon : list) {
+			Trace nearestTrace = null;
+			double nearestTraceDistance = -1;
 			
-			for(Trace tr : fl.getTraces()) {
+			for(Trace trace : file.getTraces()) {
+				double istance = trace.getLatLon().getDistance(latlon);
 				
-				double dst = tr.getLatLon().getDistance(ll);
-				
-				if(nearestTrace == null || dst < nearestTraceDst) {
-					nearestTraceDst = dst;
-					nearestTrace = tr;					
+				if(nearestTrace == null || istance < nearestTraceDistance) {
+					nearestTraceDistance = istance;
+					nearestTrace = trace;
 				}
 			}
 			
-			if(nearestTraceDst < 1.2) {
-				fl.getAuxElements().add(new ConstPlace(nearestTrace.getIndexInFile(), ll, fl.getOffset()));
+			if(nearestTraceDistance < 1.2) {
+				file.getAuxElements().add(new ConstPlace(nearestTrace.getIndexInFile(), latlon));
 			}
-			
 		}
-		
 	}
-	
-	
-	
 }

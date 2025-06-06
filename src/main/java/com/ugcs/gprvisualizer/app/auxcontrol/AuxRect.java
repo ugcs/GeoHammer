@@ -29,7 +29,6 @@ public class AuxRect extends BaseObjectImpl {
 	private static final int TRACE_W = 40;
 	private static final int SAMPLE_W = 20;
 
-	//MutableInt kfc = new  MutableInt();
 	private final VerticalCutPart offset;
 	
 	private BufferedImage img;
@@ -60,7 +59,6 @@ public class AuxRect extends BaseObjectImpl {
 		}		
 		json.put("topCut", arr);
 		
-		
 		JSONArray arr2 = new JSONArray();
 		for (int i : botCut) {
 			arr2.add(i);
@@ -82,7 +80,6 @@ public class AuxRect extends BaseObjectImpl {
 	
 	public int getSampleStart() {
 		return top.getSample();
-
 	}
 
 	public int getSampleFinish() {
@@ -93,26 +90,18 @@ public class AuxRect extends BaseObjectImpl {
 		left.setTrace(traceStart);
 	}
 
-	public int getTraceStartLocal() {
+	public int getTraceStart() {
 		return left.getTrace();
-	}
-
-	public int getTraceStartGlobal() {
-		return offset.localToGlobal(left.getTrace());
 	}
 
 	public void setTraceFinish(int traceStart) {
 		right.setTrace(traceStart);
 	}
 	
-	public int getTraceFinishLocal() {
+	public int getTraceFinish() {
 		return right.getTrace();
 	}
-	
-	public int getTraceFinishGlobal() {
-		return offset.localToGlobal(right.getTrace());
-	}
-	
+
 	public AuxRect(
 			int traceStart,
 			int traceFinish,
@@ -123,26 +112,16 @@ public class AuxRect extends BaseObjectImpl {
 		this.offset = offset;
 		initDragAnchors();
 		
-		setTraceStart(offset.globalToLocal(traceStart));
-		setTraceFinish(offset.globalToLocal(traceFinish));
+		setTraceStart(traceStart);
+		setTraceFinish(traceFinish);
 		setSampleStart(sampleStart);
 		setSampleFinish(sampleFinish);
-		
-			
+
 		clearCut();
 		updateMaskImg();
 	}
-	
-	public AuxRect(int traceCenter, int sampleCenter, VerticalCutPart offset) {
-		this(traceCenter - TRACE_W,
-			traceCenter + TRACE_W,
-			sampleCenter - SAMPLE_W,
-			sampleCenter + SAMPLE_W,
-			offset);
-	}
-	
-	
-	public AuxRect(JSONObject json, VerticalCutPart offset) {	
+
+	public AuxRect(JSONObject json, VerticalCutPart offset) {
 		this.offset = offset;
 		initDragAnchors();
 		
@@ -179,21 +158,18 @@ public class AuxRect extends BaseObjectImpl {
 		if (botCut == null || topCut == null) {
 			clearCut();
 		}
-		
-		
+
 		updateMaskImg();
-		
 	}
-	
 
 	private void initDragAnchors() {
 		selectType = new ToggleButton(ResourceImageHolder.IMG_CHOOSE,
 				ResourceImageHolder.IMG_CHOOSE,
-				new AlignRect(-1, -1), offset, false) {
+				new AlignRect(-1, -1), false) {
 
 			public void signal(Object obj) {
 		        ChoiceDialog<AreaType> dialog = 
-		        		new ChoiceDialog<AreaType>(getType(), AreaType.values()); 
+		        		new ChoiceDialog<>(getType(), AreaType.values());
 		        Optional<AreaType> result = dialog.showAndWait();
 		        result.ifPresent(book -> {
 		            setType(book);
@@ -213,7 +189,7 @@ public class AuxRect extends BaseObjectImpl {
 		
 		lock = new ToggleButton(ResourceImageHolder.IMG_LOCK,
 				ResourceImageHolder.IMG_UNLOCK,
-				new AlignRect(-1, -1), offset, locked) {
+				new AlignRect(-1, -1), locked) {
 
 			public void signal(Object obj) {
 				locked = (Boolean) obj;
@@ -230,8 +206,7 @@ public class AuxRect extends BaseObjectImpl {
 			}			
 		};
 		
-		top = new DragAnchor(ResourceImageHolder.IMG_VER_SLIDER, 
-				AlignRect.CENTER, offset) {
+		top = new DragAnchor(ResourceImageHolder.IMG_VER_SLIDER, AlignRect.CENTER) {
 			public void signal(Object obj) {
 				
 				top.setSample(Math.clamp(
@@ -246,12 +221,11 @@ public class AuxRect extends BaseObjectImpl {
 			}
 		};
 		
-		bottom = new DragAnchor(ResourceImageHolder.IMG_VER_SLIDER, 
-				AlignRect.CENTER, offset) {
+		bottom = new DragAnchor(ResourceImageHolder.IMG_VER_SLIDER, AlignRect.CENTER) {
 			public void signal(Object obj) {
 
 				bottom.setSample(Math.clamp(bottom.getSample(),
-					top.getSample() + 2, offset.getMaxSamples()));
+					top.getSample() + 2, offset.getTraces() - 1));
 				
 				clearCut();
 				updateMaskImg();
@@ -262,8 +236,7 @@ public class AuxRect extends BaseObjectImpl {
 			}
 		};
 		
-		left = new DragAnchor(ResourceImageHolder.IMG_HOR_SLIDER, 
-				AlignRect.CENTER, offset) {
+		left = new DragAnchor(ResourceImageHolder.IMG_HOR_SLIDER, AlignRect.CENTER) {
 			public void signal(Object obj) {
 
 				left.setTrace(Math.clamp(left.getTrace(),
@@ -278,13 +251,12 @@ public class AuxRect extends BaseObjectImpl {
 			}
 		};
 		
-		right = new DragAnchor(ResourceImageHolder.IMG_HOR_SLIDER, 
-				AlignRect.CENTER, offset) {
+		right = new DragAnchor(ResourceImageHolder.IMG_HOR_SLIDER, AlignRect.CENTER) {
 			public void signal(Object obj) {
 
 				right.setTrace(
 						Math.clamp(right.getTrace(),
-							left.getTrace() + 2, offset.getTraces()));
+							left.getTrace() + 2, offset.getMaxSamples() - 1));
 				
 				clearCut();
 				updateMaskImg();				
@@ -300,7 +272,7 @@ public class AuxRect extends BaseObjectImpl {
 
 	public void updateMaskImg() {
 		
-		int width = getTraceFinishLocal() - getTraceStartLocal();
+		int width = getTraceFinish() - getTraceStart();
 		int height = getSampleHeight();
 		
 		img = new BufferedImage(Math.max(1, width), Math.max(1, height), 
@@ -313,13 +285,12 @@ public class AuxRect extends BaseObjectImpl {
 			g2.setColor(maskColor);
 			g2.drawLine(x, 0, x, topCut[x]);
 			g2.drawLine(x, img.getHeight(), x, botCut[x]);
-			
 		}
 	}
 
 	private void clearCut() {
 		
-		int width = Math.max(1, getTraceFinishLocal() - getTraceStartLocal());
+		int width = Math.max(1, getTraceFinish() - getTraceStart());
 		int height = getSampleHeight();
 
 		topCut = new int[width];
@@ -337,7 +308,7 @@ public class AuxRect extends BaseObjectImpl {
 		if (isPointInside(localPoint, profField)) {			
 		
 			TraceSample ts = profField.screenToTraceSample(localPoint); //, offset);
-			int x = ts.getTrace() - getTraceStartLocal();
+			int x = ts.getTrace() - getTraceStart();
 			int y = ts.getSample() - getSampleStart();
 			if (x >= 0 && x < topCut.length) {
 				
@@ -357,38 +328,42 @@ public class AuxRect extends BaseObjectImpl {
 	
 	@Override
 	public boolean mouseMoveHandle(Point2D point, ScrollableData profField) {
-
 		if (img == null) {
 			return false;
 		}
-		
-		TraceSample ts = profField.screenToTraceSample(point); //, offset);
+		if (!(profField instanceof GPRChart)) {
+			return false;
+		}
+		GPRChart gprChart = (GPRChart)profField;
+		int numTraces = gprChart.getTracesCount();
+		int maxSamples = gprChart.getField().getMaxHeightInSamples();
+
+		TraceSample ts = profField.screenToTraceSample(point);
 		
 		if (locked) {		
 			drawCutOnImg(ts);
 		} else {
 			
-			int halfWidth = (getTraceFinishLocal() - getTraceStartLocal()) / 2;
+			int halfWidth = (getTraceFinish() - getTraceStart()) / 2;
 			int halfHeight = getSampleHeight() / 2;
 			
 			int tr = Math.clamp(ts.getTrace(),
-					halfWidth, offset.getTraces() - halfWidth);
+					halfWidth, numTraces - halfWidth);
 			
 			int sm = Math.clamp(ts.getSample(),
-					halfHeight, offset.getMaxSamples() - halfHeight);
+					halfHeight, maxSamples - halfHeight);
 			
 			setTraceStart(tr - halfWidth);
 			setTraceFinish(tr + halfWidth);
 			setSampleStart(sm - halfHeight);
 			setSampleFinish(sm + halfHeight);
-			
 		}
 		
 		return true;
 	}
 
 	private void drawCutOnImg(TraceSample ts) {
-		int x = ts.getTrace() - getTraceStartLocal();
+		int x = ts.getTrace() - getTraceStart();
 		int y = ts.getSample() - getSampleStart();
 		
 		int height = getSampleHeight();
@@ -433,10 +408,10 @@ public class AuxRect extends BaseObjectImpl {
 
 	public Rectangle getRect(ScrollableData profField) {
 		var lt = profField.traceSampleToScreen(
-				new TraceSample(getTraceStartGlobal(), getSampleStart()));
+				new TraceSample(getTraceStart(), getSampleStart()));
 		
 		var rb = profField.traceSampleToScreen(
-				new TraceSample(getTraceFinishGlobal(), getSampleFinish()));
+				new TraceSample(getTraceFinish(), getSampleFinish()));
 		return new Rectangle((int) lt.getX(), (int) lt.getY(), (int) (rb.getX() - lt.getY()), (int) (rb.getY() - lt.getY()));
 	}
 	
@@ -490,10 +465,10 @@ public class AuxRect extends BaseObjectImpl {
 	}			
 
 	@Override
-	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
 		AuxRect result = new AuxRect(
-				getTraceStartLocal() - traceoffset, 
-				getTraceFinishLocal() - traceoffset, 
+				getTraceStart() - traceOffset,
+				getTraceFinish() - traceOffset,
 				getSampleStart(), 
 				getSampleFinish(), 
 				verticalCutPart); 
@@ -508,7 +483,7 @@ public class AuxRect extends BaseObjectImpl {
 	@Override
 	public boolean isFit(int begin, int end) {
 		
-		return getTraceStartLocal() >= begin && getTraceFinishLocal() <= end;
+		return getTraceStart() >= begin && getTraceFinish() <= end;
 	}
 	
 }

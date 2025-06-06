@@ -23,7 +23,7 @@ public class AuxElement {
 	
 	public void drawOnCut(Graphics2D g2, ScrollableData field) {
 		
-		TraceSample ts = new TraceSample(traceStart.getIndexInSet(), 
+		TraceSample ts = new TraceSample(traceStart.getIndexInFile(),
 				sampleStart != null ? sampleStart : 0);
 		Point2D scr = field.traceSampleToScreen(ts);
 		

@@ -159,7 +159,7 @@ public class GprFile extends TraceFile {
         float[] values = converter.convert(binTrace.data);
         LatLon latLon = getLatLon(header);
 
-        Trace trace = new Trace(this, binHeader, header, values, latLon);
+        Trace trace = new Trace(binHeader, header, values, latLon);
         if (binHeader[MARK_BYTE_POS] != 0) {
         	trace.setMarked(true);
         }

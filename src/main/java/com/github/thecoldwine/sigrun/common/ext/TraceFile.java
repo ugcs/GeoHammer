@@ -78,13 +78,7 @@ public abstract class TraceFile extends SgyFile {
     public void updateTraces() {
         for (int i = 0; i < traces.size(); i++) {
             Trace trace = traces.get(i);
-            trace.setFile(this);
             trace.setIndexInFile(i);
-            trace.setEnd(false);
-        }
-
-        if (!traces.isEmpty()) {
-            traces.getLast().setEnd(true);
         }
     }
 

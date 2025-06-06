@@ -96,7 +96,7 @@ public class SampleCutter {
             // re-read updated header to keep consistent parsed version
             TraceHeader header = GprFile.traceHeaderReader.read(cropBinHeader);
 
-            Trace cropTrace = new Trace(copy, cropBinHeader, header, cropValues, trace.getLatLonOrigin());
+            Trace cropTrace = new Trace(cropBinHeader, header, cropValues, trace.getLatLonOrigin());
             cropTrace.setLatLon(trace.getLatLon());
             cropTrace.setMarked(trace.isMarked());
 

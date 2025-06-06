@@ -22,7 +22,6 @@ public final class Traces {
         List<Trace> newTraces = new ArrayList<>(traces.size());
         for (Trace trace : traces) {
             Trace newTrace = new Trace(
-                    targetFile,
                     trace.getBinHeader(),
                     trace.getHeader(),
                     Arrays.copyOf(trace.getNormValues(), trace.getNormValues().length),

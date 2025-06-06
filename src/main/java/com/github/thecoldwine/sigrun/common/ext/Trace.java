@@ -18,8 +18,7 @@ public class Trace {
     
     private LatLon latLon;
     private LatLon latLonOrigin;
-    private boolean end = false;
-    
+
     //tmp for loading
     private boolean marked = false;
     
@@ -45,18 +44,7 @@ public class Trace {
     
     public Set<Integer> max = new HashSet<>();
     
-    private SgyFile file;
-    
-    public SgyFile getFile() {
-        return file;
-    }
-
-    public void setFile(SgyFile file) {
-        this.file = file;
-    }
-
-    public Trace(SgyFile file, byte @Nullable [] binHeader, @Nullable TraceHeader header, float[] originalvalues, LatLon latLon) {
-    	this.file = file;
+    public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header, float[] originalvalues, LatLon latLon) {
         this.header = header;
         this.binHeader = binHeader; 
         this.originalvalues = originalvalues;
@@ -100,14 +88,6 @@ public class Trace {
     public void setNormValues(float[] vals) {
     	normvalues = vals;
     }
-
-	public boolean isEnd() {
-		return end;
-	}
-
-	public void setEnd(boolean end) {
-		this.end = end;
-	}
 
 	// in cm
 	public double getPrevDist() {

@@ -211,7 +211,7 @@ public class DztFile extends TraceFile {
 		LatLon latLon = dzg.getLatLonForTraceNumber(number);
         byte[] headerBin = null;
 		TraceHeader trheader = null;
-        return new Trace(this, headerBin, trheader, values, latLon);
+        return new Trace(headerBin, trheader, values, latLon);
 	}
 
 	public int getTraceBufferSize() {

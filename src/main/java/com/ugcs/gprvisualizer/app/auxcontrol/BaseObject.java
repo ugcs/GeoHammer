@@ -8,7 +8,6 @@ import javafx.geometry.Point2D;
 import org.json.simple.JSONObject;
 
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import org.jspecify.annotations.Nullable;
 
 public interface BaseObject {
@@ -38,7 +37,7 @@ public interface BaseObject {
 		return false;
 	}
 		
-	default BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
+	default BaseObject copy(int traceOffset) {
 		throw new RuntimeException("not implemented");
 	}
 	

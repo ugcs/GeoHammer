@@ -14,7 +14,6 @@ import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.gpr.Model;
 
@@ -47,7 +46,7 @@ public class ConstPlace extends BaseObjectImpl {
 	}
 
 	@Override
-	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset) {
 		return null;
 	}
 

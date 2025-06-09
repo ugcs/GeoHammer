@@ -569,7 +569,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		List<BaseObject> auxObjects = new ArrayList<>();				
 		for (BaseObject au : file.getAuxElements()) {
 			if (au.isFit(begin, end)) {
-				BaseObject copy = au.copy(begin, sgyFile.getOffset());
+				BaseObject copy = au.copy(begin);
 				if (copy != null) {
 					auxObjects.add(copy);
 				}

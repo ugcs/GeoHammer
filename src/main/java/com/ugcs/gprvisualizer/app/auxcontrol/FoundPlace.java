@@ -184,7 +184,7 @@ public class FoundPlace extends BaseObjectWithModel {
 	}
 
 	@Override
-	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset) {
 		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
 		return new FoundPlace(newTrace, model);
 	}

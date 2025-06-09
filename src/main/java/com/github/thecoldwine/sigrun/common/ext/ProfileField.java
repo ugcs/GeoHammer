@@ -2,7 +2,6 @@ package com.github.thecoldwine.sigrun.common.ext;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
-import java.util.ArrayList;
 import java.util.List;
 
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -68,7 +67,6 @@ public class ProfileField {
 		this.traceFile = traceFile;
 
 		updateMaxHeightInSamples();
-		updateFileOffsets();
 	}
 
 	public int getVisibleStart() {
@@ -150,12 +148,5 @@ public class ProfileField {
 
 	public TraceFile getFile() {
 		return traceFile;
-	}
-
-	// TODO GPR_LINES
-	@Deprecated
-	private void updateFileOffsets() {
-		traceFile.getOffset().setNumTraces(traceFile.getTraces().size());
-		traceFile.getOffset().setMaxSamples(getMaxHeightInSamples());
 	}
 }

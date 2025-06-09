@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.SortedMap;
-import java.util.TreeMap;
 
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
@@ -27,8 +26,6 @@ public abstract class SgyFile {
 	private File file;
 
 	private boolean unsaved = true;
-
-	private final VerticalCutPart offset = new VerticalCutPart();
 
 	@Nullable
     //horizontal cohesive lines of edges
@@ -63,10 +60,6 @@ public abstract class SgyFile {
 	// ----------------------------------
 
 	public abstract int size();
-
-	public VerticalCutPart getOffset() {
-		return offset;
-	}
 
 	public abstract void open(File file) throws Exception;
 	

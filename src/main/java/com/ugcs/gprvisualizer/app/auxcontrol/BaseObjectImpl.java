@@ -1,7 +1,5 @@
 package com.ugcs.gprvisualizer.app.auxcontrol;
 
-import com.ugcs.gprvisualizer.gpr.Model;
-
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 

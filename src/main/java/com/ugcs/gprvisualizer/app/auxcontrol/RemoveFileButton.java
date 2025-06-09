@@ -8,7 +8,6 @@ import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.geometry.Point2D;
@@ -50,10 +49,8 @@ public class RemoveFileButton extends BaseObjectWithModel {
 	}
 
 	@Override
-	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
-		RemoveFileButton result = new RemoveFileButton(
-				traceIndex - traceOffset, sgyFile, model);
-		return result;
+	public BaseObject copy(int traceOffset) {
+        return new RemoveFileButton(traceIndex - traceOffset, sgyFile, model);
 	}
 
 	@Override

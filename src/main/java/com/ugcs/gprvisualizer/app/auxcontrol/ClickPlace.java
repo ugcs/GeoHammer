@@ -15,7 +15,6 @@ import org.json.simple.JSONObject;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 public class ClickPlace extends BaseObjectImpl {
@@ -54,7 +53,7 @@ public class ClickPlace extends BaseObjectImpl {
 	}
 
 	@Override
-	public BaseObject copy(int traceOffset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset) {
 		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
 		return new ClickPlace(newTrace);
 	}

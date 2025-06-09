@@ -130,7 +130,7 @@ public class SampleCutter {
                 TraceKey targetTrace = new TraceKey(target, trace.getIndex());
                 copy = new FoundPlace(targetTrace, model);
             } else {
-                copy = auxElement.copy(0, target.getOffset());
+                copy = auxElement.copy(0);
             }
             if (copy != null) {
                 auxElements.add(copy);

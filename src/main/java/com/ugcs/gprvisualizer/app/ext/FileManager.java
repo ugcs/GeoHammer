@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
-import com.github.thecoldwine.sigrun.common.ext.MarkupFile;
 import com.github.thecoldwine.sigrun.common.ext.PositionFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
@@ -103,7 +101,6 @@ public class FileManager {
 		files.add(sgyFile);
 
 		try {	
-			new MarkupFile().load(sgyFile);
 			new PositionFile(fileTemplates).load(sgyFile);
 		} catch (Exception e) {
 			log.warn("Error loading markup or position files: {}", e.getMessage());

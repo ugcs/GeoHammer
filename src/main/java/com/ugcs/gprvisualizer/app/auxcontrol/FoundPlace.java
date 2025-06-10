@@ -12,13 +12,14 @@ import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.ugcs.gprvisualizer.app.SensorLineChart;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.utils.Check;
 import javafx.geometry.Point2D;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-public class FoundPlace extends BaseObjectWithModel {
+public class FoundPlace extends BaseObjectWithModel implements Positional {
 
 	//static int R_HOR = ResourceImageHolder.IMG_SHOVEL.getWidth(null) / 2;
 	//static int R_VER = ResourceImageHolder.IMG_SHOVEL.getHeight(null) / 2;
@@ -41,17 +42,24 @@ public class FoundPlace extends BaseObjectWithModel {
 		return trace;
 	}
 
+	@Override
 	public int getTraceIndex() {
 		return trace.getIndex();
+	}
+
+	@Override
+	public void offset(int traceOffset) {
+		trace.offset(traceOffset);
 	}
 
 	public Color getFlagColor() {
 		return flagColor;
 	}
 	
-	public FoundPlace(TraceKey traceKey, Model model) {
+	public FoundPlace(TraceKey trace, Model model) {
 		super(model);
-		this.trace = traceKey;
+		Check.notNull(trace);
+		this.trace = trace;
 	}
 
 	@Override

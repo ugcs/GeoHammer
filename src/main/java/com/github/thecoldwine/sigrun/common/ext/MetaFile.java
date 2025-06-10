@@ -7,9 +7,7 @@ import com.opencsv.bean.HeaderColumnNameMappingStrategy;
 import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import com.opencsv.exceptions.CsvException;
-import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.parcers.SensorValue;
 import com.ugcs.gprvisualizer.csv.DeclaredColumnOrder;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
@@ -24,7 +22,6 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,9 +31,9 @@ public class MetaFile {
 
     private static final String META_FILE_EXTENSION = ".geohammer";
 
-    private List<GeoData> values = new ArrayList<>();
+    private List<TraceGeoData> values = new ArrayList<>();
 
-    public List<GeoData> getValues() {
+    public List<? extends GeoData> getValues() {
         return values;
     }
 
@@ -77,24 +74,23 @@ public class MetaFile {
 
     public void init(List<Trace> traces) {
         traces = Nulls.toEmpty(traces);
-        List<GeoData> values = new ArrayList<>(traces.size());
+        List<TraceGeoData> values = new ArrayList<>(traces.size());
         for (int i = 0; i < traces.size(); i++) {
             Trace trace = traces.get(i);
             // construct geodata value for trace
             MetaRecord meta = new MetaRecord();
-            meta.setIndex(i);
-            meta.setTrace(i);
-            meta.setLine(0);
+            meta.setTraceIndex(i);
+            meta.setLineIndex(0);
             meta.setMark(trace.isMarked() ? 1 : 0);
-            GeoData value = meta.toGeoData();
+            TraceGeoData value = meta.toGeoData();
             values.add(value);
         }
         this.values = values;
     }
 
     public void initLocations(List<Trace> traces) {
-        for (GeoData value : values) {
-            int traceIndex = value.getTraceNumber();
+        for (TraceGeoData value : values) {
+            int traceIndex = value.getTraceIndex();
             Trace trace = traces.get(traceIndex);
 
             value.setLatLon(trace.getLatLon());
@@ -104,13 +100,11 @@ public class MetaFile {
     public void load(Path path) throws IOException {
         Check.notNull(path);
 
-        List<GeoData> values = new ArrayList<>();
+        List<TraceGeoData> values = new ArrayList<>();
         try (Reader reader = Files.newBufferedReader(path)) {
             CsvToBean<MetaRecord> csvReader = newCsvReader(reader);
 
-            int recordIndex = 0;
             for (MetaRecord metaRecord : csvReader) {
-                metaRecord.setIndex(recordIndex++);
                 values.add(metaRecord.toGeoData());
             }
         }
@@ -123,7 +117,7 @@ public class MetaFile {
         try (Writer writer = Files.newBufferedWriter(path)) {
             StatefulBeanToCsv<MetaRecord> csvWriter = newCsvWriter(writer);
 
-            for (GeoData value : Nulls.toEmpty(values)) {
+            for (TraceGeoData value : Nulls.toEmpty(values)) {
                 MetaRecord metaRecord = MetaRecord.of(value);
                 csvWriter.write(metaRecord);
             }
@@ -135,30 +129,28 @@ public class MetaFile {
     public static class MetaRecord {
 
         @CsvBindByName(column = "Trace")
-        private Integer trace;
+        private Integer traceIndex;
 
         @CsvBindByName(column = "Line")
-        private Integer line;
+        private Integer lineIndex;
 
         @CsvBindByName(column = "Mark")
         private Integer mark;
 
-        private int index;
-
-        public Integer getTrace() {
-            return trace;
+        public Integer getTraceIndex() {
+            return traceIndex;
         }
 
-        public void setTrace(Integer trace) {
-            this.trace = trace;
+        public void setTraceIndex(Integer traceIndex) {
+            this.traceIndex = traceIndex;
         }
 
-        public Integer getLine() {
-            return line;
+        public Integer getLineIndex() {
+            return lineIndex;
         }
 
-        public void setLine(Integer line) {
-            this.line = line;
+        public void setLineIndex(Integer lineIndex) {
+            this.lineIndex = lineIndex;
         }
 
         public Integer getMark() {
@@ -169,46 +161,27 @@ public class MetaFile {
             this.mark = mark;
         }
 
-        public int getIndex() {
-            return index;
-        }
-
-        public void setIndex(int index) {
-            this.index = index;
-        }
-
-        public static MetaRecord of(GeoData value) {
+        public static MetaRecord of(TraceGeoData value) {
             if (value == null) {
                 return null;
             }
             MetaRecord record = new MetaRecord();
-            record.setTrace(value.getTraceNumber());
-            record.setLine(value.getLineIndex().orElse(null));
-            record.setMark(null);
+            record.setTraceIndex(value.getTraceIndex());
+            record.setLineIndex(value.getLineIndex().orElse(null));
+            record.setMark(value.isMarked() ? 1 : 0);
             return record;
         }
 
-        public GeoData toGeoData() {
-            Check.notNull(trace);
+        public TraceGeoData toGeoData() {
+            Check.notNull(traceIndex);
 
-            GeoCoordinates coordinates = new GeoCoordinates(
-                    0,
-                    0,
-                    null,
-                    null,
-                    trace,
-                    null
-            );
-
-            List<SensorValue> sensorValues = List.of(
-                    new SensorValue(GeoData.Semantic.LINE.getName(), null, line)
-            );
-
-            GeoData value = new GeoData(
-                    mark != null && mark != 0,
-                    index,
-                    sensorValues,
-                    coordinates);
+            TraceGeoData value = new TraceGeoData(traceIndex);
+            if (lineIndex != null) {
+                value.setLineIndex(lineIndex);
+            }
+            if (mark != null) {
+                value.setMarked(mark != 0);
+            }
             return value;
         }
     }

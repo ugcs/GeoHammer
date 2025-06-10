@@ -5,9 +5,12 @@ import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.gpr.Model;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
 public abstract class Chart extends ScrollableData implements FileDataContainer {
 
@@ -19,7 +22,27 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
         this.model = model;
     }
 
+    protected boolean confirmUnsavedChanges() {
+        SgyFile file = getFile();
+        if (!file.isUnsaved()) {
+            return true;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Warning");
+        alert.setHeaderText("Current file is not saved. Continue?");
+        alert.getButtonTypes().setAll(
+                ButtonType.CANCEL,
+                ButtonType.OK);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        return result.isPresent() && result.get().equals(ButtonType.OK);
+    }
+
     public abstract SgyFile getFile();
+
+    // reload data values to this chart
+    public abstract void reload();
 
     // trace == null -> clear current selection
     public abstract void selectTrace(@Nullable TraceKey trace, boolean focus);

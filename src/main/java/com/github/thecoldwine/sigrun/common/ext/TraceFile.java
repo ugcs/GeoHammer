@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,7 +23,7 @@ public abstract class TraceFile extends SgyFile {
 
     private MetaFile metaFile;
 
-    protected void loadMeta() throws IOException {
+    protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
         Check.notNull(source);
 
@@ -57,7 +58,7 @@ public abstract class TraceFile extends SgyFile {
     @Override
     public List<GeoData> getGeoData() {
         return metaFile != null
-                ? metaFile.getValues()
+                ? (List<GeoData>)metaFile.getValues()
                 : List.of();
     }
 
@@ -67,7 +68,8 @@ public abstract class TraceFile extends SgyFile {
     }
 
     public List<Trace> getTraces() {
-        return traces;
+        return new TraceList();
+        //return traces;
     }
 
     public void setTraces(List<Trace> traces) {
@@ -135,5 +137,23 @@ public abstract class TraceFile extends SgyFile {
 //		}
 //
 //		return traceIndex;
+    }
+
+    public class TraceList extends AbstractList<Trace> {
+
+        @Override
+        public Trace get(int index) {
+            List<? extends GeoData> values = metaFile.getValues();
+            if (values.get(index) instanceof TraceGeoData value) {
+                return traces.get(value.getTraceIndex());
+            }
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public int size() {
+            List<? extends GeoData> values = metaFile.getValues();
+            return values.size();
+        }
     }
 }

@@ -121,6 +121,8 @@ public class GprFile extends TraceFile {
 		// fill latlon where null
 		Traces.fillMissingLatLon(traces);
 		sampleNormalizer.normalize(traces);
+
+		loadMeta(traces);
 		setTraces(traces);
 
 		updateTraces();
@@ -133,7 +135,6 @@ public class GprFile extends TraceFile {
 			+ "'   load size: " + getTraces().size() 
 			+ "  actual size: " + binFile.getTraces().size());
 
-		loadMeta();
 	}
 
 	private List<Trace> loadTraces(BinFile binFile) {
@@ -220,6 +221,7 @@ public class GprFile extends TraceFile {
 
 	@Override
 	public void save(File file) throws Exception {
+		// TODO GPR_LINES
 		SeismicValuesConverter converter = ConverterFactory
 				.getConverter(binaryHeader.getDataSampleCode());
 
@@ -253,7 +255,6 @@ public class GprFile extends TraceFile {
 		}		
 
 		binFile.save(file);
-
 		saveMeta();
 	}
 

@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.*;
@@ -59,10 +58,45 @@ import javafx.scene.paint.Color;
 @Component
 public class Model implements InitializingBean {
 
-	public static final int TOP_MARGIN = 50;
+	public static final int TOP_MARGIN = 60;
+
 	public static final int CHART_MIN_HEIGHT = 400;
 
+	private static final List<Color> BRIGHT_COLORS = List.of(
+			Color.web("#fbd101"),
+			//Color.web("#fdff0d"),
+			Color.web("#b0903a"),
+			Color.web("#f99e01"),
+			Color.web("#c56a04"),
+			Color.web("#df818e"),
+			Color.web("#ff6455"),
+			Color.web("#d80b01"),
+			Color.web("#b40a13"),
+			Color.web("#690d08"),
+			Color.web("#989d9b"),
+			Color.web("#738768"),
+			Color.web("#6bb7e6"),
+			Color.web("#496a8b"),
+			Color.web("#2b52a3"),
+			Color.web("#272f73"),
+			Color.web("#5b9a95"),
+			Color.web("#add6aa"),
+			Color.web("#2b960a"),
+			Color.web("#0e5f1e"),
+			Color.web("#bfc1c3"),
+			Color.web("#cbac7a"),
+			Color.web("#80674e"),
+			Color.web("#cabf95"),
+			Color.web("#7b7b7b"),
+			Color.web("#354a32"),
+			Color.web("#8c2a07"),
+			Color.web("#545a4c"),
+			Color.web("#242d29"),
+			Color.web("#7b7b7b"));
+
 	private static final Logger log = LoggerFactory.getLogger(Model.class);
+
+	private final Random rand = new Random();
 
 	@Value( "${trace.lookup.threshold}" )
 	private double traceLookupThreshold;
@@ -83,6 +117,8 @@ public class Model implements InitializingBean {
 
 	private final PrefSettings prefSettings;
 
+	private final Map<String, Color> semanticColors = new HashMap<>();
+
 	private final AuxElementEditHandler auxEditHandler;
 
 	private final VBox chartsContainer = new VBox(); // Charts container
@@ -92,6 +128,9 @@ public class Model implements InitializingBean {
 	private final Map<TraceFile, GPRChart> gprCharts = new HashMap<>();
 
 	private final ApplicationEventPublisher eventPublisher;
+
+	@Nullable
+	private Node selectedDataNode;
 
 	@Nullable
 	private SgyFile currentFile;
@@ -140,9 +179,13 @@ public class Model implements InitializingBean {
 		auxElements.clear();
 		getFileManager().getCsvFiles().forEach(sf -> {
             auxElements.addAll(sf.getAuxElements());
-            sf.getAuxElements().forEach(element -> {
-                getCsvChart(sf).get().addFlag((FoundPlace) element);
-            });
+            getCsvChart(sf).ifPresent(chart ->
+					sf.getAuxElements().forEach(element -> {
+						if (element instanceof FoundPlace foundPlace) {
+							chart.addFlag(foundPlace);
+						}
+		            }
+			));
         });
 	}
 
@@ -180,7 +223,6 @@ public class Model implements InitializingBean {
 			this.getMapField().setSceneCenter(
 					new LatLon(latMid.getMid(), lonMid.getMid()));
 
-
 			LatLon lt = new LatLon(latMid.getMin(), lonMid.getMin());
 			LatLon rb = new LatLon(latMid.getMax(), lonMid.getMax());
 
@@ -196,8 +238,6 @@ public class Model implements InitializingBean {
 	}
 
 	public void init() {
-		//
-		//
 		this.updateAuxElements();
 	}
 
@@ -248,7 +288,7 @@ public class Model implements InitializingBean {
 	 * Initialize chart for the given CSV file
 	 * @param csvFile CSV file to initialize chart for
 	 */
-	public void initChart(CsvFile csvFile) {
+	public void initCsvChart(CsvFile csvFile) {
 		if (getCsvChart(csvFile).isPresent()) {
 			return;
 		}
@@ -260,23 +300,20 @@ public class Model implements InitializingBean {
 		});
 	}
 
-	public void updateChart(CsvFile csvFile) {
-		Optional<SensorLineChart> currentChart = getCsvChart(csvFile);
-		if (currentChart.isEmpty()) {
+	public void updateCsvChart(CsvFile csvFile) {
+		Optional<SensorLineChart> csvChart = getCsvChart(csvFile);
+		if (csvChart.isEmpty()) {
 			return;
 		}
 
-		var sensorLineChart = createSensorLineChart(csvFile);
-		Platform.runLater(() -> {
-			selectChart(sensorLineChart);
-		});
+		csvChart.get().reload();
 	}
 
-	public void updateChartFile(CsvFile csvFile, File file) {
-		SensorLineChart chart = csvFiles.remove(csvFile);
+	public void updateCsvChartFile(CsvFile csvFile, File file) {
+		SensorLineChart csvChart = csvFiles.remove(csvFile);
 		csvFile.setFile(file);
-		if (chart != null) {
-			csvFiles.put(csvFile, chart);
+		if (csvChart != null) {
+			csvFiles.put(csvFile, csvChart);
 		}
 	}
 
@@ -359,8 +396,6 @@ public class Model implements InitializingBean {
 		}
     }
 
-	Map<String, Color> semanticColors = new HashMap<>();
-
 	public void loadColorSettings(Map<String, Color> semanticColors) {
 		var colors = prefSettings.getAllSettings().get("colors");
 		if (colors != null)
@@ -373,46 +408,9 @@ public class Model implements InitializingBean {
 		return semanticColors.computeIfAbsent(semantic, k -> generateRandomColor());
 	}
 
-	private List<Color> brightColors = List.of(
-		Color.web("#fbd101"),
-		//Color.web("#fdff0d"),
-		Color.web("#b0903a"),
-		Color.web("#f99e01"),
-		Color.web("#c56a04"),
-		Color.web("#df818e"),
-		Color.web("#ff6455"),
-		Color.web("#d80b01"),
-		Color.web("#b40a13"),
-		Color.web("#690d08"),
-		Color.web("#989d9b"),
-		Color.web("#738768"),
-		Color.web("#6bb7e6"),
-		Color.web("#496a8b"),
-		Color.web("#2b52a3"),
-		Color.web("#272f73"),
-		Color.web("#5b9a95"),
-		Color.web("#add6aa"),
-		Color.web("#2b960a"),
-		Color.web("#0e5f1e"),
-		Color.web("#bfc1c3"),
-		Color.web("#cbac7a"),
-		Color.web("#80674e"),
-		Color.web("#cabf95"),
-		Color.web("#7b7b7b"),
-		Color.web("#354a32"),
-		Color.web("#8c2a07"),
-		Color.web("#545a4c"),
-		Color.web("#242d29"),
-		Color.web("#7b7b7b"));
-
-	Random rand = new Random();
-
-	@Nullable
-	private Node selectedDataNode;
-
 	// Generate random color
     private Color generateRandomColor() {
-        return brightColors.get(rand.nextInt(brightColors.size()));
+        return BRIGHT_COLORS.get(rand.nextInt(BRIGHT_COLORS.size()));
     }
 
 	public List<Trace> getGprTraces() {
@@ -523,7 +521,7 @@ public class Model implements InitializingBean {
 		if (chart != null) {
 			return chart;
 		}
-		chart = new GPRChart(this, auxEditHandler, file);
+		chart = new GPRChart(this, file);
 		gprCharts.put(file, chart);
 		return chart;
 	}

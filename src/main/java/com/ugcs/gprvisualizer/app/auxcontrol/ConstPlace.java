@@ -17,13 +17,13 @@ import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-public class ConstPlace extends BaseObjectImpl {
+public class ConstPlace extends BaseObjectImpl implements Positional {
 
 	static int R_HOR = ShapeHolder.flag2.getBounds().width / 2;
 	static int R_VER = ShapeHolder.flag2.getBounds().height / 2;
 
 	private final LatLon latLon;
-	private final int traceIndex;
+	private int traceIndex;
 
 	public static ConstPlace loadFromJson(JSONObject json, Model model, SgyFile sgyFile) {
 		int traceNum = (int) (long) (Long) json.get("trace");
@@ -33,6 +33,20 @@ public class ConstPlace extends BaseObjectImpl {
 	public ConstPlace(int traceIndex, LatLon latLon) {
 		this.latLon = latLon;
 		this.traceIndex = traceIndex;
+	}
+
+	public LatLon getLatLon() {
+		return latLon;
+	}
+
+	@Override
+	public int getTraceIndex() {
+		return traceIndex;
+	}
+
+	@Override
+	public void offset(int traceOffset) {
+		traceIndex += traceOffset;
 	}
 
 	@Override
@@ -89,9 +103,5 @@ public class ConstPlace extends BaseObjectImpl {
 	private Trace getTrace() {
 		// TODO is it ok to address all GPR traces here?
 		return AppContext.model.getGprTraces().get(traceIndex);
-	}
-
-	public LatLon getLatLon() {
-		return latLon;
 	}
 }

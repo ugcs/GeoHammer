@@ -167,7 +167,7 @@ public class Loader {
 					//when open file by dnd (not after save)
 					model.initField();
 
-					model.initChart(csvFile);
+					model.initCsvChart(csvFile);
 
 					model.updateAuxElements();
 				}

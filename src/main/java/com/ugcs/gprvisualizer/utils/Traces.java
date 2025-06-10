@@ -93,14 +93,16 @@ public final class Traces {
         TraceKey nearest = null;
         double minDistance = Double.MAX_VALUE;
         for (SgyFile file : files) {
-            for (GeoData value : Nulls.toEmpty(file.getGeoData())) {
+            List<GeoData> values = Nulls.toEmpty(file.getGeoData());
+            for (int i = 0; i < values.size(); i++) {
+                GeoData value = values.get(i);
                 LatLon p = value.getLatLon();
                 if (p == null) {
                     continue;
                 }
                 double d = latlon.getDistance(p);
                 if (d < minDistance && d <= distanceLimit) {
-                    nearest = new TraceKey(file, value.getTraceNumber());
+                    nearest = new TraceKey(file, i);
                     minDistance = d;
                 }
             }

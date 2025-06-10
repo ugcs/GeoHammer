@@ -8,9 +8,9 @@ import java.util.List;
 
 public class TraceKey {
 
-    private final SgyFile file;
+    private SgyFile file;
 
-    private final int index;
+    private int index;
 
     public TraceKey(SgyFile file, int index) {
         Check.notNull(file);
@@ -25,6 +25,10 @@ public class TraceKey {
 
     public int getIndex() {
         return index;
+    }
+
+    public void offset(int traceOffset) {
+        index += traceOffset;
     }
 
     public LatLon getLatLon() {

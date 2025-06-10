@@ -6,9 +6,11 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
 
+import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
+import com.ugcs.gprvisualizer.utils.Check;
 import javafx.geometry.Point2D;
 import org.json.simple.JSONObject;
 
@@ -17,7 +19,7 @@ import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-public class ClickPlace extends BaseObjectImpl {
+public class ClickPlace extends BaseObjectImpl implements Positional {
 
 	private final static int R_HOR = ResourceImageHolder.IMG_GPS.getWidth(null) / 2;
 	private final static int R_VER = ResourceImageHolder.IMG_GPS.getHeight(null) / 2;
@@ -36,6 +38,7 @@ public class ClickPlace extends BaseObjectImpl {
 	private final TraceKey trace;
 
 	public ClickPlace(TraceKey trace) {
+		Check.notNull(trace);
 		this.trace = trace;
 	}
 
@@ -43,8 +46,14 @@ public class ClickPlace extends BaseObjectImpl {
 		return trace;
 	}
 
+	@Override
 	public int getTraceIndex() {
 		return trace.getIndex();
+	}
+
+	@Override
+	public void offset(int traceOffset) {
+		trace.offset(traceOffset);
 	}
 
 	@Override

@@ -9,13 +9,11 @@ import java.util.stream.Collectors;
 
 import com.github.thecoldwine.sigrun.common.ext.*;
 import com.google.common.base.Strings;
-import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
-import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nodes;
 import com.ugcs.gprvisualizer.utils.Range;
@@ -88,6 +86,13 @@ public class SensorLineChart extends Chart {
     private Rectangle selectionRect = new Rectangle();
     private Label chartName;
 
+    private Data<Number, Number> selectionMarker = null;
+    private VBox root;
+    private StackPane chartsContainer;
+
+    private ComboBox<SeriesData> comboBox;
+    private ObservableList<SeriesData> seriesList;
+
     //private int scale;
     private CsvFile file;
     //private Node rootNode;
@@ -109,7 +114,7 @@ public class SensorLineChart extends Chart {
         this.settings = settings;
     }
 
-    private EventHandler<MouseEvent> mouseClickHandler = new EventHandler<MouseEvent>() {
+    private EventHandler<MouseEvent> mouseClickHandler = new EventHandler<>() {
         @Override
         public void handle(MouseEvent event) {
         	if (event.getClickCount() == 2) {
@@ -227,9 +232,6 @@ public class SensorLineChart extends Chart {
         return itemBooleanMap.get(item);
     }
 
-    ComboBox<SeriesData> comboBox;
-    ObservableList<SeriesData> seriesList;
-
     public VBox createChartWithMultipleYAxes(CsvFile file, List<PlotData> plotDataList) {
 
         this.file = file;
@@ -245,56 +247,7 @@ public class SensorLineChart extends Chart {
             lastLineChart = createLineChart(plotData, i == 0);
         }
 
-        // ComboBox with checkboxes
-        comboBox = new ComboBox<>(seriesList) {
-            @Override
-            protected Skin<?> createDefaultSkin() {
-                var skin = super.createDefaultSkin();
-                ((ComboBoxListViewSkin) skin).setHideOnClick(false);
-                return skin;
-            }
-        };
-
-        comboBox.setValue(seriesList.isEmpty() ? null : seriesList.get(0));
-
-        comboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            selectLineChart(newVal.series(), true);
-            selectLineChart(oldVal.series(), false);
-            selectFile();
-        });
-
-        comboBox.setValue(seriesList.isEmpty() ? null : getNonEmptySeries(seriesList));
-
-        comboBox.setCellFactory(listView -> {
-            return new CheckBoxListCell<>(this::getItemBooleanProperty) {
-                @Override
-                public void updateItem(SeriesData item, boolean empty) {
-                    super.updateItem(item, empty);
-                    this.setDisable(false); // it is required to fit the default state
-                    if (item != null) {
-                        if (item.series().getData().isEmpty()) {
-                            this.setDisable(true);
-                            this.setStyle("-fx-text-fill: gray;");
-                        } else {
-                            this.setStyle("-fx-text-fill: " + getColorString(item.color()) + ";");
-                        }
-                    } 
-                }
-            };
-        });
-
-        comboBox.setButtonCell(new ListCell<SeriesData>() {
-            @Override
-            protected void updateItem(SeriesData item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(item.series().getName());
-                    setStyle("-fx-text-fill: " + getColorString(item.color()) + ";");
-                }
-            }
-        });
+        initSeriesComboBox();
 
         if (lastLineChart != null) {
             lastLineChart.setMouseTransparent(false);
@@ -308,48 +261,10 @@ public class SensorLineChart extends Chart {
                 log.debug("MouseClicked: " + event.getX() + ", " + event.getY());
             });
 
-            charts.forEach(chart -> {
-                if (GeoData.Semantic.LINE.getName().equals(chart.plotData.semantic)) {
-                    int yValue = -1;
-                    for (int i = 0; i < chart.plotData.data.size(); i++) {
-                        if (chart.plotData.data.get(i) == null) {
-                            continue;
-                        }
-                        var currentYValue = chart.plotData.data.get(i).intValue();
-                        if (yValue != currentYValue) {
-                            yValue = currentYValue;
-                            Data<Number, Number> verticalMarker = new Data<>(i, 0);
-
-                            Line line = new Line();
-                            line.setStroke(chart.plotData.color);
-                            line.setStrokeWidth(0.8);
-
-                            Tooltip tooltip = new Tooltip("Remove Line " + currentYValue);
-                            ImageView imageView = ResourceImageHolder.getImageView("closeFile.png");
-                            Tooltip.install(imageView, tooltip);
-
-                            imageView.setPickOnBounds(true);
-                            imageView.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
-                                imageView.setCursor(Cursor.HAND);
-                            });
-                            imageView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-                                System.out.println(event.getX() + ", " + event.getY() + ", " + currentYValue);
-                                removeLine(currentYValue);
-                            });
-
-                            imageView.setTranslateX(1);
-                            imageView.setTranslateY(1);
-
-                            Pane pane = new Pane(imageView);
-                            lastLineChart.addVerticalValueMarker(verticalMarker, line, null, pane, false);
-                        }
-                    }
-                }
-            });
+            initLineMarkers();
         }
 
-        file.getAuxElements().stream().map(o -> ((FoundPlace) o))
-                .forEach(this::putFoundPlace);
+        initFlags();
 
         ImageView close = ResourceImageHolder.getImageView("close.png");
         close.setPickOnBounds(true);
@@ -404,46 +319,114 @@ public class SensorLineChart extends Chart {
         return root;
     }
 
+    private void initSeriesComboBox() {
+        // ComboBox with checkboxes
+        comboBox = new ComboBox<>(seriesList) {
+            @Override
+            protected Skin<?> createDefaultSkin() {
+                var skin = super.createDefaultSkin();
+                ((ComboBoxListViewSkin) skin).setHideOnClick(false);
+                return skin;
+            }
+        };
+
+        comboBox.setValue(seriesList.isEmpty() ? null : seriesList.getFirst());
+
+        comboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            selectLineChart(newVal.series(), true);
+            selectLineChart(oldVal.series(), false);
+            selectFile();
+        });
+
+        comboBox.setValue(seriesList.isEmpty() ? null : getNonEmptySeries(seriesList));
+
+        comboBox.setCellFactory(listView -> {
+            return new CheckBoxListCell<>(this::getItemBooleanProperty) {
+                @Override
+                public void updateItem(SeriesData item, boolean empty) {
+                    super.updateItem(item, empty);
+                    this.setDisable(false); // it is required to fit the default state
+                    if (item != null) {
+                        if (item.series().getData().isEmpty()) {
+                            this.setDisable(true);
+                            this.setStyle("-fx-text-fill: gray;");
+                        } else {
+                            this.setStyle("-fx-text-fill: " + getColorString(item.color()) + ";");
+                        }
+                    }
+                }
+            };
+        });
+
+        comboBox.setButtonCell(new ListCell<SeriesData>() {
+            @Override
+            protected void updateItem(SeriesData item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.series().getName());
+                    setStyle("-fx-text-fill: " + getColorString(item.color()) + ";");
+                }
+            }
+        });
+    }
+
+    private void initLineMarkers() {
+        Color lineColor = getColor(GeoData.Semantic.LINE.getName());
+        for (Map.Entry<Integer, Range> e : lineRanges.entrySet()) {
+            int lineIndex = e.getKey();
+            Range lineRange = e.getValue();
+
+            Data<Number, Number> verticalMarker = new Data<>(lineRange.getMin().intValue(), 0);
+
+            Line line = new Line();
+            line.setStroke(lineColor);
+            line.setStrokeWidth(0.8);
+
+            Pane icon = createRemoveLineIcon(lineIndex);
+
+            lastLineChart.addVerticalValueMarker(
+                    verticalMarker,
+                    line,
+                    null,
+                    icon,
+                    false);
+        }
+    }
+
+    private void initFlags() {
+        file.getAuxElements().stream().map(o -> ((FoundPlace) o))
+                .forEach(this::putFoundPlace);
+    }
+
+    private Pane createRemoveLineIcon(int lineIndex) {
+        Tooltip tooltip = new Tooltip("Remove Line " + lineIndex);
+        ImageView imageView = ResourceImageHolder.getImageView("closeFile.png");
+        Tooltip.install(imageView, tooltip);
+
+        imageView.setPickOnBounds(true);
+        imageView.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
+            imageView.setCursor(Cursor.HAND);
+        });
+        imageView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+            removeLine(lineIndex);
+        });
+
+        imageView.setTranslateX(1);
+        imageView.setTranslateY(1);
+
+        return new Pane(imageView);
+    }
+
     private void removeLine(int lineIndex) {
         // if target line is last in a file, close the file
         if (lineRanges.size() == 1) {
             close();
+        } else {
+            TraceTransform traceTransform = AppContext.getInstance(TraceTransform.class);
+            traceTransform.removeLine(file, lineIndex);
         }
-
-        CsvFile copy = file.copy();
-        copy.setUnsaved(true);
-
-        List<GeoData> values = new ArrayList<>();
-        List<BaseObject> auxElements = new ArrayList<>();
-
-        for (GeoData value: file.getGeoData()) {
-            Optional<Integer> valueLineIndex = value.getLineIndex();
-            if (!Objects.equals(valueLineIndex.orElse(null), lineIndex)) {
-                GeoData newValue = new GeoData(value);
-                valueLineIndex.ifPresent(i -> {
-                    if (i > lineIndex) {
-                        newValue.setLineIndex(i - 1);
-                    }
-                });
-                file.getAuxElements().stream().filter(FoundPlace.class::isInstance)
-                        .map(o -> ((FoundPlace) o))
-                        .filter(fp -> fp.getTraceIndex() == value.getTraceNumber())
-                        .forEach(fp -> auxElements.add(fp));
-                values.add(newValue);
-            }
-        }
-
-        copy.setGeoData(values);
-        copy.setAuxElements(auxElements);
-
-        model.clearSelectedTrace(this);
-        model.getFileManager().removeFile(file);
-        model.getFileManager().addFile(copy);
-        model.updateChart(copy);
-
-        model.init();
-
-        eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
     }
 
     private LineChartWithMarkers createLineChart(PlotData plotData, boolean primary) {
@@ -517,6 +500,54 @@ public class SensorLineChart extends Chart {
 
         lineChart.setMouseTransparent(true);
         return lineChart;
+    }
+
+    @Override
+    public void reload() {
+        // clear selection
+        clearSelectionMarker();
+        // clear flags and markers
+        clearFlags();
+        if (lastLineChart != null) {
+            lastLineChart.clearVerticalValueMarkers();
+        }
+
+        lineRanges = file.getLineRanges();
+        Map<String, LineChartWithMarkers> lineCharts = getCharts();
+
+        List<PlotData> plotDataList = generatePlotData(file);
+        for (PlotData plotData : plotDataList) {
+            LineChartWithMarkers lineChart = lineCharts.get(plotData.semantic());
+            if (lineChart == null) {
+                continue;
+            }
+
+            Range valueRange = getValueRange(plotData.data, plotData.semantic);
+
+            NumberAxis yAxis = (NumberAxis) lineChart.getYAxis();
+            yAxis.setTickUnit(valueRange.getWidth() / 10);
+            yAxis.setPrefWidth(70);
+
+            lineChart.outZoomRect = new ZoomRect(
+                    0, Math.max(0, plotData.data.size() - 1),
+                    valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
+            lineChart.plotData = plotData;
+            lineChart.filteredData = null;
+            // update zoom
+            lineChart.setZoomRect(lineChart.zoomRect);
+        }
+
+        // put new line markers and reposition flags
+        initLineMarkers();
+        initFlags();
+
+        // restore selection
+        TraceKey selectedTrace = model.getSelectedTrace(this);
+        if (selectedTrace != null) {
+            selectTrace(selectedTrace, false);
+        }
+
+        Platform.runLater(this::updateChartData);
     }
 
     public void updateChartName() {
@@ -722,8 +753,8 @@ public class SensorLineChart extends Chart {
     @Override
     public void zoomToCurrentLine() {
         int lineIndex;
-        if (currentVerticalMarker != null) {
-            lineIndex = getValueLineIndex(currentVerticalMarker.getXValue().intValue());
+        if (selectionMarker != null) {
+            lineIndex = getValueLineIndex(selectionMarker.getXValue().intValue());
         } else {
             lineIndex = getViewLineIndex();
         }
@@ -803,23 +834,11 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    private boolean confirmUnsavedChanges() {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Warning");
-        alert.setHeaderText("Current file is not saved. Continue?");
-        alert.getButtonTypes().setAll(
-                ButtonType.CANCEL,
-                ButtonType.OK);
-
-        Optional<ButtonType> result = alert.showAndWait();
-        return result.isPresent() && result.get().equals(ButtonType.OK);
-    }
-
     /**
      * Close chart
      */
     private void close() {
-        if (file.isUnsaved() && !confirmUnsavedChanges()) {
+        if (!confirmUnsavedChanges()) {
             return;
         }
         close(true);
@@ -925,17 +944,13 @@ public class SensorLineChart extends Chart {
         return seriesList.stream().filter(s -> !s.series().getData().isEmpty()).findFirst().orElse(null);
     }
 
-    private Data<Number, Number> currentVerticalMarker = null;
-    private VBox root;
-    private StackPane chartsContainer;
-
     /** 
      * Remove vertical marker 
      */
-    public void removeVerticalMarker() {
-        if (lastLineChart != null && currentVerticalMarker != null) {
-            lastLineChart.removeVerticalValueMarker(currentVerticalMarker);
-            currentVerticalMarker = null;
+    public void clearSelectionMarker() {
+        if (lastLineChart != null && selectionMarker != null) {
+            lastLineChart.removeVerticalValueMarker(selectionMarker);
+            selectionMarker = null;
         }
     }
 
@@ -943,13 +958,13 @@ public class SensorLineChart extends Chart {
      * Add vertical marker
      * @param x
      */
-    public void putVerticalMarker(int x) {
+    public void putSelectionMarker(int x) {
         if (lastLineChart != null) {
-            if (currentVerticalMarker != null) {
-                lastLineChart.removeVerticalValueMarker(currentVerticalMarker);
+            if (selectionMarker != null) {
+                lastLineChart.removeVerticalValueMarker(selectionMarker);
             }
-            currentVerticalMarker = new Data<>(x, 0);
-            lastLineChart.addVerticalValueMarker(currentVerticalMarker);
+            selectionMarker = new Data<>(x, 0);
+            lastLineChart.addVerticalValueMarker(selectionMarker);
         }
     }
 
@@ -1321,7 +1336,6 @@ public class SensorLineChart extends Chart {
             markerBox.setAlignment(Pos.TOP_CENTER);
             markerBox.setMouseTransparent(mouseTransparent);
 
-            // Создаем контейнер для изображений/флагов
             VBox imageContainer = new VBox();
             imageContainer.setAlignment(Pos.TOP_CENTER);
 
@@ -1333,10 +1347,8 @@ public class SensorLineChart extends Chart {
                 imageContainer.getChildren().add(flag);
             }
 
-            // Добавляем контейнер с изображениями
             markerBox.getChildren().add(imageContainer);
 
-            // Добавляем линию
             markerBox.getChildren().add(line);
 
             marker.setNode(markerBox);
@@ -1359,6 +1371,11 @@ public class SensorLineChart extends Chart {
             verticalMarkers.remove(marker);
         }
 
+        private void clearVerticalValueMarkers() {
+            for (Data<Number, Number> marker : new ArrayList<>(verticalMarkers)) {
+                removeVerticalValueMarker(marker);
+            }
+        }
 
         @Override
         protected void layoutPlotChildren() {
@@ -1377,13 +1394,11 @@ public class SensorLineChart extends Chart {
                 VBox markerBox = (VBox) verticalMarker.getNode();
                 markerBox.setLayoutX(getXAxis().getDisplayPosition(verticalMarker.getXValue()));
 
-                // Получаем контейнер с изображениями (первый элемент)
                 VBox imageContainer = (VBox) markerBox.getChildren().get(0);
                 double imageHeight = imageContainer.getChildren().stream()
                     .mapToDouble(node -> node.getBoundsInLocal().getHeight())
                     .sum();
 
-                // Получаем линию (второй элемент)
                 Line line = (Line) markerBox.getChildren().get(1);
                 line.setStartY(imageHeight);
                 line.setEndY(getBoundsInLocal().getHeight());
@@ -1697,7 +1712,7 @@ public class SensorLineChart extends Chart {
     public void selectTrace(TraceKey trace, boolean focus) {
         if (trace == null) {
             // clear selection
-            removeVerticalMarker();
+            clearSelectionMarker();
             return;
         }
 
@@ -1731,7 +1746,7 @@ public class SensorLineChart extends Chart {
                 chart.updateLineChartData();
             }
         }
-        putVerticalMarker(selectedX);
+        putSelectionMarker(selectedX);
         updateProfileScroll();
     }
 
@@ -1770,7 +1785,7 @@ public class SensorLineChart extends Chart {
     public void addFlag(FoundPlace flag) {
         if (!foundPlaces.containsKey(flag)) {
             putFoundPlace(flag);
-            removeVerticalMarker();
+            clearSelectionMarker();
             if (flag.isSelected()) {
                 selectFlag(flag);
             }

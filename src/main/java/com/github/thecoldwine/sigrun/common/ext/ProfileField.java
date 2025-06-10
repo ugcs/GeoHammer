@@ -82,13 +82,30 @@ public class ProfileField {
 
 		int leftMargin = 30;
 		int ruleWidth = 90;
+		int infoWidth = 50;
 
-		topRuleRect = new Rectangle(leftMargin, 0, viewDimension.width - leftMargin - ruleWidth, Model.TOP_MARGIN - 1);
-		infoRect = new Rectangle(leftMargin + topRuleRect.width, 0, Model.TOP_MARGIN - 1, Model.TOP_MARGIN - 1);
-		leftRuleRect = new Rectangle(leftMargin + topRuleRect.width, Model.TOP_MARGIN, ruleWidth, viewDimension.height - leftMargin);
-		mainRectRect = new Rectangle(leftMargin, Model.TOP_MARGIN, viewDimension.width - leftMargin - ruleWidth, viewDimension.height - leftMargin);
+		topRuleRect = new Rectangle(
+				leftMargin,
+				0,
+				viewDimension.width - leftMargin - ruleWidth,
+				Model.TOP_MARGIN - 1);
+		infoRect = new Rectangle(
+				leftMargin + topRuleRect.width,
+				0,
+				infoWidth,
+				Model.TOP_MARGIN - 1);
+		leftRuleRect = new Rectangle(
+				leftMargin + topRuleRect.width,
+				Model.TOP_MARGIN,
+				ruleWidth,
+				viewDimension.height - leftMargin);
+		mainRectRect = new Rectangle(
+				leftMargin,
+				Model.TOP_MARGIN,
+				viewDimension.width - leftMargin - ruleWidth,
+				viewDimension.height - leftMargin);
 
-		visibleStart = -mainRectRect.x -mainRectRect.width / 2;
+		visibleStart = -mainRectRect.x - mainRectRect.width / 2;
 
 		initClipRects();
  	}

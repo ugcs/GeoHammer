@@ -119,7 +119,7 @@ public class Saver implements ToolProducer, InitializingBean {
 		File oldFile = csvFile.getFile();
 		File newFile = saveTo(csvFile, saveToFile);
 		if (newFile != null) {
-			model.updateChartFile(csvFile, newFile);
+			model.updateCsvChartFile(csvFile, newFile);
 			csvFile.setUnsaved(false);
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 			model.publishEvent(new FileRenameEvent(this, csvFile, oldFile));
@@ -288,13 +288,11 @@ public class Saver implements ToolProducer, InitializingBean {
 	}
 	
 	private File save(SgyFile sgyFile) {
-
 		File oldFile = null;
 		
 		try {
 			oldFile = sgyFile.getFile();
 			File nfolder = oldFile.getParentFile();
-
 
 			String suffix = oldFile.getName().substring(
 					oldFile.getName().lastIndexOf("."));

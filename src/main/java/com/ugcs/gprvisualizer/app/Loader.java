@@ -282,7 +282,8 @@ public class Loader {
 	private boolean isCsvFile(final List<File> files) {
 		return !files.isEmpty() 
 				&& (files.get(0).getName().toLowerCase().endsWith(".csv")
-				|| files.get(0).getName().toLowerCase().endsWith(".asc"));
+				|| files.get(0).getName().toLowerCase().endsWith(".asc")
+				|| files.get(0).getName().toLowerCase().endsWith(".txt"));
 	}
 
 	private boolean isKmlFile(final List<File> files) {

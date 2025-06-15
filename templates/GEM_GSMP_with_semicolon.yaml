@@ -8,14 +8,21 @@
   match-regex: >-
     .*time;.*nT;.*lat;lon;.*alt;.*laser;.*mm/dd/yyyy.*
   file-format:
-  # Applies to CSV type. 'true' if file has headers, otherwise false
+    # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true
     # The symbol which used to make a comment
-    comment-prefix: '/'
+    comment-prefix: '#'
     # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ';'
+  # First Lines which do not contain any data and have to be skipped
+  skip-lines-to:
+    # Skip lines until the first matching is found
+    match-regex: >-
+      .*time;.*nT;.*lat;lon;.*alt;.*laser;.*mm/dd/yyyy.*
+    # Skip matched line or not
+    skip-matched-line: false
   # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
@@ -25,7 +32,7 @@
     altitude:
       header: alt
     time:
-      header: time
+      header: /time
       format: 'HH:mm:ss.ff'
     date:
       header: mm/dd/yyyy

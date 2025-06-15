@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.scheduling.annotation.Async;
@@ -46,6 +47,9 @@ public class FileTemplates implements InitializingBean {
     private Yaml yaml;
 
     private Path templatesPath;
+
+    @Value( "${app.filetemplates.linethreshold:50}")
+    private int lineThreshold;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -185,7 +189,7 @@ public class FileTemplates implements InitializingBean {
 
         String firstNonEmptyLines = "";
         try (Stream<String> lines = Files.lines(Paths.get(fileName))) {
-            List<String> firstTenLines = lines.limit(10).collect(Collectors.toList());
+            List<String> firstTenLines = lines.limit(lineThreshold).collect(Collectors.toList());
             firstNonEmptyLines = String.join(System.lineSeparator(), firstTenLines);
             logger.debug(firstNonEmptyLines);
         } catch (IOException e) {

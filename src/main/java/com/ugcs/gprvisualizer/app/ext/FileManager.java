@@ -20,7 +20,6 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.PositionFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.dzt.DztFile;
@@ -67,7 +66,6 @@ public class FileManager {
 
 	public void clear() {
 		//levelCalculated = false;
-		clearTraces();
 		files.clear(); // = new ArrayList<>();
 		topFolder = null;
 	}
@@ -113,25 +111,6 @@ public class FileManager {
 		}
 	}
 
-	private List<Trace> gprTraces = new ArrayList<>();
-
-	public List<Trace> getGprTraces() {
-		if (gprTraces.isEmpty()) {
-			for (SgyFile file : files) {
-				if (file instanceof TraceFile traceFile) {
-					for (Trace trace : traceFile.getTraces()) {
-						gprTraces.add(trace);
-					}
-				}
-			}
-		}
-		return gprTraces;
-	}
-
-	public void clearTraces() {
-		gprTraces.clear();
-	}
-
 	public boolean isUnsavedExists() {
 		if (isActive()) {
 			for (SgyFile sgyFile : files) {
@@ -150,16 +129,10 @@ public class FileManager {
 
 	public void addFile(SgyFile sgyFile) {
 		files.add(sgyFile);
-		if (sgyFile instanceof TraceFile) {
-			gprTraces.clear();
-		}
 	}
 
 	public void removeFile(SgyFile sgyFile) {
-		boolean removed = files.remove(sgyFile);
-		if (removed && sgyFile instanceof TraceFile) {
-			gprTraces.clear();
-		}
+		files.remove(sgyFile);
 	}
 
 	public List<TraceFile> getGprFiles() {

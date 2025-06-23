@@ -38,16 +38,16 @@ public class ConstPointsFile {
 			Trace nearestTrace = null;
 			double nearestTraceDistance = -1;
 			
-			for(Trace trace : file.getTraces()) {
-				double istance = trace.getLatLon().getDistance(latlon);
+			for (Trace trace : file.getTraces()) {
+				double distance = trace.getLatLon().getDistance(latlon);
 				
-				if(nearestTrace == null || istance < nearestTraceDistance) {
-					nearestTraceDistance = istance;
+				if (nearestTrace == null || distance < nearestTraceDistance) {
+					nearestTraceDistance = distance;
 					nearestTrace = trace;
 				}
 			}
 			
-			if(nearestTraceDistance < 1.2) {
+			if (nearestTrace != null && nearestTraceDistance < 1.2) {
 				file.getAuxElements().add(new ConstPlace(nearestTrace.getIndex(), latlon));
 			}
 		}

@@ -8,14 +8,10 @@ import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import javafx.geometry.Point2D;
-import org.json.simple.JSONObject;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.AppContext;
-import com.ugcs.gprvisualizer.gpr.Model;
 
 public class ConstPlace extends BaseObjectImpl implements Positional {
 
@@ -24,11 +20,6 @@ public class ConstPlace extends BaseObjectImpl implements Positional {
 
 	private final LatLon latLon;
 	private int traceIndex;
-
-	public static ConstPlace loadFromJson(JSONObject json, Model model, SgyFile sgyFile) {
-		int traceNum = (int) (long) (Long) json.get("trace");
-		return new ConstPlace(traceNum, null);
-	}
 	
 	public ConstPlace(int traceIndex, LatLon latLon) {
 		this.latLon = latLon;
@@ -52,7 +43,7 @@ public class ConstPlace extends BaseObjectImpl implements Positional {
 	@Override
 	public boolean mousePressHandle(Point2D localPoint, ScrollableData profField) {
 		if (isPointInside(localPoint, profField)) {
-			AppContext.model.getMapField().setSceneCenter(getTrace().getLatLon());
+			AppContext.model.getMapField().setSceneCenter(latLon);
 			AppContext.model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 			return true;
 		}
@@ -66,7 +57,6 @@ public class ConstPlace extends BaseObjectImpl implements Positional {
 
 	@Override
 	public void drawOnMap(Graphics2D g2, MapField mapField) {
-
 		Rectangle rect = getRect(mapField);
 
 		g2.setColor(Color.ORANGE);
@@ -79,29 +69,11 @@ public class ConstPlace extends BaseObjectImpl implements Positional {
 		g2.draw(ShapeHolder.flag3);
 		g2.translate(-rect.x, -(rect.y + rect.height));
 	}
-
-	/*public Rectangle getRect(ProfileField profField) {
-
-		if (offset == null) {
-			return null;//new Rectangle(0,0,1,1);
-		}
-		int x = profField.traceToScreen(offset.localToGlobal(traceInFile));
-				
-		Rectangle rect = new Rectangle(x - R_HOR, R_VER, R_HOR * 2, R_VER * 2);
-		return rect;
-	}*/
 	
 	public Rectangle getRect(MapField mapField) {
-		
 		Point2D p =  mapField.latLonToScreen(latLon);
-
 		Rectangle rect = new Rectangle((int) p.getX(), (int) p.getY() - R_VER * 2,
 			R_HOR * 2, R_VER * 2);
 		return rect;
-	}
-
-	private Trace getTrace() {
-		// TODO is it ok to address all GPR traces here?
-		return AppContext.model.getGprTraces().get(traceIndex);
 	}
 }

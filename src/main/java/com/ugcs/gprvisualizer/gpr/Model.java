@@ -413,10 +413,6 @@ public class Model implements InitializingBean {
         return BRIGHT_COLORS.get(rand.nextInt(BRIGHT_COLORS.size()));
     }
 
-	public List<Trace> getGprTraces() {
-		return getFileManager().getGprTraces();
-	}
-
 	private void setSelectedData(Node node) {
 		this.selectedDataNode = node;
 	}

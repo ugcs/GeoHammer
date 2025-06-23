@@ -6,6 +6,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.quality.AltitudeCheck;
 import com.ugcs.gprvisualizer.app.quality.DataCheck;
 import com.ugcs.gprvisualizer.app.quality.LineDistanceCheck;
@@ -1013,7 +1014,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
-	private Tab prepareGprTab(Tab gprTab, SgyFile file) {
+	private Tab prepareGprTab(Tab gprTab, TraceFile file) {
 
 		// background
 		StackPane backgroundOptions = createGprBackgroundOptions(file);
@@ -1047,7 +1048,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return gprTab;
 	}
 
-	private StackPane createGprBackgroundOptions(SgyFile file) {
+	private StackPane createGprBackgroundOptions(TraceFile file) {
 		VBox options = new VBox(DEFAULT_SPACING);
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
@@ -1062,7 +1063,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return new StackPane(options);
 	}
 
-	private StackPane createGprGriddingOptions(SgyFile file) {
+	private StackPane createGprGriddingOptions(TraceFile file) {
 		VBox options = new VBox(DEFAULT_SPACING);
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
@@ -1075,7 +1076,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return new StackPane(options);
 	}
 
-	private StackPane createGprElevationOptions(SgyFile file) {
+	private StackPane createGprElevationOptions(TraceFile file) {
 		VBox options = new VBox(DEFAULT_SPACING);
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
@@ -1151,9 +1152,11 @@ public class OptionPane extends VBox implements InitializingBean {
 			setSavedFilterInputValue(Filter.quality_line_distance_tolerance);
 			setSavedFilterInputValue(Filter.quality_max_altitude);
 			setSavedFilterInputValue(Filter.quality_altitude_tolerance);
-        } else {
+        }
+
+		if (selectedFile instanceof TraceFile traceFile) {
             showTab(gprTab);
-            prepareGprTab(gprTab, selectedFile);
+            prepareGprTab(gprTab, traceFile);
         }
     }
 

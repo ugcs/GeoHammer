@@ -231,8 +231,7 @@ public class LevelFilter implements ToolProducer {
 
 	protected boolean isGroundProfileExists(TraceFile file) {
 		GPRChart gprChart = model.getGprChart(file);
-		return gprChart != null
-				&& gprChart.getField().getFile().getGroundProfile() != null;
+		return gprChart != null && file.getGroundProfile() != null;
 	}
 	
 	private void clearForNewFile(TraceFile file) {

@@ -67,14 +67,11 @@ public class FoundPlace extends BaseObjectWithModel implements Positional {
 	public boolean mousePressHandle(Point2D point, MapField field) {
 		Rectangle r = getRect(field);
 		if (r.contains(point.getX(), point.getY())) {
-			ScrollableData scrollable;
-			if (trace.getFile() instanceof CsvFile csvFile) {
-				scrollable = model.getCsvChart(csvFile).get();
-			} else {
-				scrollable = model.getGprChart(trace.getFile());
-			}
+			ScrollableData scrollable = model.getFileChart(trace.getFile());
 			int traceIndex = getTraceIndex();
-			scrollable.setMiddleTrace(traceIndex);
+			if (scrollable != null) {
+				scrollable.setMiddleTrace(traceIndex);
+			}
 
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 

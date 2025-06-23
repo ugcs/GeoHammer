@@ -507,7 +507,7 @@ public class Model implements InitializingBean {
 	}
 
 	@Nullable
-	public GPRChart getGprChart(SgyFile sgyFile) {
+	public GPRChart getGprChart(TraceFile sgyFile) {
 		return gprCharts.get(sgyFile);
 	}
 

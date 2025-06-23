@@ -18,6 +18,7 @@ import javafx.geometry.Point2D;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.gpr.Model;
+import org.jspecify.annotations.Nullable;
 
 public class FoundPlace extends BaseObjectWithModel implements Positional {
 
@@ -107,11 +108,14 @@ public class FoundPlace extends BaseObjectWithModel implements Positional {
 	@Override
 	public boolean mouseMoveHandle(Point2D point, ScrollableData profField) {
 		if (trace.getFile() instanceof TraceFile traceFile) {
-			TraceSample ts = profField.screenToTraceSample(point);
-			List<Trace> traces = traceFile.getTraces();
-			int traceIndex = Math.clamp(ts.getTrace(), 0, traces.size() - 1);
-			trace = new TraceKey(trace.getFile(), traceIndex);
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+			GPRChart chart = model.getGprChart(traceFile);
+			if (chart != null) {
+				TraceSample sample = profField.screenToTraceSample(point);
+				List<Trace> traces = traceFile.getTraces();
+				int traceIndex = Math.clamp(sample.getTrace(), 0, traces.size() - 1);
+				trace = new TraceKey(traceFile, traceIndex);
+				model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+			}
 		}
 		coordinatesToStatus();
 		return true;

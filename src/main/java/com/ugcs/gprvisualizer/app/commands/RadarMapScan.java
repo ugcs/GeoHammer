@@ -22,7 +22,7 @@ public class RadarMapScan implements Command {
 	public void execute(TraceFile file, ProgressListener listener) {
 
 		if (file.amplScan == null) {
-			file.amplScan = new ScanProfile(file.size());
+			file.amplScan = new ScanProfile(file.numTraces());
 		}
 
 		if (model.getGprChart(file) instanceof GPRChart gprChart) {
@@ -33,7 +33,7 @@ public class RadarMapScan implements Command {
 			int finish = Math.clamp(field.getProfileSettings().getLayer() + field.getProfileSettings().hpage,
 					0, field.getMaxHeightInSamples());
 
-			for (int i = 0; i < file.size(); i++) {
+			for (int i = 0; i < file.numTraces(); i++) {
 				Trace trace = file.getTraces().get(i);
 				double alpha = calcAlpha(trace.getNormValues(), trace.edge, start, finish, field.getProfileSettings(), scaleBuilder.build(file));
 				file.amplScan.intensity[i] = alpha;

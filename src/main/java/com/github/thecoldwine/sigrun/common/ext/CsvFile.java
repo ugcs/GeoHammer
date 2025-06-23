@@ -48,7 +48,7 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public int size() {
+    public int numTraces() {
         return geoData.size();
     }
 

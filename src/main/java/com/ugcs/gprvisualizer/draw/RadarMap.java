@@ -2,7 +2,6 @@ package com.ugcs.gprvisualizer.draw;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
@@ -295,7 +294,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		int centerX = da.getWidth() / 2;
 		int centerY = da.getHeight() / 2;
 		
-		for (int i = 0; i < file.size(); i++) {
+		for (int i = 0; i < file.numTraces(); i++) {
 			Trace trace = traces.get(i);
 			
 			double alpha = profile.intensity[i];

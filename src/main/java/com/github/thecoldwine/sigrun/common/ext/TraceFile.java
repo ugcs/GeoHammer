@@ -63,7 +63,7 @@ public abstract class TraceFile extends SgyFile {
     }
 
     @Override
-    public int size() {
+    public int numTraces() {
         return getTraces().size();
     }
 
@@ -125,7 +125,7 @@ public abstract class TraceFile extends SgyFile {
     public int getRightDistTraceIndex(int traceIndex, double distCm) {
 
         return
-                Math.min(size()-1,
+                Math.min(numTraces()-1,
                         traceIndex + (int) (distCm / getTraces().get(traceIndex).getPrevDist()));
 
 //		double sumDist = 0;

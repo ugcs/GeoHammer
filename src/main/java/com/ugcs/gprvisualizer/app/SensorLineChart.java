@@ -124,7 +124,7 @@ public class SensorLineChart extends Chart {
                     Number xValue = xAxis.getValueForDisplay(point.getX());
 
                     int traceIndex = xValue.intValue();
-                    if (traceIndex >= 0 && traceIndex < file.size()) {
+                    if (traceIndex >= 0 && traceIndex < file.numTraces()) {
                         TraceKey trace = new TraceKey(file, traceIndex);
                         model.selectTrace(trace);
                         model.focusMapOnTrace(trace);

@@ -54,7 +54,7 @@ public class RulerTool extends BaseObjectImpl {
 			@Override
 			public void signal(@Nullable Object obj) {
 				anch1.setTrace(
-					Math.clamp(anch1.getTrace(), 0, file.size() - 1));
+					Math.clamp(anch1.getTrace(), 0, file.numTraces() - 1));
 				anch1.setSample(
 						Math.clamp(anch1.getSample(),
 								0, file.getMaxSamples()));
@@ -68,7 +68,7 @@ public class RulerTool extends BaseObjectImpl {
 			public void signal(@Nullable Object obj) {
 				anch2.setTrace(
 						Math.clamp(anch2.getTrace(),
-								0, file.size() - 1));
+								0, file.numTraces() - 1));
 				anch2.setSample(
 						Math.clamp(anch2.getSample(),
 								0, file.getMaxSamples()));
@@ -178,7 +178,7 @@ public class RulerTool extends BaseObjectImpl {
 		}
 
 		int s = Math.max(0, Math.min(tr1, tr2));
-		int f = Math.min(file.size() - 1, Math.max(tr1, tr2));
+		int f = Math.min(file.numTraces() - 1, Math.max(tr1, tr2));
 		
 		List<Trace> traces = file.getTraces();
 		

@@ -78,7 +78,7 @@ public class SpreadCoordinates implements Command {
 				zeroCount++;				
 			}
 		}
-		return zeroCount > file.size() / 2;
+		return zeroCount > file.numTraces() / 2;
 	}
 
 	public static boolean isSpreadingNecessary(List<TraceFile> files) {

@@ -49,17 +49,13 @@ public abstract class SgyFile {
 	@Nullable
 	private PositionFile positionFile;
 
-	// ----------------------------------
-
 	public abstract List<GeoData> getGeoData();
 
 	public SortedMap<Integer, Range> getLineRanges() {
 		return LineSchema.getLineRanges(getGeoData());
 	}
 
-	// ----------------------------------
-
-	public abstract int size();
+	public abstract int numTraces();
 
 	public abstract void open(File file) throws Exception;
 	

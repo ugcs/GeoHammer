@@ -41,7 +41,6 @@ import com.github.thecoldwine.sigrun.common.ext.FileChangeType;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.ext.FileManager;
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 
@@ -706,7 +705,7 @@ public class Model implements InitializingBean {
 		SgyFile traceFile = trace.getFile();
 		int traceIndex = trace.getIndex();
 
-		if (traceIndex < 0 || traceIndex >= traceFile.size()) {
+		if (traceIndex < 0 || traceIndex >= traceFile.numTraces()) {
 			log.warn("Flag outside of the current file bounds");
 			return null;
 		}

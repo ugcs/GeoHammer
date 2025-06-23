@@ -27,11 +27,11 @@ public class LevelManualSetter implements Command {
 	@Override
 	public void execute(TraceFile file, ProgressListener listener) {
 		
-		HorizontalProfile levelProfile = new HorizontalProfile(file.size());
+		HorizontalProfile levelProfile = new HorizontalProfile(file.numTraces());
 		
 		int level = model.getGprChart(file).getField().getProfileSettings().getLayer();
 		
-		for (int i = 0; i < file.size(); i++) {
+		for (int i = 0; i < file.numTraces(); i++) {
 			levelProfile.deep[i] = level;
 		}
 		

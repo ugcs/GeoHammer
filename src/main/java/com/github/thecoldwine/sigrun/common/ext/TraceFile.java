@@ -80,7 +80,7 @@ public abstract class TraceFile extends SgyFile {
     public void updateTraces() {
         for (int i = 0; i < traces.size(); i++) {
             Trace trace = traces.get(i);
-            trace.setIndexInFile(i);
+            trace.setIndex(i);
         }
     }
 
@@ -96,7 +96,7 @@ public abstract class TraceFile extends SgyFile {
     public void copyMarkedTracesToAuxElements() {
         for (Trace trace: getTraces()) {
             if (trace.isMarked()) {
-                TraceKey traceKey = new TraceKey(this, trace.getIndexInFile());
+                TraceKey traceKey = new TraceKey(this, trace.getIndex());
                 getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
             }
         }

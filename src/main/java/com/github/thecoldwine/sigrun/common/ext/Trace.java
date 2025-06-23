@@ -27,7 +27,7 @@ public class Trace {
     public int maxindex;
     public int verticalOffset;
     
-    private int indexInFile;
+    private int index;
 
     public byte[] good;
 
@@ -110,11 +110,11 @@ public class Trace {
 		this.marked = marked;
 	}
 
-    public int getIndexInFile() {
-        return indexInFile;
+    public int getIndex() {
+        return index;
     }
 
-    public void setIndexInFile(int indexInFile) {
-        this.indexInFile = indexInFile;
+    public void setIndex(int index) {
+        this.index = index;
     }
 }

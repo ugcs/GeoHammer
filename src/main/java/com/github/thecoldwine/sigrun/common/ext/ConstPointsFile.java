@@ -48,7 +48,7 @@ public class ConstPointsFile {
 			}
 			
 			if(nearestTraceDistance < 1.2) {
-				file.getAuxElements().add(new ConstPlace(nearestTrace.getIndexInFile(), latlon));
+				file.getAuxElements().add(new ConstPlace(nearestTrace.getIndex(), latlon));
 			}
 		}
 	}

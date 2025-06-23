@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import com.ugcs.gprvisualizer.app.ScrollableData;
@@ -23,7 +22,7 @@ public class AuxElement {
 	
 	public void drawOnCut(Graphics2D g2, ScrollableData field) {
 		
-		TraceSample ts = new TraceSample(traceStart.getIndexInFile(),
+		TraceSample ts = new TraceSample(traceStart.getIndex(),
 				sampleStart != null ? sampleStart : 0);
 		Point2D scr = field.traceSampleToScreen(ts);
 		

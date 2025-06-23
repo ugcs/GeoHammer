@@ -286,7 +286,7 @@ public class DztFile extends TraceFile {
 			ByteBuffer buffer = ByteBuffer.allocate(getTraceBufferSize())
 					.order(ByteOrder.LITTLE_ENDIAN);
 			
-			valueMediator.put(buffer, trace.getIndexInFile());
+			valueMediator.put(buffer, trace.getIndex());
 			
 			for (int i = 0; i < header.rh_nsamp - 1; i++) {
 				valueMediator.put(buffer, (int) (trace.getNormValues()[i] + avg));

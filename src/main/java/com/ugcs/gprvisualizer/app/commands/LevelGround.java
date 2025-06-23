@@ -3,7 +3,6 @@ package com.ugcs.gprvisualizer.app.commands;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
@@ -35,7 +34,7 @@ public class LevelGround implements Command {
 
 		for (Trace trace: file.getTraces()) {
 
-			int deep = hp.deep[trace.getIndexInFile()];
+			int deep = hp.deep[trace.getIndex()];
 
 			float[] values = trace.getNormValues();
 			float[] newValues = new float[values.length];
@@ -72,8 +71,8 @@ public class LevelGround implements Command {
 		sgyFile.setFile(sourceFile.getFile());
 		
 		if (!traces.isEmpty()) {
-			int begin = traces.get(0).getIndexInFile();
-			int end = traces.get(traces.size() - 1).getIndexInFile();
+			int begin = traces.get(0).getIndex();
+			int end = traces.get(traces.size() - 1).getIndex();
 			sgyFile.setAuxElements(TraceCutter.copyAuxObjects(sourceFile, sgyFile, begin, end));
 			/// TODO:
 			if (sgyFile instanceof DztFile) {

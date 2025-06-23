@@ -678,10 +678,7 @@ public class Model implements InitializingBean {
 		if (selectedTrace == null) {
 			return; // no trace selected in a chart
 		}
-		FoundPlace flag = toFlag(selectedTrace);
-		if (flag == null) {
-			return;
-		}
+		FoundPlace flag = new FoundPlace(selectedTrace, this);
 		flag.setSelected(true);
 
 		// clear current selection in file
@@ -696,21 +693,6 @@ public class Model implements InitializingBean {
 
 		updateAuxElements();
 		publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-	}
-
-	@Nullable
-	private FoundPlace toFlag(TraceKey trace) {
-		Check.notNull(trace);
-
-		SgyFile traceFile = trace.getFile();
-		int traceIndex = trace.getIndex();
-
-		if (traceIndex < 0 || traceIndex >= traceFile.numTraces()) {
-			log.warn("Flag outside of the current file bounds");
-			return null;
-		}
-
-		return new FoundPlace(trace, this);
 	}
 
 	public void removeSelectedFlag(Chart chart) {

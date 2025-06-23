@@ -24,8 +24,6 @@ public class ClickPlace extends BaseObjectImpl implements Positional {
 	private final static int R_HOR = ResourceImageHolder.IMG_GPS.getWidth(null) / 2;
 	private final static int R_VER = ResourceImageHolder.IMG_GPS.getHeight(null) / 2;
 
-	public static Stroke SELECTED_STROKE = new BasicStroke(2.0f);
-	
 	private static final float[] dash1 = {7.0f, 2.0f};
 	static Stroke VERTICAL_STROKE = 	
 			new BasicStroke(1.0f,
@@ -33,8 +31,6 @@ public class ClickPlace extends BaseObjectImpl implements Positional {
                 BasicStroke.JOIN_MITER,
                 10.0f, dash1, 0.0f);
 
-	private Color flagColor = Color.getHSBColor((float) Math.random(), 1, 1f); 
-	
 	private final TraceKey trace;
 
 	public ClickPlace(TraceKey trace) {
@@ -72,7 +68,7 @@ public class ClickPlace extends BaseObjectImpl implements Positional {
 		
 		Rectangle rect = getRect(mapField);
 		
-		g2.setColor(flagColor);
+		g2.setColor(Color.RED);
 		
 		g2.translate(rect.x, rect.y);
 		
@@ -92,7 +88,7 @@ public class ClickPlace extends BaseObjectImpl implements Positional {
 
 			Rectangle rect = getRect(gprChart);
 
-			g2.setColor(flagColor);
+			g2.setColor(Color.RED);
 			g2.translate(rect.x, rect.y);
 			g2.drawImage(ResourceImageHolder.IMG_GPS, 0, 0, null);
 

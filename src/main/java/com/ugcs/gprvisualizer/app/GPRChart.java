@@ -374,8 +374,6 @@ public class GPRChart extends Chart {
             }
         }
 
-        // TODO GPR_LINES
-        // do not create click place on every draw
         for (TraceKey mark : model.getSelectedTraces()) {
             if (!Objects.equals(mark.getFile(), getFile())) {
                 continue;

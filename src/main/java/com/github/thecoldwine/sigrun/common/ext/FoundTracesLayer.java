@@ -34,8 +34,6 @@ public class FoundTracesLayer implements Layer {
 			bo.drawOnMap(g2, fixedField);
 		}
 
-		// TODO GPR_LINES
-		// do not create object on every draw
 		for (TraceKey mark : model.getSelectedTraces()) {
 			ClickPlace clickPlace = new ClickPlace(mark);
 			clickPlace.drawOnMap(g2, fixedField);

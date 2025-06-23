@@ -258,15 +258,4 @@ public class CsvFile extends SgyFile {
     public boolean isSameTemplate(CsvFile file) {
         return file.getParser().getTemplate().equals(getParser().getTemplate());
     }
-
-    // TODO GPR_LINES
-    /*
-    @Override
-    public void updateTraces() {
-        super.updateTraces();
-        for (int i = 0; i < Math.min(getGeoData().size(), getTraces().size()); i++) {
-            getGeoData().get(i).setTraceNumber(i);
-        }
-    }
-    */
 }

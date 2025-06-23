@@ -2,27 +2,22 @@ package com.ugcs.gprvisualizer.draw;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
-import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.MapView;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.math.DouglasPeucker;
 import com.ugcs.gprvisualizer.utils.Range;
 import javafx.geometry.Point2D;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -37,9 +32,11 @@ import javafx.scene.control.Tooltip;
 @Component
 public class GpsTrack extends BaseLayer {
 
+	// approximation threshold in pixels
+	private static final double APPROXIMATION_THRESHOLD = 1.5;
+
 	private final Model model;
 	private final ThrQueue q;
-
 
 	public GpsTrack(Model model, MapView mapView) {
 		this.model = model;
@@ -86,60 +83,41 @@ public class GpsTrack extends BaseLayer {
 		}
 
 		g2.setStroke(new BasicStroke(1.0f));
-		
-		double sumdist = 0;
-		
-		LatLon ll = field.screenTolatLon(
-				new Point2D(0, 5));
-		
-		// meter to cm
-		double threshold =				
-				field.getSceneCenter().getDistance(ll) * 100.0;
-		
-		//
 		g2.setColor(Color.RED);
-		
-		for (TraceFile sgyFile : model.getFileManager().getGprFiles()) {
-			sumdist = drawTraceLines(g2, field, sumdist, threshold, sgyFile);
-		}
 
-		for (CsvFile sgyFile : model.getFileManager().getCsvFiles()) {
-			sumdist = drawTraceLines(g2, field, sumdist, threshold, sgyFile);
+		for (SgyFile sgyFile : model.getFileManager().getFiles()) {
+			drawTraceLines(g2, field, sgyFile);
 		}
 	}
 
-	private double drawTraceLines(Graphics2D g2, MapField field, double sumdist, double threshold, SgyFile sgyFile) {
+	private void drawTraceLines(Graphics2D g2, MapField field, SgyFile sgyFile) {
 		var ranges = sgyFile.getLineRanges();
 		for (Range range: ranges.values()) {
-			Point2D prevPoint = null;
 			var traces = sgyFile.getGeoData().subList(range.getMin().intValue(), range.getMax().intValue() + 1);
-			sumdist = renderTraceLines(g2, field, sumdist, threshold, traces, prevPoint);
+			renderTraceLines(g2, field, traces);
 		}
-		return sumdist;
 	}
 
-	private static double renderTraceLines(Graphics2D g2, MapField field, double sumdist, double threshold, List<GeoData> traces, Point2D prevPoint) {
+	private static void renderTraceLines(Graphics2D g2, MapField field, List<GeoData> traces) {
+		List<Point2D> points = new ArrayList<>(traces.size());
 		for (GeoData trace : traces) {
-			if (prevPoint == null) {
-				prevPoint = field.latLonToScreen(trace.getLatLon());
-				sumdist = 0;
-			} else {
-				//prev point exists
-				// TODO GPR_LINES
-				//sumdist += trace.getPrevDist();
-				sumdist = Double.MAX_VALUE;
-				if (sumdist >= threshold) {
-					Point2D pointNext = field.latLonToScreen(trace.getLatLon());
-					g2.drawLine((int) prevPoint.getX(),
-							(int) prevPoint.getY(),
-							(int) pointNext.getX(),
-							(int) pointNext.getY());
-					prevPoint = pointNext;
-					sumdist = 0;
-				}
-			}
+			Point2D point = field.latLonToScreen(trace.getLatLon());
+			points.add(point);
 		}
-		return sumdist;
+		List<Integer> selected = DouglasPeucker.approximatePolyline(points,
+				APPROXIMATION_THRESHOLD, 2);
+		if (selected.size() < 2) {
+			return;
+		}
+		for (int i = 1; i < selected.size(); i++) {
+			Point2D p1 = points.get(selected.get(i - 1));
+			Point2D p2 = points.get(selected.get(i));
+			g2.drawLine(
+					(int)p1.getX(),
+					(int)p1.getY(),
+					(int)p2.getX(),
+					(int)p2.getY());
+		}
 	}
 
 	@EventListener

@@ -221,7 +221,6 @@ public class GprFile extends TraceFile {
 
 	@Override
 	public void save(File file) throws Exception {
-		// TODO GPR_LINES
 		SeismicValuesConverter converter = ConverterFactory
 				.getConverter(binaryHeader.getDataSampleCode());
 

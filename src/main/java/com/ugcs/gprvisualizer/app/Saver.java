@@ -6,16 +6,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.concurrent.Callable;
 
+import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
+import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
 import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Strings;
+import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.event.ActionEvent;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -199,9 +205,46 @@ public class Saver implements ToolProducer, InitializingBean {
 		File file = traceFile.getFile();
 		Check.notNull(file);
 
-		log.info("Saving GPR to {}", toFolder);
+		if (!toFolder.exists()) {
+			boolean created = toFolder.mkdirs();
+			if (!created) {
+				throw new IOException("Could not create output directory: " + toFolder);
+			}
+		}
 
-		// TODO implement parts saving
+		log.info("Saving GPR lines to {}", toFolder);
+
+		String baseName = FileNames.removeExtension(file.getName());
+		String extension = FileNames.getExtension(file.getName());
+
+		SortedMap<Integer, Range> lineRanges = traceFile.getLineRanges();
+		int lineSequence = 1;
+
+		for (Range range : lineRanges.values()) {
+			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
+			File rangeFile = new File(toFolder, rangeFileName);
+
+			TraceFile rangeTraceFile = copyGprRange(traceFile, range);
+			rangeTraceFile.setFile(rangeFile);
+			rangeTraceFile.save(rangeFile);
+			rangeTraceFile.saveAux(rangeFile);
+
+			lineSequence++;
+		}
+	}
+
+	private TraceFile copyGprRange(TraceFile traceFile, Range range) {
+		Check.notNull(traceFile);
+
+		TraceFile rangeFile = traceFile.copyHeader();
+
+		List<Trace> rangeTraces = Traces.copy(traceFile.getTraces(), range);
+		rangeFile.setTraces(rangeTraces);
+
+		List<BaseObject> rangeElements = AuxElements.copy(traceFile.getAuxElements(), range);
+		rangeFile.setAuxElements(rangeElements);
+
+		return rangeFile;
 	}
 
 	private void saveToCsv(CsvFile csvFile, File toFile) throws IOException {

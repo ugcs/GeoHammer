@@ -252,7 +252,7 @@ public class DztFile extends TraceFile {
 		DztFile copy = copyHeader();
 		copy.setFile(getFile());
 
-		List<Trace> traces = Traces.copy(getTraces(), copy);
+		List<Trace> traces = Traces.copy(getTraces());
 		copy.setTraces(traces);
 
 		return copy;

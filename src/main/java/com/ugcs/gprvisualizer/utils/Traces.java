@@ -16,19 +16,33 @@ public final class Traces {
     private Traces() {
     }
 
-    public static List<Trace> copy(List<Trace> traces, SgyFile targetFile) {
+    public static List<Trace> copy(List<Trace> traces, Range range) {
         traces = Nulls.toEmpty(traces);
 
-        List<Trace> newTraces = new ArrayList<>(traces.size());
-        for (Trace trace : traces) {
+        int fromIndex = range != null
+                ? range.getMin().intValue()
+                : 0;
+        int toIndex = range != null
+                ? range.getMax().intValue() + 1
+                : traces.size(); // exclusive
+
+        List<Trace> newTraces = new ArrayList<>(toIndex - fromIndex);
+        for (int i = fromIndex; i < toIndex; i++) {
+            Trace trace = traces.get(i);
             Trace newTrace = new Trace(
                     trace.getBinHeader(),
                     trace.getHeader(),
                     Arrays.copyOf(trace.getNormValues(), trace.getNormValues().length),
                     trace.getLatLon());
+            // update trace index
+            newTrace.setIndex(newTraces.size());
             newTraces.add(newTrace);
         }
         return newTraces;
+    }
+
+    public static List<Trace> copy(List<Trace> traces) {
+        return copy(traces, null);
     }
 
     public static void fillMissingLatLon(List<Trace> traces) {

@@ -23,7 +23,9 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MetaFile {
 
@@ -123,6 +125,24 @@ public class MetaFile {
             }
         } catch (CsvException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public Set<Integer> getMarkIndices() {
+        Set<Integer> marks = new HashSet<>();
+        for (int i = 0; i < values.size(); i++) {
+            TraceGeoData value = values.get(i);
+            if (value.isMarked()) {
+                marks.add(i);
+            }
+        }
+        return marks;
+    }
+
+    public void setMarkIndices(Set<Integer> marks) {
+        for (int i = 0; i < values.size(); i++) {
+            TraceGeoData value = values.get(i);
+            value.setMarked(marks.contains(i));
         }
     }
 

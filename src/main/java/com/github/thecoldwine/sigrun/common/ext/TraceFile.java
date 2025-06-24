@@ -7,6 +7,7 @@ import com.ugcs.gprvisualizer.app.commands.DistancesSmoother;
 import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 
 import java.io.File;
@@ -16,12 +17,19 @@ import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public abstract class TraceFile extends SgyFile {
 
     private List<Trace> traces = new ArrayList<>();
 
     private MetaFile metaFile;
+
+    public void initMeta() {
+        metaFile = new MetaFile();
+        metaFile.init(traces);
+        metaFile.initLocations(traces);
+    }
 
     protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
@@ -46,6 +54,9 @@ public abstract class TraceFile extends SgyFile {
         File source = getFile();
         Check.notNull(source);
 
+        Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements());
+        metaFile.setMarkIndices(marks);
+
         Path metaPath = MetaFile.getMetaPath(source);
         metaFile.save(metaPath);
     }
@@ -69,7 +80,6 @@ public abstract class TraceFile extends SgyFile {
 
     public List<Trace> getTraces() {
         return new TraceList();
-        //return traces;
     }
 
     public void setTraces(List<Trace> traces) {
@@ -94,10 +104,17 @@ public abstract class TraceFile extends SgyFile {
     }
 
     public void copyMarkedTracesToAuxElements() {
-        for (Trace trace: getTraces()) {
-            if (trace.isMarked()) {
-                TraceKey traceKey = new TraceKey(this, trace.getIndex());
+        if (metaFile != null) {
+            for (int markIndex : metaFile.getMarkIndices()) {
+                TraceKey traceKey = new TraceKey(this, markIndex);
                 getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
+            }
+        } else {
+            for (Trace trace: getTraces()) {
+                if (trace.isMarked()) {
+                    TraceKey traceKey = new TraceKey(this, trace.getIndex());
+                    getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
+                }
             }
         }
     }
@@ -143,6 +160,10 @@ public abstract class TraceFile extends SgyFile {
 
         @Override
         public Trace get(int index) {
+            if (metaFile == null) {
+                return traces.get(index);
+            }
+
             List<? extends GeoData> values = metaFile.getValues();
             if (values.get(index) instanceof TraceGeoData value) {
                 return traces.get(value.getTraceIndex());
@@ -152,6 +173,10 @@ public abstract class TraceFile extends SgyFile {
 
         @Override
         public int size() {
+            if (metaFile == null) {
+                return traces.size();
+            }
+
             List<? extends GeoData> values = metaFile.getValues();
             return values.size();
         }

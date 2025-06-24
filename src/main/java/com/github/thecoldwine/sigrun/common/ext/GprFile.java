@@ -122,9 +122,9 @@ public class GprFile extends TraceFile {
 		// fill latlon where null
 		Traces.fillMissingLatLon(traces);
 		sampleNormalizer.normalize(traces);
+		setTraces(traces);
 
 		loadMeta(traces);
-		setTraces(traces);
 
 		updateTraces();
 		copyMarkedTracesToAuxElements();
@@ -279,7 +279,7 @@ public class GprFile extends TraceFile {
 		copy.setFile(getFile());
 		copy.sampleNormalizer.copyFrom(this.sampleNormalizer);
 
-		List<Trace> traces = Traces.copy(getTraces(), copy);
+		List<Trace> traces = Traces.copy(getTraces());
 		copy.setTraces(traces);
 
 		return copy;

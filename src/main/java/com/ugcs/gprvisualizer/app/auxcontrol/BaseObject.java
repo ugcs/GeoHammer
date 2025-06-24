@@ -38,7 +38,7 @@ public interface BaseObject {
 	}
 		
 	default BaseObject copy(int traceOffset) {
-		throw new RuntimeException("not implemented");
+		return null;
 	}
 	
 	default boolean isFit(int begin, int end) {

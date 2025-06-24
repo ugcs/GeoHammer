@@ -121,6 +121,7 @@ public class CsvFile extends SgyFile {
             var foundPalces = getAuxElements().stream().filter(bo -> bo instanceof FoundPlace).map(bo -> ((FoundPlace) bo).getTraceIndex()).collect(Collectors.toSet());
             for (int i = 0; i < geoData.size(); i++) {
                 GeoData gd = geoData.get(i);
+                gd.setSensorValue(GeoData.Semantic.MARK.getName(), gd.isMarked() ? 1 : 0);
                 gd.setSensorValue(GeoData.Semantic.MARK.getName(), foundPalces.contains(i) ? 1 : 0);
             }
 

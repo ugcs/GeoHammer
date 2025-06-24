@@ -53,7 +53,7 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public void open(File csvFile) throws Exception {
+    public void open(File csvFile) throws IOException {
 
         String csvFileAbsolutePath = csvFile.getAbsolutePath();
         var fileTemplate = fileTemplates.findTemplate(fileTemplates.getTemplates(), csvFileAbsolutePath);
@@ -114,7 +114,7 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public void save(File file) throws Exception {
+    public void save(File file) throws IOException {
 			Path inputFile = getFile().toPath();
         	Path tempFile = file.toPath();
 
@@ -190,9 +190,6 @@ public class CsvFile extends SgyFile {
                     	writer.newLine();
                 	}
             	}
-
-        	} catch (IOException e) {
-            	e.printStackTrace();
         	}
     }
 
@@ -232,8 +229,7 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public void saveAux(File file) throws Exception {
-        // TODO Auto-generated method stub
+    public void saveAux(File file) {
         throw new UnsupportedOperationException("Unimplemented method 'saveAux'");
     }
 

@@ -1,6 +1,7 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
@@ -101,7 +102,7 @@ public class GprFile extends TraceFile {
 	}
 
 	@Override
-	public void open(File file) throws Exception {
+	public void open(File file) throws IOException {
 		setFile(file);
 		
 		BinFile binFile = BinFile.load(file); 
@@ -220,7 +221,7 @@ public class GprFile extends TraceFile {
 	}
 
 	@Override
-	public void save(File file) throws Exception {
+	public void save(File file) throws IOException {
 		SeismicValuesConverter converter = ConverterFactory
 				.getConverter(binaryHeader.getDataSampleCode());
 
@@ -254,7 +255,6 @@ public class GprFile extends TraceFile {
 		}		
 
 		binFile.save(file);
-		saveMeta();
 	}
 
 	@Override

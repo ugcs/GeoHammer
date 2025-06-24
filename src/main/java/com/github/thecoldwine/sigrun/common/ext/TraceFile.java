@@ -40,7 +40,7 @@ public abstract class TraceFile extends SgyFile {
         metaFile.initLocations(traces);
     }
 
-    protected void saveMeta() throws IOException {
+    public void saveMeta() throws IOException {
         Check.notNull(metaFile);
 
         File source = getFile();

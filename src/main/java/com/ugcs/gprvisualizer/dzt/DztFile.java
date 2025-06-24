@@ -86,7 +86,7 @@ public class DztFile extends TraceFile {
 	}
 
 	@Override
-	public void open(File file) throws Exception {
+	public void open(File file) throws IOException {
 		setFile(file);
 		this.sourceFile = file;
 		
@@ -259,12 +259,12 @@ public class DztFile extends TraceFile {
 	}
 
 	@Override
-	public void saveAux(File newFile) throws Exception {
+	public void saveAux(File newFile) {
 		dzg.save(getDsgFile(getFile()));
 	}
 
 	@Override
-	public void save(File newFile) throws Exception {
+	public void save(File newFile) throws IOException {
 		System.out.println("Save to " + newFile.getName());
 		
 		FileOutputStream fos = new FileOutputStream(newFile);

@@ -107,10 +107,6 @@ public class Loader {
 							"Can`t open files",
 							"Probably file has incorrect format");
 
-					model.closeAllCharts();
-					//model.getFileManager().getFiles().clear();
-					model.getChartsContainer().getChildren().clear();
-
 					model.updateAuxElements();
 					model.initField();
 				}

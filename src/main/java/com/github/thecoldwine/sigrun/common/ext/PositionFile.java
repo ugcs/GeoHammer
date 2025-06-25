@@ -61,7 +61,7 @@ public class PositionFile {
 				//	sgyFile.setFile(csvFile);
 				//}
 
-				HorizontalProfile hp = new HorizontalProfile(sgyFile.getTraces().size());		    
+				HorizontalProfile hp = new HorizontalProfile(sgyFile.numTraces());
    		    	StretchArray altArr = new StretchArray();
 
 				double hair =  100 / sgyFile.getSamplesToCmAir();

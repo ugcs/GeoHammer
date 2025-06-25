@@ -224,27 +224,13 @@ public class Saver implements ToolProducer, InitializingBean {
 			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
 			File rangeFile = new File(toFolder, rangeFileName);
 
-			TraceFile rangeTraceFile = copyGprRange(traceFile, range);
+			TraceFile rangeTraceFile = traceFile.copy(range);
 			rangeTraceFile.setFile(rangeFile);
 			rangeTraceFile.save(rangeFile);
 			rangeTraceFile.saveAux(rangeFile);
 
 			lineSequence++;
 		}
-	}
-
-	private TraceFile copyGprRange(TraceFile traceFile, Range range) {
-		Check.notNull(traceFile);
-
-		TraceFile rangeFile = traceFile.copyHeader();
-
-		List<Trace> rangeTraces = Traces.copy(traceFile.getTraces(), range);
-		rangeFile.setTraces(rangeTraces);
-
-		List<BaseObject> rangeElements = AuxElements.copy(traceFile.getAuxElements(), range);
-		rangeFile.setAuxElements(rangeElements);
-
-		return rangeFile;
 	}
 
 	private void saveToCsv(CsvFile csvFile, File toFile) throws IOException {

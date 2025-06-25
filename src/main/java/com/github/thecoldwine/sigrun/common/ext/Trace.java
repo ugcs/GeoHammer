@@ -3,6 +3,8 @@ package com.github.thecoldwine.sigrun.common.ext;
 import com.github.thecoldwine.sigrun.common.TraceHeader;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+
 public class Trace {
 
     @Nullable
@@ -10,12 +12,25 @@ public class Trace {
 
     @Nullable
     private final TraceHeader header;
-    
+
+    private int index;
+
     private float[] originalValues;
 
-    @Nullable
     private float[] normValues;
-    
+
+    /*
+     * 0
+     * 1 - 0 ('+' -> '-')
+     * 2 - 0 ('-' -> '+')
+     * 3 - min
+     * 4 - max
+     *
+     */
+    private byte[] edges;
+
+    private byte[] good;
+
     private LatLon latLon;
 
     private LatLon latLonOrigin;
@@ -28,62 +43,105 @@ public class Trace {
     
     private int maxindex;
 
-    private int index;
-
-    private byte[] good;
-
-    /*
-     * 0
-     * 1 - 0 ('+' -> '-')
-     * 2 - 0 ('-' -> '+')
-     * 3 - min
-     * 4 - max
-     *  
-     */
-    private byte[] edge;
-    
-    public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header, float[] originalValues, LatLon latLon) {
+    public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header,
+                 float[] originalValues, LatLon latLon) {
+        this.binHeader = binHeader;
         this.header = header;
-        this.binHeader = binHeader; 
+
         this.originalValues = originalValues;
-        this.latLon = latLon;
-        this.latLonOrigin = latLon;
-        
+        this.edges = new byte[originalValues.length];
         this.good = new byte[originalValues.length];
-        this.edge = new byte[originalValues.length];
+
+        this.latLonOrigin = latLon;
+        this.latLon = latLon;
+    }
+
+    public Trace copy() {
+        return new Trace(
+                binHeader,
+                header,
+                Arrays.copyOf(originalValues, originalValues.length),
+                latLon);
+    }
+
+    @Nullable
+    public byte[] getBinHeader() {
+        return binHeader;
     }
 
     @Nullable
     public TraceHeader getHeader() {
         return header;
     }
-    
-    public LatLon getLatLon() {
-    	return latLon;
+
+    public int getIndex() {
+        return index;
     }
 
-    public LatLon getLatLonOrigin() {
-    	return latLonOrigin;
+    public void setIndex(int index) {
+        this.index = index;
+    }
+
+    public int numValues() {
+        return originalValues.length;
+    }
+
+    public float getOriginalValue(int index) {
+        return originalValues[index];
+    }
+
+    public void setOriginalValue(int index, float value) {
+        originalValues[index] = value;
+    }
+
+    public float getValue(int index) {
+        if (normValues == null) {
+            return originalValues[index];
+        }
+        return normValues[index];
+    }
+
+    public void setValue(int index, float value) {
+        if (normValues == null) {
+            normValues = Arrays.copyOf(originalValues, originalValues.length);
+        }
+        normValues[index] = value;
+    }
+
+    public byte getEdge(int index) {
+        return edges[index];
+    }
+
+    public void setEdge(int index, byte value) {
+        edges[index] = value;
+    }
+
+    public byte getGood(int index) {
+        return good[index];
+    }
+
+    public void setGood(int index, byte value) {
+        good[index] = value;
+    }
+
+    public LatLon getLatLon() {
+        return latLon;
     }
 
     public void setLatLon(LatLon latLon) {
-		this.latLon = latLon;
-	}
-    
-    public float[] getOriginalValues() {
-    	return originalValues;
+        this.latLon = latLon;
     }
 
-    public void setOriginalValues(float[] vals) {
-    	originalValues = vals;
-    }
-    
-    public float[] getNormValues() {
-    	return normValues != null ? normValues : originalValues;
+    public LatLon getLatLonOrigin() {
+        return latLonOrigin;
     }
 
-    public void setNormValues(float[] vals) {
-    	normValues = vals;
+    public boolean isMarked() {
+        return marked;
+    }
+
+    public void setMarked(boolean marked) {
+        this.marked = marked;
     }
 
 	// in cm
@@ -102,42 +160,5 @@ public class Trace {
 
     public void setMaxIndex(int maxIndex) {
         this.maxindex = maxindex;
-    }
-
-    @Nullable
-    public byte[] getBinHeader() {
-		return binHeader;
-	}
-
-	public boolean isMarked() {
-		return marked;
-	}
-
-	public void setMarked(boolean marked) {
-		this.marked = marked;
-	}
-
-    public int getIndex() {
-        return index;
-    }
-
-    public void setIndex(int index) {
-        this.index = index;
-    }
-
-    public byte[] getGood() {
-        return good;
-    }
-
-    public void setGood(byte[] good) {
-        this.good = good;
-    }
-
-    public byte[] getEdge() {
-        return edge;
-    }
-
-    public void setEdge(byte[] edge) {
-        this.edge = edge;
     }
 }

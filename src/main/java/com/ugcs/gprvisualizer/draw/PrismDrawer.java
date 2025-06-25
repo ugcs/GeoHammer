@@ -85,17 +85,13 @@ public class PrismDrawer {
 			
 			Trace trace = traces.get(i);
 			float middleAmp = profileSettings.hypermiddleamp;
-			float[] values = trace.getNormValues();
-			byte[] edge = trace.getEdge();
-			byte[] good = trace.getGood();
-			
+
 			int horshift = profileSettings.levelPreviewShift.intValue();
 			int gpi = i + horshift;
 			int vertshift = shiftGround && gp != null && gpi >=0 && gpi < gp.deep.length ? gp.deep[i + horshift] - gp.avgdeep : 0;
 			
-			
 			for (int j = field.getStartSample();
-					j < Math.min(lastSample, values.length); j++) {
+					j < Math.min(lastSample, trace.numValues()); j++) {
 				
 				int sampStart = field.sampleToScreen(j);
 				int sampFinish = field.sampleToScreen(j + 1);
@@ -106,20 +102,18 @@ public class PrismDrawer {
 				}
 				
 				int z = j + vertshift;
-				if (z < 0 || z >= values.length) {
+				if (z < 0 || z >= trace.numValues()) {
 					continue;
 				}
-				float v = values[z];
+				float v = trace.getValue(z);
 				int color = tanh.trans(v - middleAmp);
 				
-				if (showEdge && edge != null && edge[j] > 0) {
-					color = edgeColors[edge[j]];
+				if (showEdge && trace.getEdge(j) > 0) {
+					color = edgeColors[trace.getEdge(j)];
 				}
 
-				if (showInlineHyperbolas 
-						&& good != null
-						&& good[j] > 0) {
-					color = goodColors[good[j]];
+				if (showInlineHyperbolas && trace.getGood(j) > 0) {
+					color = goodColors[trace.getGood(j)];
 				}
 				
 	    		for (int xt = 0; xt < hscale; xt++) {

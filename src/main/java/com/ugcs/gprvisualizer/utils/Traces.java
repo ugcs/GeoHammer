@@ -7,7 +7,6 @@ import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,11 +28,7 @@ public final class Traces {
         List<Trace> newTraces = new ArrayList<>(toIndex - fromIndex);
         for (int i = fromIndex; i < toIndex; i++) {
             Trace trace = traces.get(i);
-            Trace newTrace = new Trace(
-                    trace.getBinHeader(),
-                    trace.getHeader(),
-                    Arrays.copyOf(trace.getNormValues(), trace.getNormValues().length),
-                    trace.getLatLon());
+            Trace newTrace = trace.copy();
             // update trace index
             newTrace.setIndex(newTraces.size());
             newTraces.add(newTrace);

@@ -1,5 +1,7 @@
 package com.github.thecoldwine.sigrun.converters;
 
+import com.github.thecoldwine.sigrun.common.ext.Trace;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -21,14 +23,15 @@ public class TC2BIConverter implements SeismicValuesConverter{
 		return result;
 	}
 
-	public ByteBuffer valuesToByteBuffer(float values[]) {
+	public ByteBuffer valuesToByteBuffer(Trace trace) {
 		
-		ByteBuffer bb = ByteBuffer.allocate(values.length * 2).order(ByteOrder.LITTLE_ENDIAN);
-		for(int i =0; i < values.length; i++) {
-			bb.putShort((short)values[i]);
+		ByteBuffer bb = ByteBuffer
+				.allocate(trace.numValues() * 2)
+				.order(ByteOrder.LITTLE_ENDIAN);
+		for (int i = 0; i < trace.numValues(); i++) {
+			bb.putShort((short)trace.getValue(i));
 		}
 		
 		return bb;
 	}
-	
 }

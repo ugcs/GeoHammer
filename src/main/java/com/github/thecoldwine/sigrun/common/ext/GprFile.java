@@ -20,8 +20,10 @@ import com.github.thecoldwine.sigrun.serialization.BinaryHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
+import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.gpr.SgyLoader;
 import com.ugcs.gprvisualizer.utils.AuxElements;
+import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
 
 public class GprFile extends TraceFile {
@@ -250,7 +252,7 @@ public class GprFile extends TraceFile {
 			binTrace.header[MARK_BYTE_POS] =
 					(byte) (marks.contains(trace.getIndex()) ? -1 : 0);
 			
-			binTrace.data = converter.valuesToByteBuffer(trace.getNormValues()).array();
+			binTrace.data = converter.valuesToByteBuffer(trace).array();
 			binFile.getTraces().add(binTrace);
 		}		
 
@@ -274,13 +276,22 @@ public class GprFile extends TraceFile {
 
 	@Override
 	public GprFile copy() {
-		//TODO: not a full copy, the result can't be saved
-		GprFile copy = new GprFile();
-		copy.setFile(getFile());
-		copy.sampleNormalizer.copyFrom(this.sampleNormalizer);
+		return copy(null);
+	}
 
-		List<Trace> traces = Traces.copy(getTraces());
-		copy.setTraces(traces);
+	@Override
+	public GprFile copy(Range range) {
+		GprFile copy = copyHeader();
+		copy.setFile(getFile());
+		copy.setUnsaved(true);
+
+		List<Trace> rangeTraces = Traces.copy(getTraces(), range);
+		copy.setTraces(rangeTraces);
+
+		List<BaseObject> rangeElements = AuxElements.copy(getAuxElements(), range);
+		copy.setAuxElements(rangeElements);
+
+		// TODO GPR_LINES copy metadata
 
 		return copy;
 	}

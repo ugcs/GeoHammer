@@ -7,10 +7,13 @@ import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.app.TraceCutter;
+import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.math.LevelFilter;
+import com.ugcs.gprvisualizer.utils.AuxElements;
+import com.ugcs.gprvisualizer.utils.Traces;
 
 public class LevelGround implements Command {
 
@@ -30,61 +33,38 @@ public class LevelGround implements Command {
 		
 		int level = (hp.minDeep + hp.maxDeep) / 2;
 
-		List<Trace> processedTraces = new ArrayList<>();
+		// keep undo state
+		TraceFile copy = file.copy();
+		copy.setGroundProfile(file.getGroundProfile());
+		copy.updateTraces();
 
+		levelFilter.setUndoFiles(List.of(copy));
+
+		// update samples
 		for (Trace trace: file.getTraces()) {
-
 			int deep = hp.deep[trace.getIndex()];
+			int numValues = trace.numValues();
 
-			float[] values = trace.getNormValues();
-			float[] newValues = new float[values.length];
-			int srcStart = Math.max(0, deep - level);
-			int dstStart = Math.max(0, level - deep);
-			
-			System.arraycopy(
-				values, srcStart, 
-				newValues, dstStart, 
-				values.length - Math.abs(deep - level));
-			
-			Trace newTrace = new Trace(trace.getBinHeader(), trace.getHeader(), trace.getOriginalValues(), trace.getLatLon());
+			int n = Math.max(0, numValues - Math.abs(deep - level));
+			float[] buffer = new float[n];
 
-			trace.setNormValues(newValues);
+			int srcOffset = Math.max(0, deep - level);
+			for (int i = 0; i < n && srcOffset + i < numValues; i++) {
+				buffer[i] = trace.getValue(srcOffset + i);
+			}
 
-			processedTraces.add(newTrace);	
+			for (int i = 0; i < numValues; i++) {
+				trace.setValue(i, 0f);
+			}
+
+			int dstOffset = Math.max(0, level - deep);
+			for (int i = 0; i < n && dstOffset + i < numValues; i++) {
+				trace.setValue(dstOffset + i, buffer[i]);
+			}
 		}
 
-		TraceFile oldFile = generateSgyFileFrom(file, processedTraces);
- 		levelFilter.setUndoFiles(List.of(oldFile));
-		
 		file.setGroundProfile(null);
 		file.setUnsaved(true);
-	}
-
-	private TraceFile generateSgyFileFrom(TraceFile sourceFile, List<Trace> traces) {
-		
-		TraceFile sgyFile = sourceFile.copyHeader();
-		
-		sgyFile.setUnsaved(true);
-		
-		sgyFile.setTraces(traces);
-		sgyFile.setFile(sourceFile.getFile());
-		
-		if (!traces.isEmpty()) {
-			int begin = traces.get(0).getIndex();
-			int end = traces.get(traces.size() - 1).getIndex();
-			sgyFile.setAuxElements(TraceCutter.copyAuxObjects(sourceFile, sgyFile, begin, end));
-			/// TODO:
-			if (sgyFile instanceof DztFile) {
-				DztFile dztfile = (DztFile) sgyFile;
-				dztfile.dzg = dztfile.dzg.cut(begin, end);
-			}
-			///
-		}
-		
-		sgyFile.setGroundProfile(sourceFile.getGroundProfile());
-
-		sgyFile.updateTraces();
-		return sgyFile;
 	}
 
 	@Override

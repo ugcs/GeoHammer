@@ -39,7 +39,7 @@ public class ProfileField {
 		// set index of traces
 		int maxHeight = 0;
 		for (Trace trace: getGprTraces()) {
-			maxHeight = Math.max(maxHeight, trace.getNormValues().length);
+			maxHeight = Math.max(maxHeight, trace.numValues());
 		}
 
 		this.maxHeightInSamples = maxHeight;

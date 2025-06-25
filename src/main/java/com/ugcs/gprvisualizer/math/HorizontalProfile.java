@@ -24,7 +24,6 @@ public class HorizontalProfile {
 	}
 	
 	public void finish(List<Trace> list) {
-		
 		minDeep = deep[0];
 		maxDeep = deep[0];
 		
@@ -43,10 +42,10 @@ public class HorizontalProfile {
 			int d = deep[i];
 			
 			if (list != null) {
-				float[] values = list.get(i).getNormValues();
-				
-				if (d >= 0 && d < values.length) {
-					valsum += values[d];
+				Trace trace = list.get(i);
+
+				if (d >= 0 && d < trace.numValues()) {
+					valsum += trace.getValue(d);
 				}
 			}
 			deepsum += d;
@@ -57,14 +56,10 @@ public class HorizontalProfile {
 		height = maxDeep - minDeep;
 	}
 	
-	
-	
 	private void smoothLevel() {
-
 		int[] result = new int[deep.length];
 		for (int i = 0; i < deep.length; i++) {
-			
-			result[i] = avg(i);			
+			result[i] = avg(i);
 		}
 
 		deep = result;

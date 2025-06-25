@@ -43,18 +43,14 @@ public class AvgShiftFilter {
 		float[] avgvalues = getAvg();
 		
 		for (Trace tr : traces) {
-
-			float[] values = tr.getNormValues();
-			
 			for (int i = 0; i < avgvalues.length; i++) {
-				
 				int avind = i - tr.getMaxIndex();
 				if (avind >= 0 && avind < avgvalues.length) {
-					values[i] -= avgvalues[avind];
+					float value = tr.getValue(i) - avgvalues[avind];
+					tr.setValue(i, value);
 				}
 			}			
 		}
-		
 	}
 	
 	public void execute() {
@@ -65,10 +61,10 @@ public class AvgShiftFilter {
 	
 	public void execute(List<Trace> traces) {
 		
-		Trace fsttr = traces.get(0);
+		Trace fsttr = traces.getFirst();
 		//int length = fsttr.getNormValues().length;
 	
-		addToAvg(sumvalues, fsttr.getNormValues(), 0);
+		addToAvg(sumvalues, fsttr, 0);
 		
 		int shift = 0;
 		
@@ -77,24 +73,21 @@ public class AvgShiftFilter {
 			float[] avgvalues = getAvg();
 			
 			
-			shift = lessDiff(tr.getNormValues(), avgvalues, shift);
+			shift = lessDiff(tr, avgvalues, shift);
 			
-			addToAvg(sumvalues, tr.getNormValues(), shift);
+			addToAvg(sumvalues, tr, shift);
 			cnt++;
 			
 			tr.setMaxIndex(shift);
 			//tr.maxindex2 = shift + START+RANGE; 
 		}
-		
-		
-		
 	}
 	
-	private void addToAvg(float[] sumvalues, float[] normValues, int shift) {
+	private void addToAvg(float[] sumvalues, Trace trace, int shift) {
 
 		for (int i = Math.max(START, START - shift);
 				i < Math.min(FINISH, FINISH - shift); i++) {
-			sumvalues[i] += normValues[i + shift]; 			
+			sumvalues[i] += trace.getValue(i + shift);
 		}		
 	}
 	
@@ -108,17 +101,17 @@ public class AvgShiftFilter {
 		return avg;
 	}
 	
-	private int lessDiff(float[] normValues, float[] avgvalues, int prevshift) {
+	private int lessDiff(Trace trace, float[] avgvalues, int prevshift) {
 		
 		int from = prevshift - RANGE;
-		float lessdiff = getDiff(normValues, from, avgvalues);
+		float lessdiff = getDiff(trace, from, avgvalues);
 		int lesshift = from;
 		
 		for (int shift = from; shift <= prevshift + RANGE; shift++) {
 			
 			//float[] shiftValues = new float[avgvalues.length];
 			
-			float diff = getDiff(normValues, shift, avgvalues); 
+			float diff = getDiff(trace, shift, avgvalues);
 			if (Math.abs(diff) < Math.abs(lessdiff)) {
 				lessdiff = diff;
 				lesshift = shift;				
@@ -128,15 +121,13 @@ public class AvgShiftFilter {
 		return lesshift;
 	}
 	
-	private float getDiff(float[] normValues, int shift, float[] avgvalues) {
+	private float getDiff(Trace trace, int shift, float[] avgvalues) {
 		float diff = 0;
 		for (int i = Math.max(START, START - shift);
 				i < Math.min(FINISH, FINISH - shift); i++) {
 			
-			diff += Math.abs(avgvalues[i] - normValues[i + shift]);
+			diff += Math.abs(avgvalues[i] - trace.getValue(i + shift));
 		}
-		
 		return diff;
 	}	
-	
 }

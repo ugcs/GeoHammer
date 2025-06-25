@@ -57,7 +57,7 @@ public class EdgeSubtractGround implements Command {
 				for (EdgeCoord ec : queue) {
 					if (ec.index >= removeFromIndex) {
 						//mark to delete
-						list.get(ec.index).getGood()[ec.smp] = 1;
+						list.get(ec.index).setGood(ec.smp, (byte)1);
 					}
 				}
 				
@@ -115,10 +115,9 @@ public class EdgeSubtractGround implements Command {
 		
 		//real clear
 		for (Trace trace : file.getTraces()) {
-			for (int smp = 0; smp < trace.getGood().length; smp++) {
-			
-				if (trace.getGood()[smp] == 1) {
-					trace.getEdge()[smp] = 0;
+			for (int smp = 0; smp < trace.numValues(); smp++) {
+				if (trace.getGood(smp) == 1) {
+					trace.setEdge(smp, (byte)0);
 				}
 			}
 		}
@@ -172,7 +171,7 @@ public class EdgeSubtractGround implements Command {
 			
 			for (int r = 0; r <= 1; r++) {
 				int realsmp = smp + r;
-				int edv = trace.getEdge()[realsmp];
+				int edv = trace.getEdge(realsmp);
 				
 				edges[edv].in(i, realsmp, trace.getPrevDist());
 			}

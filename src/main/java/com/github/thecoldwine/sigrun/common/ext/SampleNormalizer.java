@@ -12,16 +12,20 @@ public class SampleNormalizer {
     public void normalize(List<Trace> traces) {
         // only bottom half because top has big distortion
         avg = (float) traces.stream()
-            .flatMapToDouble(t -> IntStream.range(t.getOriginalValues().length / 2, t.getOriginalValues().length)
-                .mapToDouble(i -> t.getOriginalValues()[i]))
-            .average().getAsDouble();
+                .flatMapToDouble(t -> IntStream
+                        .range(t.numValues() / 2, t.numValues())
+                        .mapToDouble(i -> t.getOriginalValue(i)))
+                .average()
+                .getAsDouble();
 
         // dispersion around avg
         float finalAvg = avg;
-        float dispersion = (float) traces.stream().flatMapToDouble(t ->
-            IntStream.range(0, t.getOriginalValues().length)
-                .mapToDouble(i -> Math.abs(t.getOriginalValues()[i] - finalAvg)))
-            .average().getAsDouble();
+        float dispersion = (float) traces.stream()
+                .flatMapToDouble(t -> IntStream
+                        .range(0, t.numValues())
+                        .mapToDouble(i -> Math.abs(t.getOriginalValue(i) - finalAvg)))
+                .average()
+                .getAsDouble();
 
         reduceFactor = dispersion / 500;
         normalize(traces, avg, reduceFactor);
@@ -30,21 +34,21 @@ public class SampleNormalizer {
     }
 
     private void normalize(List<Trace> traces, float avg, float reduceFactor) {
-        traces.stream().forEach(t ->
-        {
-            for (int i = 0; i < t.getOriginalValues().length; i++ ) {
-                t.getOriginalValues()[i] = (t.getOriginalValues()[i] - avg) / reduceFactor;
+        for (Trace trace : traces) {
+            for (int i = 0; i < trace.numValues(); i++ ) {
+                float normalized = (trace.getOriginalValue(i) - avg) / reduceFactor;
+                trace.setOriginalValue(i, normalized);
             }
-        });
+        }
     }
 
     public void back(List<Trace> traces) {
-        traces.stream().forEach(t ->
-        {
-            for (int i = 0; i < t.getOriginalValues().length; i++ ) {
-                t.getOriginalValues()[i] = t.getOriginalValues()[i] * reduceFactor + avg ;
+        for (Trace trace : traces) {
+            for (int i = 0; i < trace.numValues(); i++ ) {
+                float restored = trace.getOriginalValue(i) * reduceFactor + avg;
+                trace.setOriginalValue(i, restored);
             }
-        });
+        }
     }
 
     public void copyFrom(SampleNormalizer sampleNormalizer) {

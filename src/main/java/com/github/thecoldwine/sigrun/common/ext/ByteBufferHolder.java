@@ -16,17 +16,17 @@ public class ByteBufferHolder implements ByteBufferProducer {
 	@Override
 	public ByteBuffer read(BlockFile blockFile) throws IOException {
 
-		return valuesToByteBuffer(trace.getNormValues());
+		return valuesToByteBuffer(trace);
 	}
 
-	public static ByteBuffer valuesToByteBuffer(float[] values) {
-		
+	public static ByteBuffer valuesToByteBuffer(Trace trace) {
+
 		ByteBuffer bb = ByteBuffer
-				.allocate(values.length * 4)
+				.allocate(trace.numValues() * 4)
 				.order(ByteOrder.LITTLE_ENDIAN);
 		
-		for (int i = 0; i < values.length; i++) {
-			bb.putInt((int) values[i]);
+		for (int i = 0; i < trace.numValues(); i++) {
+			bb.putInt((int) trace.getValue(i));
 		}
 		
 		return bb;

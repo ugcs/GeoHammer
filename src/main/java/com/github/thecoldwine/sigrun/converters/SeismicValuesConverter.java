@@ -1,5 +1,7 @@
 package com.github.thecoldwine.sigrun.converters;
 
+import com.github.thecoldwine.sigrun.common.ext.Trace;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -14,5 +16,5 @@ public interface SeismicValuesConverter {
 
     float[] convert(byte[] bytes);
     
-    ByteBuffer valuesToByteBuffer(float values[]) ;
+    ByteBuffer valuesToByteBuffer(Trace trace);
 }

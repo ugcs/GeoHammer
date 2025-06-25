@@ -34,13 +34,6 @@ public class HalfHyperDst {
 	boolean defective = false;
 	
 	public double analize(int percent) {
-
-		if (sgyFile.getTraces().get(0).getEdge() == null) {
-			System.out.println("!!!! edge not prepared");
-			return 0;
-		}
-
-		
 		return Math.max(analize(percent, true), analize(percent, false));
 	}
 	
@@ -69,8 +62,9 @@ public class HalfHyperDst {
 				Trace trace = traces.get(index);
 				
 				int s = smp[i];
+				int edge = trace.getEdge(s + j);
 				
-				sum[j + 1][trace.getEdge()[s + j]]++;
+				sum[j + 1][edge]++;
 			}
 		}
 		
@@ -135,7 +129,7 @@ public class HalfHyperDst {
 		
 		List<Trace> traces = sgyFile.getTraces();
 		Trace trace = traces.get(pnclTr);
-		int maxSamplIndex = trace.getNormValues().length - 2;
+		int maxSamplIndex = trace.numValues() - 2;
 		
 		//HalfHyperDst hh = new HalfHyperDst();
 		HalfHyperDst hh = new HalfHypAnalizer();

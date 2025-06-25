@@ -24,7 +24,7 @@ public class AutomaticScaleBuilder implements ArrayBuilder {
 	public double[][] build(TraceFile file) {
 		
 		for (Trace trace: file.getTraces()) {
-			analyze(trace.getNormValues());			
+			analyze(trace);
 		}
 		
 		double[][] scale = new double[2][maxvalues.length]; 
@@ -37,23 +37,22 @@ public class AutomaticScaleBuilder implements ArrayBuilder {
 		return scale;
 	}
 
-	public void analyze(float[] values) {
-		if (maxvalues.length < values.length) {
-			float[] tmp = new float[values.length];
+	public void analyze(Trace trace) {
+		if (maxvalues.length < trace.numValues()) {
+			float[] tmp = new float[trace.numValues()];
 			System.arraycopy(maxvalues, 0, tmp, 0, maxvalues.length);
 			maxvalues = tmp;
 		}
 
-		if (avgvalues.length < values.length) {
-			float[] tmp = new float[values.length];
+		if (avgvalues.length < trace.numValues()) {
+			float[] tmp = new float[trace.numValues()];
 			System.arraycopy(avgvalues, 0, tmp, 0, avgvalues.length);
 			avgvalues = tmp;
 		}
 
-		for (int i = 0; i < values.length; i++) {
-			maxvalues[i] = Math.max(maxvalues[i], Math.abs(values[i]));
-			
-			avgvalues[i] += Math.abs(values[i]);
+		for (int i = 0; i < trace.numValues(); i++) {
+			maxvalues[i] = Math.max(maxvalues[i], Math.abs(trace.getValue(i)));
+			avgvalues[i] += Math.abs(trace.getValue(i));
 		}
 		avgcount++;
 	}

@@ -36,17 +36,17 @@ public class RadarMapScan implements Command {
 
 			for (int i = 0; i < file.numTraces(); i++) {
 				Trace trace = file.getTraces().get(i);
-				double alpha = calcAlpha(trace.getNormValues(), trace.getEdge(), start, finish, field.getProfileSettings(), scaleBuilder.build(file));
+				double alpha = calcAlpha(trace, start, finish, field.getProfileSettings(), scaleBuilder.build(file));
 				file.amplScan.intensity[i] = alpha;
 			}
 		}
 	}
 
-	private double calcAlpha(float[] values, byte[] edge, int start, int finish, Settings profileSettings, double[][] scaleArray) {
+	private double calcAlpha(Trace trace, int start, int finish, Settings profileSettings, double[][] scaleArray) {
 		double mx = 0;
 
-		start = Math.clamp(start, 0, values.length);
-		finish = Math.clamp(finish, 0, values.length);
+		start = Math.clamp(start, 0, trace.numValues());
+		finish = Math.clamp(finish, 0, trace.numValues());
 
 		double additionalThreshold = profileSettings.autogain ? profileSettings.threshold : 0;
 		
@@ -54,8 +54,8 @@ public class RadarMapScan implements Command {
 			double threshold = scaleArray[0][i];
 			double factor = scaleArray[1][i];		
 			
-			if (edge[i] != 0) {
-				double av = Math.abs(values[i]);
+			if (trace.getEdge(i) != 0) {
+				double av = Math.abs(trace.getValue(i));
 				if (av < additionalThreshold) {
 					av = 0;
 				}

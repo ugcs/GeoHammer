@@ -79,14 +79,16 @@ public class SampleCutter {
         List<Trace> traces = gprFile.getTraces();
         List<Trace> cropTraces = new ArrayList<>(traces.size());
         for (Trace trace : traces) {
-            float[] samples = trace.getOriginalValues();
+            //float[] samples = trace.getOriginalValues();
 
             // fit crop range to fit sample array
-            int cropOffset = Math.min(Math.max(0, offset), samples.length);
-            int cropLength = Math.min(length, samples.length - offset);
+            int cropOffset = Math.min(Math.max(0, offset), trace.numValues());
+            int cropLength = Math.min(length, trace.numValues() - offset);
 
             float[] cropValues = new float[cropLength];
-            System.arraycopy(samples, cropOffset, cropValues, 0, cropLength);
+            for (int i = 0; i < cropLength; i++) {
+                cropValues[i] = trace.getOriginalValue(cropOffset + i);
+            }
 
             // update trace header
             byte[] binHeader = trace.getBinHeader();

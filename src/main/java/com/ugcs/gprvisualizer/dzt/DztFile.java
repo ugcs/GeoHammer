@@ -16,12 +16,16 @@ import java.util.List;
 import java.util.Map;
 
 import com.github.thecoldwine.sigrun.common.TraceHeader;
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 import com.ugcs.gprvisualizer.obm.ObjectByteMapper;
+import com.ugcs.gprvisualizer.utils.AuxElements;
+import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
 import org.jspecify.annotations.Nullable;
 
@@ -175,8 +179,9 @@ public class DztFile extends TraceFile {
 		float avg = (float) valuesAvg.getAvg();
 		
 		for (Trace trace : traces) {
-			for (int smp = 0; smp < trace.getNormValues().length; smp++) {
-				trace.getNormValues()[smp] -= avg;
+			for (int smp = 0; smp < trace.numValues(); smp++) {
+				float value = trace.getValue(smp) - avg;
+				trace.setValue(smp, value);
 			}			
 		}
 	}
@@ -249,11 +254,22 @@ public class DztFile extends TraceFile {
 
 	@Override
 	public DztFile copy() {
+		return copy(null);
+	}
+
+	@Override
+	public DztFile copy(Range range) {
 		DztFile copy = copyHeader();
 		copy.setFile(getFile());
+		copy.setUnsaved(true);
 
-		List<Trace> traces = Traces.copy(getTraces());
-		copy.setTraces(traces);
+		List<Trace> rangeTraces = Traces.copy(getTraces(), range);
+		copy.setTraces(rangeTraces);
+
+		List<BaseObject> rangeElements = AuxElements.copy(getAuxElements(), range);
+		copy.setAuxElements(rangeElements);
+
+		// TODO GPR_LINES copy metadata
 
 		return copy;
 	}
@@ -289,7 +305,7 @@ public class DztFile extends TraceFile {
 			valueMediator.put(buffer, trace.getIndex());
 			
 			for (int i = 0; i < header.rh_nsamp - 1; i++) {
-				valueMediator.put(buffer, (int) (trace.getNormValues()[i] + avg));
+				valueMediator.put(buffer, (int) (trace.getValue(i) + avg));
 			}
 		
 			buffer.position(0);

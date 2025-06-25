@@ -23,22 +23,20 @@ public class EdgeFinder implements Command {
 		
 		for (int i = 0; i < traces.size(); i++) {
 			Trace trace = traces.get(i);
-			float[] values = trace.getNormValues();
-			trace.setEdge(new byte[values.length]);
-			
+
 			int mxind = 0;
-			for (int s = 1; s < values.length; s++) {
+			for (int s = 1; s < trace.numValues(); s++) {
 				
-				byte s1 = (byte) Math.signum(values[s - 1]);
-				byte s2 = (byte) Math.signum(values[s]);
+				byte s1 = (byte) Math.signum(trace.getValue(s - 1));
+				byte s2 = (byte) Math.signum(trace.getValue(s));
 				
 				if (s1 != s2) {
-					trace.getEdge()[s] =  s1 > s2 ? (byte) 1 : 2;
-					trace.getEdge()[mxind] = (values[mxind]) < 0 ? (byte) 3 : 4;
+					trace.setEdge(s, s1 > s2 ? (byte) 1 : 2);
+					trace.setEdge(mxind, (trace.getValue(mxind)) < 0 ? (byte) 3 : 4);
 					mxind = s;
 				}
 				
-				if (Math.abs(values[mxind]) < Math.abs(values[s])) {
+				if (Math.abs(trace.getValue(mxind)) < Math.abs(trace.getValue(s))) {
 					mxind = s;
 				}				
 			}			

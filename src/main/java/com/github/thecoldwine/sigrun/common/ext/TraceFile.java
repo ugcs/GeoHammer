@@ -7,8 +7,11 @@ import com.ugcs.gprvisualizer.app.commands.DistancesSmoother;
 import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.Traces;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,6 +66,8 @@ public abstract class TraceFile extends SgyFile {
 
     @Override
     public abstract TraceFile copy();
+
+    public abstract TraceFile copy(Range range);
 
     public abstract TraceFile copyHeader();
 
@@ -120,7 +125,7 @@ public abstract class TraceFile extends SgyFile {
     }
 
     public int getMaxSamples() {
-        return getTraces().getFirst().getNormValues().length;
+        return getTraces().getFirst().numValues();
     }
 
     public int getLeftDistTraceIndex(int traceIndex, double distCm) {

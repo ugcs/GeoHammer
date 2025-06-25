@@ -43,6 +43,8 @@ public class Trace {
     
     private int maxindex;
 
+    private SampleRange sampleRange;
+
     public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header,
                  float[] originalValues, LatLon latLon) {
         this.binHeader = binHeader;
@@ -64,6 +66,20 @@ public class Trace {
                 latLon);
     }
 
+    private int localToGlobal(int index) {
+        if (sampleRange == null) {
+            return index;
+        }
+        return index + sampleRange.getFrom();
+    }
+
+    private int globalToLocal(int index) {
+        if (sampleRange == null) {
+            return index;
+        }
+        return index - sampleRange.getFrom();
+    }
+
     @Nullable
     public byte[] getBinHeader() {
         return binHeader;
@@ -83,45 +99,48 @@ public class Trace {
     }
 
     public int numValues() {
-        return originalValues.length;
+        if (sampleRange == null) {
+            return originalValues.length;
+        }
+        return sampleRange.size();
     }
 
     public float getOriginalValue(int index) {
-        return originalValues[index];
+        return originalValues[localToGlobal(index)];
     }
 
     public void setOriginalValue(int index, float value) {
-        originalValues[index] = value;
+        originalValues[localToGlobal(index)] = value;
     }
 
     public float getValue(int index) {
         if (normValues == null) {
-            return originalValues[index];
+            return getOriginalValue(index);
         }
-        return normValues[index];
+        return normValues[localToGlobal(index)];
     }
 
     public void setValue(int index, float value) {
         if (normValues == null) {
             normValues = Arrays.copyOf(originalValues, originalValues.length);
         }
-        normValues[index] = value;
+        normValues[localToGlobal(index)] = value;
     }
 
     public byte getEdge(int index) {
-        return edges[index];
+        return edges[localToGlobal(index)];
     }
 
     public void setEdge(int index, byte value) {
-        edges[index] = value;
+        edges[localToGlobal(index)] = value;
     }
 
     public byte getGood(int index) {
-        return good[index];
+        return good[localToGlobal(index)];
     }
 
     public void setGood(int index, byte value) {
-        good[index] = value;
+        good[localToGlobal(index)] = value;
     }
 
     public LatLon getLatLon() {
@@ -160,5 +179,29 @@ public class Trace {
 
     public void setMaxIndex(int maxIndex) {
         this.maxindex = maxindex;
+    }
+
+    public static class SampleRange {
+
+        private final int from;
+
+        private final int to; // exclusive
+
+        public SampleRange(int from, int to) {
+            this.from = from;
+            this.to = to;
+        }
+
+        public int getFrom() {
+            return from;
+        }
+
+        public int getTo() {
+            return to;
+        }
+
+        public int size() {
+            return to - from;
+        }
     }
 }

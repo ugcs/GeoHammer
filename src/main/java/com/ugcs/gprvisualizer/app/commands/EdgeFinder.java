@@ -24,7 +24,7 @@ public class EdgeFinder implements Command {
 		for (int i = 0; i < traces.size(); i++) {
 			Trace trace = traces.get(i);
 			float[] values = trace.getNormValues();
-			trace.edge = new byte[values.length];
+			trace.setEdge(new byte[values.length]);
 			
 			int mxind = 0;
 			for (int s = 1; s < values.length; s++) {
@@ -33,8 +33,8 @@ public class EdgeFinder implements Command {
 				byte s2 = (byte) Math.signum(values[s]);
 				
 				if (s1 != s2) {
-					trace.edge[s] =  s1 > s2 ? (byte) 1 : 2;
-					trace.edge[mxind] = (values[mxind]) < 0 ? (byte) 3 : 4;
+					trace.getEdge()[s] =  s1 > s2 ? (byte) 1 : 2;
+					trace.getEdge()[mxind] = (values[mxind]) < 0 ? (byte) 3 : 4;
 					mxind = s;
 				}
 				

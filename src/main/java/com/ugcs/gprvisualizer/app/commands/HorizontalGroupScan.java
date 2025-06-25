@@ -28,11 +28,11 @@ public class HorizontalGroupScan implements Command {
 			
 			HorizontalProfile hp = new HorizontalProfile(file.getTraces().size());
 			
-			if (trace.edge[startSmp] == 0) {
+			if (trace.getEdge()[startSmp] == 0) {
 				continue;				
 			}			
 			
-			int example = trace.edge[startSmp];
+			int example = trace.getEdge()[startSmp];
 			int lastSmp = startSmp;
 			
 			int index = 0;
@@ -74,7 +74,7 @@ public class HorizontalGroupScan implements Command {
 		
 		for (int ord = 0; ord < LOOKINGORDER.length; ord++) {
 			int smp = lastSmp + LOOKINGORDER[ord];
-			if (smp >= 0 && smp < max && tr.edge[smp] == example) {
+			if (smp >= 0 && smp < max && tr.getEdge()[smp] == example) {
 				return smp;
 			}
 		}

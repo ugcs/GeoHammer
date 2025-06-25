@@ -86,6 +86,8 @@ public class PrismDrawer {
 			Trace trace = traces.get(i);
 			float middleAmp = profileSettings.hypermiddleamp;
 			float[] values = trace.getNormValues();
+			byte[] edge = trace.getEdge();
+			byte[] good = trace.getGood();
 			
 			int horshift = profileSettings.levelPreviewShift.intValue();
 			int gpi = i + horshift;
@@ -110,14 +112,14 @@ public class PrismDrawer {
 				float v = values[z];
 				int color = tanh.trans(v - middleAmp);
 				
-				if (showEdge && trace.edge != null && trace.edge[j] > 0) {
-					color = edgeColors[trace.edge[j]];
+				if (showEdge && edge != null && edge[j] > 0) {
+					color = edgeColors[edge[j]];
 				}
 
 				if (showInlineHyperbolas 
-						&& trace.good != null 
-						&& trace.good[j] > 0) {
-					color = goodColors[trace.good[j]];
+						&& good != null
+						&& good[j] > 0) {
+					color = goodColors[good[j]];
 				}
 				
 	    		for (int xt = 0; xt < hscale; xt++) {

@@ -48,7 +48,7 @@ public class AvgShiftFilter {
 			
 			for (int i = 0; i < avgvalues.length; i++) {
 				
-				int avind = i - tr.maxindex;
+				int avind = i - tr.getMaxIndex();
 				if (avind >= 0 && avind < avgvalues.length) {
 					values[i] -= avgvalues[avind];
 				}
@@ -82,7 +82,7 @@ public class AvgShiftFilter {
 			addToAvg(sumvalues, tr.getNormValues(), shift);
 			cnt++;
 			
-			tr.maxindex = shift;
+			tr.setMaxIndex(shift);
 			//tr.maxindex2 = shift + START+RANGE; 
 		}
 		

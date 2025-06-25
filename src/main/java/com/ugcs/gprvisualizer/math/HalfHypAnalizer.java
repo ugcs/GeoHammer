@@ -63,7 +63,7 @@ public class HalfHypAnalizer extends HalfHyperDst {
 				
 			for (int j = from; j <= to; j++) {
 				
-				int edge = trace.edge[s + j];
+				int edge = trace.getEdge()[s + j];
 		
 				int part = i * PARTS / checkedLength;
 				

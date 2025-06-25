@@ -49,7 +49,6 @@ public class LevelGround implements Command {
 			Trace newTrace = new Trace(trace.getBinHeader(), trace.getHeader(), trace.getOriginalValues(), trace.getLatLon());
 
 			trace.setNormValues(newValues);
-			trace.verticalOffset = level - deep;
 
 			processedTraces.add(newTrace);	
 		}

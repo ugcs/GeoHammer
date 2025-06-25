@@ -35,7 +35,7 @@ public class HalfHyperDst {
 	
 	public double analize(int percent) {
 
-		if (sgyFile.getTraces().get(0).edge == null) {
+		if (sgyFile.getTraces().get(0).getEdge() == null) {
 			System.out.println("!!!! edge not prepared");
 			return 0;
 		}
@@ -70,7 +70,7 @@ public class HalfHyperDst {
 				
 				int s = smp[i];
 				
-				sum[j + 1][trace.edge[s + j]]++;
+				sum[j + 1][trace.getEdge()[s + j]]++;
 			}
 		}
 		

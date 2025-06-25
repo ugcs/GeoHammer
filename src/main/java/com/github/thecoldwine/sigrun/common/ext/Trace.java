@@ -1,21 +1,23 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import com.github.thecoldwine.sigrun.common.TraceHeader;
 import org.jspecify.annotations.Nullable;
 
 public class Trace {
 
-    private final byte @Nullable [] binHeader;
+    @Nullable
+    private final byte[] binHeader;
+
     @Nullable
     private final TraceHeader header;
     
-    private float[] originalvalues;
-    private float @Nullable [] normvalues;
+    private float[] originalValues;
+
+    @Nullable
+    private float[] normValues;
     
     private LatLon latLon;
+
     private LatLon latLonOrigin;
 
     //tmp for loading
@@ -24,12 +26,11 @@ public class Trace {
     //meters
     private double prevDist = 100000;
     
-    public int maxindex;
-    public int verticalOffset;
-    
+    private int maxindex;
+
     private int index;
 
-    public byte[] good;
+    private byte[] good;
 
     /*
      * 0
@@ -39,19 +40,17 @@ public class Trace {
      * 4 - max
      *  
      */
-    public byte[] edge;
+    private byte[] edge;
     
-    public Set<Integer> max = new HashSet<>();
-    
-    public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header, float[] originalvalues, LatLon latLon) {
+    public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header, float[] originalValues, LatLon latLon) {
         this.header = header;
         this.binHeader = binHeader; 
-        this.originalvalues = originalvalues;
+        this.originalValues = originalValues;
         this.latLon = latLon;
         this.latLonOrigin = latLon;
         
-        this.good = new byte[originalvalues.length];
-        this.edge = new byte[originalvalues.length];
+        this.good = new byte[originalValues.length];
+        this.edge = new byte[originalValues.length];
     }
 
     @Nullable
@@ -67,25 +66,24 @@ public class Trace {
     	return latLonOrigin;
     }
 
-    public void setLatLon(LatLon latLon2) {
-		this.latLon = latLon2;
-		
+    public void setLatLon(LatLon latLon) {
+		this.latLon = latLon;
 	}
     
     public float[] getOriginalValues() {
-    	return originalvalues;
+    	return originalValues;
     }
 
     public void setOriginalValues(float[] vals) {
-    	originalvalues = vals;
+    	originalValues = vals;
     }
     
     public float[] getNormValues() {
-    	return normvalues != null ? normvalues : originalvalues;
+    	return normValues != null ? normValues : originalValues;
     }
 
     public void setNormValues(float[] vals) {
-    	normvalues = vals;
+    	normValues = vals;
     }
 
 	// in cm
@@ -98,7 +96,16 @@ public class Trace {
 		this.prevDist = prevDist;
 	}
 
-    public byte @Nullable [] getBinHeader() {
+    public int getMaxIndex() {
+        return maxindex;
+    }
+
+    public void setMaxIndex(int maxIndex) {
+        this.maxindex = maxindex;
+    }
+
+    @Nullable
+    public byte[] getBinHeader() {
 		return binHeader;
 	}
 
@@ -116,5 +123,21 @@ public class Trace {
 
     public void setIndex(int index) {
         this.index = index;
+    }
+
+    public byte[] getGood() {
+        return good;
+    }
+
+    public void setGood(byte[] good) {
+        this.good = good;
+    }
+
+    public byte[] getEdge() {
+        return edge;
+    }
+
+    public void setEdge(byte[] edge) {
+        this.edge = edge;
     }
 }

@@ -41,7 +41,7 @@ public class MedianScaleBuilder implements ArrayBuilder {
             for (Trace trace : traces) {
                 float[] vals = trace.getNormValues();
 
-                if (trace.edge[smp] >= 3) {
+                if (trace.getEdge()[smp] >= 3) {
                     all.add(Math.abs(smp < vals.length ? vals[smp] : 0));
                 }
             }

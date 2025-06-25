@@ -36,7 +36,7 @@ public class RadarMapScan implements Command {
 
 			for (int i = 0; i < file.numTraces(); i++) {
 				Trace trace = file.getTraces().get(i);
-				double alpha = calcAlpha(trace.getNormValues(), trace.edge, start, finish, field.getProfileSettings(), scaleBuilder.build(file));
+				double alpha = calcAlpha(trace.getNormValues(), trace.getEdge(), start, finish, field.getProfileSettings(), scaleBuilder.build(file));
 				file.amplScan.intensity[i] = alpha;
 			}
 		}

@@ -18,6 +18,7 @@ import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -41,7 +42,7 @@ public class ProfileView implements InitializingBean {
 	private final Model model;
 	private final Navigator navigator;
 	private final Saver saver;
-	private final SampleCutter sampleCutter;
+	private final TraceTransform traceTransform;
 
 	private final ToggleButton auxModeBtn = new ToggleButton("aux");
 
@@ -56,11 +57,11 @@ public class ProfileView implements InitializingBean {
 	private SgyFile currentFile;
 
 	public ProfileView(Model model, Navigator navigator,
-                       Saver saver, SampleCutter sampleCutter) {
+                       Saver saver, TraceTransform traceTransform) {
 		this.model = model;
         this.navigator = navigator;
 		this.saver = saver;
-		this.sampleCutter = sampleCutter;
+		this.traceTransform = traceTransform;
 	}
 
 	@Override
@@ -100,14 +101,16 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void cropSamples(ActionEvent actionEvent) {
-		Chart chart = model.getFileChart(currentFile);
-		if (chart instanceof GPRChart gprChart) {
-			ProfileField profileField = gprChart.getField();
-			Settings profileSettings = profileField.getProfileSettings();
+		if (currentFile instanceof TraceFile traceFile) {
+			GPRChart chart = model.getGprChart(traceFile);
+			if (chart != null) {
+				ProfileField profileField = chart.getField();
+				Settings profileSettings = profileField.getProfileSettings();
 
-			int offset = profileSettings.getLayer();
-			int length = profileSettings.hpage;
-			sampleCutter.cropGprSamples(gprChart, offset, length);
+				int offset = profileSettings.getLayer();
+				int length = profileSettings.hpage;
+				traceTransform.cropGprSamples(traceFile, offset, length);
+			}
 		}
 	}
 

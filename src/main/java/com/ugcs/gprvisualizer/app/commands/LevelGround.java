@@ -1,19 +1,13 @@
 package com.ugcs.gprvisualizer.app.commands;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
-import com.ugcs.gprvisualizer.app.TraceCutter;
-import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
-import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.math.LevelFilter;
-import com.ugcs.gprvisualizer.utils.AuxElements;
-import com.ugcs.gprvisualizer.utils.Traces;
 
 public class LevelGround implements Command {
 
@@ -77,5 +71,4 @@ public class LevelGround implements Command {
 	public WhatChanged.Change getChange() {
 		return WhatChanged.Change.traceValues;
 	}
-
 }

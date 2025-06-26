@@ -1,10 +1,15 @@
 package com.ugcs.gprvisualizer.app;
 
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
+import com.github.thecoldwine.sigrun.common.ext.SampleNormalizer;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.Positional;
+import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -229,5 +234,29 @@ public class TraceTransform {
         }
 
         return result;
+    }
+
+    public void cropGprSamples(TraceFile file, int offset, int length) {
+        Check.notNull(file);
+
+        // revert normalization
+        if (file instanceof GprFile gprFile) {
+            SampleNormalizer normalizer = gprFile.getSampleNormalizer();
+            normalizer.back(file.getTraces());
+        }
+
+        length = Math.max(1, length);
+        SampleRange sampleRange = new SampleRange(offset, offset + length);
+        for (Trace trace : file.getTraces()) {
+            trace.setSampleRange(sampleRange);
+        }
+
+        // re-normalize samples
+        if (file instanceof GprFile gprFile) {
+            SampleNormalizer normalizer = gprFile.getSampleNormalizer();
+            normalizer.normalize(file.getTraces());
+        }
+
+        onFileTracesUpdated(file);
     }
 }

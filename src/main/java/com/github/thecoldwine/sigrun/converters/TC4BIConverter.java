@@ -31,14 +31,12 @@ public class TC4BIConverter implements SeismicValuesConverter {
 		ByteBuffer bb = ByteBuffer
 				.allocate(trace.numValues() * 4)
 				.order(ByteOrder.LITTLE_ENDIAN);
-
 		for (int i = 0; i < trace.numValues(); i++) {
 			//(val + 33_554_432) / 8192.0f
 			//int v = (int) (values[i] * 8192.0f) - 33_554_432;
 			int v = (int)trace.getValue(i);
 			bb.putInt(v);
 		}
-		
 		return bb;
 	}
 }

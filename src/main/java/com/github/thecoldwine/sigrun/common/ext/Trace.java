@@ -1,6 +1,7 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
 import com.github.thecoldwine.sigrun.common.TraceHeader;
+import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
@@ -14,6 +15,8 @@ public class Trace {
     private final TraceHeader header;
 
     private int index;
+
+    private SampleRange sampleRange;
 
     private float[] originalValues;
 
@@ -43,8 +46,6 @@ public class Trace {
     
     private int maxindex;
 
-    private SampleRange sampleRange;
-
     public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header,
                  float[] originalValues, LatLon latLon) {
         this.binHeader = binHeader;
@@ -59,25 +60,17 @@ public class Trace {
     }
 
     public Trace copy() {
-        return new Trace(
+        Trace copy = new Trace(
                 binHeader,
                 header,
                 Arrays.copyOf(originalValues, originalValues.length),
                 latLon);
-    }
-
-    private int localToGlobal(int index) {
-        if (sampleRange == null) {
-            return index;
-        }
-        return index + sampleRange.getFrom();
-    }
-
-    private int globalToLocal(int index) {
-        if (sampleRange == null) {
-            return index;
-        }
-        return index - sampleRange.getFrom();
+        copy.index = index;
+        copy.sampleRange = sampleRange;
+        copy.prevDist = prevDist;
+        copy.maxindex = maxindex;
+        copy.marked = marked;
+        return copy;
     }
 
     @Nullable
@@ -98,11 +91,39 @@ public class Trace {
         this.index = index;
     }
 
-    public int numValues() {
+    public SampleRange getSampleRange() {
+        return sampleRange;
+    }
+
+    public void setSampleRange(SampleRange range) {
+        sampleRange = sampleRange != null
+                ? sampleRange.subRange(range)
+                : range;
+    }
+
+    private int localToGlobal(int index) {
+        // local: index in range
+        // global: index in samples
         if (sampleRange == null) {
-            return originalValues.length;
+            return index;
         }
-        return sampleRange.size();
+        return index + sampleRange.getFrom();
+    }
+
+    private int globalToLocal(int index) {
+        if (sampleRange == null) {
+            return index;
+        }
+        return index - sampleRange.getFrom();
+    }
+
+    public int numValues() {
+        int totalSamples = originalValues.length;
+        if (sampleRange == null) {
+            return totalSamples;
+        }
+        return Math.clamp(sampleRange.getTo(), 0, totalSamples)
+                - Math.clamp(sampleRange.getFrom(), 0, totalSamples);
     }
 
     public float getOriginalValue(int index) {
@@ -174,34 +195,10 @@ public class Trace {
 	}
 
     public int getMaxIndex() {
-        return maxindex;
+        return globalToLocal(maxindex);
     }
 
     public void setMaxIndex(int maxIndex) {
-        this.maxindex = maxindex;
-    }
-
-    public static class SampleRange {
-
-        private final int from;
-
-        private final int to; // exclusive
-
-        public SampleRange(int from, int to) {
-            this.from = from;
-            this.to = to;
-        }
-
-        public int getFrom() {
-            return from;
-        }
-
-        public int getTo() {
-            return to;
-        }
-
-        public int size() {
-            return to - from;
-        }
+        this.maxindex = localToGlobal(maxIndex);
     }
 }

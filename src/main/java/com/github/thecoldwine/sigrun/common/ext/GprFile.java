@@ -120,13 +120,13 @@ public class GprFile extends TraceFile {
 				+ binaryHeader.getSamplesPerDataTrace());
 
 		List<Trace> traces = loadTraces(binFile);
-
 		// fill latlon where null
 		Traces.fillMissingLatLon(traces);
-		sampleNormalizer.normalize(traces);
-		setTraces(traces);
 
 		loadMeta(traces);
+
+		sampleNormalizer.normalize(traces);
+		setTraces(traces);
 
 		updateTraces();
 		copyMarkedTracesToAuxElements();
@@ -137,7 +137,6 @@ public class GprFile extends TraceFile {
 		System.out.println("opened  '" + file.getName() 
 			+ "'   load size: " + getTraces().size() 
 			+ "  actual size: " + binFile.getTraces().size());
-
 	}
 
 	private List<Trace> loadTraces(BinFile binFile) {
@@ -245,9 +244,10 @@ public class GprFile extends TraceFile {
 			ByteBuffer bb = ByteBuffer.wrap(binTrace.header);
 			bb.order(ByteOrder.LITTLE_ENDIAN);
 
+			bb.putShort(114, (short)trace.numValues());
 			bb.putDouble(190, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
 			bb.putDouble(182, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
-			
+
 			// set or clear mark
 			binTrace.header[MARK_BYTE_POS] =
 					(byte) (marks.contains(trace.getIndex()) ? -1 : 0);

@@ -28,7 +28,7 @@ public abstract class SgyFile {
 	private boolean unsaved = true;
 
 	@Nullable
-    //horizontal cohesive lines of edges
+    // horizontal cohesive lines of edges
     public List<HorizontalProfile> profiles;
 
 	@Nullable

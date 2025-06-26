@@ -141,7 +141,7 @@ public class GPRChart extends Chart {
 
     @Override
     public void reload() {
-        // do nothing
+        profileField.updateMaxHeightInSamples();
     }
 
     public BaseSlider getContrastSlider() {

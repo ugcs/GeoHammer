@@ -45,16 +45,4 @@ public class TraceGeoData extends GeoData {
     public void setTraceIndex(int traceIndex) {
         this.traceIndex = traceIndex;
     }
-
-    @Override
-    public boolean isMarked() {
-        SensorValue mark = getSensorValue(Semantic.MARK);
-        return mark != null && mark.data() != null
-                ? mark.data().intValue() != 0
-                : super.isMarked();
-    }
-
-    public void setMarked(boolean marked) {
-        setSensorValue(Semantic.MARK.getName(), marked ? 1 : 0);
-    }
 }

@@ -35,7 +35,7 @@ public class ProfileField {
 		return maxHeightInSamples;
 	}
 
-	private void updateMaxHeightInSamples() {
+	public void updateMaxHeightInSamples() {
 		// set index of traces
 		int maxHeight = 0;
 		for (Trace trace: getGprTraces()) {

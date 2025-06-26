@@ -6,8 +6,8 @@ import com.ugcs.gprvisualizer.app.commands.DistCalculator;
 import com.ugcs.gprvisualizer.app.commands.DistancesSmoother;
 import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
+import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
@@ -28,12 +28,6 @@ public abstract class TraceFile extends SgyFile {
 
     private MetaFile metaFile;
 
-    public void initMeta() {
-        metaFile = new MetaFile();
-        metaFile.init(traces);
-        metaFile.initLocations(traces);
-    }
-
     protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
         Check.notNull(source);
@@ -49,6 +43,7 @@ public abstract class TraceFile extends SgyFile {
         }
 
         metaFile.initLocations(traces);
+        metaFile.initSampleRanges(traces);
     }
 
     public void saveMeta() throws IOException {
@@ -57,8 +52,13 @@ public abstract class TraceFile extends SgyFile {
         File source = getFile();
         Check.notNull(source);
 
+        // update sample range
+        SampleRange sampleRange = Traces.maxSampleRange(getTraces());
+        metaFile.setSampleRange(sampleRange);
+
+        // update marks
         Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements());
-        metaFile.setMarkIndices(marks);
+        metaFile.setMarks(marks);
 
         Path metaPath = MetaFile.getMetaPath(source);
         metaFile.save(metaPath);
@@ -110,11 +110,12 @@ public abstract class TraceFile extends SgyFile {
 
     public void copyMarkedTracesToAuxElements() {
         if (metaFile != null) {
-            for (int markIndex : metaFile.getMarkIndices()) {
+            for (int markIndex : metaFile.getMarks()) {
                 TraceKey traceKey = new TraceKey(this, markIndex);
                 getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
             }
         } else {
+            // TODO GPR_LINES for compatibility with DZT
             for (Trace trace: getTraces()) {
                 if (trace.isMarked()) {
                     TraceKey traceKey = new TraceKey(this, trace.getIndex());
@@ -126,39 +127,6 @@ public abstract class TraceFile extends SgyFile {
 
     public int getMaxSamples() {
         return getTraces().getFirst().numValues();
-    }
-
-    public int getLeftDistTraceIndex(int traceIndex, double distCm) {
-
-        return
-                Math.max(0,
-                        traceIndex - (int) (distCm / getTraces().get(traceIndex).getPrevDist()));
-//		double sumDist = 0;
-//
-//		while (traceIndex > 0 && sumDist < distCm) {
-//
-//			sumDist += getTraces().get(traceIndex).getPrevDist();
-//			traceIndex--;
-//		}
-//
-//		return traceIndex;
-    }
-
-    public int getRightDistTraceIndex(int traceIndex, double distCm) {
-
-        return
-                Math.min(numTraces()-1,
-                        traceIndex + (int) (distCm / getTraces().get(traceIndex).getPrevDist()));
-
-//		double sumDist = 0;
-//
-//		while (traceIndex < size() - 1 && sumDist < distCm) {
-//			traceIndex++;
-//			sumDist += getTraces().get(traceIndex).getPrevDist();
-//
-//		}
-//
-//		return traceIndex;
     }
 
     public class TraceList extends AbstractList<Trace> {

@@ -54,16 +54,16 @@ public class AmplitudeMatrix {
 
 	private float[] getAmpVector(Trace trace) {
 		
-		float[] res = new float[trace.numValues()];
+		float[] res = new float[trace.numSamples()];
 		colls.add(new ArrayList<>());
 		float prevval = 0;
-		float max = trace.getValue(0);
-		float min = trace.getValue(0);
+		float max = trace.getSample(0);
+		float min = trace.getSample(0);
 		int zeroind = 0;
 		int midind = 0;
-		for (int i = 0; i < trace.numValues(); i++) {
+		for (int i = 0; i < trace.numSamples(); i++) {
 			
-			float val = trace.getValue(i);
+			float val = trace.getSample(i);
 			max = Math.max(max, val);
 			min = Math.min(min, val);
 			
@@ -82,7 +82,7 @@ public class AmplitudeMatrix {
 			}
 			prevval = val;
 		}
-		fill(res, zeroind, trace.numValues(), max - min);
+		fill(res, zeroind, trace.numSamples(), max - min);
 		return res;
 	}
 	

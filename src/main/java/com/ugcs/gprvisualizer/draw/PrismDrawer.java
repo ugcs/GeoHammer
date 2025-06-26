@@ -4,7 +4,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -91,7 +90,7 @@ public class PrismDrawer {
 			int vertshift = shiftGround && gp != null && gpi >=0 && gpi < gp.deep.length ? gp.deep[i + horshift] - gp.avgdeep : 0;
 			
 			for (int j = field.getStartSample();
-					j < Math.min(lastSample, trace.numValues()); j++) {
+                 j < Math.min(lastSample, trace.numSamples()); j++) {
 				
 				int sampStart = field.sampleToScreen(j);
 				int sampFinish = field.sampleToScreen(j + 1);
@@ -102,10 +101,10 @@ public class PrismDrawer {
 				}
 				
 				int z = j + vertshift;
-				if (z < 0 || z >= trace.numValues()) {
+				if (z < 0 || z >= trace.numSamples()) {
 					continue;
 				}
-				float v = trace.getValue(z);
+				float v = trace.getSample(z);
 				int color = tanh.trans(v - middleAmp);
 				
 				if (showEdge && trace.getEdge(j) > 0) {

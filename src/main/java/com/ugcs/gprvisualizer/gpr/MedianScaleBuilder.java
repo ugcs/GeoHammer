@@ -40,7 +40,7 @@ public class MedianScaleBuilder implements ArrayBuilder {
 
             for (Trace trace : traces) {
                 if (trace.getEdge(smp) >= 3) {
-                    all.add(Math.abs(smp < trace.numValues() ? trace.getValue(smp) : 0));
+                    all.add(Math.abs(smp < trace.numSamples() ? trace.getSample(smp) : 0));
                 }
             }
 			

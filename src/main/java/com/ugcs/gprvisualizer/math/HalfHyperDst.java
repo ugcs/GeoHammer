@@ -129,7 +129,7 @@ public class HalfHyperDst {
 		
 		List<Trace> traces = sgyFile.getTraces();
 		Trace trace = traces.get(pnclTr);
-		int maxSamplIndex = trace.numValues() - 2;
+		int maxSamplIndex = trace.numSamples() - 2;
 		
 		//HalfHyperDst hh = new HalfHyperDst();
 		HalfHyperDst hh = new HalfHypAnalizer();

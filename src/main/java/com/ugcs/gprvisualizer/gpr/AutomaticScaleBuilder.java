@@ -38,21 +38,21 @@ public class AutomaticScaleBuilder implements ArrayBuilder {
 	}
 
 	public void analyze(Trace trace) {
-		if (maxvalues.length < trace.numValues()) {
-			float[] tmp = new float[trace.numValues()];
+		if (maxvalues.length < trace.numSamples()) {
+			float[] tmp = new float[trace.numSamples()];
 			System.arraycopy(maxvalues, 0, tmp, 0, maxvalues.length);
 			maxvalues = tmp;
 		}
 
-		if (avgvalues.length < trace.numValues()) {
-			float[] tmp = new float[trace.numValues()];
+		if (avgvalues.length < trace.numSamples()) {
+			float[] tmp = new float[trace.numSamples()];
 			System.arraycopy(avgvalues, 0, tmp, 0, avgvalues.length);
 			avgvalues = tmp;
 		}
 
-		for (int i = 0; i < trace.numValues(); i++) {
-			maxvalues[i] = Math.max(maxvalues[i], Math.abs(trace.getValue(i)));
-			avgvalues[i] += Math.abs(trace.getValue(i));
+		for (int i = 0; i < trace.numSamples(); i++) {
+			maxvalues[i] = Math.max(maxvalues[i], Math.abs(trace.getSample(i)));
+			avgvalues[i] += Math.abs(trace.getSample(i));
 		}
 		avgcount++;
 	}

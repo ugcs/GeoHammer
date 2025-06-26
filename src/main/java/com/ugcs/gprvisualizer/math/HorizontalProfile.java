@@ -44,8 +44,8 @@ public class HorizontalProfile {
 			if (list != null) {
 				Trace trace = list.get(i);
 
-				if (d >= 0 && d < trace.numValues()) {
-					valsum += trace.getValue(d);
+				if (d >= 0 && d < trace.numSamples()) {
+					valsum += trace.getSample(d);
 				}
 			}
 			deepsum += d;

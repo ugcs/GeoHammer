@@ -244,7 +244,7 @@ public class GprFile extends TraceFile {
 			ByteBuffer bb = ByteBuffer.wrap(binTrace.header);
 			bb.order(ByteOrder.LITTLE_ENDIAN);
 
-			bb.putShort(114, (short)trace.numValues());
+			bb.putShort(114, (short)trace.numSamples());
 			bb.putDouble(190, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
 			bb.putDouble(182, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
 

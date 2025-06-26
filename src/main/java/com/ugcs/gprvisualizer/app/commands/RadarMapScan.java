@@ -45,8 +45,8 @@ public class RadarMapScan implements Command {
 	private double calcAlpha(Trace trace, int start, int finish, Settings profileSettings, double[][] scaleArray) {
 		double mx = 0;
 
-		start = Math.clamp(start, 0, trace.numValues());
-		finish = Math.clamp(finish, 0, trace.numValues());
+		start = Math.clamp(start, 0, trace.numSamples());
+		finish = Math.clamp(finish, 0, trace.numSamples());
 
 		double additionalThreshold = profileSettings.autogain ? profileSettings.threshold : 0;
 		
@@ -55,7 +55,7 @@ public class RadarMapScan implements Command {
 			double factor = scaleArray[1][i];		
 			
 			if (trace.getEdge(i) != 0) {
-				double av = Math.abs(trace.getValue(i));
+				double av = Math.abs(trace.getSample(i));
 				if (av < additionalThreshold) {
 					av = 0;
 				}

@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.github.thecoldwine.sigrun.common.TraceHeader;
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 
@@ -179,9 +178,9 @@ public class DztFile extends TraceFile {
 		float avg = (float) valuesAvg.getAvg();
 		
 		for (Trace trace : traces) {
-			for (int smp = 0; smp < trace.numValues(); smp++) {
-				float value = trace.getValue(smp) - avg;
-				trace.setValue(smp, value);
+			for (int smp = 0; smp < trace.numSamples(); smp++) {
+				float value = trace.getSample(smp) - avg;
+				trace.setSample(smp, value);
 			}			
 		}
 	}
@@ -305,7 +304,7 @@ public class DztFile extends TraceFile {
 			valueMediator.put(buffer, trace.getIndex());
 			
 			for (int i = 0; i < header.rh_nsamp - 1; i++) {
-				valueMediator.put(buffer, (int) (trace.getValue(i) + avg));
+				valueMediator.put(buffer, (int) (trace.getSample(i) + avg));
 			}
 		
 			buffer.position(0);

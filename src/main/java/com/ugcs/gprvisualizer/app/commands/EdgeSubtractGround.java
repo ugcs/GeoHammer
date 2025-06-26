@@ -5,7 +5,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.AppContext;
@@ -115,7 +114,7 @@ public class EdgeSubtractGround implements Command {
 		
 		//real clear
 		for (Trace trace : file.getTraces()) {
-			for (int smp = 0; smp < trace.numValues(); smp++) {
+			for (int smp = 0; smp < trace.numSamples(); smp++) {
 				if (trace.getGood(smp) == 1) {
 					trace.setEdge(smp, (byte)0);
 				}

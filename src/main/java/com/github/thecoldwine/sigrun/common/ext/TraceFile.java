@@ -126,7 +126,7 @@ public abstract class TraceFile extends SgyFile {
     }
 
     public int getMaxSamples() {
-        return getTraces().getFirst().numValues();
+        return getTraces().getFirst().numSamples();
     }
 
     public class TraceList extends AbstractList<Trace> {

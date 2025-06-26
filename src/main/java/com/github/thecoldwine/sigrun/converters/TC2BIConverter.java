@@ -25,10 +25,10 @@ public class TC2BIConverter implements SeismicValuesConverter{
 
 	public ByteBuffer valuesToByteBuffer(Trace trace) {
 		ByteBuffer bb = ByteBuffer
-				.allocate(trace.numValues() * 2)
+				.allocate(trace.numSamples() * 2)
 				.order(ByteOrder.LITTLE_ENDIAN);
-		for (int i = 0; i < trace.numValues(); i++) {
-			bb.putShort((short)trace.getValue(i));
+		for (int i = 0; i < trace.numSamples(); i++) {
+			bb.putShort((short)trace.getSample(i));
 		}
 		return bb;
 	}

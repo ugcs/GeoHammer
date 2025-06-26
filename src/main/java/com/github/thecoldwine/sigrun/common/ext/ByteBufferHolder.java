@@ -22,11 +22,11 @@ public class ByteBufferHolder implements ByteBufferProducer {
 	public static ByteBuffer valuesToByteBuffer(Trace trace) {
 
 		ByteBuffer bb = ByteBuffer
-				.allocate(trace.numValues() * 4)
+				.allocate(trace.numSamples() * 4)
 				.order(ByteOrder.LITTLE_ENDIAN);
 		
-		for (int i = 0; i < trace.numValues(); i++) {
-			bb.putInt((int) trace.getValue(i));
+		for (int i = 0; i < trace.numSamples(); i++) {
+			bb.putInt((int) trace.getSample(i));
 		}
 		
 		return bb;

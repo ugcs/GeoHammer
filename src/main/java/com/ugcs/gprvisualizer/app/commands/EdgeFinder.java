@@ -25,18 +25,18 @@ public class EdgeFinder implements Command {
 			Trace trace = traces.get(i);
 
 			int mxind = 0;
-			for (int s = 1; s < trace.numValues(); s++) {
+			for (int s = 1; s < trace.numSamples(); s++) {
 				
-				byte s1 = (byte) Math.signum(trace.getValue(s - 1));
-				byte s2 = (byte) Math.signum(trace.getValue(s));
+				byte s1 = (byte) Math.signum(trace.getSample(s - 1));
+				byte s2 = (byte) Math.signum(trace.getSample(s));
 				
 				if (s1 != s2) {
 					trace.setEdge(s, s1 > s2 ? (byte) 1 : 2);
-					trace.setEdge(mxind, (trace.getValue(mxind)) < 0 ? (byte) 3 : 4);
+					trace.setEdge(mxind, (trace.getSample(mxind)) < 0 ? (byte) 3 : 4);
 					mxind = s;
 				}
 				
-				if (Math.abs(trace.getValue(mxind)) < Math.abs(trace.getValue(s))) {
+				if (Math.abs(trace.getSample(mxind)) < Math.abs(trace.getSample(s))) {
 					mxind = s;
 				}				
 			}			

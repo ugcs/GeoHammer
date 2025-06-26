@@ -46,8 +46,8 @@ public class AvgShiftFilter {
 			for (int i = 0; i < avgvalues.length; i++) {
 				int avind = i - tr.getMaxIndex();
 				if (avind >= 0 && avind < avgvalues.length) {
-					float value = tr.getValue(i) - avgvalues[avind];
-					tr.setValue(i, value);
+					float value = tr.getSample(i) - avgvalues[avind];
+					tr.setSample(i, value);
 				}
 			}			
 		}
@@ -87,7 +87,7 @@ public class AvgShiftFilter {
 
 		for (int i = Math.max(START, START - shift);
 				i < Math.min(FINISH, FINISH - shift); i++) {
-			sumvalues[i] += trace.getValue(i + shift);
+			sumvalues[i] += trace.getSample(i + shift);
 		}		
 	}
 	
@@ -126,7 +126,7 @@ public class AvgShiftFilter {
 		for (int i = Math.max(START, START - shift);
 				i < Math.min(FINISH, FINISH - shift); i++) {
 			
-			diff += Math.abs(avgvalues[i] - trace.getValue(i + shift));
+			diff += Math.abs(avgvalues[i] - trace.getSample(i + shift));
 		}
 		return diff;
 	}	

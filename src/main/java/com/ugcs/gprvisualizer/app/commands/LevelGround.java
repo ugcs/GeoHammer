@@ -37,23 +37,23 @@ public class LevelGround implements Command {
 		// update samples
 		for (Trace trace: file.getTraces()) {
 			int deep = hp.deep[trace.getIndex()];
-			int numValues = trace.numValues();
+			int numValues = trace.numSamples();
 
 			int n = Math.max(0, numValues - Math.abs(deep - level));
 			float[] buffer = new float[n];
 
 			int srcOffset = Math.max(0, deep - level);
 			for (int i = 0; i < n && srcOffset + i < numValues; i++) {
-				buffer[i] = trace.getValue(srcOffset + i);
+				buffer[i] = trace.getSample(srcOffset + i);
 			}
 
 			for (int i = 0; i < numValues; i++) {
-				trace.setValue(i, 0f);
+				trace.setSample(i, 0f);
 			}
 
 			int dstOffset = Math.max(0, level - deep);
 			for (int i = 0; i < n && dstOffset + i < numValues; i++) {
-				trace.setValue(dstOffset + i, buffer[i]);
+				trace.setSample(dstOffset + i, buffer[i]);
 			}
 		}
 

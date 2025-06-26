@@ -18,9 +18,7 @@ public class Trace {
 
     private SampleRange sampleRange;
 
-    private float[] originalValues;
-
-    private float[] normValues;
+    private float[] samples;
 
     /*
      * 0
@@ -47,13 +45,13 @@ public class Trace {
     private int maxindex;
 
     public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header,
-                 float[] originalValues, LatLon latLon) {
+                 float[] samples, LatLon latLon) {
         this.binHeader = binHeader;
         this.header = header;
 
-        this.originalValues = originalValues;
-        this.edges = new byte[originalValues.length];
-        this.good = new byte[originalValues.length];
+        this.samples = samples;
+        this.edges = new byte[samples.length];
+        this.good = new byte[samples.length];
 
         this.latLonOrigin = latLon;
         this.latLon = latLon;
@@ -63,7 +61,7 @@ public class Trace {
         Trace copy = new Trace(
                 binHeader,
                 header,
-                Arrays.copyOf(originalValues, originalValues.length),
+                Arrays.copyOf(samples, samples.length),
                 latLon);
         copy.index = index;
         copy.sampleRange = sampleRange;
@@ -117,8 +115,8 @@ public class Trace {
         return index - sampleRange.getFrom();
     }
 
-    public int numValues() {
-        int totalSamples = originalValues.length;
+    public int numSamples() {
+        int totalSamples = samples.length;
         if (sampleRange == null) {
             return totalSamples;
         }
@@ -126,26 +124,12 @@ public class Trace {
                 - Math.clamp(sampleRange.getFrom(), 0, totalSamples);
     }
 
-    public float getOriginalValue(int index) {
-        return originalValues[localToGlobal(index)];
+    public float getSample(int index) {
+        return samples[localToGlobal(index)];
     }
 
-    public void setOriginalValue(int index, float value) {
-        originalValues[localToGlobal(index)] = value;
-    }
-
-    public float getValue(int index) {
-        if (normValues == null) {
-            return getOriginalValue(index);
-        }
-        return normValues[localToGlobal(index)];
-    }
-
-    public void setValue(int index, float value) {
-        if (normValues == null) {
-            normValues = Arrays.copyOf(originalValues, originalValues.length);
-        }
-        normValues[localToGlobal(index)] = value;
+    public void setSample(int index, float value) {
+        samples[localToGlobal(index)] = value;
     }
 
     public byte getEdge(int index) {

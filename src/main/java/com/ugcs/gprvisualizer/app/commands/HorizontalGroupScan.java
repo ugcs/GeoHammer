@@ -70,7 +70,7 @@ public class HorizontalGroupScan implements Command {
 
 	public int findExampleAround(int example, int lastSmp, Trace tr) {
 		
-		int max = tr.numValues() - 1;
+		int max = tr.numSamples() - 1;
 		
 		for (int ord = 0; ord < LOOKINGORDER.length; ord++) {
 			int smp = lastSmp + LOOKINGORDER[ord];

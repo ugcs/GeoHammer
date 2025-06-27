@@ -221,8 +221,8 @@ public class ProfileView implements InitializingBean {
 			System.out.println("ProfileView.fileOpened " + file.getAbsolutePath());
 			model.getFileManager().getGprFiles().stream().filter(f -> f.getFile().equals(file)).findFirst().ifPresent(f -> {
 				System.out.println("Loaded traces: " + f.getTraces().size());
-				var gprPane = model.getOrCreateGprChart(f);
-				var vbox = (VBox) gprPane.getRootNode();
+				var gprChart = model.getOrCreateGprChart(f);
+				var vbox = (VBox) gprChart.getRootNode();
 
 				//TODO:
 				//gprPane.clear();
@@ -234,10 +234,11 @@ public class ProfileView implements InitializingBean {
 					vbox.setMinHeight(Math.max(400, vbox.getScene().getHeight() / 2));
 				}
 
-				gprPane.fitFull();
+				updateGprChartSize(gprChart);
+				gprChart.fitFull();
 
 				fileSelected(new FileSelectedEvent(this, f));
-				model.selectAndScrollToChart(gprPane);
+				model.selectAndScrollToChart(gprChart);
 			});
 		});
 
@@ -293,7 +294,7 @@ public class ProfileView implements InitializingBean {
 				if (gprChart != null) {
 					ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> {
 						if (Math.abs(newValue.intValue() - oldValue.intValue()) > 1) {
-							gprChart.setSize((int) (center.getWidth() - 21), (int) (Math.max(400, ((VBox) gprChart.getRootNode()).getHeight()) - 4));
+							updateGprChartSize(gprChart);
 						}
 					};
 					center.widthProperty().addListener(sp2SizeListener);
@@ -304,6 +305,15 @@ public class ProfileView implements InitializingBean {
 		}
 
 		Platform.runLater(this::enableToolbar);
+	}
+
+	private void updateGprChartSize(GPRChart chart) {
+		if (chart == null) {
+			return;
+		}
+		chart.setSize(
+				(int) (center.getWidth() - 21),
+				(int) (Math.max(400, ((VBox) chart.getRootNode()).getHeight()) - 4));
 	}
 
 	private Region getSpacer() {

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.SortedMap;
+import java.util.TreeMap;
 
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
@@ -21,11 +22,21 @@ public abstract class SgyFile {
 	private boolean unsaved = true;
 
 	private List<BaseObject> auxElements = new ArrayList<>();
+
+	@Nullable
+	private SortedMap<Integer, Range> lineRanges;
 	
 	public abstract List<GeoData> getGeoData();
 
 	public SortedMap<Integer, Range> getLineRanges() {
-		return LineSchema.getLineRanges(getGeoData());
+		if (lineRanges == null) {
+			lineRanges = LineSchema.getLineRanges(getGeoData());
+		}
+		return lineRanges;
+	}
+
+	public void rebuildLineRanges() {
+		lineRanges = null; // would be rebuilt on next access
 	}
 
 	public abstract int numTraces();

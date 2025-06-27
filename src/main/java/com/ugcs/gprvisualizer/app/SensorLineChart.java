@@ -96,8 +96,6 @@ public class SensorLineChart extends Chart {
     private CsvFile file;
     //private Node rootNode;
 
-    private SortedMap<Integer, Range> lineRanges;
-
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private ScheduledFuture<?> updateTask;
@@ -231,7 +229,6 @@ public class SensorLineChart extends Chart {
     public VBox createChartWithMultipleYAxes(CsvFile file, List<PlotData> plotDataList) {
 
         this.file = file;
-        this.lineRanges = file.getLineRanges();
 
         // Using StackPane to overlay charts
         this.chartsContainer = new StackPane();
@@ -370,7 +367,7 @@ public class SensorLineChart extends Chart {
 
     private void initLineMarkers() {
         Color lineColor = getColor(GeoData.Semantic.LINE.getName());
-        for (Map.Entry<Integer, Range> e : lineRanges.entrySet()) {
+        for (Map.Entry<Integer, Range> e : file.getLineRanges().entrySet()) {
             int lineIndex = e.getKey();
             Range lineRange = e.getValue();
 
@@ -417,7 +414,7 @@ public class SensorLineChart extends Chart {
 
     private void removeLine(int lineIndex) {
         // if target line is last in a file, close the file
-        if (lineRanges.size() == 1) {
+        if (file.getLineRanges().size() == 1) {
             close();
         } else {
             TraceTransform traceTransform = AppContext.getInstance(TraceTransform.class);
@@ -508,7 +505,6 @@ public class SensorLineChart extends Chart {
             lastLineChart.clearVerticalValueMarkers();
         }
 
-        lineRanges = file.getLineRanges();
         Map<String, LineChartWithMarkers> lineCharts = getCharts();
 
         List<PlotData> plotDataList = generatePlotData(file);
@@ -686,6 +682,7 @@ public class SensorLineChart extends Chart {
             return getValueLineIndex(xCenter);
         }
         // default: first range key or 0
+        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
         return !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
     }
 
@@ -739,7 +736,7 @@ public class SensorLineChart extends Chart {
     }
 
     private void zoomToLine(int lineIndex) {
-        Range range = lineRanges.get(lineIndex);
+        Range range = file.getLineRanges().get(lineIndex);
         for (LineChartWithMarkers chart : charts) {
             ZoomRect zoomRect = chart.createZoomRectForXRange(range);
             chart.setZoomRect(zoomRect);
@@ -761,6 +758,7 @@ public class SensorLineChart extends Chart {
     @Override
     public void zoomToPreviousLine() {
         int lineIndex = getViewLineIndex();
+        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
         int firstLineIndex = !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
         zoomToLine(Math.max(lineIndex - 1, firstLineIndex));
         updateOnZoom(false);
@@ -769,6 +767,7 @@ public class SensorLineChart extends Chart {
     @Override
     public void zoomToNextLine() {
         int lineIndex = getViewLineIndex();
+        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
         int lastLineIndex = !lineRanges.isEmpty() ? lineRanges.lastKey() : 0;
         zoomToLine(Math.min(lineIndex + 1, lastLineIndex));
         updateOnZoom(false);
@@ -1499,7 +1498,7 @@ public class SensorLineChart extends Chart {
 
         List<Number> values = chart.plotData.data;
         List<Number> filtered = new ArrayList<>(values.size());
-        for (Range range : lineRanges.values()) {
+        for (Range range : file.getLineRanges().values()) {
             int from = range.getMin().intValue();
             int to = range.getMax().intValue();
 
@@ -1634,7 +1633,7 @@ public class SensorLineChart extends Chart {
 
         List<Number> values = data.data;
         List<Number> filtered = new ArrayList<>(values.size());
-        for (Range range : lineRanges.values()) {
+        for (Range range : file.getLineRanges().values()) {
             int from = range.getMin().intValue();
             int to = range.getMax().intValue();
 

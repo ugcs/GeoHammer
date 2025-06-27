@@ -55,6 +55,8 @@ public abstract class FileSnapshot<T extends SgyFile> implements UndoSnapshot {
         Check.notNull(model);
         Check.notNull(file);
 
+        file.rebuildLineRanges();
+
         // update file chart
         Chart chart = model.getFileChart(file);
         if (chart != null) {

@@ -24,9 +24,13 @@ import java.util.Set;
 
 public abstract class TraceFile extends SgyFile {
 
-    private List<Trace> traces = new ArrayList<>();
+    protected List<Trace> traces = new ArrayList<>();
 
-    private MetaFile metaFile;
+    protected MetaFile metaFile;
+
+    public MetaFile getMetaFile() {
+        return metaFile;
+    }
 
     protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
@@ -42,8 +46,7 @@ public abstract class TraceFile extends SgyFile {
             metaFile.init(traces);
         }
 
-        metaFile.initLocations(traces);
-        metaFile.initSampleRanges(traces);
+        metaFile.initTraces(traces);
     }
 
     public void saveMeta() throws IOException {
@@ -64,12 +67,22 @@ public abstract class TraceFile extends SgyFile {
         metaFile.save(metaPath);
     }
 
+    public void updateTracesFromMeta() {
+        if (metaFile != null) {
+            metaFile.initTraces(traces);
+        }
+    }
+
     @Override
     public abstract TraceFile copy();
 
     public abstract TraceFile copy(Range range);
 
     public abstract TraceFile copyHeader();
+
+    public abstract void normalize();
+
+    public abstract void denormalize();
 
     @Override
     public List<GeoData> getGeoData() {

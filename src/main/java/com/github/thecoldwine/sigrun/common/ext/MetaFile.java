@@ -68,7 +68,12 @@ public class MetaFile {
         return new File(source.getParentFile(), metaFileName).toPath();
     }
 
-    public void initLocations(List<Trace> traces) {
+    public void initTraces(List<Trace> traces) {
+        initLocations(traces);
+        initSampleRanges(traces);
+    }
+
+    private void initLocations(List<Trace> traces) {
         if (traces == null) {
             return;
         }
@@ -81,7 +86,7 @@ public class MetaFile {
         }
     }
 
-    public void initSampleRanges(List<Trace> traces) {
+    private void initSampleRanges(List<Trace> traces) {
         for (Trace trace : Nulls.toEmpty(traces)) {
             trace.setSampleRange(sampleRange);
         }
@@ -137,7 +142,7 @@ public class MetaFile {
         return meta;
     }
 
-    private TraceMeta getMetaFromState() {
+    public TraceMeta getMetaFromState() {
         TraceMeta meta = new TraceMeta();
 
         // sample range
@@ -181,7 +186,7 @@ public class MetaFile {
         return meta;
     }
 
-    private void setMetaToState(TraceMeta meta) {
+    public void setMetaToState(TraceMeta meta) {
         Check.notNull(meta);
 
         // sample range

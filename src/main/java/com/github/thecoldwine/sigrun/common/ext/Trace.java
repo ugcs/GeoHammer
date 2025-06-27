@@ -93,10 +93,8 @@ public class Trace {
         return sampleRange;
     }
 
-    public void setSampleRange(SampleRange range) {
-        sampleRange = sampleRange != null
-                ? sampleRange.subRange(range)
-                : range;
+    public void setSampleRange(SampleRange sampleRange) {
+        this.sampleRange = sampleRange;
     }
 
     private int localToGlobal(int index) {

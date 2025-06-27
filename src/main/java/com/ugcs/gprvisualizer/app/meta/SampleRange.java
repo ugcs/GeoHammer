@@ -3,6 +3,8 @@ package com.ugcs.gprvisualizer.app.meta;
 import com.google.gson.annotations.Expose;
 import com.ugcs.gprvisualizer.utils.Check;
 
+import java.util.Objects;
+
 public class SampleRange {
 
     @Expose
@@ -42,5 +44,18 @@ public class SampleRange {
         return new SampleRange(
                 from + range.from,
                 from + range.to);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (!(other instanceof SampleRange range)) {
+            return false;
+        }
+        return from == range.from && to == range.to;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(from, to);
     }
 }

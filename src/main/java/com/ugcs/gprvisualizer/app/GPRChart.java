@@ -393,8 +393,8 @@ public class GPRChart extends Chart {
         SortedMap<Integer, Range> lineRanges = getFile().getLineRanges();
         for (Range range : lineRanges.values()) {
             RemoveLineButton removeLine = new RemoveLineButton(
-                    model,
-                    new TraceKey(file, range.getMin().intValue()));
+                    new TraceKey(file, range.getMin().intValue()),
+                    model);
             auxElements.add(removeLine);
         }
 
@@ -403,7 +403,8 @@ public class GPRChart extends Chart {
         auxElements.add(leftRulerController.getTB());
 
         // close button
-        auxElements.add(new CloseGprChartButton(model, new TraceKey(file, 0)));
+        auxElements.add(new CloseGprChartButton(
+                new TraceKey(file, 0), model));
     }
 
     public LeftRulerController getLeftRulerController() {

@@ -16,7 +16,7 @@ import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
 import javafx.geometry.Point2D;
 
-public class RemoveLineButton extends BaseObjectWithModel implements Positional {
+public class RemoveLineButton extends PositionalObject {
 
 	static int R_HOR = ResourceImageHolder.IMG_CLOSE_FILE.getWidth(null);
 	static int R_VER = ResourceImageHolder.IMG_CLOSE_FILE.getHeight(null);
@@ -24,9 +24,12 @@ public class RemoveLineButton extends BaseObjectWithModel implements Positional 
 	// trace should be one of the target removal line traces
 	private final TraceKey trace;
 
-	public RemoveLineButton(Model model, TraceKey trace) {
-		super(model);
+	private final Model model;
+
+	public RemoveLineButton(TraceKey trace, Model model) {
 		Check.notNull(trace);
+
+		this.model = model;
 		this.trace = trace;
 	}
 
@@ -62,7 +65,7 @@ public class RemoveLineButton extends BaseObjectWithModel implements Positional 
 	@Override
 	public BaseObject copy(int traceOffset) {
 		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
-		return new RemoveLineButton(model, newTrace);
+		return new RemoveLineButton(newTrace, model);
 	}
 
 	@Override

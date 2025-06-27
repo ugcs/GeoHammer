@@ -1,28 +1,25 @@
 package com.ugcs.gprvisualizer.app;
 
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.SampleNormalizer;
+import com.github.thecoldwine.sigrun.common.ext.MetaFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
-import com.ugcs.gprvisualizer.app.auxcontrol.Positional;
+import com.ugcs.gprvisualizer.app.auxcontrol.PositionalObject;
 import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.undo.UndoModel;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import javafx.geometry.Point2D;
-import org.jspecify.annotations.Nullable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,14 +28,28 @@ import java.util.Set;
 public class TraceTransform {
 
     private final Model model;
-    private ApplicationEventPublisher eventPublisher;
+    private final UndoModel undoModel;
 
-    public TraceTransform(Model model, ApplicationEventPublisher eventPublisher) {
+    public TraceTransform(Model model, UndoModel undoModel) {
         this.model = model;
-        this.eventPublisher = eventPublisher;
+        this.undoModel = undoModel;
     }
 
-    public void cropLines(SgyFile file, MapField field, List<Point2D> cropArea) {
+    public void cropLines(Collection<SgyFile> files, MapField field, List<Point2D> cropArea) {
+        Check.notNull(files);
+
+        if (files.isEmpty()) {
+            return;
+        }
+
+        undoModel.saveSnapshot(files);
+
+        for (SgyFile file : model.getFileManager().getFiles()) {
+            cropLines(file, field, cropArea);
+        }
+    }
+
+    private void cropLines(SgyFile file, MapField field, List<Point2D> cropArea) {
         Check.notNull(file);
 
         Chart chart = model.getFileChart(file);
@@ -49,19 +60,22 @@ public class TraceTransform {
 
         // positional element indices should be updated
         // on trace manipulations
-        Map<Integer, List<Positional>> elements = AuxElements
+        Map<Integer, List<PositionalObject>> elements = AuxElements
                 .getPositionalElements(file.getAuxElements());
+
+        // all elements that should be removed
+        Set<PositionalObject> toRemove = new HashSet<>();
 
         boolean prevInside = false;
         int prevLineIndex = 0;
         int cutLineIndex = 0;
         boolean cutIndexUsed = false;
 
-        Iterator<GeoData> it = file.getGeoData().iterator();
-        int traceIndex = 0;
+        List<GeoData> values = file.getGeoData();
         int numRemoved = 0;
-        while (it.hasNext()) {
-            GeoData value = it.next();
+
+        for (int i = 0; i < values.size(); i++) {
+            GeoData value = values.get(i);
 
             boolean inside = isGeoDataInsideSelection(field, cropArea, value);
             int lineIndex = value.getLineIndexOrDefault();
@@ -75,31 +89,38 @@ public class TraceTransform {
             if (inside) {
                 value.setLineIndex(cutLineIndex);
                 cutIndexUsed = true;
-                // offset elements
-                for (Positional element : Nulls.toEmpty(elements.get(traceIndex))) {
-                    element.offset(-numRemoved);
-                }
-                // offset selection
-                if (selectedTrace != null && selectedTrace.getIndex() == traceIndex) {
-                    selectedTrace.offset(-numRemoved);
+                if (numRemoved > 0) {
+                    values.set(i - numRemoved, value);
+                    // offset elements
+                    for (PositionalObject element : Nulls.toEmpty(elements.get(i))) {
+                        element.offset(-numRemoved);
+                    }
+                    // offset selection
+                    if (selectedTrace != null && selectedTrace.getIndex() == i) {
+                        selectedTrace.offset(-numRemoved);
+                    }
                 }
             } else {
-                it.remove();
                 numRemoved++;
-                // remove elements
-                for (Positional element : Nulls.toEmpty(elements.get(traceIndex))) {
-                    file.getAuxElements().remove(element);
-                }
+                // collect elements to remove
+                toRemove.addAll(Nulls.toEmpty(elements.get(i)));
                 // clear selection on chart
-                if (selectedTrace != null && selectedTrace.getIndex() == traceIndex) {
+                if (selectedTrace != null && selectedTrace.getIndex() == i) {
                     model.clearSelectedTrace(chart);
                 }
             }
 
             prevInside = inside;
             prevLineIndex = lineIndex;
-            traceIndex++;
         }
+
+        if (numRemoved > 0) {
+            // clear tail
+            values.subList(values.size() - numRemoved, values.size()).clear();
+        }
+
+        // remove elements
+        file.getAuxElements().removeAll(toRemove);
 
         onFileTracesUpdated(file);
     }
@@ -119,6 +140,8 @@ public class TraceTransform {
     public void splitLine(SgyFile file, int splitIndex) {
         Check.notNull(file);
         Check.condition(splitIndex >= 0);
+
+        undoModel.saveSnapshot(file);
 
         List<GeoData> values = file.getGeoData();
 
@@ -141,6 +164,8 @@ public class TraceTransform {
     public void removeLine(SgyFile file, int lineIndex) {
         Check.notNull(file);
 
+        undoModel.saveSnapshot(file);
+
         Chart chart = model.getFileChart(file);
         TraceKey selectedTrace = null;
         if (chart != null) {
@@ -149,42 +174,51 @@ public class TraceTransform {
 
         // positional element indices should be updated
         // on trace manipulations
-        Map<Integer, List<Positional>> elements = AuxElements
+        Map<Integer, List<PositionalObject>> elements = AuxElements
                 .getPositionalElements(file.getAuxElements());
 
-        Iterator<GeoData> it = file.getGeoData().iterator();
-        int traceIndex = 0;
+        // all elements that should be removed
+        Set<PositionalObject> toRemove = new HashSet<>();
+
+        List<GeoData> values = file.getGeoData();
         int numRemoved = 0;
-        while (it.hasNext()) {
-            GeoData value = it.next();
+
+        for (int i = 0; i < values.size(); i++) {
+            GeoData value = values.get(i);
             int valueLineIndex = value.getLineIndexOrDefault();
             if (valueLineIndex != lineIndex) {
                 if (valueLineIndex > lineIndex) {
                     value.setLineIndex(valueLineIndex - 1);
                 }
-                // offset elements
-                for (Positional element : Nulls.toEmpty(elements.get(traceIndex))) {
-                    element.offset(-numRemoved);
-                }
-                // offset selection
-                if (selectedTrace != null && selectedTrace.getIndex() == traceIndex) {
-                    selectedTrace.offset(-numRemoved);
+                if (numRemoved > 0) {
+                    values.set(i - numRemoved, value);
+                    // offset elements
+                    for (PositionalObject element : Nulls.toEmpty(elements.get(i))) {
+                        element.offset(-numRemoved);
+                    }
+                    // offset selection
+                    if (selectedTrace != null && selectedTrace.getIndex() == i) {
+                        selectedTrace.offset(-numRemoved);
+                    }
                 }
             } else {
-                it.remove();
                 numRemoved++;
-                // remove elements
-                for (Positional element : Nulls.toEmpty(elements.get(traceIndex))) {
-                    file.getAuxElements().remove(element);
-                }
+                // collect elements to remove
+                toRemove.addAll(Nulls.toEmpty(elements.get(i)));
                 // clear selection on chart
-                if (selectedTrace != null && selectedTrace.getIndex() == traceIndex) {
+                if (selectedTrace != null && selectedTrace.getIndex() == i) {
                     model.clearSelectedTrace(chart);
                 }
             }
-
-            traceIndex++;
         }
+
+        if (numRemoved > 0) {
+            // clear tail
+            values.subList(values.size() - numRemoved, values.size()).clear();
+        }
+
+        // remove elements
+        file.getAuxElements().removeAll(toRemove);
 
         onFileTracesUpdated(file);
     }
@@ -204,7 +238,7 @@ public class TraceTransform {
             chart.reload();
         }
 
-        eventPublisher.publishEvent(new WhatChanged(this,
+        model.publishEvent(new WhatChanged(this,
                 WhatChanged.Change.traceCut));
     }
 
@@ -239,23 +273,23 @@ public class TraceTransform {
     public void cropGprSamples(TraceFile file, int offset, int length) {
         Check.notNull(file);
 
-        // revert normalization
-        if (file instanceof GprFile gprFile) {
-            SampleNormalizer normalizer = gprFile.getSampleNormalizer();
-            normalizer.back(file.getTraces());
+        MetaFile metaFile = file.getMetaFile();
+        if (metaFile == null) {
+            // operation requires meta file
+            return;
         }
+
+        undoModel.saveSnapshot(file);
 
         length = Math.max(1, length);
         SampleRange sampleRange = new SampleRange(offset, offset + length);
-        for (Trace trace : file.getTraces()) {
-            trace.setSampleRange(sampleRange);
+        SampleRange currentSampleRange = metaFile.getSampleRange();
+        if (currentSampleRange != null) {
+            sampleRange = currentSampleRange.subRange(sampleRange);
         }
 
-        // re-normalize samples
-        if (file instanceof GprFile gprFile) {
-            SampleNormalizer normalizer = gprFile.getSampleNormalizer();
-            normalizer.normalize(file.getTraces());
-        }
+        metaFile.setSampleRange(sampleRange);
+        file.updateTracesFromMeta();
 
         onFileTracesUpdated(file);
     }

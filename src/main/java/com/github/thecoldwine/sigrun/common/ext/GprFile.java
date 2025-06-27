@@ -295,4 +295,14 @@ public class GprFile extends TraceFile {
 
 		return copy;
 	}
+
+	@Override
+	public void normalize() {
+		sampleNormalizer.normalize(traces);
+	}
+
+	@Override
+	public void denormalize() {
+		sampleNormalizer.back(traces);
+	}
 }

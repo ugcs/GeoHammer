@@ -18,9 +18,8 @@ import javafx.geometry.Point2D;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.gpr.Model;
-import org.jspecify.annotations.Nullable;
 
-public class FoundPlace extends BaseObjectWithModel implements Positional {
+public class FoundPlace extends PositionalObject {
 
 	//static int R_HOR = ResourceImageHolder.IMG_SHOVEL.getWidth(null) / 2;
 	//static int R_VER = ResourceImageHolder.IMG_SHOVEL.getHeight(null) / 2;
@@ -36,8 +35,18 @@ public class FoundPlace extends BaseObjectWithModel implements Positional {
                 BasicStroke.JOIN_MITER,
                 10.0f, dash1, 0.0f);
 
-	private final Color flagColor = Color.getHSBColor((float) Math.random(), 0.9f, 0.97f);
+	private Color flagColor = Color.getHSBColor((float) Math.random(), 0.9f, 0.97f);
+
+	private final Model model;
+
 	private TraceKey trace;
+
+	public FoundPlace(TraceKey trace, Model model) {
+		Check.notNull(trace);
+
+		this.model = model;
+		this.trace = trace;
+	}
 
 	public TraceKey getTrace() {
 		return trace;
@@ -55,12 +64,6 @@ public class FoundPlace extends BaseObjectWithModel implements Positional {
 
 	public Color getFlagColor() {
 		return flagColor;
-	}
-	
-	public FoundPlace(TraceKey trace, Model model) {
-		super(model);
-		Check.notNull(trace);
-		this.trace = trace;
 	}
 
 	@Override
@@ -195,7 +198,10 @@ public class FoundPlace extends BaseObjectWithModel implements Positional {
 	@Override
 	public BaseObject copy(int traceOffset) {
 		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
-		return new FoundPlace(newTrace, model);
+		FoundPlace copy = new FoundPlace(newTrace, model);
+		// keep flag color
+		copy.flagColor = flagColor;
+		return copy;
 	}
 
 	@Override

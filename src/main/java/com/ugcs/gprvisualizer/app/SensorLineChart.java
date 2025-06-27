@@ -39,7 +39,6 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.util.StringUtils;
 
 import com.ugcs.gprvisualizer.app.fir.FIRFilter;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
@@ -137,32 +136,29 @@ public class SensorLineChart extends Chart {
 
     public List<PlotData> generatePlotData(CsvFile csvFile) {
 
-        List<GeoData> geoData = csvFile.getGeoData();
+        record PlotKey(String semantic, String units) {}
 
-        Map<String, List<SensorValue>> sensorValues = new LinkedHashMap<>();
-        geoData.forEach(data -> {
-            data.getSensorValues().forEach(value -> {
-                sensorValues.compute(value.semantic() + "--" + (StringUtils.hasText(value.units()) ? value.units() : " "), (k, v) -> {
-                    if (v == null) {
-                        v = new ArrayList<>();
-                    }
-                    v.add(value);
-                    return v;
-                });
-            });
-        });
+        Map<PlotKey, List<Number>> sensorValues = new LinkedHashMap<>();
+        for (GeoData data : csvFile.getGeoData()) {
+            for (SensorValue value : data.getSensorValues()) {
+                PlotKey plotKey = new PlotKey(
+                        value.semantic(),
+                        Strings.nullToEmpty(value.units()));
+                sensorValues.computeIfAbsent(plotKey, k -> new ArrayList<>())
+                        .add(value.data());
+            }
+        }
 
         List<PlotData> plotDataList = new ArrayList<>();
-        for (Map.Entry<String, List<SensorValue>> e: sensorValues.entrySet()) {
-            var pd = e.getKey().split("--");
-            var data = e.getValue().stream()
-                    .map(SensorValue::data)
-                    .collect(Collectors.toList());
-            PlotData plotData = new PlotData(pd[0], pd[1], getColor(pd[0]), data);
+        for (Map.Entry<PlotKey, List<Number>> e: sensorValues.entrySet()) {
+            PlotKey key = e.getKey();
+            List<Number> data = e.getValue();
 
-            //calculateAverages(e.getValue().stream()
-            //        .map(SensorValue::data)
-            //        .collect(Collectors.toList()));
+            PlotData plotData = new PlotData(
+                    key.semantic,
+                    key.units,
+                    getColor(key.semantic),
+                    data);
             plotDataList.add(plotData);
         }
         return plotDataList;

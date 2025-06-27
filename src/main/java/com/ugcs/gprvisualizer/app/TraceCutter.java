@@ -7,17 +7,19 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
+import com.ugcs.gprvisualizer.app.undo.UndoModel;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
+import com.ugcs.gprvisualizer.event.UndoStackChanged;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.context.ApplicationEventPublisher;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
@@ -46,7 +48,7 @@ public class TraceCutter implements Layer, InitializingBean {
 	Map<Integer, Boolean> activePoints = new HashMap<>();
 	
 	private final Model model;
-	private final ApplicationEventPublisher eventPublisher;
+	private final UndoModel undoModel;
 	private final TraceTransform traceTransform;
 	
 	private RepaintListener listener;
@@ -56,8 +58,6 @@ public class TraceCutter implements Layer, InitializingBean {
 	private Button buttonSplit = ResourceImageHolder.setButtonImage(ResourceImageHolder.SPLIT, new Button());
 	private Button buttonUndo = ResourceImageHolder.setButtonImage(ResourceImageHolder.UNDO, new Button());
 
-	private final List<SgyFile> undoFiles = new ArrayList<>();
-	
 	{
 		buttonCutMode.setTooltip(new Tooltip("Select area"));
 		buttonUndo.setTooltip(new Tooltip("Undo"));
@@ -65,10 +65,12 @@ public class TraceCutter implements Layer, InitializingBean {
 		buttonSplit.setTooltip(new Tooltip("Split the line"));
 	}
 
-	public TraceCutter(Model model, ApplicationEventPublisher eventPublisher,
-					   TraceTransform traceTransform) {
+	public TraceCutter(
+			Model model,
+			UndoModel undoModel,
+			TraceTransform traceTransform) {
 		this.model = model;
-		this.eventPublisher = eventPublisher;
+		this.undoModel = undoModel;
 		this.traceTransform = traceTransform;
 	}
 
@@ -92,7 +94,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		buttonCutMode.setSelected(false);
 		buttonCrop.setDisable(true);
 		buttonSplit.setDisable(true);
-		buttonUndo.setDisable(undoFiles.isEmpty());
+		buttonUndo.setDisable(!undoModel.canUndo());
 	}
 
 	private void updateCutMode() {
@@ -134,8 +136,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 			buttonCutMode.setSelected(false);
 			updateCutMode();
-			buttonUndo.setDisable(false);
-			eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+			model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
 
 		buttonSplit.setOnAction(e -> {
@@ -147,8 +148,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 			buttonCutMode.setSelected(false);
 			updateCutMode();
-			buttonUndo.setDisable(true);
-			eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+			model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
 
 		return Arrays.asList(buttonCutMode, buttonCrop, buttonSplit, buttonUndo);
@@ -284,9 +284,10 @@ public class TraceCutter implements Layer, InitializingBean {
 
 
 	private void undo() {
-		// TODO not implemented
-		model.clearSelectedTraces();
-		buttonUndo.setDisable(true);
+		if (undoModel.canUndo()) {
+			model.clearSelectedTraces();
+			undoModel.undo();
+		}
 	}
 
 	private void applyCropLines() {
@@ -297,9 +298,8 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		List<Point2D> cropArea = getScreenPoligon(field);
 
-		for (SgyFile file : model.getFileManager().getFiles()) {
-			traceTransform.cropLines(file, field, cropArea);
-		}
+		Set<SgyFile> files = model.getFileManager().getFiles();
+		traceTransform.cropLines(files, field, cropArea);
 	}
 
 	private void applySplitLine() {
@@ -357,5 +357,12 @@ public class TraceCutter implements Layer, InitializingBean {
 		if (changed.isJustdraw()) {
 			Platform.runLater(this::updateSplit);
 		}
+	}
+
+	@EventListener
+	private void undoStackChanged(UndoStackChanged event) {
+		Platform.runLater(() -> {
+			buttonUndo.setDisable(!undoModel.canUndo());
+		});
 	}
 }

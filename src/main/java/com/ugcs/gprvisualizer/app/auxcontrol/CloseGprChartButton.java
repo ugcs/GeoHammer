@@ -11,8 +11,8 @@ import java.awt.*;
 
 public class CloseGprChartButton extends RemoveLineButton {
 
-    public CloseGprChartButton(Model model, TraceKey trace) {
-        super(model, trace);
+    public CloseGprChartButton(TraceKey trace, Model model) {
+        super(trace, model);
     }
 
     @Override

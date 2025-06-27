@@ -5,6 +5,7 @@ import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -33,7 +34,7 @@ public class FileManager {
 
 	//public boolean levelCalculated = false;
 	
-	private final List<SgyFile> files = new ArrayList<>();
+	private final Set<SgyFile> files = new HashSet<>();
 
 	@Nullable
 	private File topFolder = null;
@@ -149,8 +150,8 @@ public class FileManager {
 				.collect(Collectors.toList());
 	}
 
-	public List<SgyFile> getFiles() {
-		return Collections.unmodifiableList(files);
+	public Set<SgyFile> getFiles() {
+		return Collections.unmodifiableSet(files);
 	}
 
 	public int getFilesCount() {

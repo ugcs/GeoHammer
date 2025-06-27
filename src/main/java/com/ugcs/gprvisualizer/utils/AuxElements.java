@@ -1,10 +1,8 @@
 package com.ugcs.gprvisualizer.utils;
 
-import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
-import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
-import com.ugcs.gprvisualizer.app.auxcontrol.Positional;
+import com.ugcs.gprvisualizer.app.auxcontrol.PositionalObject;
 import io.micrometer.common.lang.Nullable;
 
 import java.util.ArrayList;
@@ -24,7 +22,7 @@ public final class AuxElements {
 
         List<BaseObject> newElements = new ArrayList<>();
         for (BaseObject element : elements) {
-            if (range != null && element instanceof Positional positional) {
+            if (range != null && element instanceof PositionalObject positional) {
                 int fromIndex = range.getMin().intValue();
                 int toIndex = range.getMax().intValue() + 1; // exclusive
                 int traceIndex = positional.getTraceIndex();
@@ -55,10 +53,10 @@ public final class AuxElements {
         return markIndices;
     }
 
-    public static Map<Integer, List<Positional>> getPositionalElements(List<BaseObject> elements) {
-        Map<Integer, List<Positional>> index = new HashMap<>();
+    public static Map<Integer, List<PositionalObject>> getPositionalElements(List<BaseObject> elements) {
+        Map<Integer, List<PositionalObject>> index = new HashMap<>();
         for (BaseObject element : Nulls.toEmpty(elements)) {
-            if (element instanceof Positional positional) {
+            if (element instanceof PositionalObject positional) {
                 int traceIndex = positional.getTraceIndex();
                 index.computeIfAbsent(traceIndex, k -> new ArrayList<>()).add(positional);
             }

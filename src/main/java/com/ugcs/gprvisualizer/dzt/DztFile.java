@@ -184,6 +184,17 @@ public class DztFile extends TraceFile {
 			}			
 		}
 	}
+
+	public void addAvgValue(List<Trace> traces) {
+		float avg = (float) valuesAvg.getAvg();
+
+		for (Trace trace : traces) {
+			for (int smp = 0; smp < trace.numSamples(); smp++) {
+				float value = trace.getSample(smp) + avg;
+				trace.setSample(smp, value);
+			}
+		}
+	}
 	
 	public Trace next(SampleValues valueGetter, SeekableByteChannel datachan, int number)
 			throws IOException {
@@ -295,7 +306,7 @@ public class DztFile extends TraceFile {
 		headerBuffer.position(0);
 		writechan.write(headerBuffer);		
 		
-		float avg = (float) valuesAvg.getAvg();
+		addAvgValue(traces);
 		
 		for (Trace trace : getTraces()) {
 			ByteBuffer buffer = ByteBuffer.allocate(getTraceBufferSize())
@@ -304,7 +315,7 @@ public class DztFile extends TraceFile {
 			valueMediator.put(buffer, trace.getIndex());
 			
 			for (int i = 0; i < header.rh_nsamp - 1; i++) {
-				valueMediator.put(buffer, (int) (trace.getSample(i) + avg));
+				valueMediator.put(buffer, (int) (trace.getSample(i)));
 			}
 		
 			buffer.position(0);
@@ -322,5 +333,15 @@ public class DztFile extends TraceFile {
 		chan.read(headerBuffer);
 		chan.close();
 		is.close();
+	}
+
+	@Override
+	public void normalize() {
+		subtractAvgValue(traces);
+	}
+
+	@Override
+	public void denormalize() {
+		addAvgValue(traces);
 	}
 }

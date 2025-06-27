@@ -13,7 +13,7 @@ import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.ugcs.gprvisualizer.app.AppContext;
 
-public class ConstPlace extends BaseObjectImpl implements Positional {
+public class ConstPlace extends PositionalObject {
 
 	static int R_HOR = ShapeHolder.flag2.getBounds().width / 2;
 	static int R_VER = ShapeHolder.flag2.getBounds().height / 2;

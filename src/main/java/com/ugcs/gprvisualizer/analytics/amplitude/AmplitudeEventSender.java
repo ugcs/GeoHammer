@@ -43,48 +43,56 @@ public class AmplitudeEventSender implements EventSender {
         if (amplitude == null) {
             throw new IllegalStateException("Amplitude is not initialized, API key is missing");
         }
-        com.amplitude.Event amplitudeEvent = new com.amplitude.Event(event.getEventType().getCode(), userIdService.getOrCreateUserId());
-        JSONObject eventProperties = new JSONObject();
-        event.getProperties().forEach((originalKey, originalValue) -> {
-            Pair<String, Object> property = toAmplitudeProperty(originalKey, originalValue);
+        com.amplitude.Event amplitudeEvent = new com.amplitude.Event(
+                event.getEventType().getCode(),
+                userIdService.getOrCreateUserId()
+        );
+        amplitudeEvent.userProperties = buildUserProperties(event);
+        amplitudeEvent.eventProperties = buildEventProperties(event);
+        return amplitudeEvent;
+    }
+
+    private JSONObject buildUserProperties(Event event) {
+        JSONObject userProperties = new JSONObject();
+        event.getUserProperties().forEach((originalKey, originalValue) -> {
+            Pair<String, Object> property = mapUserProperty(originalKey, originalValue);
             String key = property.getKey();
             Object value = property.getValue();
+            if (value != null) {
+                userProperties.put(key, value.toString());
+            } else {
+                log.warn("User property '{}' is null, skipping", key);
+            }
+        });
+        return userProperties;
+    }
+
+    private JSONObject buildEventProperties(Event event) {
+        JSONObject eventProperties = new JSONObject();
+        event.getProperties().forEach((key, value) -> {
             if (value != null) {
                 eventProperties.put(key, value.toString());
             } else {
                 log.warn("Property '{}' is null, skipping", key);
             }
         });
-        if (!eventProperties.isEmpty()) {
-            amplitudeEvent.userProperties = eventProperties;
-        }
-        return amplitudeEvent;
+        return eventProperties;
     }
 
-    private Pair<String, Object> toAmplitudeProperty(String key, Object value) {
-       switch (key) {
-            case Event.KEY_APP_VERSION -> {
-                return new Pair<>("version", value);
-            }
-            case Event.KEY_OS_NAME -> {
-                return new Pair<>("os_name", value);
-            }
-            case Event.KEY_OS_VERSION -> {
-                return new Pair<>("os_version", value);
-            }
-            case Event.KEY_COUNTRY -> {
-                return new Pair<>("country", value);
-            }
-            default -> {
-                return new Pair<>(key, value);
-            }
-       }
+    private Pair<String, Object> mapUserProperty(String key, Object value) {
+        return switch (key) {
+            case Event.KEY_APP_VERSION -> new Pair<>("version", value);
+            case Event.KEY_OS_NAME -> new Pair<>("os_name", value);
+            case Event.KEY_OS_VERSION -> new Pair<>("os_version", value);
+            case Event.KEY_COUNTRY -> new Pair<>("country", value);
+            default -> new Pair<>(key, value);
+        };
     }
 
     @Override
     public void send(Event event) {
         if (amplitude == null) {
-           log.warn("Amplitude is not initialized, cannot send event: {}", event.getEventType());
+           log.warn("Amplitude is disabled, cannot send event: {}", event.getEventType());
            return;
         }
         CompletableFuture<Void> future = new CompletableFuture<>();

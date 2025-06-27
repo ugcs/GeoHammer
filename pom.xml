@@ -365,6 +365,17 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20250517</version>
+		</dependency>
+		<dependency>
+			<groupId>com.amplitude</groupId>
+			<artifactId>java-sdk</artifactId>
+			<version>1.12.4</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 			<version>4.5.13</version>

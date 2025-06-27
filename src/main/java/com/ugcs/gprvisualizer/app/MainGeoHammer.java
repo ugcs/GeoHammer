@@ -1,25 +1,21 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.awt.Dimension;
-import java.awt.Toolkit;
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
+import com.ugcs.gprvisualizer.analytics.EventSender;
+import com.ugcs.gprvisualizer.analytics.Events;
+import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
+import com.ugcs.gprvisualizer.gpr.Model;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
-import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
-import com.ugcs.gprvisualizer.gpr.Model;
-
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.event.EventHandler;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
+import java.awt.*;
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
 
 
 public class MainGeoHammer extends Application {
@@ -34,6 +30,7 @@ public class MainGeoHammer extends Application {
 
 	private Loader loader;
 	private SceneContent sceneContent;
+	private EventSender eventSender;
 
 	public static void main(String[] args) {
 		launch(args);
@@ -56,6 +53,8 @@ public class MainGeoHammer extends Application {
 		sceneContent = context.getBean(SceneContent.class);
 
 		loader = context.getBean(Loader.class);
+
+		eventSender = context.getBean(EventSender.class);
     }	
 
 	@Override
@@ -78,19 +77,17 @@ public class MainGeoHammer extends Application {
 		stage.setY(0);
 		stage.show();
 
-		stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-		    @Override
-		    public void handle(WindowEvent t) {
-		    	
-	        	if (model.stopUnsaved()) {
-	        		t.consume();
-	        		return;
-	        	}        	
-		    	
-		        Platform.exit();
-		        System.exit(0);
-		    }
-		});
+		stage.setOnCloseRequest(event -> {
+            eventSender.shutdown();
+
+            if (model.stopUnsaved()) {
+				event.consume();
+                return;
+            }
+
+            Platform.exit();
+            System.exit(0);
+        });
 		
 		if (fileTemplates.getTemplates().isEmpty()) {
             MessageBoxHelper.showError("There are no templates for the csv files",  
@@ -103,6 +100,8 @@ public class MainGeoHammer extends Application {
 			List<File> f = Arrays.asList(new File(name));			
 			loader.loadWithNotify(f, emptyListener);
 		}
+
+		eventSender.send(Events.createAppStartedEvent(appBuildInfo.getBuildVersion()));
 	}
 
 

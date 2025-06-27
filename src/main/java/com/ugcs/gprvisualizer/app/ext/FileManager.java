@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -33,8 +34,10 @@ public class FileManager {
 	private static final FilenameFilter SGY = (dir, name) -> name.toLowerCase().endsWith(".sgy");
 
 	//public boolean levelCalculated = false;
-	
-	private final Set<SgyFile> files = new HashSet<>();
+
+	// Do not hash-based collection here (like HashSet)
+	// as files may be renamed and thus hashes would be invalidated
+	private final List<SgyFile> files = new ArrayList<>();
 
 	@Nullable
 	private File topFolder = null;
@@ -50,9 +53,7 @@ public class FileManager {
 	}
 
 	public void processList(List<File> fileList, ProgressListener listener) throws Exception {
-		//clear();
-
-		Set<File> sf = new TreeSet<File>(fileList);
+		Set<File> sf = new TreeSet<>(fileList);
 
 		for (File fl : sf) {
 			if (fl.isDirectory()) {
@@ -61,7 +62,6 @@ public class FileManager {
 				listener.progressMsg("load file " + fl.getAbsolutePath());
 				processFile(fl);
 			}
-
 		}
 	}
 
@@ -79,11 +79,9 @@ public class FileManager {
 		listener.progressMsg("load directory " + fl.getAbsolutePath());
 
 		processFileList(Arrays.asList(fl.listFiles(SGY)));
-
 	}
 
 	private void processFile(File fl) throws Exception {
-		
 		TraceFile sgyFile = null;
 		if (fl.getName().toLowerCase().endsWith("sgy")) {
 			sgyFile = new GprFile();
@@ -150,8 +148,8 @@ public class FileManager {
 				.collect(Collectors.toList());
 	}
 
-	public Set<SgyFile> getFiles() {
-		return Collections.unmodifiableSet(files);
+	public List<SgyFile> getFiles() {
+		return Collections.unmodifiableList(files);
 	}
 
 	public int getFilesCount() {

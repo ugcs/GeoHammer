@@ -20,7 +20,7 @@ public class HorizontalGroupFilter implements Command {
 		
 		List<HorizontalProfile> tmpStraight = new ArrayList<>();
 		List<HorizontalProfile> tmpCurve = new ArrayList<>();
-		for (HorizontalProfile hp : file.profiles) {
+		for (HorizontalProfile hp : file.getProfiles()) {
 			if (hp.height <= 4) {
 				tmpStraight.add(hp);
 			} else {

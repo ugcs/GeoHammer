@@ -6,13 +6,13 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import javafx.geometry.Point2D;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectImpl;
 
@@ -65,16 +65,16 @@ public class LeftRulerController {
 
 	static class NanosecConverter implements Converter {
 
-		private final SgyFile sgyFile;
+		private final TraceFile sgyFile;
 
-		public NanosecConverter(SgyFile sgyFile) {
+		public NanosecConverter(TraceFile sgyFile) {
 			this.sgyFile = sgyFile;
 		}
 
 		@Override
 		public Pair<Integer, Integer> convert(int s, int f) {
 			
-			SgyFile fl = sgyFile;//model.getFileManager().getGprFiles().get(0);
+			TraceFile fl = sgyFile;//model.getFileManager().getGprFiles().get(0);
 			
 			
 			return Pair.of(
@@ -83,7 +83,7 @@ public class LeftRulerController {
 		}
 		
 		public int back(int unt) {
-			SgyFile fl = sgyFile;
+			TraceFile fl = sgyFile;
 			return unt * 1000 / fl.getSampleInterval();
 		}
 

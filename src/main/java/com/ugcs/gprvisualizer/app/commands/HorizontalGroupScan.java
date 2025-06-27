@@ -65,7 +65,7 @@ public class HorizontalGroupScan implements Command {
 		}
 		
 		
-		file.profiles = result;
+		file.setProfiles(result);
 	}
 
 	public int findExampleAround(int example, int lastSmp, Trace tr) {

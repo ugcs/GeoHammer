@@ -5,188 +5,167 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.NavigableSet;
-import java.util.TreeSet;
+import java.io.IOException;
+import java.util.List;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
 
 /**
  * satellite file with GPS coorinates.
- * @author Kesha
  *
+ * @author Kesha
  */
 public class DzgFile {
 
-	static class Item {
-		String line1;
-		String line2;
-		LatLon ll;
-	}
-	
-	private Map<Integer, Item> traceToLatLonMap = new HashMap<>();
-	private NavigableSet<Integer> indexSet = new TreeSet<Integer>();
-	
-	private boolean exist = false;
-	private boolean necessaryToSave = false;
-	
-	public DzgFile cut(int from, int to) {
-		
-		DzgFile dzgFile = new DzgFile();
-		dzgFile.necessaryToSave = true;
-		
-		Integer start = indexSet.floor(from);
-		if (start == null) {
-			start = from;
-		}
-		Integer finish = indexSet.ceiling(to);
-		if (finish == null) {
-			finish = to;
-		}
+    private final NavigableMap<Integer, Record> records = new TreeMap<>();
 
-		
-		for (int i = start; i <= finish; i++) {
-			if (indexSet.contains(i)) {
-				
-				
-				Item item = traceToLatLonMap.get(i);
-				
-				int cutindex = i-from;
-				dzgFile.indexSet.add(cutindex);
-				dzgFile.traceToLatLonMap.put(cutindex, item);
-			}
-		}
-		
-		return dzgFile;
-	}
-	
-	public LatLon getLatLonForTraceNumber(int trace) {
-		
-		if (!exist) {
-			return null;
-			//new LatLon(71.7601908, 53.1166144 + trace * 0.0001);
-		}
-		
-		
-		Integer i1 = indexSet.floor(trace);
-		Integer i2 = indexSet.higher(trace);
-		
-		Item l1 = traceToLatLonMap.get(i1);
-		Item l2 = traceToLatLonMap.get(i2);
-		
-		//LatLon l1 = ;
-		//LatLon l2 = ;
-		
-		if (l1 == null || (i2 != null && i2 == trace)) {
-			return l2.ll;
-		}
-		if (l2 == null || (i1 != null && i1 == trace)) {
-			return l1.ll;
-		}
-		
-		double kf = ((double) (trace - i1)) / ((double) (i2 - i1));
-		return new LatLon(
-				l1.ll.getLatDgr() + (l2.ll.getLatDgr() - l1.ll.getLatDgr()) * kf,   
-				l1.ll.getLonDgr() + (l2.ll.getLonDgr() - l1.ll.getLonDgr()) * kf
-				);
-		
-	}	
-	
-	
-	public void load(File file) {
-		
-		BufferedReader reader = null;
-		try {
-			reader = new BufferedReader(new FileReader(file));
-			
-			String line = reader.readLine();
-			while (line != null) {
-				
-				processLine(line);
-				
-				line = reader.readLine();
-			}			
-			
-			reader.close();
-			
-			exist = true;
-			
-		} catch(Exception e) {
-			e.printStackTrace();
-		}		
-	}
-	
-	public void save(File file) {
-		BufferedWriter writer = null;
-		try {
-			writer = new BufferedWriter(new FileWriter(file));
-			
-			for (Integer i : indexSet) {
-				Item ll = traceToLatLonMap.get(i);
-				
-				String[] v = ll.line1.split(",");
-				
-				v[1] = ""+i;
-				
-				writer.append(String.join(",", v));
-				writer.newLine();					
-				writer.append(ll.line2);
-				writer.newLine();
-				writer.newLine();
-			}
-			
-			writer.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-	}
+    private boolean exists = false;
 
-	private void processLine(String line) {
-		
-		if (line.startsWith("$GSSIS")) {
-			
-			int trace = Integer.valueOf(line.split(",")[1]);
-			indexSet.add(trace);
-			
-			Item item = new Item();
-			item.line1 = line;
-			
-			traceToLatLonMap.put(indexSet.last(), item);
-			
-			//Sout.p("t " + trace);
-			
-		} else if (line.startsWith("$GPGGA")) {
-			
-			//Gps gps = coordinates.get(coordinates.size() - 1);
-			
-			String[] values = line.split(",");
-			
-			//$GPGGA,231444.00, 6329.70208479,N, 14540.97532375,W ,1,7,1.6,1434.359,M,7.543,M,,*44
-			
-			double northSouth = ("N".equals(values[3]) ? 1 : -1);
-			double westEast = ("E".equals(values[5]) ? 1 : -1);
-			
-			double lat = Double.valueOf(values[2]) * northSouth;
-			double lon = Double.valueOf(values[4]) * westEast;
-			
-			double rlon = SgyFile.convertDegreeFraction(lon);
-			double rlat = SgyFile.convertDegreeFraction(lat);
-			
-			LatLon ll = new LatLon(rlat, rlon);
+    public boolean hasIndex(int traceIndex) {
+        return records.containsKey(traceIndex);
+    }
 
-			Item item = traceToLatLonMap.get(indexSet.last());
-			item.line2 = line;
-			item.ll = ll;			
-			
-			//Sout.p("g " + ll.toString());
-		}
-	}	
+    public LatLon getLatLon(int traceIndex) {
+        if (!exists) {
+            return null;
+        }
 
-	public boolean isNecessaryToSave() {
-		return necessaryToSave;
-	}
-	
+        Record exact = records.get(traceIndex);
+        if (exact != null) {
+            return exact.latLon;
+        }
+
+        var floor = records.floorEntry(traceIndex);
+        var ceiling = records.ceilingEntry(traceIndex);
+
+        if (floor == null) {
+            return ceiling != null ? ceiling.getValue().latLon : null;
+        }
+        if (ceiling == null) {
+            return floor.getValue().latLon;
+        }
+
+        double k = ((double) (traceIndex - floor.getKey()))
+                / ((double) (ceiling.getKey() - floor.getKey()));
+        LatLon from = floor.getValue().latLon;
+        LatLon to = ceiling.getValue().latLon;
+        return new LatLon(
+                from.getLatDgr() + k * (to.getLatDgr() - from.getLatDgr()),
+                from.getLonDgr() + k * (to.getLonDgr() - from.getLonDgr())
+        );
+    }
+
+    public void load(File file) throws IOException {
+        Check.notNull(file);
+
+        if (!file.exists()) {
+            exists = false;
+            return;
+        }
+
+        records.clear();
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            Record record = null;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("$GSSIS")) {
+                    record = new Record();
+                    records.put(parseIndex(line), record);
+                    record.line1 = line;
+                } else if (line.startsWith("$GPGGA")) {
+                    if (record != null) {
+                        record.line2 = line;
+                        record.latLon = parseLatLon(line);
+                    }
+                }
+            }
+            exists = true;
+        }
+    }
+
+    private static int parseIndex(String line) {
+        Check.notNull(line);
+
+        return Integer.parseInt(line.split(",")[1]);
+    }
+
+    private static String replaceIndex(String line, int traceIndex) {
+        String[] tokens = line.split(",");
+        tokens[1] = Integer.toString(traceIndex);
+        return String.join(",", tokens);
+    }
+
+    private LatLon parseLatLon(String line) {
+        Check.notNull(line);
+
+        String[] tokens = line.split(",");
+
+        double northSouth = ("N".equals(tokens[3]) ? 1 : -1);
+        double westEast = ("E".equals(tokens[5]) ? 1 : -1);
+
+        double lat = Double.parseDouble(tokens[2]) * northSouth;
+        double lon = Double.parseDouble(tokens[4]) * westEast;
+
+        double rlon = TraceFile.convertDegreeFraction(lon);
+        double rlat = TraceFile.convertDegreeFraction(lat);
+
+        return new LatLon(rlat, rlon);
+    }
+
+    public void save(File file, List<IndexMapping> indexMappings) throws IOException {
+        Check.notNull(file);
+        Check.notNull(indexMappings);
+
+        // mapping allows to override trace indices
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            for (IndexMapping indexMapping : Nulls.toEmpty(indexMappings)) {
+                int index = indexMapping.index;
+                int sourceIndex = indexMapping.sourceIndex;
+
+                Record record = records.get(sourceIndex);
+                if (record == null) {
+                    continue;
+                }
+
+                writer.append(replaceIndex(record.line1, index));
+                writer.newLine();
+                writer.append(record.line2);
+                writer.newLine();
+                writer.newLine();
+            }
+        }
+    }
+
+    static class Record {
+        String line1;
+        String line2;
+        LatLon latLon;
+    }
+
+    public static class IndexMapping {
+
+        // new index
+        private final int index;
+
+        // trace index in a source file
+        private final int sourceIndex;
+
+        public IndexMapping(int index, int sourceIndex) {
+            this.index = index;
+            this.sourceIndex = sourceIndex;
+        }
+
+        public int getIndex() {
+            return index;
+        }
+
+        public int getSourceIndex() {
+            return sourceIndex;
+        }
+    }
 }

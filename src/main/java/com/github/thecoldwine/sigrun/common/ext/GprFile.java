@@ -23,6 +23,7 @@ import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.gpr.SgyLoader;
 import com.ugcs.gprvisualizer.utils.AuxElements;
+import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
 
@@ -56,55 +57,29 @@ public class GprFile extends TraceFile {
 
     private SampleNormalizer sampleNormalizer = new SampleNormalizer();
 
-	public byte[] getTxtHdr() {
-		return txtHdr;
-	}
-
-	public void setTxtHdr(byte[] txtHdr) {
-		this.txtHdr = txtHdr;
-	}
-
-	public byte[] getBinHdr() {
-		return binHdr;
-	}
-
-	public void setBinHdr(byte[] binHdr) {
-		this.binHdr = binHdr;
-	}
-
-	public BinaryHeader getBinaryHeader() {
-		return binaryHeader;
-	}
-
-	public void setBinaryHeader(BinaryHeader binaryHeader) {
-		this.binaryHeader = binaryHeader;
-	}
-
-	public SampleNormalizer getSampleNormalizer() {
-		return sampleNormalizer;
-	}
-
 	@Override
 	public int getSampleInterval() {
-		return getBinaryHeader().getSampleInterval();
+		return binaryHeader.getSampleInterval();
 	}
 
 	@Override
 	public double getSamplesToCmGrn() {
 		// dist between 2 samples
-		double sampleIntervalNS = getBinaryHeader().getSampleInterval() / 1000.0;
+		double sampleIntervalNS = binaryHeader.getSampleInterval() / 1000.0;
 		return SPEED_SM_NS_SOIL * sampleIntervalNS / 2;
 	}
 
 	@Override
 	public double getSamplesToCmAir() {
 		// dist between 2 samples
-		double sampleIntervalNS = getBinaryHeader().getSampleInterval() / 1000.0;
+		double sampleIntervalNS = binaryHeader.getSampleInterval() / 1000.0;
 		return SPEED_SM_NS_VACUUM * sampleIntervalNS / 2;
 	}
 
 	@Override
 	public void open(File file) throws IOException {
+		Check.notNull(file);
+
 		setFile(file);
 		
 		BinFile binFile = BinFile.load(file); 
@@ -119,7 +94,7 @@ public class GprFile extends TraceFile {
 		System.out.println("SamplesPerDataTrace " 
 				+ binaryHeader.getSamplesPerDataTrace());
 
-		List<Trace> traces = loadTraces(binFile);
+		List<Trace> traces = readTraces(binFile);
 		// fill latlon where null
 		Traces.fillMissingLatLon(traces);
 
@@ -139,14 +114,14 @@ public class GprFile extends TraceFile {
 			+ "  actual size: " + binFile.getTraces().size());
 	}
 
-	private List<Trace> loadTraces(BinFile binFile) {
+	private List<Trace> readTraces(BinFile binFile) {
 		SeismicValuesConverter converter = ConverterFactory
 				.getConverter(binaryHeader.getDataSampleCode());
 
 		List<BinTrace> binTraces = binFile.getTraces();
 		List<Trace> traces = new ArrayList<>(binTraces.size());
 		for (BinTrace binTrace : binTraces) {
-			Trace trace = loadTrace(binTrace, converter);
+			Trace trace = readTrace(binTrace, converter);
 			if (trace == null) {
 				continue;
 			}
@@ -155,7 +130,7 @@ public class GprFile extends TraceFile {
 		return traces;
 	}
     
-	public Trace loadTrace(BinTrace binTrace, SeismicValuesConverter converter) {
+	private Trace readTrace(BinTrace binTrace, SeismicValuesConverter converter) {
 		byte[] binHeader = binTrace.header;
         TraceHeader header = traceHeaderReader.read(binHeader);
 
@@ -223,6 +198,14 @@ public class GprFile extends TraceFile {
 
 	@Override
 	public void save(File file) throws IOException {
+		save(file, new Range(0, numTraces() - 1));
+	}
+
+	@Override
+	public void save(File file, Range range) throws IOException {
+		Check.notNull(file);
+		Check.notNull(range);
+
 		SeismicValuesConverter converter = ConverterFactory
 				.getConverter(binaryHeader.getDataSampleCode());
 
@@ -231,22 +214,26 @@ public class GprFile extends TraceFile {
 		binFile.setTxtHdr(txtHdr);
 		binFile.setBinHdr(binHdr);
 
-		Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements());
+		Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements(), range);
 
-		sampleNormalizer.back(getTraces());
+		List<Trace> fileTraces = getTraces();
 
-		for (Trace trace : getTraces()) {
+		int from = range.getMin().intValue();
+		int to = range.getMax().intValue() + 1; // exclusive
+
+		for (int i = from; i < to; i++) {
+			Trace trace = fileTraces.get(i);
+
 			BinTrace binTrace = new BinTrace();
-			
 			binTrace.header = trace.getBinHeader();
 
 			// upd coordinates
-			ByteBuffer bb = ByteBuffer.wrap(binTrace.header);
-			bb.order(ByteOrder.LITTLE_ENDIAN);
+			ByteBuffer buffer = ByteBuffer.wrap(binTrace.header);
+			buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-			bb.putShort(114, (short)trace.numSamples());
-			bb.putDouble(190, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
-			bb.putDouble(182, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
+			buffer.putShort(114, (short)trace.numSamples());
+			buffer.putDouble(190, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
+			buffer.putDouble(182, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
 
 			// set or clear mark
 			binTrace.header[MARK_BYTE_POS] =
@@ -254,44 +241,33 @@ public class GprFile extends TraceFile {
 			
 			binTrace.data = converter.valuesToByteBuffer(trace).array();
 			binFile.getTraces().add(binTrace);
-		}		
+		}
 
 		binFile.save(file);
 	}
 
 	@Override
-	public void saveAux(File file) {
-	}
-
-	@Override
-	public GprFile copyHeader() {
+	public GprFile copy() {
 		GprFile copy = new GprFile();
-		copy.setBinHdr(this.getBinHdr());
-		copy.setTxtHdr(this.getTxtHdr());
-		copy.setBinaryHeader(this.getBinaryHeader());
+		copy.binHdr = this.binHdr;
+		copy.txtHdr = this.txtHdr;
+		copy.binaryHeader = this.binaryHeader;
 		copy.sampleNormalizer.copyFrom(this.sampleNormalizer);
 
-		return copy;
-	}
-
-	@Override
-	public GprFile copy() {
-		return copy(null);
-	}
-
-	@Override
-	public GprFile copy(Range range) {
-		GprFile copy = copyHeader();
 		copy.setFile(getFile());
-		copy.setUnsaved(true);
+		copy.setUnsaved(isUnsaved());
 
-		List<Trace> rangeTraces = Traces.copy(getTraces(), range);
-		copy.setTraces(rangeTraces);
+		List<Trace> tracesCopy = Traces.copy(traces);
+		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
 
-		List<BaseObject> rangeElements = AuxElements.copy(getAuxElements(), range);
-		copy.setAuxElements(rangeElements);
+		if (metaFile != null) {
+			copy.metaFile = new MetaFile();
+			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
+			copy.metaFile.initTraces(tracesCopy);
+		}
 
-		// TODO GPR_LINES copy metadata
+		copy.setTraces(tracesCopy);
+		copy.setAuxElements(elementsCopy);
 
 		return copy;
 	}

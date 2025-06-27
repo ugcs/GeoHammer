@@ -18,7 +18,6 @@ import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -30,7 +29,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
@@ -43,8 +41,6 @@ public class ProfileView implements InitializingBean {
 	private final Navigator navigator;
 	private final Saver saver;
 	private final TraceTransform traceTransform;
-
-	private final ToggleButton auxModeBtn = new ToggleButton("aux");
 
 	private final ToolBar toolBar = new ToolBar();
 	

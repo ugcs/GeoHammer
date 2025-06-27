@@ -229,29 +229,6 @@ public class CsvFile extends SgyFile {
         return new CsvFile(this);
     }
 
-    @Override
-    public void saveAux(File file) {
-        throw new UnsupportedOperationException("Unimplemented method 'saveAux'");
-    }
-
-    @Override
-    public double getSamplesToCmGrn() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSamplesToCmGrn'");
-    }
-
-    @Override
-    public double getSamplesToCmAir() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSamplesToCmAir'");
-    }
-
-    @Override
-    public int getSampleInterval() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSampleInterval'");
-    }
-
     public boolean isSameTemplate(CsvFile file) {
         return file.getParser().getTemplate().equals(getParser().getTemplate());
     }

@@ -32,6 +32,9 @@ public class GeoCoordinates {
     }
 
     public LatLon getLatLon() {
+        if (latitude == null || longitude == null) {
+            return null;
+        }
         return new LatLon(latitude, longitude);
     }
 

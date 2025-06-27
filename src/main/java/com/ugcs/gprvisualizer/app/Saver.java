@@ -12,6 +12,7 @@ import java.util.concurrent.Callable;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
+import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
@@ -217,17 +218,18 @@ public class Saver implements ToolProducer, InitializingBean {
 		String baseName = FileNames.removeExtension(file.getName());
 		String extension = FileNames.getExtension(file.getName());
 
+		// TODO copy required only for denormalization
+		//  of samples before save
+		TraceFile copy = traceFile.copy();
+		copy.denormalize();
+
 		SortedMap<Integer, Range> lineRanges = traceFile.getLineRanges();
 		int lineSequence = 1;
-
 		for (Range range : lineRanges.values()) {
 			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
 			File rangeFile = new File(toFolder, rangeFileName);
 
-			TraceFile rangeTraceFile = traceFile.copy(range);
-			rangeTraceFile.setFile(rangeFile);
-			rangeTraceFile.save(rangeFile);
-			rangeTraceFile.saveAux(rangeFile);
+			copy.save(rangeFile, range);
 
 			lineSequence++;
 		}
@@ -307,6 +309,7 @@ public class Saver implements ToolProducer, InitializingBean {
 				status.showProgressText("Completed: "
 						+ Strings.nullToEmpty(actionName));
 			} catch (Exception e) {
+				log.error("Error", e);
 				MessageBoxHelper.showError(e.getMessage(), "");
 			}
 		};

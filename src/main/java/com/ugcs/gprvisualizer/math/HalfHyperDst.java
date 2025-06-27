@@ -3,7 +3,6 @@ package com.ugcs.gprvisualizer.math;
 import java.util.Arrays;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.RulerTool;
@@ -95,13 +94,13 @@ public class HalfHyperDst {
 		return smpToDst(sgyFile, smp, grndSmp);
 	}
 	
-	public static double[] smpToDst(SgyFile sgyFile, int smp, int grnd) {
+	public static double[] smpToDst(TraceFile traceFile, int smp, int grnd) {
 		
 		double airSmp = Math.min(grnd, smp);
 		double grnSmp = smp - airSmp;
 		
-		double airDst = airSmp * sgyFile.getSamplesToCmAir();
-		double grnDst = grnSmp * sgyFile.getSamplesToCmGrn();
+		double airDst = airSmp * traceFile.getSamplesToCmAir();
+		double grnDst = grnSmp * traceFile.getSamplesToCmGrn();
 		
 		return new double[]{airDst, grnDst};
 	}
@@ -110,15 +109,15 @@ public class HalfHyperDst {
 		return getGoodSideDstPin(sgyFile, pinnacleSmp, smp);
 	}
 	
-	public static double getGoodSideDstPin(SgyFile file, int pinnacleTr, int smp) {
+	public static double getGoodSideDstPin(TraceFile file, int pinnacleTr, int smp) {
 		int grndSmp = file.getGroundProfile() != null ? file.getGroundProfile().deep[pinnacleTr] : 0;
 		
 		return getGoodSideDstGrnd(file, smp, grndSmp);
 	}
 	
-	public static double getGoodSideDstGrnd(SgyFile sgyFile, int smp, int grndSmp) {
+	public static double getGoodSideDstGrnd(TraceFile traceFile, int smp, int grndSmp) {
 		
-		double[] r = smpToDst(sgyFile, smp, grndSmp);
+		double[] r = smpToDst(traceFile, smp, grndSmp);
 		double ycm = r[0] + r[1];
 		
 		return (ycm * 0.41);

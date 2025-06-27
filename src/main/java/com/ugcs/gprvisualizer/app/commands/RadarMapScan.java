@@ -21,8 +21,8 @@ public class RadarMapScan implements Command {
 	
 	public void execute(TraceFile file, ProgressListener listener) {
 
-		if (file.amplScan == null) {
-			file.amplScan = new ScanProfile(file.numTraces());
+		if (file.getAmplScan() == null) {
+			file.setAmplScan(new ScanProfile(file.numTraces()));
 		}
 
 		GPRChart gprChart = model.getGprChart(file);
@@ -37,7 +37,7 @@ public class RadarMapScan implements Command {
 			for (int i = 0; i < file.numTraces(); i++) {
 				Trace trace = file.getTraces().get(i);
 				double alpha = calcAlpha(trace, start, finish, field.getProfileSettings(), scaleBuilder.build(file));
-				file.amplScan.intensity[i] = alpha;
+				file.getAmplScan().intensity[i] = alpha;
 			}
 		}
 	}

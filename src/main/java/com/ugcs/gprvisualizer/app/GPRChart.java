@@ -323,11 +323,11 @@ public class GPRChart extends Chart {
 
     private void drawFileProfiles(Graphics2D graphicsContext) {
         TraceFile file = profileField.getFile();
-        if (file.profiles != null) {
+        if (file.getProfiles() != null) {
             // pf
             graphicsContext.setColor(new Color(50, 200, 250));
             graphicsContext.setStroke(AMP_STROKE);
-            for (HorizontalProfile pf : file.profiles) {
+            for (HorizontalProfile pf : file.getProfiles()) {
                 drawHorizontalProfile(graphicsContext,
                         0, pf, 0);
             }

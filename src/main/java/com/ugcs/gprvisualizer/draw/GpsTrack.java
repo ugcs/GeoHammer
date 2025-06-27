@@ -78,8 +78,6 @@ public class GpsTrack extends BaseLayer {
 	}
 	
 	public void drawTrack(Graphics2D g2, MapField field) {
-		System.out.println("DRAW TRACK");
-
 		if (!field.isActive()) {
 			return;
 		}
@@ -88,8 +86,6 @@ public class GpsTrack extends BaseLayer {
 		g2.setColor(Color.RED);
 
 		for (SgyFile sgyFile : model.getFileManager().getFiles()) {
-			System.out.println(" * FILE: " + sgyFile.getFile());
-
 			drawTraceLines(g2, field, sgyFile);
 		}
 	}

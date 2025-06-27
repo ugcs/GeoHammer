@@ -2,7 +2,6 @@ package com.ugcs.gprvisualizer.dzt;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -15,229 +14,50 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.github.thecoldwine.sigrun.common.TraceHeader;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
+import com.github.thecoldwine.sigrun.common.ext.MetaFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceGeoData;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 import com.ugcs.gprvisualizer.obm.ObjectByteMapper;
 import com.ugcs.gprvisualizer.utils.AuxElements;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.FileNames;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DztFile extends TraceFile {
 
+	private static final Logger log = LoggerFactory.getLogger(DztFile.class);
+
 	private static final int MINHEADSIZE = 1024;
 	private static final int PARAREASIZE = 128;
-	
-	//!?
 	private static final int GPSAREASIZE = 2 * 12;
-	private static final int INFOAREASIZE = (MINHEADSIZE - PARAREASIZE- GPSAREASIZE) ; 
-	
+	private static final int INFOAREASIZE = (MINHEADSIZE - PARAREASIZE- GPSAREASIZE) ;
+
+	private static final Map<Integer, SampleCodec> SAMPLE_CODECS = Map.of(
+			16, new Sample16Bit(),
+			32, new Sample32Bit());
+
 	@Nullable
 	private File sourceFile;
 
-	private DztHeader header = new DztHeader();			
+	private DzgFile dzg = new DzgFile();
 
-	public DzgFile dzg = new DzgFile();
+	private DztHeader header = new DztHeader();
 
-	private MinMaxAvg valuesAvg = new MinMaxAvg();
+	private MinMaxAvg sampleAvg = new MinMaxAvg();
 
-	private static final Map<Integer, SampleValues> valueGetterMap =
-			Map.of(16, new Sample16Bit(),32, new Sample32Bit());
-
-	interface SampleValues {
-
-		int next(ByteBuffer buffer);
-		//add method that read from buffer
-		
-		void put(ByteBuffer buffer, int value);
-	}
-
-	private static int asUnsignedShort(short s) {
-        return s & 0xFFFF;
-    }		
-	
-	private static class Sample16Bit implements SampleValues {
-
-		@Override
-		public int next(ByteBuffer buffer) {
-            return asUnsignedShort(buffer.getShort()) - 32767;
-		}
-		
-		@Override
-		public void put(ByteBuffer buffer, int value) {
-			int v = value +  32767;
-			buffer.putShort((short) v);
-		}
-	}
-
-	private static class Sample32Bit implements SampleValues {
-
-		@Override
-		public int next(ByteBuffer buffer) {
-            return buffer.getInt();
-		}
-		
-		@Override
-		public void put(ByteBuffer buffer, int value) {
-			buffer.putInt(value);
-		}		
-	}
-
-	@Override
-	public void open(File file) throws IOException {
-		setFile(file);
-		this.sourceFile = file;
-		
-		dzg.load(getDsgFile(file));
-		
-		try (SeekableByteChannel datachan = Files.newByteChannel(file.toPath(), StandardOpenOption.READ)) {
-			ByteBuffer buf = loadHeader(datachan);
-			
-			ObjectByteMapper obm = new ObjectByteMapper();
-			obm.readObject(header, buf);
-			
-			logHeader();			
-
-			datachan.position(getDataPosition());
-			setTraces(loadTraces(getValueBufferMediator(), datachan));
-		}
-		
-		if (getTraces().isEmpty()) {
-			throw new RuntimeException("Corrupted file");
-		}
-		
-		updateTraces();
-		
-		copyMarkedTracesToAuxElements();
-		
-		updateTraceDistances();
-		
-		setUnsaved(false);
-	}
-
-	private ByteBuffer loadHeader(SeekableByteChannel chan) throws IOException {		
-		ByteBuffer buf = ByteBuffer.allocate(1024).order(ByteOrder.LITTLE_ENDIAN);
-		chan.position(0);
-		chan.read(buf);
-		return buf;
-	}
-
-	public void logHeader() {
-		System.out.println("| header.rh_data  " + header.rh_data);
-		System.out.println("| header.rh_bits  " + header.rh_bits);
-		System.out.println("| header.rh_nsamp " + header.rh_nsamp);
-		System.out.println("| header.rh_zero  " + header.rh_zero);
-		System.out.println("| header.rhf_sps  " + header.rhf_sps);
-		System.out.println("| avgDielectric.rhf_epsr " + header.rhf_epsr);
-		System.out.println("| 		   rh_spp " + header.rh_spp);
-		System.out.println("|  rhf_epsr (ns) " + header.rhf_range);
-		System.out.println("|  rhf_depth (m) " + header.rhf_depth);
-	}
-
-	public File getDsgFile(File file) {
-		return new File(file.getAbsolutePath().toLowerCase().replace(".dzt", ".dzg"));
-	}
-
-	public int getDataPosition() {
-		return header.rh_data < MINHEADSIZE
-				? MINHEADSIZE * header.rh_data
-				: header.rh_nchan * header.rh_data;
-	}
-
-	public SampleValues getValueBufferMediator() {
-		SampleValues valueGetter = valueGetterMap.get((int)header.rh_bits);
-		return valueGetter;
-	}
-
-	private List<Trace> loadTraces(SampleValues valueGetter, SeekableByteChannel datachan) {
-		List<Trace> traces = new ArrayList<>();
-		int counter = 0;
-		
-		try {
-			while (datachan.position() < datachan.size()) {
-				Trace tr = next(valueGetter, datachan, counter++);
-				traces.add(tr);
-			}		
-		} catch (Exception e) {
-			System.err.println("loadTraces error");
-			e.printStackTrace();
-		}
-		
-		// subtract avg value
-		subtractAvgValue(traces);
-		
-		return traces;
-	}
-
-	public void subtractAvgValue(List<Trace> traces) {
-		float avg = (float) valuesAvg.getAvg();
-		
-		for (Trace trace : traces) {
-			for (int smp = 0; smp < trace.numSamples(); smp++) {
-				float value = trace.getSample(smp) - avg;
-				trace.setSample(smp, value);
-			}			
-		}
-	}
-
-	public void addAvgValue(List<Trace> traces) {
-		float avg = (float) valuesAvg.getAvg();
-
-		for (Trace trace : traces) {
-			for (int smp = 0; smp < trace.numSamples(); smp++) {
-				float value = trace.getSample(smp) + avg;
-				trace.setSample(smp, value);
-			}
-		}
-	}
-	
-	public Trace next(SampleValues valueGetter, SeekableByteChannel datachan, int number)
-			throws IOException {
-        int bufferSize = getTraceBufferSize();
-		ByteBuffer databuf = ByteBuffer.allocate(bufferSize)
-				.order(ByteOrder.LITTLE_ENDIAN);
-		datachan.read(databuf);
-
-		databuf.position(0);
-
-		if (databuf.position() < databuf.capacity()) {
-			//read trace number
-			int tn = (int) valueGetter.next(databuf);
-		}
-		
-		float[] values = new float[header.rh_nsamp];
-		int i = 0;
-		
-		MinMaxAvg mma = new MinMaxAvg();
-		
-		while (databuf.position() < databuf.capacity()) {
-			int val = valueGetter.next(databuf);
-			values[i++] = val;
-			
-			valuesAvg.put(val);
-			mma.put(val);
-		}
-
-		LatLon latLon = dzg.getLatLonForTraceNumber(number);
-        byte[] headerBin = null;
-		TraceHeader trheader = null;
-        return new Trace(headerBin, trheader, values, latLon);
-	}
-
-	public int getTraceBufferSize() {
-		int bytesPerSmp = header.rh_bits / 8;
-        int bufferSize = bytesPerSmp * header.rh_nsamp;
-		return bufferSize;
-	}
-	
 	@Override
 	public int getSampleInterval() {
-		return (int) header.rhf_range;
+		return (int)header.rhf_range;
 	}
 
 	@Override
@@ -250,98 +70,331 @@ public class DztFile extends TraceFile {
 		return header.rhf_depth * 100.0 / header.rh_nsamp;
 	}
 
+	private File getDzgFile(File file) {
+		String path = FileNames.removeExtension(file.getAbsolutePath())
+				+ ".dzg";
+		return new File(path);
+	}
+
 	@Override
-	public DztFile copyHeader() {
-		DztFile copy = new DztFile();
-		copy.header = this.header;
-		copy.valuesAvg = this.valuesAvg;
-		copy.sourceFile = this.sourceFile;
-		copy.dzg = this.dzg;
-		
-		//TODO: make real copy
-		return copy;
+	public void open(File file) throws IOException {
+		Check.notNull(file);
+
+		setFile(file);
+		this.sourceFile = file;
+
+		dzg.load(getDzgFile(file));
+
+		List<Trace> traces;
+		try (SeekableByteChannel channel = Files.newByteChannel(file.toPath(), StandardOpenOption.READ)) {
+			ByteBuffer buffer = readHeader(channel);
+
+			ObjectByteMapper obm = new ObjectByteMapper();
+			obm.readObject(header, buffer);
+			logHeader();
+
+			channel.position(getDataPosition());
+			traces = readTraces(channel, getSampleCodec());
+		}
+		Check.notEmpty(traces, "Corrupted file");
+
+		loadMeta(traces);
+
+		subtractAverage(traces);
+		setTraces(traces);
+
+		updateTraces();
+		copyMarkedTracesToAuxElements();
+		updateTraceDistances();
+
+		setUnsaved(false);
+	}
+
+	private ByteBuffer readHeader(SeekableByteChannel channel) throws IOException {
+		ByteBuffer buffer = ByteBuffer
+				.allocate(1024)
+				.order(ByteOrder.LITTLE_ENDIAN);
+		channel.position(0);
+		channel.read(buffer);
+		return buffer;
+	}
+
+	private void logHeader() {
+		log.debug("| rh_data        {}", header.rh_data);
+		log.debug("| rh_bits        {}", header.rh_bits);
+		log.debug("| rh_nsamp       {}", header.rh_nsamp);
+		log.debug("| rh_zero        {}", header.rh_zero);
+		log.debug("| rhf_sps        {}", header.rhf_sps);
+		log.debug("| rhf_epsr       {}", header.rhf_epsr);
+		log.debug("| rh_spp         {}", header.rh_spp);
+		log.debug("| rhf_range (ns) {}", header.rhf_range);
+		log.debug("| rhf_depth (m)  {}", header.rhf_depth);
+	}
+
+	private int getDataPosition() {
+		return header.rh_data < MINHEADSIZE
+				? MINHEADSIZE * header.rh_data
+				: header.rh_nchan * header.rh_data;
+	}
+
+	private SampleCodec getSampleCodec() {
+		return SAMPLE_CODECS.get((int)header.rh_bits);
+	}
+
+	private int getTraceBufferSize(int numSamples) {
+		int bytesPerSample = header.rh_bits / 8;
+		return bytesPerSample * (numSamples + 1);
+	}
+
+	private int numSamplesPerTrace() {
+		// first value is a trace index
+		return Math.max(0, header.rh_nsamp - 1);
+	}
+
+	private List<Trace> readTraces(SeekableByteChannel channel, SampleCodec sampleCodec)
+			throws IOException {
+
+		List<Trace> traces = new ArrayList<>();
+		int traceIndex = 0;
+
+		while (channel.position() < channel.size()) {
+			Trace trace = readTrace(channel, sampleCodec, traceIndex++);
+			traces.add(trace);
+		}
+		return traces;
+	}
+
+	private Trace readTrace(SeekableByteChannel channel, SampleCodec sampleCodec, int traceIndex)
+			throws IOException {
+
+		int numSamples = numSamplesPerTrace();
+
+		ByteBuffer buffer = ByteBuffer
+				.allocate(getTraceBufferSize(numSamples))
+				.order(ByteOrder.LITTLE_ENDIAN);
+		channel.read(buffer);
+		buffer.position(0);
+
+		if (buffer.position() < buffer.capacity()) {
+			// read trace number
+			int traceNumber = sampleCodec.read(buffer);
+		}
+
+		float[] samples = new float[numSamples];
+		int sampleIndex = 0;
+		sampleAvg = new MinMaxAvg();
+
+		while (buffer.position() < buffer.capacity() && sampleIndex < samples.length) {
+			int sample = sampleCodec.read(buffer);
+			samples[sampleIndex++] = sample;
+			sampleAvg.put(sample);
+		}
+
+		LatLon latLon = dzg.getLatLon(traceIndex);
+		return new Trace(null, null, samples, latLon);
+	}
+
+	@Override
+	public void save(File file) throws IOException {
+		save(file, new Range(0, numTraces() - 1));
+	}
+
+	@Override
+	public void save(File file, Range range) throws IOException {
+		Check.notNull(file);
+
+		// TODO instead of reloading DZT header from source
+		//  implement serialization of the header structure
+
+		// read header from source file
+		ByteBuffer headerBuffer = readSourceHeader();
+
+		// assumes that all traces have same sample size
+		int numSamples = 0;
+		if (numTraces() > 0) {
+			numSamples = getTraces().getFirst().numSamples();
+		}
+
+		// update num samples;
+		// add extra sample for index
+		headerBuffer.position(4); // rh_nsamp
+		headerBuffer.putShort((short)(numSamples + 1));
+		headerBuffer.position(0);
+
+		try (FileOutputStream out = new FileOutputStream(file);
+			 FileChannel channel = out.getChannel()) {
+
+			// write header
+			channel.write(headerBuffer);
+
+			// write traces
+			SampleCodec sampleCodec = getSampleCodec();
+
+			List<Trace> fileTraces = getTraces();
+
+			int from = range.getMin().intValue();
+			int to = range.getMax().intValue() + 1; // exclusive
+
+			for (int i = from; i < to; i++) {
+				Trace trace = fileTraces.get(i);
+				Check.condition(numSamples == trace.numSamples());
+
+				ByteBuffer buffer = ByteBuffer
+						.allocate(getTraceBufferSize(numSamples))
+						.order(ByteOrder.LITTLE_ENDIAN);
+				buffer.position(0);
+
+				sampleCodec.write(buffer, trace.getIndex());
+				for (int j = 0; j < numSamples; j++) {
+					sampleCodec.write(buffer, (int)trace.getSample(j));
+				}
+
+				buffer.position(0);
+				channel.write(buffer);
+			}
+		}
+
+		// save dzg
+		List<DzgFile.IndexMapping> indexMappings = buildDzgMappings(range);
+		dzg.save(getDzgFile(file), indexMappings);
+	}
+
+	private ByteBuffer readSourceHeader() throws IOException {
+		Check.notNull(sourceFile);
+
+		ByteBuffer buffer = ByteBuffer
+				.allocate(getDataPosition())
+				.order(ByteOrder.LITTLE_ENDIAN);
+
+		try (FileInputStream in = new FileInputStream(sourceFile);
+			 FileChannel channel = in.getChannel()) {
+			channel.position(0);
+			channel.read(buffer);
+		}
+		return buffer;
+	}
+
+	private List<DzgFile.IndexMapping> buildDzgMappings(Range range) {
+		Check.notNull(range);
+
+		int from = range.getMin().intValue();
+		int to = range.getMax().intValue() + 1;
+
+		List<DzgFile.IndexMapping> mappings = new ArrayList<>();
+		if (metaFile != null) {
+			List<? extends GeoData> values = metaFile.getValues();
+			for (int i = from; i < to; i++) {
+				GeoData value = values.get(i);
+				if (value instanceof TraceGeoData traceGeoData) {
+					int traceIndex = traceGeoData.getTraceIndex();
+					if (dzg.hasIndex(traceIndex)) {
+						mappings.add(new DzgFile.IndexMapping(i - from, traceIndex));
+					}
+				}
+			}
+		} else {
+			for (int i = from; i < to; i++) {
+				if (dzg.hasIndex(i)) {
+					mappings.add(new DzgFile.IndexMapping(i - from, i));
+				}
+			}
+		}
+		return mappings;
 	}
 
 	@Override
 	public DztFile copy() {
-		return copy(null);
-	}
+		DztFile copy = new DztFile();
+		copy.header = this.header;
+		copy.sampleAvg = this.sampleAvg;
+		copy.sourceFile = this.sourceFile;
+		copy.dzg = this.dzg;
 
-	@Override
-	public DztFile copy(Range range) {
-		DztFile copy = copyHeader();
 		copy.setFile(getFile());
-		copy.setUnsaved(true);
+		copy.setUnsaved(isUnsaved());
 
-		List<Trace> rangeTraces = Traces.copy(getTraces(), range);
-		copy.setTraces(rangeTraces);
+		List<Trace> tracesCopy = Traces.copy(traces);
+		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
 
-		List<BaseObject> rangeElements = AuxElements.copy(getAuxElements(), range);
-		copy.setAuxElements(rangeElements);
+		if (metaFile != null) {
+			copy.metaFile = new MetaFile();
+			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
+			copy.metaFile.initTraces(tracesCopy);
+		}
 
-		// TODO GPR_LINES copy metadata
+		copy.setTraces(tracesCopy);
+		copy.setAuxElements(elementsCopy);
 
 		return copy;
 	}
 
-	@Override
-	public void saveAux(File newFile) {
-		dzg.save(getDsgFile(getFile()));
-	}
+	public void subtractAverage(List<Trace> traces) {
+		float avg = (float) sampleAvg.getAvg();
 
-	@Override
-	public void save(File newFile) throws IOException {
-		System.out.println("Save to " + newFile.getName());
-		
-		FileOutputStream fos = new FileOutputStream(newFile);
-		FileChannel writechan = fos.getChannel();		
-		
-		SampleValues valueMediator = getValueBufferMediator();
-		
-		ByteBuffer headerBuffer = ByteBuffer.allocate(getDataPosition())
-				.order(ByteOrder.LITTLE_ENDIAN);
-		
-		//read from old
-		readHeader(headerBuffer);
-		headerBuffer.position(0);
-		writechan.write(headerBuffer);		
-		
-		addAvgValue(traces);
-		
-		for (Trace trace : getTraces()) {
-			ByteBuffer buffer = ByteBuffer.allocate(getTraceBufferSize())
-					.order(ByteOrder.LITTLE_ENDIAN);
-			
-			valueMediator.put(buffer, trace.getIndex());
-			
-			for (int i = 0; i < header.rh_nsamp - 1; i++) {
-				valueMediator.put(buffer, (int) (trace.getSample(i)));
+		for (Trace trace : traces) {
+			for (int i = 0; i < trace.numSamples(); i++) {
+				float value = trace.getSample(i) - avg;
+				trace.setSample(i, value);
 			}
-		
-			buffer.position(0);
-			writechan.write(buffer);
-		}		
-		
-		writechan.close();
-		fos.close();
+		}
 	}
 
-	public void readHeader(ByteBuffer headerBuffer) throws FileNotFoundException, IOException {
-		FileInputStream is = new FileInputStream(sourceFile);
-		FileChannel chan = is.getChannel();
-		chan.position(0);
-		chan.read(headerBuffer);
-		chan.close();
-		is.close();
+	public void addAverage(List<Trace> traces) {
+		float avg = (float) sampleAvg.getAvg();
+
+		for (Trace trace : traces) {
+			for (int i = 0; i < trace.numSamples(); i++) {
+				float value = trace.getSample(i) + avg;
+				trace.setSample(i, value);
+			}
+		}
 	}
 
 	@Override
 	public void normalize() {
-		subtractAvgValue(traces);
+		subtractAverage(traces);
 	}
 
 	@Override
 	public void denormalize() {
-		addAvgValue(traces);
+		addAverage(traces);
+	}
+
+	interface SampleCodec {
+
+		int read(ByteBuffer buffer);
+
+		void write(ByteBuffer buffer, int value);
+	}
+
+	static class Sample16Bit implements SampleCodec {
+
+		@Override
+		public int read(ByteBuffer buffer) {
+			return asUnsignedShort(buffer.getShort()) - 32767;
+		}
+
+		@Override
+		public void write(ByteBuffer buffer, int value) {
+			int v = value +  32767;
+			buffer.putShort((short) v);
+		}
+
+		private static int asUnsignedShort(short s) {
+			return s & 0xFFFF;
+		}
+	}
+
+	static class Sample32Bit implements SampleCodec {
+
+		@Override
+		public int read(ByteBuffer buffer) {
+			return buffer.getInt();
+		}
+
+		@Override
+		public void write(ByteBuffer buffer, int value) {
+			buffer.putInt(value);
+		}
 	}
 }

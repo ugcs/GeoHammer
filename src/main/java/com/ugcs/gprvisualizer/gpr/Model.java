@@ -385,13 +385,21 @@ public class Model implements InitializingBean {
 	public void removeChart(SgyFile file) {
 		if (file instanceof CsvFile csvFile) {
 			csvFiles.remove(csvFile);
-			if (!csvFiles.isEmpty()) {
-				selectAndScrollToChart(csvFiles.values().stream().toList().getFirst());
-			} else {
-				publishEvent(new FileSelectedEvent(this, (SgyFile) null));
-			}
 		} else if (file instanceof TraceFile traceFile) {
 			gprCharts.remove(traceFile);
+		}
+		// select first file in a list
+		boolean chartSelected = false;
+		List<SgyFile> openedFiles = fileManager.getFiles();
+		if (!openedFiles.isEmpty()) {
+			Chart chart = getFileChart(openedFiles.getFirst());
+			if (chart != null) {
+				selectAndScrollToChart(chart);
+				chartSelected = true;
+			}
+		}
+		if (!chartSelected) {
+			publishEvent(new FileSelectedEvent(this, (SgyFile)null));
 		}
     }
 
@@ -434,6 +442,7 @@ public class Model implements InitializingBean {
 
 		if (getSelectedData() != null) {
 			if (getSelectedData() == node) {
+				fileDataContainer.selectFile();
 				return false;
 			}
 			//getChart(null); // clear selection

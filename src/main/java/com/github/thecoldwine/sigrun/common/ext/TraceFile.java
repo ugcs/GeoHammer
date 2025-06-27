@@ -8,10 +8,13 @@ import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.math.HorizontalProfile;
+import com.ugcs.gprvisualizer.math.ScanProfile;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
+import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,9 +27,33 @@ import java.util.Set;
 
 public abstract class TraceFile extends SgyFile {
 
+    protected static double SPEED_SM_NS_VACUUM = 30.0;
+
+    protected static double SPEED_SM_NS_SOIL = SPEED_SM_NS_VACUUM / 3.0;
+
     protected List<Trace> traces = new ArrayList<>();
 
     protected MetaFile metaFile;
+
+    @Nullable
+    private PositionFile positionFile;
+
+    private boolean spreadCoordinatesNecessary = false;
+
+    @Nullable
+    // horizontal cohesive lines of edges
+    private List<HorizontalProfile> profiles;
+
+    @Nullable
+    private HorizontalProfile groundProfile;
+
+    @Nullable
+    // hyperbola probability calculated by AlgoritmicScan
+    private ScanProfile algoScan;
+
+    @Nullable
+    // amplitude
+    private ScanProfile amplScan;
 
     public MetaFile getMetaFile() {
         return metaFile;
@@ -73,12 +100,81 @@ public abstract class TraceFile extends SgyFile {
         }
     }
 
+    public abstract int getSampleInterval();
+
+    public abstract double getSamplesToCmGrn();
+
+    public abstract double getSamplesToCmAir();
+
+    public @Nullable ScanProfile getAlgoScan() {
+        return algoScan;
+    }
+
+    public void setAlgoScan(@Nullable ScanProfile algoScan) {
+        this.algoScan = algoScan;
+    }
+
+    public @Nullable ScanProfile getAmplScan() {
+        return amplScan;
+    }
+
+    public void setAmplScan(@Nullable ScanProfile amplScan) {
+        this.amplScan = amplScan;
+    }
+
+    public boolean isSpreadCoordinatesNecessary() {
+        return spreadCoordinatesNecessary;
+    }
+
+    public void setSpreadCoordinatesNecessary(boolean spreadCoordinatesNecessary) {
+        this.spreadCoordinatesNecessary = spreadCoordinatesNecessary;
+    }
+
+    public @Nullable List<HorizontalProfile> getProfiles() {
+        return profiles;
+    }
+
+    public void setProfiles(@Nullable List<HorizontalProfile> profiles) {
+        this.profiles = profiles;
+    }
+
+    public void setGroundProfileSource(PositionFile positionFile) {
+        this.positionFile = positionFile;
+    }
+
+    public PositionFile getGroundProfileSource() {
+        return positionFile;
+    }
+
+    public HorizontalProfile getGroundProfile() {
+        return groundProfile;
+    }
+
+    public void setGroundProfile(HorizontalProfile groundProfile) {
+        this.groundProfile = groundProfile;
+    }
+
+    public static double convertDegreeFraction(double org) {
+        org = org / 100.0;
+        int dgr = (int) org;
+        double fract = org - dgr;
+        double rx = dgr + fract / 60.0 * 100.0;
+        return rx;
+    }
+
+    public static double convertBackDegreeFraction(double org) {
+        int dgr = (int) org;
+        double fr = org - dgr;
+        double fr2 = fr * 60.0 / 100.0;
+        double r = 100.0 * (dgr + fr2);
+
+        return r;
+    }
+
+    public abstract void save(File file, Range range) throws IOException;
+
     @Override
     public abstract TraceFile copy();
-
-    public abstract TraceFile copy(Range range);
-
-    public abstract TraceFile copyHeader();
 
     public abstract void normalize();
 

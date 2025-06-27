@@ -153,7 +153,7 @@ public class RulerTool extends BaseObjectImpl {
 		return diag;
 	}
 
-	public static double distanceVCm(SgyFile file, int tr, double smp1, double smp2) {
+	public static double distanceVCm(TraceFile file, int tr, double smp1, double smp2) {
 		double grndLevel = 0;
 		if (file.getGroundProfile() != null) {
 			grndLevel = file.getGroundProfile().deep[tr];
@@ -202,7 +202,7 @@ public class RulerTool extends BaseObjectImpl {
 		return diag;
 	}
 
-	public static int diagonalToSmp(SgyFile file, int tr, int smp, double c) {
+	public static int diagonalToSmp(TraceFile file, int tr, int smp, double c) {
 		int grn = file.getGroundProfile().deep[tr];
 	
 		int i=0;

@@ -44,10 +44,21 @@ public final class AuxElements {
     }
 
     public static Set<Integer> getMarkIndices(List<BaseObject> elements) {
+        return getMarkIndices(elements, null);
+    }
+
+    public static Set<Integer> getMarkIndices(List<BaseObject> elements, Range range) {
         Set<Integer> markIndices = new HashSet<>();
         for (BaseObject element : Nulls.toEmpty(elements)) {
             if (element instanceof FoundPlace mark) {
-                markIndices.add(mark.getTraceIndex());
+                int traceIndex = mark.getTraceIndex();
+                if (range != null) {
+                    if (traceIndex < range.getMin().intValue()
+                            || traceIndex > range.getMax().intValue()) {
+                        continue;
+                    }
+                }
+                markIndices.add(traceIndex);
             }
         }
         return markIndices;

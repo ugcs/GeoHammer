@@ -1,5 +1,6 @@
 package com.ugcs.gprvisualizer.obm;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -8,7 +9,7 @@ import java.util.Map;
 public class ObjectByteMapper {
 
 
-	public void readObject(Object instance, ByteBuffer buffer) throws Exception {
+	public void readObject(Object instance, ByteBuffer buffer) {
 		
 		Class<?> clazz = instance.getClass();
 		
@@ -29,8 +30,12 @@ public class ObjectByteMapper {
 				//System.out.print(field.getName() + " ( " + position + " ) = ");
 				
 				Setter ss = map.get(field.getType());
-				
-				ss.setValue(instance, field, buffer, size);
+
+				try {
+					ss.setValue(instance, field, buffer, size);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
 			}			
 		}		
 	}

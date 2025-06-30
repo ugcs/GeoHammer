@@ -1,7 +1,7 @@
 package com.ugcs.gprvisualizer.app.commands;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.gpr.ArrayBuilder;
@@ -19,13 +19,14 @@ public class RadarMapScan implements Command {
 		this.model = model;
 	}
 	
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 
-		if (file.amplScan == null) {
-			file.amplScan = new ScanProfile(file.size());
+		if (file.getAmplScan() == null) {
+			file.setAmplScan(new ScanProfile(file.numTraces()));
 		}
 
-		if (model.getProfileField(file) instanceof GPRChart gprChart) {
+		GPRChart gprChart = model.getGprChart(file);
+		if (gprChart != null) {
 			var field = gprChart.getField();
 			int start = Math.clamp(field.getProfileSettings().getLayer(),
 					0, field.getMaxHeightInSamples());
@@ -33,19 +34,19 @@ public class RadarMapScan implements Command {
 			int finish = Math.clamp(field.getProfileSettings().getLayer() + field.getProfileSettings().hpage,
 					0, field.getMaxHeightInSamples());
 
-			for (int i = 0; i < file.size(); i++) {
+			for (int i = 0; i < file.numTraces(); i++) {
 				Trace trace = file.getTraces().get(i);
-				double alpha = calcAlpha(trace.getNormValues(), trace.edge, start, finish, field.getProfileSettings(), scaleBuilder.build(file));
-				file.amplScan.intensity[i] = alpha;
+				double alpha = calcAlpha(trace, start, finish, field.getProfileSettings(), scaleBuilder.build(file));
+				file.getAmplScan().intensity[i] = alpha;
 			}
 		}
 	}
 
-	private double calcAlpha(float[] values, byte[] edge, int start, int finish, Settings profileSettings, double[][] scaleArray) {
+	private double calcAlpha(Trace trace, int start, int finish, Settings profileSettings, double[][] scaleArray) {
 		double mx = 0;
 
-		start = Math.clamp(start, 0, values.length);
-		finish = Math.clamp(finish, 0, values.length);
+		start = Math.clamp(start, 0, trace.numSamples());
+		finish = Math.clamp(finish, 0, trace.numSamples());
 
 		double additionalThreshold = profileSettings.autogain ? profileSettings.threshold : 0;
 		
@@ -53,8 +54,8 @@ public class RadarMapScan implements Command {
 			double threshold = scaleArray[0][i];
 			double factor = scaleArray[1][i];		
 			
-			if (edge[i] != 0) {
-				double av = Math.abs(values[i]);
+			if (trace.getEdge(i) != 0) {
+				double av = Math.abs(trace.getSample(i));
 				if (av < additionalThreshold) {
 					av = 0;
 				}
@@ -69,5 +70,4 @@ public class RadarMapScan implements Command {
 	public String getButtonText() {
 		return null;
 	}
-
 }

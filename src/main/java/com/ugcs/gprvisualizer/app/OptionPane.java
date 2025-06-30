@@ -6,6 +6,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.quality.AltitudeCheck;
 import com.ugcs.gprvisualizer.app.quality.DataCheck;
 import com.ugcs.gprvisualizer.app.quality.LineDistanceCheck;
@@ -34,7 +35,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.util.StringConverter;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.controlsfx.control.RangeSlider;
 import org.jspecify.annotations.NonNull;
@@ -263,8 +263,8 @@ public class OptionPane extends VBox implements InitializingBean {
 			return;
 		}
 
-		double max = model.getChart((CsvFile) selectedFile).get().getSemanticMaxValue();
-		double min = model.getChart((CsvFile) selectedFile).get().getSemanticMinValue();
+		double max = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMaxValue();
+		double min = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMinValue();
 
 		griddingRangeSlider.setMin(min);
 		griddingRangeSlider.setMax(max);
@@ -307,7 +307,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		// Get new min/max values
-		SensorLineChart selectedChart = model.getChart((CsvFile) selectedFile).orElse(null);
+		SensorLineChart selectedChart = model.getCsvChart((CsvFile) selectedFile).orElse(null);
 		if (selectedChart == null) {
 			return;
 		}
@@ -702,14 +702,14 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		griddingRangeSlider.lowValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Min: ", minLabel);
-			var chart = model.getChart((CsvFile) selectedFile).get();
+			var chart = model.getCsvChart((CsvFile) selectedFile).get();
 			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.highValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Max: ", maxLabel);
-			var chart = model.getChart((CsvFile) selectedFile).get();
+			var chart = model.getCsvChart((CsvFile) selectedFile).get();
 			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
@@ -906,13 +906,13 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyGnssTimeLag(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.gnssTimeLag(c.getSelectedSeriesName(), value));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
 	private void applyGnssTimeLagToAll(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()
@@ -923,14 +923,14 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyLowPassFilter(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.lowPassFilter(c.getSelectedSeriesName(), value));
 		showGridInputDataChangedWarning(true);
 		//model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
 	private void applyLowPassFilterToAll(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()
@@ -942,14 +942,14 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyMedianCorrection(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.medianCorrection(c.getSelectedSeriesName(), value));
 		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
 		showGridInputDataChangedWarning(true);
 	}
 
 	private void applyMedianCorrectionToAll(int value) {
-		var chart = model.getChart((CsvFile) selectedFile);
+		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()
@@ -1006,10 +1006,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private void applyQualityControlToAll(QualityControlParams params) {
 		QualityControl qualityControl = new QualityControl();
-		List<CsvFile> files = model.getFileManager().getCsvFiles().stream()
-				.filter(f -> f instanceof CsvFile)
-				.map(f -> (CsvFile)f)
-				.toList();
+		List<CsvFile> files = model.getFileManager().getCsvFiles();
 		List<QualityCheck> checks = createQualityChecks(params);
 		List<QualityIssue> issues = qualityControl.getQualityIssues(files, checks);
 
@@ -1017,7 +1014,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
-	private Tab prepareGprTab(Tab gprTab, SgyFile file) {
+	private Tab prepareGprTab(Tab gprTab, TraceFile file) {
 
 		// background
 		StackPane backgroundOptions = createGprBackgroundOptions(file);
@@ -1051,7 +1048,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return gprTab;
 	}
 
-	private StackPane createGprBackgroundOptions(SgyFile file) {
+	private StackPane createGprBackgroundOptions(TraceFile file) {
 		VBox options = new VBox(DEFAULT_SPACING);
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
@@ -1066,7 +1063,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return new StackPane(options);
 	}
 
-	private StackPane createGprGriddingOptions(SgyFile file) {
+	private StackPane createGprGriddingOptions(TraceFile file) {
 		VBox options = new VBox(DEFAULT_SPACING);
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
@@ -1079,7 +1076,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return new StackPane(options);
 	}
 
-	private StackPane createGprElevationOptions(SgyFile file) {
+	private StackPane createGprElevationOptions(TraceFile file) {
 		VBox options = new VBox(DEFAULT_SPACING);
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
@@ -1155,9 +1152,11 @@ public class OptionPane extends VBox implements InitializingBean {
 			setSavedFilterInputValue(Filter.quality_line_distance_tolerance);
 			setSavedFilterInputValue(Filter.quality_max_altitude);
 			setSavedFilterInputValue(Filter.quality_altitude_tolerance);
-        } else {
+        }
+
+		if (selectedFile instanceof TraceFile traceFile) {
             showTab(gprTab);
-            prepareGprTab(gprTab, selectedFile);
+            prepareGprTab(gprTab, traceFile);
         }
     }
 

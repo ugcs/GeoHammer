@@ -5,8 +5,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -56,7 +56,7 @@ public class EdgeSubtractGround implements Command {
 				for (EdgeCoord ec : queue) {
 					if (ec.index >= removeFromIndex) {
 						//mark to delete
-						list.get(ec.index).good[ec.smp] = 1;
+						list.get(ec.index).setGood(ec.smp, (byte)1);
 					}
 				}
 				
@@ -79,7 +79,7 @@ public class EdgeSubtractGround implements Command {
 	private static final int MARGIN = 5;
 	
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		if (file.getGroundProfile() == null) {
 			System.out.println("!!!!!!!!!!!!!1 file.groundProfile == null");
 			return;
@@ -114,11 +114,10 @@ public class EdgeSubtractGround implements Command {
 		
 		//real clear
 		for (Trace trace : file.getTraces()) {
-			for (int smp = 0; smp < trace.good.length; smp++) {
-			
-				if (trace.good[smp] == 1) {
-					trace.edge[smp] = 0;
-				}				
+			for (int smp = 0; smp < trace.numSamples(); smp++) {
+				if (trace.getGood(smp) == 1) {
+					trace.setEdge(smp, (byte)0);
+				}
 			}
 		}
 	}
@@ -144,15 +143,15 @@ public class EdgeSubtractGround implements Command {
 		return hp;
 	}
 
-	public int getMaxGroundSmp(SgyFile file) {
+	public int getMaxGroundSmp(TraceFile file) {
 		int maxGroundDeep = 0;
 		for (Trace trace : file.getTraces()) {
-			maxGroundDeep = Math.max(maxGroundDeep, trace.maxindex);
+			maxGroundDeep = Math.max(maxGroundDeep, trace.getMaxIndex());
 		}
 		return maxGroundDeep;
 	}
 
-	private void processDeep(SgyFile file, HorizontalProfile hp, int shift, double minDst) {
+	private void processDeep(TraceFile file, HorizontalProfile hp, int shift, double minDst) {
 		List<Trace> list = file.getTraces();
 		
 		EdgeQueue[] edges = createQueuesForEdgeType(list);
@@ -171,7 +170,7 @@ public class EdgeSubtractGround implements Command {
 			
 			for (int r = 0; r <= 1; r++) {
 				int realsmp = smp + r;
-				int edv = trace.edge[realsmp];
+				int edv = trace.getEdge(realsmp);
 				
 				edges[edv].in(i, realsmp, trace.getPrevDist());
 			}
@@ -213,5 +212,4 @@ public class EdgeSubtractGround implements Command {
 	public WhatChanged.Change getChange() {
 		return WhatChanged.Change.traceValues;
 	}
-	
 }

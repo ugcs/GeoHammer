@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.gpr;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 
 public interface ArrayBuilder {
 
@@ -8,8 +8,7 @@ public interface ArrayBuilder {
 	 * builds. 
 	 * @return [0] - threshold,  [1] - scale  
 	 */
-	double[][] build(SgyFile file);
+	double[][] build(TraceFile file);
 	
 	void clear();
-
 }

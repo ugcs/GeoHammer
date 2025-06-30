@@ -3,11 +3,9 @@ package com.ugcs.gprvisualizer.app.commands;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
-import com.ugcs.gprvisualizer.app.AppContext;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
-import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 
 /**
@@ -19,7 +17,7 @@ public class HorizontalGroupScan implements Command {
 	private static final int[] LOOKINGORDER = {0, -1, 1, -2, 2};
 	
 	@Override
-	public void execute(SgyFile file, ProgressListener listener) {
+	public void execute(TraceFile file, ProgressListener listener) {
 		List<HorizontalProfile> result = new ArrayList<>();
 		
 		Trace trace = file.getTraces().get(0);
@@ -30,11 +28,11 @@ public class HorizontalGroupScan implements Command {
 			
 			HorizontalProfile hp = new HorizontalProfile(file.getTraces().size());
 			
-			if (trace.edge[startSmp] == 0) {
+			if (trace.getEdge(startSmp) == 0) {
 				continue;				
 			}			
 			
-			int example = trace.edge[startSmp];
+			int example = trace.getEdge(startSmp);
 			int lastSmp = startSmp;
 			
 			int index = 0;
@@ -67,16 +65,16 @@ public class HorizontalGroupScan implements Command {
 		}
 		
 		
-		file.profiles = result;
+		file.setProfiles(result);
 	}
 
 	public int findExampleAround(int example, int lastSmp, Trace tr) {
 		
-		int max = tr.getNormValues().length - 1;
+		int max = tr.numSamples() - 1;
 		
 		for (int ord = 0; ord < LOOKINGORDER.length; ord++) {
 			int smp = lastSmp + LOOKINGORDER[ord];
-			if (smp >= 0 && smp < max && tr.edge[smp] == example) {
+			if (smp >= 0 && smp < max && tr.getEdge(smp) == example) {
 				return smp;
 			}
 		}
@@ -87,5 +85,4 @@ public class HorizontalGroupScan implements Command {
 	public String getButtonText() {
 		return "Cohesive scan";
 	}
-
 }

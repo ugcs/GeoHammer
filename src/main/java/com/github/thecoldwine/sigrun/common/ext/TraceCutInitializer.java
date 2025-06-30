@@ -3,28 +3,37 @@ package com.github.thecoldwine.sigrun.common.ext;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.gpr.Model;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import javafx.geometry.Point2D;
 
 public class TraceCutInitializer {
 
-	public List<LatLon> initialRect(Model model,  List<Trace> traces){
-				
-		//LatLon c = model.getField().getPathCenter();
+	public List<LatLon> initialRect(Model model) {
 		MapField f = new MapField(model.getMapField());
 		f.setZoom(30);
 		
 		List<Point2D> scrpos = new ArrayList<>();
 		double sx = 0;
 		double sy = 0;
-		for (Trace trace : traces) {
-			Point2D p = f.latLonToScreen(trace.getLatLon());
-			sx += p.getX();
-			sy += p.getY();
-			scrpos.add(p);
+		for (SgyFile file : model.getFileManager().getFiles()) {
+			for (GeoData value : Nulls.toEmpty(file.getGeoData())) {
+				LatLon latlon = value.getLatLon();
+				if (latlon == null) {
+					continue;
+				}
+				Point2D p = f.latLonToScreen(latlon);
+				sx += p.getX();
+				sy += p.getY();
+				scrpos.add(p);
+			}
 		}
-		Point2D center = new Point2D(sx / traces.size(), sy / traces.size());
-		
+
+		Point2D center = !scrpos.isEmpty()
+				? new Point2D(sx / scrpos.size(), sy / scrpos.size())
+				: new Point2D(0, 0);
+
 		double maxrad = 0;
 		//double
 		int[] angcount = new int[180];

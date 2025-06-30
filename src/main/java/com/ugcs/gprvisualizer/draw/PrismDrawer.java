@@ -4,7 +4,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -85,15 +84,13 @@ public class PrismDrawer {
 			
 			Trace trace = traces.get(i);
 			float middleAmp = profileSettings.hypermiddleamp;
-			float[] values = trace.getNormValues();
-			
+
 			int horshift = profileSettings.levelPreviewShift.intValue();
 			int gpi = i + horshift;
 			int vertshift = shiftGround && gp != null && gpi >=0 && gpi < gp.deep.length ? gp.deep[i + horshift] - gp.avgdeep : 0;
 			
-			
 			for (int j = field.getStartSample();
-					j < Math.min(lastSample, values.length); j++) {
+                 j < Math.min(lastSample, trace.numSamples()); j++) {
 				
 				int sampStart = field.sampleToScreen(j);
 				int sampFinish = field.sampleToScreen(j + 1);
@@ -104,20 +101,18 @@ public class PrismDrawer {
 				}
 				
 				int z = j + vertshift;
-				if (z < 0 || z >= values.length) {
+				if (z < 0 || z >= trace.numSamples()) {
 					continue;
 				}
-				float v = values[z];
+				float v = trace.getSample(z);
 				int color = tanh.trans(v - middleAmp);
 				
-				if (showEdge && trace.edge != null && trace.edge[j] > 0) {
-					color = edgeColors[trace.edge[j]];
+				if (showEdge && trace.getEdge(j) > 0) {
+					color = edgeColors[trace.getEdge(j)];
 				}
 
-				if (showInlineHyperbolas 
-						&& trace.good != null 
-						&& trace.good[j] > 0) {
-					color = goodColors[trace.good[j]];
+				if (showInlineHyperbolas && trace.getGood(j) > 0) {
+					color = goodColors[trace.getGood(j)];
 				}
 				
 	    		for (int xt = 0; xt < hscale; xt++) {

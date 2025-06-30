@@ -34,7 +34,8 @@ public class FoundTracesLayer implements Layer {
 			bo.drawOnMap(g2, fixedField);
 		}
 
-		for (ClickPlace clickPlace : model.getSelectedTraces()) {
+		for (TraceKey mark : model.getSelectedTraces()) {
+			ClickPlace clickPlace = new ClickPlace(mark);
 			clickPlace.drawOnMap(g2, fixedField);
 		}
 	}

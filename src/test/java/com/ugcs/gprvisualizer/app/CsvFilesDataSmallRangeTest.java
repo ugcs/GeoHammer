@@ -161,7 +161,7 @@ public class CsvFilesDataSmallRangeTest {
         griddingRangeSliderField.set(optionPane, rangeSlider);
 
         // Mock the model.getChart() method to return our mocked lineChart
-        when(model.getChart(any(CsvFile.class))).thenReturn(Optional.of(lineChart));
+        when(model.getCsvChart(any(CsvFile.class))).thenReturn(Optional.of(lineChart));
 
         // Call the updateGriddingMinMaxPreserveUserRange method using reflection
         Method updateMethod = OptionPane.class.getDeclaredMethod("updateGriddingMinMaxPreserveUserRange");

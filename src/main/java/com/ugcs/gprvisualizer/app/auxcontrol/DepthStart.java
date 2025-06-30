@@ -11,7 +11,6 @@ import javafx.geometry.Point2D;
 
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
@@ -42,7 +41,7 @@ public class DepthStart extends BaseObjectImpl {
 	}
 
 	@Override
-	public BaseObject copy(int offset, VerticalCutPart verticalCutPart) {
+	public BaseObject copy(int traceOffset) {
 		return null;
 	}
 

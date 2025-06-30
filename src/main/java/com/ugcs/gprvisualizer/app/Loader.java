@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.app;
 import java.io.File;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.kml.KmlReader;
 
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.ConstPointsFile;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
@@ -107,10 +107,6 @@ public class Loader {
 							"Can`t open files",
 							"Probably file has incorrect format");
 
-					model.closeAllCharts();
-					//model.getFileManager().getFiles().clear();
-					model.getChartsContainer().getChildren().clear();
-
 					model.updateAuxElements();
 					model.initField();
 				}
@@ -125,7 +121,7 @@ public class Loader {
 		ConstPointsFile cpf = new ConstPointsFile();
 		cpf.load(files.get(0));
 
-		for (SgyFile sgyFile : model.getFileManager().getGprFiles()) {
+		for (TraceFile sgyFile : model.getFileManager().getGprFiles()) {
 			cpf.calcVerticalCutNearestPoints(sgyFile);
 		}
 
@@ -158,7 +154,7 @@ public class Loader {
 				CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
 				csvFile.open(file);
 
-				if (model.getChart(csvFile).isEmpty()) {
+				if (model.getCsvChart(csvFile).isEmpty()) {
 
 					model.getFileManager().addFile(csvFile);	
 
@@ -167,9 +163,7 @@ public class Loader {
 					//when open file by dnd (not after save)
 					model.initField();
 
-					csvFile.updateTraces();
-
-					model.initChart(csvFile);
+					model.initCsvChart(csvFile);
 
 					model.updateAuxElements();
 				}

@@ -3,8 +3,8 @@ package com.ugcs.gprvisualizer.math;
 import java.util.Arrays;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.RulerTool;
 
 public class HalfHyperDst {
@@ -15,7 +15,7 @@ public class HalfHyperDst {
 	//double sampleToCm_air;
 	//double sampleToCm_grn;
 	
-	SgyFile sgyFile;
+	TraceFile sgyFile;
 	
 	//int traceIndex;
 	//Trace trace;
@@ -33,13 +33,6 @@ public class HalfHyperDst {
 	boolean defective = false;
 	
 	public double analize(int percent) {
-
-		if (sgyFile.getTraces().get(0).edge == null) {
-			System.out.println("!!!! edge not prepared");
-			return 0;
-		}
-
-		
 		return Math.max(analize(percent, true), analize(percent, false));
 	}
 	
@@ -68,8 +61,9 @@ public class HalfHyperDst {
 				Trace trace = traces.get(index);
 				
 				int s = smp[i];
+				int edge = trace.getEdge(s + j);
 				
-				sum[j + 1][trace.edge[s + j]]++;
+				sum[j + 1][edge]++;
 			}
 		}
 		
@@ -100,13 +94,13 @@ public class HalfHyperDst {
 		return smpToDst(sgyFile, smp, grndSmp);
 	}
 	
-	public static double[] smpToDst(SgyFile sgyFile, int smp, int grnd) {
+	public static double[] smpToDst(TraceFile traceFile, int smp, int grnd) {
 		
 		double airSmp = Math.min(grnd, smp);
 		double grnSmp = smp - airSmp;
 		
-		double airDst = airSmp * sgyFile.getSamplesToCmAir();
-		double grnDst = grnSmp * sgyFile.getSamplesToCmGrn();
+		double airDst = airSmp * traceFile.getSamplesToCmAir();
+		double grnDst = grnSmp * traceFile.getSamplesToCmGrn();
 		
 		return new double[]{airDst, grnDst};
 	}
@@ -115,26 +109,26 @@ public class HalfHyperDst {
 		return getGoodSideDstPin(sgyFile, pinnacleSmp, smp);
 	}
 	
-	public static double getGoodSideDstPin(SgyFile file, int pinnacleTr, int smp) {
+	public static double getGoodSideDstPin(TraceFile file, int pinnacleTr, int smp) {
 		int grndSmp = file.getGroundProfile() != null ? file.getGroundProfile().deep[pinnacleTr] : 0;
 		
 		return getGoodSideDstGrnd(file, smp, grndSmp);
 	}
 	
-	public static double getGoodSideDstGrnd(SgyFile sgyFile, int smp, int grndSmp) {
+	public static double getGoodSideDstGrnd(TraceFile traceFile, int smp, int grndSmp) {
 		
-		double[] r = smpToDst(sgyFile, smp, grndSmp);
+		double[] r = smpToDst(traceFile, smp, grndSmp);
 		double ycm = r[0] + r[1];
 		
 		return (ycm * 0.41);
 	}
 
-	public static HalfHyperDst getHalfHyper(SgyFile sgyFile, 
+	public static HalfHyperDst getHalfHyper(TraceFile sgyFile,
 			int pnclTr, int pnclSmp, int side, double factorX) {
 		
 		List<Trace> traces = sgyFile.getTraces();
 		Trace trace = traces.get(pnclTr);
-		int maxSamplIndex = trace.getNormValues().length - 2;
+		int maxSamplIndex = trace.numSamples() - 2;
 		
 		//HalfHyperDst hh = new HalfHyperDst();
 		HalfHyperDst hh = new HalfHypAnalizer();

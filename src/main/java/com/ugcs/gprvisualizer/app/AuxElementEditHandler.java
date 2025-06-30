@@ -6,7 +6,6 @@ import java.util.Optional;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectImpl;
-import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectWithModel;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import javafx.event.ActionEvent;
 import javafx.geometry.Point2D;
@@ -27,9 +26,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tooltip;
 
-public class AuxElementEditHandler extends BaseObjectWithModel {
+public class AuxElementEditHandler extends BaseObjectImpl {
 
 	private static final Logger log = LoggerFactory.getLogger(AuxElementEditHandler.class);
+
+	private final Model model;
 
 	@Nullable
 	private BaseObject mouseInput;
@@ -44,7 +45,7 @@ public class AuxElementEditHandler extends BaseObjectWithModel {
 			ResourceImageHolder.DELETE_ALL, new Button());
 
 	public AuxElementEditHandler(Model model) {
-		super(model);
+		this.model = model;
 		initButtons();
 	}
 

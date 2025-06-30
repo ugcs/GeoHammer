@@ -4,9 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import com.github.thecoldwine.sigrun.common.ext.LatLon;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
-
 public class GeoData extends GeoCoordinates {
 
     public enum Semantic {
@@ -58,10 +55,6 @@ public class GeoData extends GeoCoordinates {
 
     public int getLineNumber() {
         return lineNumber;
-    }
-
-    public boolean isFit(Trace trace) {
-        return new LatLon(getLatitude(), getLongitude()).equals(trace.getLatLon());
     }
 
     public void setLineIndex(int lineNumber) {

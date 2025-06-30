@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.MapView;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -265,7 +266,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	}
 
 	public void drawCircles(MapField field, DblArray da) {
-		for (SgyFile file : model.getFileManager().getGprFiles()) {
+		for (TraceFile file : model.getFileManager().getGprFiles()) {
 			
 			ScanProfile profile = getFileScanProfile(file);
 			
@@ -276,12 +277,12 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		}
 	}
 
-	public ScanProfile getFileScanProfile(SgyFile file) {
+	public ScanProfile getFileScanProfile(TraceFile file) {
 		ScanProfile profile;
 		if (radarMapSettings.radarMapMode == RadarMapMode.AMPLITUDE) {
-			profile = file.amplScan;
+			profile = file.getAmplScan();
 		} else {
-			profile = file.algoScan;
+			profile = file.getAlgoScan();
 		}
 		return profile;
 	}
@@ -293,7 +294,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		int centerX = da.getWidth() / 2;
 		int centerY = da.getHeight() / 2;
 		
-		for (int i = 0; i < file.size(); i++) {
+		for (int i = 0; i < file.numTraces(); i++) {
 			Trace trace = traces.get(i);
 			
 			double alpha = profile.intensity[i];

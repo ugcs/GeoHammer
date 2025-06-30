@@ -2,6 +2,7 @@ package com.github.thecoldwine.sigrun.common.ext;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -34,7 +35,7 @@ public class BinFile {
 		this.binHdr = Arrays.copyOf(copy.binHdr, copy.binHdr.length);
 	}
 	
-	public static BinFile load(File file) throws Exception {
+	public static BinFile load(File file) throws IOException {
 		
 		BinFile binFile = new BinFile();
 		
@@ -75,8 +76,7 @@ public class BinFile {
 		return binFile;
 	}
 	
-	public void save(File file) throws Exception {
-		
+	public void save(File file) throws IOException {
 		FileOutputStream fos = new FileOutputStream(file);
 		FileChannel writechan = fos.getChannel();		
 		
@@ -90,9 +90,7 @@ public class BinFile {
 		
 		writechan.close();
 		fos.close();
-		
 	}
-	
 
 	public byte[] getTxtHdr() {
 		return txtHdr;

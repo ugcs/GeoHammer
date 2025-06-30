@@ -33,9 +33,13 @@ public final class Check {
 		return str;
 	}
 
-	public static Collection notEmpty(Collection collection) {
-		notNull(collection);
-		condition(!collection.isEmpty());
+	public static <T> Collection<T> notEmpty(Collection<T> collection) {
+		return notEmpty(collection, null);
+	}
+
+	public static <T> Collection<T> notEmpty(Collection<T> collection, String message) {
+		notNull(collection, message);
+		condition(!collection.isEmpty(), message);
 		return collection;
 	}
 

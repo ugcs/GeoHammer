@@ -48,22 +48,22 @@ public class AmplitudeMatrix {
 		this.traces = traces;
 		matrix = new float[traces.size()][];
 		for (int i = 0; i < traces.size(); i++) {
-			matrix[i] = getAmpVector(traces.get(i).getNormValues());
+			matrix[i] = getAmpVector(traces.get(i));
 		}		
 	}
 
-	private float[] getAmpVector(float[] values) {
+	private float[] getAmpVector(Trace trace) {
 		
-		float[] res = new float[values.length];
+		float[] res = new float[trace.numSamples()];
 		colls.add(new ArrayList<>());
 		float prevval = 0;
-		float max = values[0];
-		float min = values[0];
+		float max = trace.getSample(0);
+		float min = trace.getSample(0);
 		int zeroind = 0;
 		int midind = 0;
-		for (int i = 0; i < values.length; i++) {
+		for (int i = 0; i < trace.numSamples(); i++) {
 			
-			float val = values[i];
+			float val = trace.getSample(i);
 			max = Math.max(max, val);
 			min = Math.min(min, val);
 			
@@ -82,7 +82,7 @@ public class AmplitudeMatrix {
 			}
 			prevval = val;
 		}
-		fill(res, zeroind, values.length, max - min);
+		fill(res, zeroind, trace.numSamples(), max - min);
 		return res;
 	}
 	
@@ -462,7 +462,7 @@ public class AmplitudeMatrix {
 	
 	public static void execute(File file, int prefix) throws Exception {
 		
-		SgyFile sgyFile = new GprFile();
+		TraceFile sgyFile = new GprFile();
 		sgyFile.open(file);
 		
 		BackgroundRemovalFilter lf = new BackgroundRemovalFilter();
@@ -486,7 +486,7 @@ public class AmplitudeMatrix {
 	public BufferedImage createImg(File file, int prefix) {
 		
 		try {
-			SgyFile sgyFile = new GprFile();
+			TraceFile sgyFile = new GprFile();
 			sgyFile.open(file);
 			
 			BackgroundRemovalFilter lf = new BackgroundRemovalFilter();

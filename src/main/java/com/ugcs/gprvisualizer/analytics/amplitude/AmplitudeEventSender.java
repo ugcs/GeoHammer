@@ -2,17 +2,28 @@ package com.ugcs.gprvisualizer.analytics.amplitude;
 
 import com.amplitude.Amplitude;
 import com.amplitude.AmplitudeCallbacks;
+import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.analytics.Event;
 import com.ugcs.gprvisualizer.analytics.EventSender;
+import com.ugcs.gprvisualizer.analytics.Events;
+import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.service.UserIdService;
+import com.ugcs.gprvisualizer.event.FileOpenedEvent;
+import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.util.Pair;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 
+import java.io.File;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import static com.ugcs.gprvisualizer.utils.FileTypeUtils.*;
 
 public class AmplitudeEventSender implements EventSender {
 
@@ -23,6 +34,9 @@ public class AmplitudeEventSender implements EventSender {
 
     @Autowired
     private UserIdService userIdService;
+
+    @Autowired
+    private Model model;
 
     public AmplitudeEventSender(String apiKey, Boolean isEnabled) {
         if (!isEnabled) {
@@ -115,6 +129,43 @@ public class AmplitudeEventSender implements EventSender {
 
     public void setUserIdService(UserIdService userIdService) {
         this.userIdService = userIdService;
+    }
+
+    @EventListener
+    private void subscribeToFileOpenedEvent(FileOpenedEvent fileOpenedEvent) {
+        if (amplitude == null) {
+            log.warn("Amplitude is disabled, cannot send file opened event");
+            return;
+        }
+        for (File file : fileOpenedEvent.getFiles()) {
+            if (file == null || !file.exists()) {
+                log.warn("File opened event for non-existing file: {}", file);
+                continue;
+            }
+            if (isCsvFile(file)) {
+               List<SgyFile> csvFiles = model.getFileManager().getCsvFiles();
+                SgyFile csvFile = csvFiles.stream()
+                    .filter(f -> f.getFile() != null && f.getFile().equals(file))
+                        .findFirst()
+                        .orElse(null);
+                if (csvFile == null) {
+                    log.warn("CSV file not found in model: {}", file.getName());
+                    continue;
+                }
+                CsvParser parser = ((CsvFile) csvFile).getParser();
+                if (parser == null) {
+                    log.warn("CSV file parser is not initialized for file: {}", file.getName());
+                    continue;
+                }
+               send(Events.createFileOpenedEvent(
+                       parser.getTemplate().getName()
+               ));
+            } else if (isSgyFile(file)) {
+                send(Events.createFileOpenedEvent("sgy"));
+            } else if (isDztFile(file)) {
+                send(Events.createFileOpenedEvent("dzt"));
+            }
+        }
     }
 
     @Override

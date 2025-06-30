@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.ugcs.gprvisualizer.app.kml.KmlReader;
 
+import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -155,23 +156,28 @@ public class Loader {
 			//SgyFile sgyFile = model.getFileManager().getFiles().size() > 0 ? 
 			//	model.getFileManager().getFiles().get(0) : new GprFile();
 			for (File file: files) {
-				CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
-				csvFile.open(file);
+				try {
+					CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
+					csvFile.open(file);
 
-				if (model.getChart(csvFile).isEmpty()) {
+					if (model.getChart(csvFile).isEmpty()) {
 
-					model.getFileManager().addFile(csvFile);	
+						model.getFileManager().addFile(csvFile);
 
-					//model.init();			
-		
-					//when open file by dnd (not after save)
-					model.initField();
+						//model.init();
 
-					csvFile.updateTraces();
+						//when open file by dnd (not after save)
+						model.initField();
 
-					model.initChart(csvFile);
+						csvFile.updateTraces();
 
-					model.updateAuxElements();
+						model.initChart(csvFile);
+
+						model.updateAuxElements();
+					}
+				} catch (Exception e) {
+					model.publishEvent(new FileOpenErrorEvent(this, file, e));
+					throw e;
 				}
 			}
 		} catch (Exception e) {

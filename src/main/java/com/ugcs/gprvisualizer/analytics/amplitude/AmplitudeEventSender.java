@@ -10,6 +10,7 @@ import com.ugcs.gprvisualizer.analytics.EventSender;
 import com.ugcs.gprvisualizer.analytics.Events;
 import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.service.UserIdService;
+import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.util.Pair;
@@ -30,7 +31,7 @@ public class AmplitudeEventSender implements EventSender {
     private static final Logger log = LoggerFactory.getLogger(AmplitudeEventSender.class);
 
     private static final int HTTP_STATUS_OK = 200;
-    private final Amplitude amplitude;
+    final Amplitude amplitude;
 
     @Autowired
     private UserIdService userIdService;
@@ -106,8 +107,8 @@ public class AmplitudeEventSender implements EventSender {
     @Override
     public void send(Event event) {
         if (amplitude == null) {
-           log.warn("Amplitude is disabled, cannot send event: {}", event.getEventType());
-           return;
+            log.warn("Amplitude is disabled, cannot send event: {}", event.getEventType());
+            return;
         }
         CompletableFuture<Void> future = new CompletableFuture<>();
         com.amplitude.Event amplitudeEvent = toAmplitudeEvent(event);
@@ -127,12 +128,8 @@ public class AmplitudeEventSender implements EventSender {
         });
     }
 
-    public void setUserIdService(UserIdService userIdService) {
-        this.userIdService = userIdService;
-    }
-
     @EventListener
-    private void subscribeToFileOpenedEvent(FileOpenedEvent fileOpenedEvent) {
+    void listenFileOpenedEvent(FileOpenedEvent fileOpenedEvent) {
         if (amplitude == null) {
             log.warn("Amplitude is disabled, cannot send file opened event");
             return;
@@ -142,30 +139,91 @@ public class AmplitudeEventSender implements EventSender {
                 log.warn("File opened event for non-existing file: {}", file);
                 continue;
             }
-            if (isCsvFile(file)) {
-               List<SgyFile> csvFiles = model.getFileManager().getCsvFiles();
-                SgyFile csvFile = csvFiles.stream()
-                    .filter(f -> f.getFile() != null && f.getFile().equals(file))
-                        .findFirst()
-                        .orElse(null);
-                if (csvFile == null) {
-                    log.warn("CSV file not found in model: {}", file.getName());
-                    continue;
-                }
-                CsvParser parser = ((CsvFile) csvFile).getParser();
-                if (parser == null) {
-                    log.warn("CSV file parser is not initialized for file: {}", file.getName());
-                    continue;
-                }
-               send(Events.createFileOpenedEvent(
-                       parser.getTemplate().getName()
-               ));
-            } else if (isSgyFile(file)) {
-                send(Events.createFileOpenedEvent("sgy"));
-            } else if (isDztFile(file)) {
-                send(Events.createFileOpenedEvent("dzt"));
-            }
+            handleFileOpenedEvent(file);
         }
+    }
+
+    private void handleFileOpenedEvent(File file) {
+        if (isCsvFile(file)) {
+            handleCsvFileOpened(file);
+        } else if (isSgyFile(file)) {
+            send(Events.createFileOpenedEvent("sgy"));
+        } else if (isDztFile(file)) {
+            send(Events.createFileOpenedEvent("dzt"));
+        }
+    }
+
+    private void handleCsvFileOpened(File file) {
+        List<SgyFile> csvFiles = model.getFileManager().getCsvFiles();
+        SgyFile csvFile = csvFiles.stream()
+                .filter(f -> f.getFile() != null && f.getFile().equals(file))
+                .findFirst()
+                .orElse(null);
+        if (csvFile == null) {
+            log.warn("CSV file not found in model: {}", file.getName());
+            return;
+        }
+        CsvParser parser = ((CsvFile) csvFile).getParser();
+        if (parser == null) {
+            log.warn("CSV file parser is not initialized for file: {}", file.getName());
+            return;
+        }
+        send(Events.createFileOpenedEvent(parser.getTemplate().getName()));
+    }
+
+    @EventListener
+    void listenFileOpenedErrorEvent(FileOpenErrorEvent fileOpenErrorEvent) {
+        if (amplitude == null) {
+            log.warn("Amplitude is disabled, cannot send file open error event");
+            return;
+        }
+        File file = fileOpenErrorEvent.getFile();
+        if (file == null || !file.exists()) {
+            log.warn("File open error event for non-existing file: {}", file);
+            return;
+        }
+        String errorMessage = fileOpenErrorEvent.getException() != null
+                ? fileOpenErrorEvent.getException().getMessage()
+                : "Unknown error";
+        handleFileOpenErrorEvent(file, errorMessage);
+    }
+
+    private void handleFileOpenErrorEvent(File file, String errorMessage) {
+        if (isCsvFile(file)) {
+            handleCsvFileOpenError(file, errorMessage);
+        } else if (isSgyFile(file)) {
+            send(Events.createFileOpenedErrorEvent("sgy", errorMessage));
+        } else if (isDztFile(file)) {
+            send(Events.createFileOpenedErrorEvent("dzt", errorMessage));
+        }
+    }
+
+    private void handleCsvFileOpenError(File file, String errorMessage) {
+        List<SgyFile> csvFiles = model.getFileManager().getCsvFiles();
+        SgyFile csvFile = csvFiles.stream()
+                .filter(f -> f.getFile() != null && f.getFile().equals(file))
+                .findFirst()
+                .orElse(null);
+        if (csvFile == null) {
+            send(Events.createFileOpenedErrorEvent(file.getName(), errorMessage));
+            return;
+        }
+        CsvParser parser = ((CsvFile) csvFile).getParser();
+        if (parser == null) {
+            send(Events.createFileOpenedErrorEvent(file.getName(), errorMessage));
+            return;
+        }
+        send(Events.createFileOpenedErrorEvent(parser.getTemplate().getName(), errorMessage));
+    }
+
+    // Created to allow testing with a mock UserIdService
+    void setUserIdService(UserIdService userIdService) {
+        this.userIdService = userIdService;
+    }
+
+    // Created to allow testing with a mock UserIdService
+    void setModel(Model model) {
+        this.model = model;
     }
 
     @Override

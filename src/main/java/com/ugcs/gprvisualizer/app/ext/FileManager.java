@@ -11,9 +11,11 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
@@ -42,8 +44,11 @@ public class FileManager {
 
 	private final FileTemplates fileTemplates;
 
-	FileManager(FileTemplates fileTemplates) {
+    private final ApplicationEventPublisher eventPublisher;
+
+	FileManager(FileTemplates fileTemplates, ApplicationEventPublisher eventPublisher) {
 		this.fileTemplates = fileTemplates;
+        this.eventPublisher = eventPublisher;
 	}
 
 	public boolean isActive() {
@@ -96,17 +101,22 @@ public class FileManager {
 		if (sgyFile == null) {
 			return;
 		}
-		
-		sgyFile.open(fl);
-		
-		files.add(sgyFile);
 
-		try {	
-			new MarkupFile().load(sgyFile);
-			new PositionFile(fileTemplates).load(sgyFile);
-		} catch (Exception e) {
-			log.warn("Error loading markup or position files: {}", e.getMessage());
-		}
+		try {
+            sgyFile.open(fl);
+
+            files.add(sgyFile);
+
+            try {
+                new MarkupFile().load(sgyFile);
+                new PositionFile(fileTemplates).load(sgyFile);
+            } catch (Exception e) {
+                log.warn("Error loading markup or position files: {}", e.getMessage());
+            }
+        } catch (Exception e) {
+            eventPublisher.publishEvent(new FileOpenErrorEvent(this, fl, e));
+            throw e;
+        }
 	}
 
 	private void processFileList(List<File> fileList) throws Exception {

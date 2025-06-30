@@ -1,5 +1,7 @@
 package com.github.thecoldwine.sigrun.converters;
 
+import com.github.thecoldwine.sigrun.common.ext.Trace;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -75,8 +77,7 @@ public class IBM360Converter implements SeismicValuesConverter {
         return result;
     }
     
-    public ByteBuffer valuesToByteBuffer(float values[]) {
+    public ByteBuffer valuesToByteBuffer(Trace trace) {
     	throw new RuntimeException("unsuported");
     }
-    
 }

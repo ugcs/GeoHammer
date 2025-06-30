@@ -1,19 +1,19 @@
 package com.ugcs.gprvisualizer.app;
 
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.ClickPlace;
-import com.ugcs.gprvisualizer.app.auxcontrol.CloseAllFilesButton;
+import com.ugcs.gprvisualizer.app.auxcontrol.CloseGprChartButton;
 import com.ugcs.gprvisualizer.app.auxcontrol.DepthHeight;
 import com.ugcs.gprvisualizer.app.auxcontrol.DepthStart;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
-import com.ugcs.gprvisualizer.app.auxcontrol.RemoveFileButton;
+import com.ugcs.gprvisualizer.app.auxcontrol.RemoveLineButton;
+import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.draw.PrismDrawer;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -23,6 +23,7 @@ import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.Settings;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.ui.BaseSlider;
+import com.ugcs.gprvisualizer.utils.Range;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -35,16 +36,16 @@ import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.jspecify.annotations.NonNull;
 import org.jfree.fx.FXGraphics2D;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.SortedMap;
 
 public class GPRChart extends Chart {
 
@@ -83,6 +84,8 @@ public class GPRChart extends Chart {
 
     private final MutableInt shiftGround = new MutableInt(0);
 
+    private final LeftRulerController leftRulerController;
+
     private final ChangeListener<Number> sliderListener
             = (observable, oldValue, newValue) -> {
                 //if (Math.abs(newValue.intValue() - oldValue.intValue()) > 3) {
@@ -93,11 +96,13 @@ public class GPRChart extends Chart {
     private final ProfileField profileField;
     private final List<BaseObject> auxElements = new ArrayList<>();
 
-    public GPRChart(Model model, AuxElementEditHandler auxEditHandler, List<SgyFile> sgyFiles) {
+    VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
+
+    public GPRChart(Model model, TraceFile traceFile) {
         super(model);
         this.model = model;
-        this.auxEditHandler = auxEditHandler;
-        this.profileField = new ProfileField(sgyFiles);
+        this.auxEditHandler = model.getAuxEditHandler();
+        this.profileField = new ProfileField(traceFile);
         this.leftRulerController = new LeftRulerController(profileField);
 
         vbox.getChildren().addAll(canvas);
@@ -127,6 +132,18 @@ public class GPRChart extends Chart {
         updateAuxElements();
     }
 
+    public void close() {
+        if (!confirmUnsavedChanges()) {
+            return;
+        }
+        model.publishEvent(new FileClosedEvent(this, getFile()));
+    }
+
+    @Override
+    public void reload() {
+        profileField.updateMaxHeightInSamples();
+    }
+
     public BaseSlider getContrastSlider() {
         return contrastSlider;
     }
@@ -142,11 +159,6 @@ public class GPRChart extends Chart {
 
     public List<BaseObject> getAuxElements() {
         return auxElements;
-    }
-
-    public void addSgyFile(@NonNull SgyFile f) {
-        profileField.addSgyFile(f);
-        updateAuxElements();
     }
 
     private class ContrastSlider extends BaseSlider {
@@ -245,15 +257,13 @@ public class GPRChart extends Chart {
         return vbox;
     }
 
-    VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
-
     @Override
     public void selectFile() {
-        model.publishEvent(new FileSelectedEvent(this, profileField.getSgyFileByTrace(getMiddleTrace())));
+        model.publishEvent(new FileSelectedEvent(this, profileField.getFile()));
     }
 
     private void draw(int width, int height) {
-        if (width <= 0 || height <= 0 || !model.isActive() || getField().getGprTracesCount() == 0) {
+        if (width <= 0 || height <= 0 || !model.isActive() || profileField.getGprTracesCount() == 0) {
             return;
         }
 
@@ -273,12 +283,11 @@ public class GPRChart extends Chart {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Очистка канвы
+        g2.setClip(null);
         g2.setColor(BACK_GROUD_COLOR);
         g2.fillRect(0, 0, (int) canvas.getWidth(), (int) canvas.getHeight());
 
         drawAxis(g2);
-        //new VerticalRulerDrawer(this).draw(g2);
 
         verticalRulerDrawer.draw(g2);
 
@@ -289,24 +298,17 @@ public class GPRChart extends Chart {
 
         g2.translate(mainRect.x + mainRect.width / 2, 0);
 
-        //if (!controller.isEnquiued()) {
-            // skip if another recalculation coming
-            drawAuxGraphics1(g2);
-        //}
-
+        drawAuxGraphics1(g2);
         drawAuxElements(g2);
 
-        //if (!controller.isEnquiued()) {
-            // skip if another recalculation coming
-
         var clipTopMainRect = profileField.getClipTopMainRect();
-            g2.setClip(clipTopMainRect.x,
-                    clipTopMainRect.y,
-                    clipTopMainRect.width,
-                    clipTopMainRect.height);
+        g2.setClip(clipTopMainRect.x,
+                clipTopMainRect.y,
+                clipTopMainRect.width,
+                clipTopMainRect.height);
 
-            drawFileNames(height - 30, g2);
-        //}
+        drawFileName(g2);
+        drawLines(g2);
 
         g2.translate(-(mainRect.x + mainRect.width / 2), 0);
     }
@@ -320,32 +322,24 @@ public class GPRChart extends Chart {
     }
 
     private void drawFileProfiles(Graphics2D graphicsContext) {
-
-        int startTrace = getFirstVisibleTrace();
-        int finishTrace = getLastVisibleTrace();
-
-        List<SgyFile> visibleFiles = profileField.getFilesInRange(startTrace, finishTrace);
-
-        for (SgyFile currentFile : visibleFiles) {
-
-            if (currentFile.profiles != null) {
-                // pf
-                graphicsContext.setColor(new Color(50, 200, 250));
-                graphicsContext.setStroke(AMP_STROKE);
-                for (HorizontalProfile pf : currentFile.profiles) {
-                    drawHorizontalProfile(graphicsContext,
-                            currentFile.getOffset().getStartTrace(), pf, 0);
-                }
-            }
-
-            // ground
-            if (currentFile.getGroundProfile() != null) {
-                graphicsContext.setColor(new Color(210, 105, 30));
-                graphicsContext.setStroke(LEVEL_STROKE);
+        TraceFile file = profileField.getFile();
+        if (file.getProfiles() != null) {
+            // pf
+            graphicsContext.setColor(new Color(50, 200, 250));
+            graphicsContext.setStroke(AMP_STROKE);
+            for (HorizontalProfile pf : file.getProfiles()) {
                 drawHorizontalProfile(graphicsContext,
-                        currentFile.getOffset().getStartTrace(), currentFile.getGroundProfile(),
-                        shiftGround.intValue());
+                        0, pf, 0);
             }
+        }
+
+        // ground
+        if (file.getGroundProfile() != null) {
+            graphicsContext.setColor(new Color(210, 105, 30));
+            graphicsContext.setStroke(LEVEL_STROKE);
+            drawHorizontalProfile(graphicsContext,
+                    0, file.getGroundProfile(),
+                    shiftGround.intValue());
         }
     }
 
@@ -380,45 +374,44 @@ public class GPRChart extends Chart {
             }
         }
 
-        for (ClickPlace clickPlace : model.getSelectedTraces()) {
-            Trace trace = clickPlace.getTrace();
-            if (trace != null && equals(model.getFileChart(trace.getFile()))) {
-                clickPlace.drawOnCut(g2, this);
+        for (TraceKey mark : model.getSelectedTraces()) {
+            if (!Objects.equals(mark.getFile(), getFile())) {
+                continue;
             }
+            ClickPlace clickPlace = new ClickPlace(mark);
+            clickPlace.drawOnCut(g2, this);
         }
     }
 
+    public void updateAuxElements() {
+        auxElements.clear();
 
-        public void updateAuxElements() {
-            auxElements.clear();
-            for (SgyFile sf : profileField.getSgyFiles()) {
-                auxElements.addAll(sf.getAuxElements());
+        TraceFile file = profileField.getFile();
+        auxElements.addAll(file.getAuxElements());
 
-                Trace lastTrace = sf.getTraces().get(sf.getTraces().size() - 1);
-
-                // add remove button
-                RemoveFileButton rfb = new RemoveFileButton(1,
-                        //lastTrace.getIndexInFile(),
-                        sf.getOffset(), sf, model);
-                auxElements.add(rfb);
-
-            }
-            auxElements.add(new DepthStart(ShapeHolder.topSelection));
-            auxElements.add(new DepthHeight(ShapeHolder.botSelection));
-            auxElements.add(leftRulerController.getTB());
-            if (profileField.getSgyFiles().size() > 1) {
-                auxElements.add(new CloseAllFilesButton(model));
-            }
+        // line removal buttons
+        SortedMap<Integer, Range> lineRanges = getFile().getLineRanges();
+        for (Range range : lineRanges.values()) {
+            RemoveLineButton removeLine = new RemoveLineButton(
+                    new TraceKey(file, range.getMin().intValue()),
+                    model);
+            auxElements.add(removeLine);
         }
 
-    private final LeftRulerController leftRulerController;
+        auxElements.add(new DepthStart(ShapeHolder.topSelection));
+        auxElements.add(new DepthHeight(ShapeHolder.botSelection));
+        auxElements.add(leftRulerController.getTB());
+
+        // close button
+        auxElements.add(new CloseGprChartButton(
+                new TraceKey(file, 0), model));
+    }
 
     public LeftRulerController getLeftRulerController() {
         return leftRulerController;
     }
 
     private void drawAxis(Graphics2D g2) {
-
         var field = getField();
 
         Rectangle mainRectRect = field.getMainRect();
@@ -471,68 +464,53 @@ public class GPRChart extends Chart {
         }
     }
 
-    private void drawFileNames(int height, Graphics2D g2) {
-        SgyFile currentFile = null;
-        ClickPlace mark = model.getSelectedTrace(this);
+    private void drawFileName(Graphics2D g2) {
+        Rectangle mainRect = profileField.getMainRect();
+        int rectStart = -mainRect.width / 2;
+
+        g2.setColor(Color.darkGray);
+        g2.setFont(fontB);
+
+        int iconImageWidth = ResourceImageHolder.IMG_CLOSE_FILE.getWidth(null);
+        TraceFile file = getFile();
+        String fileName = (file.isUnsaved() ? "*" : "") + file.getFile().getName();
+        g2.drawString(fileName, rectStart + 10 + iconImageWidth, 21);
+    }
+
+    private void drawLines(Graphics2D g2) {
+        int selectedLineIndex;
+        TraceKey mark = model.getSelectedTrace(this);
         if (mark != null) {
-            currentFile = mark.getTrace().getFile();
+            selectedLineIndex = getValueLineIndex(mark.getIndex());
+        } else {
+            selectedLineIndex = getValueLineIndex(getMiddleTrace());
         }
-        if (currentFile == null) {
-            currentFile = profileField.getSgyFileByTrace(getMiddleTrace());
-        }
 
-        int selectedX1 = 0;
-        int selectedX2 = 0;
-        Point2D p = null;
-        Point2D p2 = null;
+        Rectangle mainRect = profileField.getMainRect();
+        int maxSamples = profileField.getMaxHeightInSamples();
+        int lineHeight = sampleToScreen(maxSamples) - Model.TOP_MARGIN;
 
-        int leftMargin = -getField().getMainRect().width / 2;
+        SortedMap<Integer, Range> lineRanges = getFile().getLineRanges();
+        for (Map.Entry<Integer, Range> e : lineRanges.entrySet()) {
+            Integer lineIndex = e.getKey();
+            Range lineRange = e.getValue();
 
-        g2.setStroke(AMP_STROKE);
-        for (SgyFile fl : profileField.getSgyFiles()) {
-
-            p = traceSampleToScreen(new TraceSample(
-                    fl.getTraces().get(0).getIndexInSet(), 0));
-
-            int lastTraceIndex = fl.getTraces().size() - 1;
-            p2 = traceSampleToScreen(new TraceSample(
-                    fl.getTraces().get(lastTraceIndex).getIndexInSet(), 0));
-
-            if (currentFile == fl) {
+            if (lineIndex == selectedLineIndex) {
+                g2.setStroke(LEVEL_STROKE);
                 g2.setColor(new Color(0, 120, 215));
                 g2.setFont(fontB);
-
-                selectedX1 = (int) p.getX();
-                selectedX2 = (int) p2.getX();
             } else {
-                g2.setColor(Color.darkGray);
+                g2.setStroke(AMP_STROKE);
+                g2.setColor(new Color(234, 51, 35));
                 g2.setFont(fontP);
             }
-            /// separator
-            if (p.getX() > (double) -getField().getMainRect().width / 2) {
-                g2.drawLine((int) p.getX(), 0, (int) p.getX(), height);
+
+            Point2D lineStart = traceSampleToScreen(
+                    new TraceSample(lineRange.getMin().intValue(), 0));
+            if (lineStart.getX() > (double)-mainRect.width / 2) {
+                g2.drawLine((int)lineStart.getX(), mainRect.y,
+                        (int)lineStart.getX(), mainRect.y + lineHeight);
             }
-
-            p = new Point2D(Math.max(p.getX(), leftMargin), p.getY());
-
-            int iconImageWidth = ResourceImageHolder.IMG_CLOSE_FILE.getWidth(null);
-            g2.setClip((int) p.getX(), 0, (int) (p2.getX() - p.getX()), 20);
-            String fileName = (fl.isUnsaved() ? "*" : "") + fl.getFile().getName();
-            g2.drawString(fileName, (int) p.getX() + 4 + iconImageWidth, 11);
-            g2.setClip(null);
-        }
-
-        if (p2 != null) {
-            g2.drawLine((int) p2.getX(), 0, (int) p2.getX(), height);
-        }
-
-        if (currentFile != null) {
-            g2.setColor(new Color(0, 120, 215));
-            g2.setStroke(LEVEL_STROKE);
-            if (selectedX1 >= leftMargin) {
-                g2.drawLine(selectedX1, 0, selectedX1, height);
-            }
-            g2.drawLine(selectedX2, 0, selectedX2, height);
         }
     }
 
@@ -568,7 +546,7 @@ public class GPRChart extends Chart {
         return p;
     }
 
-    protected EventHandler<MouseEvent> mouseClickHandler = new EventHandler<MouseEvent>() {
+    protected EventHandler<MouseEvent> mouseClickHandler = new EventHandler<>() {
         @Override
         public void handle(MouseEvent event) {
 
@@ -577,8 +555,9 @@ public class GPRChart extends Chart {
                 Point2D p = getLocalCoords(event);
 
                 int traceIndex = screenToTraceSample(p).getTrace();
-                if (traceIndex >= 0 && traceIndex < getField().getGprTracesCount()) {
-                    Trace trace = getField().getGprTraces().get(traceIndex);
+                TraceFile traceFile = profileField.getFile();
+                if (traceIndex >= 0 && traceIndex < traceFile.getTraces().size()) {
+                    TraceKey trace = new TraceKey(traceFile, traceIndex);
                     model.selectTrace(trace);
                     model.focusMapOnTrace(trace);
                 }
@@ -737,16 +716,6 @@ public class GPRChart extends Chart {
         return t2.getTrace();
     }
 
-    public TraceSample screenToTraceSample(Point2D point, VerticalCutPart vcp) {
-        int trace = vcp.globalToLocal(getMiddleTrace()
-                + (int)((point.getX()) / getHScale()));
-
-        int sample = getStartSample()
-                + (int) ((point.getY() - getField().getTopMargin()) / getVScale());
-
-        return new TraceSample(trace, sample);
-    }
-
     public TraceSample screenToTraceSample(Point2D point) {
         int trace = getMiddleTrace() + (int) (-1 + (point.getX()) / getHScale());
         int sample = getStartSample() + (int) ((point.getY() - getField().getTopMargin()) / getVScale());
@@ -769,14 +738,14 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public List<SgyFile> getFiles() {
-        return Collections.unmodifiableList(profileField.getSgyFiles());
+    public TraceFile getFile() {
+        return profileField.getFile();
     }
 
     @Override
-    public void selectTrace(Trace trace, boolean focus) {
+    public void selectTrace(TraceKey trace, boolean focus) {
         if (trace != null && focus) {
-            setMiddleTrace(trace.getIndexInSet());
+            setMiddleTrace(trace.getIndex());
         }
         // no data stored in a chart,
         // and is taken from model on repaint
@@ -811,5 +780,84 @@ public class GPRChart extends Chart {
     @Override
     public void clearFlags() {
         auxElements.removeIf(x -> x instanceof FoundPlace);
+    }
+
+    // zoom
+
+    private int getValueLineIndex(int index) {
+        TraceFile file = profileField.getFile();
+        List<GeoData> values = file.getGeoData();
+        if (values == null || values.isEmpty()) {
+            return 0;
+        }
+        // correct out of range values to point to the first or last trace
+        index = Math.max(0, Math.min(index, values.size() - 1));
+        return values.get(index).getLineIndexOrDefault();
+    }
+
+    private void zoomToLine(int lineIndex) {
+        TraceFile file = profileField.getFile();
+        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
+
+        int firstLineIndex = !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
+        lineIndex = Math.max(lineIndex, firstLineIndex);
+
+        int lastLineIndex = !lineRanges.isEmpty() ? lineRanges.lastKey() : 0;
+        lineIndex = Math.min(lineIndex, lastLineIndex);
+
+        Range range = lineRanges.get(lineIndex);
+
+        int centerIndex = (int)range.getCenter();
+        setMiddleTrace(centerIndex);
+
+        int maxSamples = profileField.getMaxHeightInSamples();
+        int tracesCount = range.getMax().intValue() - range.getMin().intValue() + 1;
+
+        fit(maxSamples, tracesCount);
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+    }
+
+    @Override
+    public void zoomToCurrentLine() {
+        // if there's a selection mark present on the chart
+        // zoom to a line containing that mark;
+        // otherwise zoom to a line containing
+        // the middle trace
+        int lineIndex;
+        TraceKey mark = model.getSelectedTrace(this);
+        if (mark != null) {
+            lineIndex = getValueLineIndex(mark.getIndex());
+        } else {
+            lineIndex = getValueLineIndex(getMiddleTrace());
+        }
+        zoomToLine(lineIndex);
+    }
+
+    @Override
+    public void zoomToPreviousLine() {
+        int lineIndex = getValueLineIndex(getMiddleTrace());
+        zoomToLine(lineIndex - 1);
+    }
+
+    @Override
+    public void zoomToNextLine() {
+        int lineIndex = getValueLineIndex(getMiddleTrace());
+        zoomToLine(lineIndex + 1);
+    }
+
+    @Override
+    public void zoomToFit() {
+        fitFull();
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+    }
+
+    @Override
+    public void zoomIn() {
+        zoom(1, false);
+    }
+
+    @Override
+    public void zoomOut() {
+        zoom(-1, false);
     }
 }

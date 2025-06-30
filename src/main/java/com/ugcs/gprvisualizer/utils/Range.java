@@ -22,6 +22,10 @@ public class Range {
         return max;
     }
 
+    public double getCenter() {
+        return 0.5 * (min.doubleValue() + max.doubleValue());
+    }
+
     public double getWidth() {
         return max.doubleValue() - min.doubleValue();
     }

@@ -12,17 +12,19 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.*;
 import com.ugcs.gprvisualizer.app.auxcontrol.*;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.utils.TraceUtils;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.scene.layout.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -39,7 +41,6 @@ import com.github.thecoldwine.sigrun.common.ext.FileChangeType;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.ugcs.gprvisualizer.app.ext.FileManager;
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 
@@ -56,13 +57,49 @@ import javafx.scene.paint.Color;
 @Component
 public class Model implements InitializingBean {
 
-	public static final int TOP_MARGIN = 50;
+	public static final int TOP_MARGIN = 60;
+
 	public static final int CHART_MIN_HEIGHT = 400;
+
+	private static final List<Color> BRIGHT_COLORS = List.of(
+			Color.web("#fbd101"),
+			//Color.web("#fdff0d"),
+			Color.web("#b0903a"),
+			Color.web("#f99e01"),
+			Color.web("#c56a04"),
+			Color.web("#df818e"),
+			Color.web("#ff6455"),
+			Color.web("#d80b01"),
+			Color.web("#b40a13"),
+			Color.web("#690d08"),
+			Color.web("#989d9b"),
+			Color.web("#738768"),
+			Color.web("#6bb7e6"),
+			Color.web("#496a8b"),
+			Color.web("#2b52a3"),
+			Color.web("#272f73"),
+			Color.web("#5b9a95"),
+			Color.web("#add6aa"),
+			Color.web("#2b960a"),
+			Color.web("#0e5f1e"),
+			Color.web("#bfc1c3"),
+			Color.web("#cbac7a"),
+			Color.web("#80674e"),
+			Color.web("#cabf95"),
+			Color.web("#7b7b7b"),
+			Color.web("#354a32"),
+			Color.web("#8c2a07"),
+			Color.web("#545a4c"),
+			Color.web("#242d29"),
+			Color.web("#7b7b7b"));
 
 	private static final Logger log = LoggerFactory.getLogger(Model.class);
 
+	private final Random rand = new Random();
+
+	@SuppressWarnings("NullAway.Init")
 	@Value( "${trace.lookup.threshold}" )
-	private double traceLookupThreshold;
+	private Double traceLookupThreshold;
 
 	private boolean loading = false; 
 
@@ -74,11 +111,13 @@ public class Model implements InitializingBean {
 
 	private final List<BaseObject> auxElements = new ArrayList<>();
 
-	private final List<ClickPlace> selectedTraces = new ArrayList<>();
+	private final List<TraceKey> selectedTraces = new ArrayList<>();
 
 	private boolean kmlToFlagAvailable = false;
 
 	private final PrefSettings prefSettings;
+
+	private final Map<String, Color> semanticColors = new HashMap<>();
 
 	private final AuxElementEditHandler auxEditHandler;
 
@@ -86,9 +125,12 @@ public class Model implements InitializingBean {
 
 	private final Map<CsvFile, SensorLineChart> csvFiles = new HashMap<>();
 
-	private final Map<SgyFile, GPRChart> gprCharts = new HashMap<>();
+	private final Map<TraceFile, GPRChart> gprCharts = new HashMap<>();
 
 	private final ApplicationEventPublisher eventPublisher;
+
+	@Nullable
+	private Node selectedDataNode;
 
 	@Nullable
 	private SgyFile currentFile;
@@ -137,23 +179,18 @@ public class Model implements InitializingBean {
 		auxElements.clear();
 		getFileManager().getCsvFiles().forEach(sf -> {
             auxElements.addAll(sf.getAuxElements());
-            sf.getAuxElements().forEach(element -> {
-                getChart((CsvFile) sf).get().addFlag((FoundPlace) element);
-            });
+            getCsvChart(sf).ifPresent(chart ->
+					sf.getAuxElements().forEach(element -> {
+						if (element instanceof FoundPlace foundPlace) {
+							chart.addFlag(foundPlace);
+						}
+		            }
+			));
         });
 	}
 
 	public VBox getChartsContainer() {
 		return chartsContainer;
-	}
-
-	@Nullable
-	public GPRChart getProfileField(SgyFile sgyFile) {
-		if (!gprCharts.containsKey(sgyFile)) {
-			System.out.println(sgyFile + " not found in gprCharts");
-		}
-		return gprCharts.get(sgyFile); //computeIfAbsent(sgyFile, f -> new GPRChart(this, auxEditHandler, f));
-		//return gprChart;
 	}
 
 	public boolean isLoading() {
@@ -168,15 +205,15 @@ public class Model implements InitializingBean {
 		// center
 		MinMaxAvg lonMid = new MinMaxAvg();
 		MinMaxAvg latMid = new MinMaxAvg();
-		for (Trace trace : getTraces()) {
-			if (trace == null) {
-				System.out.println("null trace or ot latlon");
-				continue;
-			}
 
-			if (trace.getLatLon() != null) {
-				latMid.put(trace.getLatLon().getLatDgr());
-				lonMid.put(trace.getLatLon().getLonDgr());
+		for (SgyFile file : fileManager.getFiles()) {
+			for (GeoData value : Nulls.toEmpty(file.getGeoData())) {
+				LatLon latlon = value.getLatLon();
+				if (latlon == null) {
+					continue;
+				}
+				latMid.put(latlon.getLatDgr());
+				lonMid.put(latlon.getLonDgr());
 			}
 		}
 
@@ -185,7 +222,6 @@ public class Model implements InitializingBean {
 					new LatLon(latMid.getMid(), lonMid.getMid()));
 			this.getMapField().setSceneCenter(
 					new LatLon(latMid.getMid(), lonMid.getMid()));
-
 
 			LatLon lt = new LatLon(latMid.getMin(), lonMid.getMin());
 			LatLon rb = new LatLon(latMid.getMax(), lonMid.getMax());
@@ -202,8 +238,6 @@ public class Model implements InitializingBean {
 	}
 
 	public void init() {
-		//
-		//
 		this.updateAuxElements();
 	}
 
@@ -228,7 +262,7 @@ public class Model implements InitializingBean {
 	}
 
 	public boolean isSpreadCoordinatesNecessary() {
-		for (SgyFile file : getFileManager().getGprFiles()) {
+		for (TraceFile file : getFileManager().getGprFiles()) {
 			if (file.isSpreadCoordinatesNecessary()) {
 				return true;
 			}
@@ -254,8 +288,8 @@ public class Model implements InitializingBean {
 	 * Initialize chart for the given CSV file
 	 * @param csvFile CSV file to initialize chart for
 	 */
-	public void initChart(CsvFile csvFile) {
-		if (getChart(csvFile).isPresent()) {
+	public void initCsvChart(CsvFile csvFile) {
+		if (getCsvChart(csvFile).isPresent()) {
 			return;
 		}
 		var sensorLineChart = createSensorLineChart(csvFile);
@@ -266,23 +300,20 @@ public class Model implements InitializingBean {
 		});
 	}
 
-	public void updateChart(CsvFile csvFile) {
-		Optional<SensorLineChart> currentChart = getChart(csvFile);
-		if (currentChart.isEmpty()) {
+	public void updateCsvChart(CsvFile csvFile) {
+		Optional<SensorLineChart> csvChart = getCsvChart(csvFile);
+		if (csvChart.isEmpty()) {
 			return;
 		}
 
-		var sensorLineChart = createSensorLineChart(csvFile);
-		Platform.runLater(() -> {
-			selectChart(sensorLineChart);
-		});
+		csvChart.get().reload();
 	}
 
-	public void updateChartFile(CsvFile csvFile, File file) {
-		SensorLineChart chart = csvFiles.remove(csvFile);
+	public void updateCsvChartFile(CsvFile csvFile, File file) {
+		SensorLineChart csvChart = csvFiles.remove(csvFile);
 		csvFile.setFile(file);
-		if (chart != null) {
-			csvFiles.put(csvFile, chart);
+		if (csvChart != null) {
+			csvFiles.put(csvFile, csvChart);
 		}
 	}
 
@@ -290,6 +321,7 @@ public class Model implements InitializingBean {
         // if there is a chart for a given file then put new chart
 		// to the same position as it was before
 		int index = -1;
+
 		SensorLineChart chart = csvFiles.get(csvFile);
 		if (chart != null) {
 			Node chartBox = chart.getRootNode();
@@ -334,7 +366,7 @@ public class Model implements InitializingBean {
 	 * @param csvFile CSV file to get chart for
 	 * @return Optional of SensorLineChart
 	 */
-    public Optional<SensorLineChart> getChart(CsvFile csvFile) {
+    public Optional<SensorLineChart> getCsvChart(CsvFile csvFile) {
 		return Optional.ofNullable(csvFiles.get(csvFile));
     }
 
@@ -352,21 +384,26 @@ public class Model implements InitializingBean {
 		gprCharts.clear();
 	}
 
-	public void removeChart(SgyFile sgyFile) {
-		if (sgyFile instanceof CsvFile csvFile) {
+	public void removeChart(SgyFile file) {
+		if (file instanceof CsvFile csvFile) {
 			csvFiles.remove(csvFile);
-			if (!csvFiles.isEmpty()) {
-				selectAndScrollToChart(csvFiles.values().stream().toList().getFirst());
-			} else {
-				publishEvent(new FileSelectedEvent(this, (SgyFile) null));
+		} else if (file instanceof TraceFile traceFile) {
+			gprCharts.remove(traceFile);
+		}
+		// select first file in a list
+		boolean chartSelected = false;
+		List<SgyFile> openedFiles = fileManager.getFiles();
+		if (!openedFiles.isEmpty()) {
+			Chart chart = getFileChart(openedFiles.getFirst());
+			if (chart != null) {
+				selectAndScrollToChart(chart);
+				chartSelected = true;
 			}
-
-		} else {
-			gprCharts.remove(sgyFile);
+		}
+		if (!chartSelected) {
+			publishEvent(new FileSelectedEvent(this, (SgyFile)null));
 		}
     }
-
-	Map<String, Color> semanticColors = new HashMap<>();
 
 	public void loadColorSettings(Map<String, Color> semanticColors) {
 		var colors = prefSettings.getAllSettings().get("colors");
@@ -380,67 +417,10 @@ public class Model implements InitializingBean {
 		return semanticColors.computeIfAbsent(semantic, k -> generateRandomColor());
 	}
 
-	private List<Color> brightColors = List.of(
-		Color.web("#fbd101"),
-		//Color.web("#fdff0d"),
-		Color.web("#b0903a"),
-		Color.web("#f99e01"),
-		Color.web("#c56a04"),
-		Color.web("#df818e"),
-		Color.web("#ff6455"),
-		Color.web("#d80b01"),
-		Color.web("#b40a13"),
-		Color.web("#690d08"),
-		Color.web("#989d9b"),
-		Color.web("#738768"),
-		Color.web("#6bb7e6"),
-		Color.web("#496a8b"),
-		Color.web("#2b52a3"),
-		Color.web("#272f73"),
-		Color.web("#5b9a95"),
-		Color.web("#add6aa"),
-		Color.web("#2b960a"),
-		Color.web("#0e5f1e"),
-		Color.web("#bfc1c3"),
-		Color.web("#cbac7a"),
-		Color.web("#80674e"),
-		Color.web("#cabf95"),
-		Color.web("#7b7b7b"),
-		Color.web("#354a32"),
-		Color.web("#8c2a07"),
-		Color.web("#545a4c"),
-		Color.web("#242d29"),
-		Color.web("#7b7b7b"));
-
-	Random rand = new Random();
-
-	@Nullable
-	private Node selectedDataNode;
-
 	// Generate random color
     private Color generateRandomColor() {
-        return brightColors.get(rand.nextInt(brightColors.size()));
+        return BRIGHT_COLORS.get(rand.nextInt(BRIGHT_COLORS.size()));
     }
-
-	/*public boolean isOnlyCsvLoaded() {
-		return fileManager.getFiles().stream()
-				.allMatch(SgyFile::isCsvFile);
-	}*/
-
-	public List<Trace> getGprTraces() {
-		return getFileManager().getGprTraces();
-	}
-
-	public List<Trace> getCsvTraces() {
-		return getFileManager().getCsvTraces();
-	}
-
-	public List<Trace> getTraces() {
-		List<Trace> result = new ArrayList<>();
-		result.addAll(getGprTraces());
-		result.addAll(getCsvTraces());
-		return result;
-	}
 
 	private void setSelectedData(Node node) {
 		this.selectedDataNode = node;
@@ -464,6 +444,7 @@ public class Model implements InitializingBean {
 
 		if (getSelectedData() != null) {
 			if (getSelectedData() == node) {
+				fileDataContainer.selectFile();
 				return false;
 			}
 			//getChart(null); // clear selection
@@ -519,7 +500,7 @@ public class Model implements InitializingBean {
         scrollPane.setVvalue(vValue < 0 ? Double.POSITIVE_INFINITY : vValue);
     }
 
-	public void focusMapOnTrace(Trace trace) {
+	public void focusMapOnTrace(TraceKey trace) {
 		if (trace == null) {
 			return;
 		}
@@ -536,40 +517,19 @@ public class Model implements InitializingBean {
 		eventPublisher.publishEvent(event);
 	}
 
-	public GPRChart getProfileFieldByPattern(@NonNull SgyFile f) {
-		if (gprCharts.containsKey(f)) {
-			return gprCharts.get(f);
-		}
-
-		//compare files by pattern
-
-
-		var key = gprCharts.keySet().stream().filter(sgyFile -> sgyFile.getFile().getName()
-				.contains(extractBaseGprFileName(f.getFile().getName()))).findAny().orElseGet(() -> f);
-		var chart = gprCharts.get(key);
-		if (chart != null) {
-			chart.addSgyFile(f);
-		} else {
-			chart = new GPRChart(this, auxEditHandler, List.of(f));
-		}
-		gprCharts.put(f, chart);
-		return chart;
+	@Nullable
+	public GPRChart getGprChart(TraceFile sgyFile) {
+		return gprCharts.get(sgyFile);
 	}
 
-	private String extractBaseGprFileName(String fileName) {
-		String gprFileNamePattern =  prefSettings.getSetting("general", "gpr_file_name_pattern");
-		if (gprFileNamePattern == null) {
-			gprFileNamePattern = "^(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-gpr.*)_\\d{3}.*\\.sgy$";
+	public GPRChart getOrCreateGprChart(@NonNull TraceFile file) {
+		GPRChart chart = gprCharts.get(file);
+		if (chart != null) {
+			return chart;
 		}
-
-		Pattern regex = Pattern.compile(gprFileNamePattern);
-		Matcher matcher = regex.matcher(fileName);
-
-		if (matcher.find()) {
-			return matcher.group(1);
-		} else {
-			return fileName;
-		}
+		chart = new GPRChart(this, file);
+		gprCharts.put(file, chart);
+		return chart;
 	}
 
 	@EventListener
@@ -604,36 +564,35 @@ public class Model implements InitializingBean {
 	@Nullable
 	public Chart getFileChart(@Nullable SgyFile file) {
 		if (file instanceof CsvFile csvFile) {
-			return getChart(csvFile).orElse(null);
+			return getCsvChart(csvFile).orElse(null);
 		}
-		if (file instanceof GprFile gprFile) {
-			return getProfileField(gprFile);
+		if (file instanceof TraceFile traceFile) {
+			return getGprChart(traceFile);
 		}
 		return null;
 	}
 
 	// trace selection
 
-	public List<ClickPlace> getSelectedTraces() {
+	public List<TraceKey> getSelectedTraces() {
 		return Collections.unmodifiableList(selectedTraces);
 	}
 
 	@Nullable
-	public ClickPlace getSelectedTrace(Chart chart) {
+	public TraceKey getSelectedTrace(Chart chart) {
 		if (chart == null) {
 			return null;
 		}
-		for (ClickPlace clickPlace : selectedTraces) {
-			SgyFile traceFile = clickPlace.getTrace().getFile();
-			if (Objects.equals(chart, getFileChart(traceFile))) {
-				return clickPlace;
+		for (TraceKey trace : selectedTraces) {
+			if (Objects.equals(chart, getFileChart(trace.getFile()))) {
+				return trace;
 			}
 		}
 		return null;
 	}
 
 	@Nullable
-	public ClickPlace getSelectedTraceInCurrentChart() {
+	public TraceKey getSelectedTraceInCurrentChart() {
 		Chart chart = getFileChart(currentFile);
 		return chart != null
 				? getSelectedTrace(chart)
@@ -644,21 +603,23 @@ public class Model implements InitializingBean {
 		if (location == null) {
 			return;
 		}
-		Trace nearestTrace = TraceUtils.findNearestTrace(getTraces(), location);
-		selectTrace(nearestTrace, true);
+		Optional<TraceKey> nearestTrace = Traces.findNearestTraceInFiles(fileManager.getFiles(), location);
+        nearestTrace.ifPresent(trace -> {
+			selectTrace(trace, true);
+		});
 	}
 
-	public void selectTrace(Trace trace) {
+	public void selectTrace(TraceKey trace) {
 		selectTrace(trace, false);
 	}
 
-	public void selectTrace(Trace trace, boolean focusOnChart) {
+	public void selectTrace(TraceKey trace, boolean focusOnChart) {
 		if (trace == null) {
 			return;
 		}
 
 		selectedTraces.clear();
-		selectedTraces.add(toClickPlace(trace, true));
+		selectedTraces.add(trace);
 
 		Chart traceChart = getFileChart(trace.getFile());
 		boolean traceOnSelectedChart = isChartSelected(traceChart);
@@ -667,12 +628,12 @@ public class Model implements InitializingBean {
 			if (Objects.equals(chart, traceChart)) {
 				continue;
 			}
-			Trace nearestInChart = TraceUtils.findNearestTraceInFiles(
-					chart.getFiles(),
+			Optional<TraceKey> nearestInChart = Traces.findNearestTrace(
+					chart.getFile(),
 					trace.getLatLon(),
 					traceLookupThreshold);
-			if (nearestInChart != null) {
-				selectedTraces.add(toClickPlace(nearestInChart, false));
+			if (nearestInChart.isPresent()) {
+				selectedTraces.add(nearestInChart.get());
 				traceOnSelectedChart = traceOnSelectedChart || isChartSelected(chart);
 			}
 		}
@@ -695,14 +656,8 @@ public class Model implements InitializingBean {
 		});
 	}
 
-	private ClickPlace toClickPlace(Trace trace, boolean selected) {
-		ClickPlace clickPlace = new ClickPlace(trace);
-		clickPlace.setSelected(selected);
-		return clickPlace;
-	}
-
 	public void clearSelectedTrace(@Nullable Chart chart) {
-		selectedTraces.removeIf(x -> Objects.equals(chart, getFileChart(x.getTrace().getFile())));
+		selectedTraces.removeIf(x -> Objects.equals(chart, getFileChart(x.getFile())));
 		Platform.runLater(() -> updateSelectedTraceOnChart(chart, false));
 	}
 
@@ -719,10 +674,7 @@ public class Model implements InitializingBean {
 		if (chart == null) {
 			return;
 		}
-		ClickPlace clickPlace = getSelectedTrace(chart);
-		Trace trace = clickPlace != null
-				? clickPlace.getTrace()
-				: null;
+		TraceKey trace = getSelectedTrace(chart);
 		chart.selectTrace(trace, focusOnTrace);
 	}
 
@@ -733,21 +685,18 @@ public class Model implements InitializingBean {
 			return;
 		}
 
-		ClickPlace selectedTrace = getSelectedTrace(chart);
+		TraceKey selectedTrace = getSelectedTrace(chart);
 		if (selectedTrace == null) {
 			return; // no trace selected in a chart
 		}
-		FoundPlace flag = toFlag(selectedTrace);
-		if (flag == null) {
-			return;
-		}
+		FoundPlace flag = new FoundPlace(selectedTrace, this);
 		flag.setSelected(true);
 
 		// clear current selection in file
 		chart.selectFlag(null);
 		chart.addFlag(flag);
 
-		SgyFile traceFile = selectedTrace.getTrace().getFile();
+		SgyFile traceFile = selectedTrace.getFile();
 		traceFile.getAuxElements().add(flag);
 		traceFile.setUnsaved(true);
 
@@ -755,27 +704,6 @@ public class Model implements InitializingBean {
 
 		updateAuxElements();
 		publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-	}
-
-	@Nullable
-	private FoundPlace toFlag(ClickPlace selectedTrace) {
-		if (selectedTrace == null) {
-			return null;
-		}
-
-		Trace trace = selectedTrace.getTrace();
-		SgyFile traceFile = trace.getFile();
-		int traceIndex = traceFile instanceof CsvFile
-				? trace.getIndexInFile()
-				: trace.getIndexInSet();
-
-		int localTraceIndex = traceFile.getOffset().globalToLocal(traceIndex);
-		if (localTraceIndex < 0 || localTraceIndex >= traceFile.getTraces().size()) {
-			log.warn("Flag outside of the current file bounds");
-			return null;
-		}
-
-		return new FoundPlace(trace, traceFile.getOffset(), this);
 	}
 
 	public void removeSelectedFlag(Chart chart) {
@@ -808,12 +736,11 @@ public class Model implements InitializingBean {
 		}
 
 		chart.clearFlags();
-		for (SgyFile file : chart.getFiles()) {
-			boolean modified = file.getAuxElements().removeIf(
-					x -> x instanceof FoundPlace);
-			if (modified) {
-				file.setUnsaved(true);
-			}
+		SgyFile file = chart.getFile();
+		boolean modified = file.getAuxElements().removeIf(
+				x -> x instanceof FoundPlace);
+		if (modified) {
+			file.setUnsaved(true);
 		}
 		updateAuxElements();
 		publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));

@@ -60,8 +60,6 @@
 		</repository>
 	</repositories>
 
-
-
 	<build>
 		<resources>
     		<resource>
@@ -95,7 +93,7 @@
 							<compilerArgs>
 								<arg>-XDcompilePolicy=simple</arg>
 								<arg>--should-stop=ifError=FLOW</arg>
-								<arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:WARN -XepOpt:NullAway:AnnotatedPackages=com.ugcs.gprvisualizer,com.github.thecoldwine.sigrun.common.ext -XepOpt:NullAway:JSpecifyAnnotations=true</arg>
+								<arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:WARN -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:CustomContractAnnotations=org.springframework.lang.Contract -XepOpt:NullAway:JSpecifyAnnotations=true</arg>
 							</compilerArgs>
 							<annotationProcessorPaths>
 								<path>
@@ -189,6 +187,7 @@
 				<version>${exec-maven-plugin.version}</version>
 				<configuration>
 					<longModulepath>false</longModulepath>
+					<skip>${maven.main.skip}</skip>
 				</configuration>
 				<executions>
 					<execution>
@@ -248,7 +247,7 @@
 							<goal>single</goal>
 						</goals>
 						<configuration>
-							<finalName>${project.artifactId}_${project.version}_${platform.suffix}</finalName>
+							<finalName>${project.artifactId}_${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.${maven.build.timestamp}_${platform.suffix}</finalName>
 							<appendAssemblyId>false</appendAssemblyId>
 							<descriptors>
 								<descriptor>${zip.content}</descriptor>
@@ -567,6 +566,7 @@
 							<jre>
 								<minVersion>21.0.1</minVersion>
 								<path>jre21</path>
+								<maxHeapSize>4096</maxHeapSize>
 							</jre>
 							<versionInfo>
 								<fileVersion>1.0.0.0</fileVersion>
@@ -588,6 +588,9 @@
 						  </configuration>
 						</execution>
 					  </executions>
+						<configuration>
+							<skip>${maven.main.skip}</skip>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>
@@ -608,7 +611,7 @@
                 <os><family>mac</family></os>
             </activation>
 			<properties>
-        		<platform.suffix>macos-x86_64</platform.suffix>
+        		<platform.suffix>macos-aarch64</platform.suffix>
         		<zip.content>assembly/macos-zip.xml</zip.content>
 				<installer.input>${project.build.directory}/installer/input/</installer.input>
       		</properties>

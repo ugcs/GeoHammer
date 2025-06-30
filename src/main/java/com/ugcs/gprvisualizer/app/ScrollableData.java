@@ -6,8 +6,6 @@ import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import org.apache.commons.lang3.NotImplementedException;
 
-import java.awt.Rectangle;
-
 public abstract class ScrollableData {
 
     protected int startSample = 0;

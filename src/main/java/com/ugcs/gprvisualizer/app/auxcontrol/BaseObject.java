@@ -8,18 +8,14 @@ import javafx.geometry.Point2D;
 import org.json.simple.JSONObject;
 
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 import org.jspecify.annotations.Nullable;
-//import com.ugcs.gprvisualizer.app.MouseHandler;
 
-public interface BaseObject {//extends MouseHandler {
+public interface BaseObject {
 	
 	default void drawOnMap(Graphics2D g2, MapField mapField) {
-
 	}
 	
 	default void drawOnCut(Graphics2D g2, ScrollableData profField) {
-
 	}
 	
 	default boolean isPointInside(Point2D localPoint, ScrollableData profField) {
@@ -41,8 +37,8 @@ public interface BaseObject {//extends MouseHandler {
 		return false;
 	}
 		
-	default BaseObject copy(int offset, VerticalCutPart verticalCutPart) {
-		throw new RuntimeException("not implemented");
+	default BaseObject copy(int traceOffset) {
+		return null;
 	}
 	
 	default boolean isFit(int begin, int end) {
@@ -64,5 +60,4 @@ public interface BaseObject {//extends MouseHandler {
 	default boolean mouseMoveHandle(Point2D point, ScrollableData profField) {
 		return false;
 	}
-
 }

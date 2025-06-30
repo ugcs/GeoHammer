@@ -40,7 +40,7 @@ public class LineSchema {
         return ranges.higherKey(lineIndex);
     }
 
-    public static TreeMap<Integer, Range> getLineRanges(List<GeoData> values) {
+    public static TreeMap<Integer, Range> getLineRanges(List<? extends GeoData> values) {
         // line index -> [first index, last index]
         TreeMap<Integer, Range> ranges = new TreeMap<>();
         if (values == null) {
@@ -51,8 +51,9 @@ public class LineSchema {
         int lineStart = 0;
         for (int i = 0; i < values.size(); i++) {
             GeoData value = values.get(i);
-            if (value == null)
+            if (value == null) {
                 continue;
+            }
 
             int valueLineIndex = value.getLineIndexOrDefault();
             if (valueLineIndex != lineIndex) {

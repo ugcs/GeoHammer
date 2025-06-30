@@ -9,5 +9,4 @@ public interface BaseCommand {
 	default WhatChanged.Change getChange() {
 		return WhatChanged.Change.justdraw;
 	}
-
 }

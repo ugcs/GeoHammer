@@ -2,17 +2,14 @@ package com.github.thecoldwine.sigrun.common.ext;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
-import java.util.ArrayList;
 import java.util.List;
 
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.Settings;
-import org.jspecify.annotations.NonNull;
 
 public class ProfileField {
 
-	//private final Model model;
-	private final List<SgyFile> sgyFiles = new ArrayList<>();
+	private final TraceFile traceFile;
 
 	// screen coordinates
 	private Dimension viewDimension = new Dimension();
@@ -34,17 +31,15 @@ public class ProfileField {
 	private int maxHeightInSamples = 0;
 	private final Settings profileSettings = new Settings();
 
-
 	public int getMaxHeightInSamples() {
 		return maxHeightInSamples;
 	}
 
-	private void updateMaxHeightInSamples() {
-
-		//set index of traces
+	public void updateMaxHeightInSamples() {
+		// set index of traces
 		int maxHeight = 0;
-		for (Trace tr: getGprTraces()) {
-			maxHeight = Math.max(maxHeight, tr.getNormValues().length);
+		for (Trace trace: getGprTraces()) {
+			maxHeight = Math.max(maxHeight, trace.numSamples());
 		}
 
 		this.maxHeightInSamples = maxHeight;
@@ -54,39 +49,24 @@ public class ProfileField {
 			getProfileSettings().setLayer(maxHeightInSamples / 4);
 			getProfileSettings().hpage = maxHeightInSamples / 4;
 		}
-
 	}
 
 	public Settings getProfileSettings() {
 		return profileSettings;
 	}
 
-	List<Trace> gprTraces = new java.util.ArrayList<>();
-
 	public List<Trace> getGprTraces() {
-		if (gprTraces.isEmpty()) {
-			int traceIndex = 0;
-			for (SgyFile file : sgyFiles) {
-				if (file instanceof CsvFile) {
-					continue;
-				}
-				for (Trace trace : file.getTraces()) {
-					gprTraces.add(trace);
-					trace.setIndexInSet(traceIndex++);
-				}
-			}
-		}
-		return gprTraces;
+		return traceFile.getTraces();
 	}
 
 	public int getGprTracesCount() {
 		return getGprTraces().size();
 	}
 
-	public ProfileField(List<SgyFile> sgyFiles) {
-		this.sgyFiles.addAll(sgyFiles);
+	public ProfileField(TraceFile traceFile) {
+		this.traceFile = traceFile;
+
 		updateMaxHeightInSamples();
-		updateSgyFilesOffsets();
 	}
 
 	public int getVisibleStart() {
@@ -102,13 +82,30 @@ public class ProfileField {
 
 		int leftMargin = 30;
 		int ruleWidth = 90;
+		int infoWidth = 50;
 
-		topRuleRect = new Rectangle(leftMargin, 0, viewDimension.width - leftMargin - ruleWidth, Model.TOP_MARGIN - 1);
-		infoRect = new Rectangle(leftMargin + topRuleRect.width, 0, Model.TOP_MARGIN - 1, Model.TOP_MARGIN - 1);
-		leftRuleRect = new Rectangle(leftMargin + topRuleRect.width, Model.TOP_MARGIN, ruleWidth, viewDimension.height - leftMargin);
-		mainRectRect = new Rectangle(leftMargin, Model.TOP_MARGIN, viewDimension.width - leftMargin - ruleWidth, viewDimension.height - leftMargin);
+		topRuleRect = new Rectangle(
+				leftMargin,
+				0,
+				viewDimension.width - leftMargin - ruleWidth,
+				Model.TOP_MARGIN - 1);
+		infoRect = new Rectangle(
+				leftMargin + topRuleRect.width,
+				0,
+				infoWidth,
+				Model.TOP_MARGIN - 1);
+		leftRuleRect = new Rectangle(
+				leftMargin + topRuleRect.width,
+				Model.TOP_MARGIN,
+				ruleWidth,
+				viewDimension.height - leftMargin);
+		mainRectRect = new Rectangle(
+				leftMargin,
+				Model.TOP_MARGIN,
+				viewDimension.width - leftMargin - ruleWidth,
+				viewDimension.height - leftMargin);
 
-		visibleStart = -mainRectRect.x -mainRectRect.width / 2;
+		visibleStart = -mainRectRect.x - mainRectRect.width / 2;
 
 		initClipRects();
  	}
@@ -166,79 +163,7 @@ public class ProfileField {
 		return mainRectRect.y;
 	}
 
-	public List<SgyFile> getSgyFiles() {
-		return List.copyOf(sgyFiles);
-	}
-
-	public SgyFile getSgyFileByTrace(int i) {
-		for (SgyFile fl : getSgyFiles()) {
-			Trace lastTrace = fl.getTraces().get(fl.getTraces().size() - 1);
-			if (i <= lastTrace.getIndexInSet()) {
-				return fl;
-			}
-		}
-		return null;
-	}
-
-	public int getSgyFileIndexByTrace(int i) {
-		for (int index = 0;
-			 index < getSgyFiles().size(); index++) {
-			SgyFile fl =  getSgyFiles().get(index);
-
-			if (i <= fl.getTraces().get(fl.getTraces().size() - 1).getIndexInSet()) {
-				return index;
-			}
-		}
-		return 0;
-	}
-
-	public void addSgyFile(@NonNull SgyFile f) {
-		sgyFiles.add(f);
-		sgyFiles.sort((f1, f2) -> {
-			return f1.getFile().getName().compareToIgnoreCase(f2.getFile().getName());
-		});
-		gprTraces.clear();
-		updateMaxHeightInSamples();
-		updateSgyFilesOffsets();
-	}
-
-	public void removeSgyFile(SgyFile closedFile) {
-		sgyFiles.remove(closedFile);
-		gprTraces.clear();
-		updateMaxHeightInSamples();
-		updateSgyFilesOffsets();
-	}
-
-	private void updateSgyFilesOffsets() {
-		int startTraceNum = 0;
-		for (SgyFile sgyFile : getSgyFiles()) {
-			sgyFile.getOffset().setStartTrace(startTraceNum);
-			startTraceNum += sgyFile.getTraces().size();
-			sgyFile.getOffset().setFinishTrace(startTraceNum);
-			sgyFile.getOffset().setMaxSamples(getMaxHeightInSamples());
-		}
-	}
-
-	public List<SgyFile> getFilesInRange(int startTrace, int finishTrace) {
-		int f1 = getSgyFiles().indexOf(getSgyFileByTrace(startTrace));
-		int f2 = getSgyFiles().indexOf(getSgyFileByTrace(finishTrace));
-
-		List<SgyFile> result = new ArrayList<>();
-		for (int i = f1; i <= f2; i++) {
-			result.add(getSgyFiles().get(i));
-		}
-		return result;
-	}
-
-	public SgyFile getNextSgyFile(SgyFile selectedFile) {
-		var index = sgyFiles.indexOf(selectedFile);
-		index = Math.min(sgyFiles.size() - 1, index + 1);
-		return sgyFiles.get(index);
-	}
-
-	public SgyFile getPrevSgyFile(SgyFile selectedFile) {
-		var index = sgyFiles.indexOf(selectedFile);
-		index = Math.max(0, index - 1);
-		return sgyFiles.get(index);
+	public TraceFile getFile() {
+		return traceFile;
 	}
 }

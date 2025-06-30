@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.ugcs.gprvisualizer.app.StatusBar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -33,6 +34,7 @@ import org.yaml.snakeyaml.introspector.Property;
 import org.yaml.snakeyaml.introspector.PropertyUtils;
 
 import com.ugcs.gprvisualizer.app.MessageBoxHelper;
+import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.yaml.Template.FileType;
 
 @Component
@@ -48,8 +50,14 @@ public class FileTemplates implements InitializingBean {
 
     private Path templatesPath;
 
+    private final Status status;
+
     @Value( "${app.filetemplates.linethreshold:50}")
     private int lineThreshold;
+
+    public FileTemplates(Status status) {
+        this.status = status;
+    }
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -80,18 +88,23 @@ public class FileTemplates implements InitializingBean {
         c.getPropertyUtils().setSkipMissingProperties(true);
         yaml = new Yaml(c);
 
-        
+
 
         Path templatesPath = Path.of(TEMPLATES_FOLDER);
         if (!Files.exists(templatesPath)) {
             Path currentDir = Paths.get(FileTemplates.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
             System.out.println("Current Directory: " + currentDir);
-            
+
             templatesPath = currentDir.resolve(TEMPLATES_FOLDER);
             System.out.println("Data file path: " + templatesPath);
         }
 
         this.templatesPath = loadTemplates(yaml, templatesPath, templates);
+
+        // Show status message with the number of loaded templates
+        if (!templates.isEmpty()) {
+            status.showMessage("Loaded " + templates.size() + " templates", "Templates");
+        }
     }
 
     private Path loadTemplates(Yaml yaml, Path templatesPath, List<Template> templates) {
@@ -110,6 +123,7 @@ public class FileTemplates implements InitializingBean {
                             logger.debug("Valid template, data: " + template);
                         } else {
                             logger.error("Invalid template: " + template);
+                            status.showMessage("Invalid template: " + template, "Templates");
                         }
                     } catch (YAMLException e) {
                         logger.error("Error reading template: " + e.getMessage());
@@ -152,18 +166,33 @@ public class FileTemplates implements InitializingBean {
                 for (WatchEvent<?> event : key.pollEvents()) {
                     // Handle the specific event
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
-                        System.out.println("File created: " + event.context());
+                        if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
+                            String templateName = templatePath.toString();
+                            logger.info("Template file created: " + templateName);
+                            status.showMessage("Template created: " + templateName, "Templates");
+                        }
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
-                        System.out.println("File deleted: " + event.context());
+                        if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
+                            String templateName = templatePath.toString();
+                            logger.info("Template file deleted: " + templateName);
+                            status.showMessage("Template deleted: " + templateName, "Templates");
+                        }
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
-                            logger.info("Template file modified: " + templatePath);
+                            String templateName = templatePath.toString();
+                            logger.info("Template file modified: " + templateName);
+                            status.showMessage("Template updated: " + templateName, "Templates");
                         } else {
                             continue;
                         }
                     }
                     templates.clear();
                     loadTemplates(yaml, templatesPath, templates);
+
+                    // Show status message with the number of reloaded templates
+                    if (!templates.isEmpty()) {
+                        status.showMessage("Reloaded " + templates.size() + " templates", "Templates");
+                    }
                 }
 
                 // To receive further events, reset the key

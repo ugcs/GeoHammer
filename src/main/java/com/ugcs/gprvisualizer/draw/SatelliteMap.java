@@ -46,11 +46,11 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		this.mapView = mapView;
         this.prefSettings = prefSettings;
     }
-	
+
 	private LatLon click;
 
 	private ThrQueue recalcQueue;
-	
+
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		recalcQueue = new ThrQueue(model, mapView) {
@@ -59,13 +59,13 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 					this.backImg = field.getMapProvider().loadimg(field);
 				}
 			}
-			
+
 			public void ready() {
 				getRepaintListener().repaint();
 			}
-			
+
 			protected void actualizeBackImg() {
-				
+
 			}
 		};
 
@@ -99,7 +99,7 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 		});
 	}	
-	
+
 //	private EventHandler<ActionEvent> showMapListener = new EventHandler<ActionEvent>() {
 //		@Override
 //		public void handle(ActionEvent event) {
@@ -112,20 +112,20 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 //				
 //		}
 //	};
-	
-	
-	
+
+
+
 	RadioMenuItem menuItem1 = new RadioMenuItem("google maps");
 	RadioMenuItem menuItem2 = new RadioMenuItem("here.com");
 	RadioMenuItem menuItem3 = new RadioMenuItem("turn off");
-	
+
 	private final MenuButton optionsMenuBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.MAP, new MenuButton());
 
 	{
 		///optionsMenuBtn.setStyle("padding-left: 2px; padding-right: 2px");
-		
+
 	}
-	
+
 //	private ToggleButton showLayerCheckbox = 
 //			new ToggleButton("", ResourceImageHolder.getImageView("gmap-20.png"));
 //	
@@ -137,19 +137,19 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 //		//showLayerCheckbox.setSelected(apiExists);
 //		showLayerCheckbox.setOnAction(showMapListener);
 //	}
-	
+
 	@Override
 	public void draw(Graphics2D g2, MapField currentField) {
 		ThrFront front = recalcQueue.getFront();
-		
+
 		if (front != null && isActive()) {
-			
+
 			recalcQueue.drawImgOnChangedField(g2, currentField, front);
 		}		
-		
+
 		if (click != null) {
 			Point2D p = currentField.latLonToScreen(click);
-			
+
 			g2.drawOval((int) p.getX() - 3, (int) p.getY() - 3, 7, 7);
 		}
 	}
@@ -175,41 +175,41 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 			recalcQueue.clear();
 		}
 	}
-	
+
 	MapField dragField = null;
-	
+
 	@Override
 	public boolean mousePressed(Point2D point) {
-		
+
 		if (!model.getFileManager().isActive()) {
 			return false;
 		}
-		
+
 		dragField = new MapField(model.getMapField());
-		
+
 		click = model.getMapField().screenTolatLon(point);
-		
-		status.showProgressText(click.toString());
-		
+
+		status.showMessage(click.toString(), "Coordinates");
+
 		getRepaintListener().repaint();
-		
+
 		return true;
 	}
 
 	@Override
 	public boolean mouseRelease(Point2D point) {
-		
+
 		dragField = null;
 		click = null;
-		
+
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapscroll));
-		
+
 		return true;
 	}
 
 	@Override
 	public boolean mouseMove(Point2D point) {
-		
+
 		if (dragField == null) {
 			return false;
 		}
@@ -219,11 +219,11 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 				+ click.getLatDgr() - newCenter.getLatDgr();
 		double lon = dragField.getSceneCenter().getLonDgr() 
 				+ click.getLonDgr() - newCenter.getLonDgr();
-		
+
 		model.getMapField().setSceneCenter(new LatLon(lat, lon));
-		
+
 		getRepaintListener().repaint();
-		
+
 		return true;
 	}
 
@@ -232,5 +232,5 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		HBox cnt = new HBox(/*showLayerCheckbox,*/ optionsMenuBtn);
 		return Arrays.asList(cnt);
 	}
-	
+
 }

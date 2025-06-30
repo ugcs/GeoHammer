@@ -7,7 +7,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,10 +20,10 @@ import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.math.IDWInterpolator;
 import edu.mines.jtk.interp.SplinesGridder2;
 import javafx.scene.control.Button;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.index.kdtree.KdTree;
 import org.springframework.beans.factory.InitializingBean;
@@ -78,9 +77,13 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		}
 	};
 
+	@SuppressWarnings({"NullAway.Init"})
 	private ThrQueue q;
 
+	@Nullable
 	private CsvFile currentFile;
+
+	@Nullable
 	private GriddingParamsSetted currentParams;
 
 	private volatile boolean recalcGrid;
@@ -289,7 +292,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
   */
 	synchronized private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
 
-		var chart = model.getChart(csvFile);
+		var chart = model.getCsvChart(csvFile);
 		if (chart.isEmpty()) {
 			return;
 		}

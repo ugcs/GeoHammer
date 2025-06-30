@@ -4,10 +4,6 @@ import java.awt.Image;
 
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import javafx.geometry.Point2D;
-import org.apache.commons.lang3.mutable.MutableInt;
-
-import com.github.thecoldwine.sigrun.common.ext.ProfileField;
-import com.github.thecoldwine.sigrun.common.ext.VerticalCutPart;
 
 public class ToggleButton extends DragAnchor {
 
@@ -18,9 +14,8 @@ public class ToggleButton extends DragAnchor {
 	public ToggleButton(Image selectedImg, 
 			Image unselectedImg,
 			AlignRect alignRect,
-			VerticalCutPart offset,
 			boolean selected) {
-		super(selected ? selectedImg : unselectedImg, alignRect, offset);
+		super(selected ? selectedImg : unselectedImg, alignRect);
 		
 		this.selectedImg = selectedImg;
 		this.unselectedImg = unselectedImg;

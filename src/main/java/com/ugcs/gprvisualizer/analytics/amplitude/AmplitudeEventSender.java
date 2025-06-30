@@ -3,7 +3,6 @@ package com.ugcs.gprvisualizer.analytics.amplitude;
 import com.amplitude.Amplitude;
 import com.amplitude.AmplitudeCallbacks;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.analytics.Event;
 import com.ugcs.gprvisualizer.analytics.EventSender;
@@ -154,8 +153,8 @@ public class AmplitudeEventSender implements EventSender {
     }
 
     private void handleCsvFileOpened(File file) {
-        List<SgyFile> csvFiles = model.getFileManager().getCsvFiles();
-        SgyFile csvFile = csvFiles.stream()
+        List<CsvFile> csvFiles = model.getFileManager().getCsvFiles();
+        CsvFile csvFile = csvFiles.stream()
                 .filter(f -> f.getFile() != null && f.getFile().equals(file))
                 .findFirst()
                 .orElse(null);
@@ -163,7 +162,7 @@ public class AmplitudeEventSender implements EventSender {
             log.warn("CSV file not found in model: {}", file.getName());
             return;
         }
-        CsvParser parser = ((CsvFile) csvFile).getParser();
+        CsvParser parser = csvFile.getParser();
         if (parser == null) {
             log.warn("CSV file parser is not initialized for file: {}", file.getName());
             return;
@@ -199,8 +198,8 @@ public class AmplitudeEventSender implements EventSender {
     }
 
     private void handleCsvFileOpenError(File file, String errorMessage) {
-        List<SgyFile> csvFiles = model.getFileManager().getCsvFiles();
-        SgyFile csvFile = csvFiles.stream()
+        List<CsvFile> csvFiles = model.getFileManager().getCsvFiles();
+        CsvFile csvFile = csvFiles.stream()
                 .filter(f -> f.getFile() != null && f.getFile().equals(file))
                 .findFirst()
                 .orElse(null);
@@ -208,7 +207,7 @@ public class AmplitudeEventSender implements EventSender {
             send(Events.createFileOpenedErrorEvent(file.getName(), errorMessage));
             return;
         }
-        CsvParser parser = ((CsvFile) csvFile).getParser();
+        CsvParser parser = csvFile.getParser();
         if (parser == null) {
             send(Events.createFileOpenedErrorEvent(file.getName(), errorMessage));
             return;

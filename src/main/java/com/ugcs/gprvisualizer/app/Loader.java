@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.app;
 import java.io.File;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.kml.KmlReader;
 
 import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.ConstPointsFile;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
@@ -39,15 +39,15 @@ public class Loader {
 		this.status = status;
 		this.eventPublisher = eventPublisher;
 	}
-	
+
 	public EventHandler<DragEvent> getDragHandler() {
 		return dragHandler;
 	}
-	
+
 	public EventHandler<DragEvent> getDropHandler() {
 		return dropHandler;
 	}
-	
+
 	private final EventHandler<DragEvent> dragHandler = new EventHandler<DragEvent>() {
 
         @Override
@@ -108,10 +108,6 @@ public class Loader {
 							"Can`t open files",
 							"Probably file has incorrect format");
 
-					model.closeAllCharts();
-					//model.getFileManager().getFiles().clear();
-					model.getChartsContainer().getChildren().clear();
-
 					model.updateAuxElements();
 					model.initField();
 				}
@@ -126,22 +122,22 @@ public class Loader {
 		ConstPointsFile cpf = new ConstPointsFile();
 		cpf.load(files.get(0));
 
-		for (SgyFile sgyFile : model.getFileManager().getGprFiles()) {
+		for (TraceFile sgyFile : model.getFileManager().getGprFiles()) {
 			cpf.calcVerticalCutNearestPoints(sgyFile);
 		}
 
 		model.updateAuxElements();
 	}
-    
+
     private final EventHandler<DragEvent> dropHandler = new EventHandler<DragEvent>() {
         @Override
         public void handle(DragEvent event) {
-        	
+
         	Dragboard db = event.getDragboard();
         	if (!db.hasFiles()) {
         		return;
         	}
-        	
+
          	final List<File> files = db.getFiles();
 
 			if (load(files)) return;
@@ -153,33 +149,31 @@ public class Loader {
 
 	private void openCSVFiles(List<File> files) {
 		try {
-			//SgyFile sgyFile = model.getFileManager().getFiles().size() > 0 ? 
-			//	model.getFileManager().getFiles().get(0) : new GprFile();
-			for (File file: files) {
-				try {
-					CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
-					csvFile.open(file);
+            //SgyFile sgyFile = model.getFileManager().getFiles().size() > 0 ?
+            //	model.getFileManager().getFiles().get(0) : new GprFile();
+            for (File file : files) {
+                try {
+                    CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
+                    csvFile.open(file);
 
-					if (model.getChart(csvFile).isEmpty()) {
+                    if (model.getCsvChart(csvFile).isEmpty()) {
 
-						model.getFileManager().addFile(csvFile);
+                        model.getFileManager().addFile(csvFile);
 
-						//model.init();
+                        //model.init();
 
-						//when open file by dnd (not after save)
-						model.initField();
+                        //when open file by dnd (not after save)
+                        model.initField();
 
-						csvFile.updateTraces();
+                        model.initCsvChart(csvFile);
 
-						model.initChart(csvFile);
-
-						model.updateAuxElements();
-					}
-				} catch (Exception e) {
-					model.publishEvent(new FileOpenErrorEvent(this, file, e));
-					throw e;
-				}
-			}
+                        model.updateAuxElements();
+                    }
+                } catch (Exception e) {
+                    model.publishEvent(new FileOpenErrorEvent(this, file, e));
+                    throw e;
+                }
+            }
 		} catch (Exception e) {
 			if (e instanceof CSVParsingException cpe) {
 				cpe.printStackTrace();
@@ -192,7 +186,7 @@ public class Loader {
 								"Probably file has incorrect format");
 			}
 		}
-		
+
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.updateButtons));
 	}
 
@@ -229,10 +223,10 @@ public class Loader {
 		load(files, listener);
 		eventPublisher.publishEvent(new FileOpenedEvent(this, files));
 	}
-    
+
 	public void load(final List<File> files, ProgressListener listener) 
 			throws Exception {
-		
+
 		int filesCountBefore = model.getFileManager().getFilesCount();
 		try {
 			model.setLoading(true);
@@ -240,23 +234,23 @@ public class Loader {
 		} finally {
 			model.setLoading(false);
 		}
-		
+
 		int loadedFiles = model.getFileManager().getFilesCount() - filesCountBefore;
 
 		if (loadedFiles > 0) {
-			status.showProgressText("loaded " 
-				+ model.getFileManager().getFilesCount() + " files");
+			status.showMessage("loaded "
+				+ model.getFileManager().getFilesCount() + " files", "File Loader");
 		} else {
-			status.showProgressText("no files loaded");
-		
+			status.showMessage("no files loaded", "File Loader");
+
 		}
 	}        		
-    
+
 	private void loadInt(List<File> files, ProgressListener listener) throws Exception {
 		/// clear
 		//model.getAuxElements().clear();
 		//model.getChanges().clear();
-		
+
 		listener.progressMsg("load");
 
 		if (isCsvFile(files)) {
@@ -265,10 +259,10 @@ public class Loader {
 			model.getFileManager().processList(files, listener);
 			//model.closeAllCharts();
 			model.init();			
-		
+
 			//when open file by dnd (not after save)
 			model.initField();	
-		
+
 			// FIXME: not need? remove it
 			/*SgyFile file = model.getFileManager().getGprFiles().get(0);
 			if (file.getSampleInterval() < 105) {
@@ -284,7 +278,7 @@ public class Loader {
 		return files.size() == 1 
 				&& files.get(0).getName().endsWith(".constPoints");
 	}
-	
+
 	private boolean isCsvFile(final List<File> files) {
 		return !files.isEmpty() 
 				&& (files.get(0).getName().toLowerCase().endsWith(".csv")

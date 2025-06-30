@@ -1,7 +1,5 @@
 package com.ugcs.gprvisualizer.app.auxcontrol;
 
-import com.ugcs.gprvisualizer.gpr.Model;
-
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
@@ -20,5 +18,4 @@ public abstract class BaseObjectImpl implements BaseObject {
 	protected void setClip(Graphics2D g2, Rectangle r) {
 		g2.setClip(r.x, r.y, r.width, r.height);
 	}
-
 }

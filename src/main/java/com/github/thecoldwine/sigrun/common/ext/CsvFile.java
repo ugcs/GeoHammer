@@ -11,13 +11,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
-import com.ugcs.gprvisualizer.utils.Range;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +48,12 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public void open(File csvFile) throws Exception {
+    public int numTraces() {
+        return geoData.size();
+    }
+
+    @Override
+    public void open(File csvFile) throws IOException {
 
         String csvFileAbsolutePath = csvFile.getAbsolutePath();
         var fileTemplate = fileTemplates.findTemplate(fileTemplates.getTemplates(), csvFileAbsolutePath);
@@ -73,21 +75,20 @@ public class CsvFile extends SgyFile {
         for (GeoCoordinates coord : coordinates) {
             // Added points if lat and lon are not 0 and point is close to the first point
             if (coord.getLatitude().intValue() != 0
-                    && (getGeoData().isEmpty()  
+                    && (geoData.isEmpty()
                         || (Math.abs(coord.getLatitude().intValue() 
-                            - getGeoData().get(0).getLatitude().intValue()) <= 1  
+                            - geoData.getFirst().getLatitude().intValue()) <= 1
                         && Math.abs(coord.getLongitude().intValue() 
-                            - getGeoData().get(0).getLongitude().intValue()) <= 1))) {
-                Trace tr = new Trace(this, null, null, new float[] {},
-                        new LatLon(coord.getLatitude(), coord.getLongitude()));
-                getTraces().add(tr);
-                if (coord instanceof GeoData) {
-                    getGeoData().add((GeoData) coord);
+                            - geoData.getFirst().getLongitude().intValue()) <= 1))) {
+                if (coord instanceof GeoData value) {
+                    int traceIndex = geoData.size();
+                    geoData.add(value);
+                    if (value.isMarked()) {
+                        TraceKey traceKey = new TraceKey(this, traceIndex);
+                        getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
+                    }
                 }
-                if (((GeoData) coord).isMarked()) {
-                    getAuxElements().add(new FoundPlace(tr, getOffset(), AppContext.model));
-                }
-            }            
+            }
         }
 
         reorderLines();
@@ -113,15 +114,16 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public void save(File file) throws Exception {
+    public void save(File file) throws IOException {
 			Path inputFile = getFile().toPath();
         	Path tempFile = file.toPath();
 
-            var foundPalces = getAuxElements().stream().filter(bo -> bo instanceof FoundPlace).map(bo -> ((FoundPlace) bo).getTraceInFile()).collect(Collectors.toSet());
-            getGeoData().forEach(gd -> {
+            var foundPalces = getAuxElements().stream().filter(bo -> bo instanceof FoundPlace).map(bo -> ((FoundPlace) bo).getTraceIndex()).collect(Collectors.toSet());
+            for (int i = 0; i < geoData.size(); i++) {
+                GeoData gd = geoData.get(i);
                 gd.setSensorValue(GeoData.Semantic.MARK.getName(), gd.isMarked() ? 1 : 0);
-                gd.setSensorValue(GeoData.Semantic.MARK.getName(), foundPalces.contains(gd.getTraceNumber()) ? 1 : 0);
-            });
+                gd.setSensorValue(GeoData.Semantic.MARK.getName(), foundPalces.contains(i) ? 1 : 0);
+            }
 
             Map<Integer, GeoData> geoDataMap = getGeoData().stream().collect(Collectors.toMap(GeoData::getLineNumber, gd -> gd));
 
@@ -186,9 +188,6 @@ public class CsvFile extends SgyFile {
                     	writer.newLine();
                 	}
             	}
-
-        	} catch (IOException e) {
-            	e.printStackTrace();
         	}
     }
 
@@ -204,6 +203,7 @@ public class CsvFile extends SgyFile {
         return String.join(separator, parts);
     }
 
+    @Override
     public List<GeoData> getGeoData() {
         return geoData;
     }
@@ -222,75 +222,7 @@ public class CsvFile extends SgyFile {
         return new CsvFile(this);
     }
 
-    @Override
-    public void saveAux(File file) throws Exception {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'saveAux'");
-    }
-
-    @Override
-    public double getSamplesToCmGrn() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSamplesToCmGrn'");
-    }
-
-    @Override
-    public double getSamplesToCmAir() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSamplesToCmAir'");
-    }
-
-    @Override
-    public SgyFile copyHeader() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'copyHeader'");
-    }
-
-    @Override
-    public int getSampleInterval() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSampleInterval'");
-    }
-
     public boolean isSameTemplate(CsvFile file) {
         return file.getParser().getTemplate().equals(getParser().getTemplate());
     }
-
-    @Override
-    public void updateTraces() {
-        super.updateTraces();
-        for (int i = 0; i < Math.min(getGeoData().size(), getTraces().size()); i++) {
-            getGeoData().get(i).setTraceNumber(i);
-        }
-    }
-
-    public SortedMap<Integer, Range> getLineRanges() {
-        List<GeoData> values = getGeoData();
-        // line index -> [first index, last index]
-        TreeMap<Integer, Range> ranges = new TreeMap<>();
-        if (values == null)
-            return ranges;
-
-        int lineIndex = 0;
-        int lineStart = 0;
-        for (int i = 0; i < values.size(); i++) {
-            GeoData value = values.get(i);
-            if (value == null)
-                continue;
-
-            int valueLineIndex = value.getLineIndexOrDefault();
-            if (valueLineIndex != lineIndex) {
-                if (i > lineStart) {
-                    ranges.put(lineIndex, new Range(lineStart, i - 1));
-                }
-                lineIndex = valueLineIndex;
-                lineStart = i;
-            }
-        }
-        if (values.size() > lineStart) {
-            ranges.put(lineIndex, new Range(lineStart, values.size() - 1));
-        }
-        return ranges;
-    }
-
 }

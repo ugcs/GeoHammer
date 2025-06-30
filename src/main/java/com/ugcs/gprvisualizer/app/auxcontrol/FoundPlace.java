@@ -5,19 +5,21 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
+import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.*;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.ugcs.gprvisualizer.app.SensorLineChart;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.utils.Check;
 import javafx.geometry.Point2D;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
+public class FoundPlace extends PositionalObject {
 
 	//static int R_HOR = ResourceImageHolder.IMG_SHOVEL.getWidth(null) / 2;
 	//static int R_VER = ResourceImageHolder.IMG_SHOVEL.getHeight(null) / 2;
@@ -33,44 +35,46 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
                 BasicStroke.JOIN_MITER,
                 10.0f, dash1, 0.0f);
 
-	private final Color flagColor = Color.getHSBColor((float) Math.random(), 0.9f, 0.97f);
-	private Trace traceInFile;
-	private VerticalCutPart offset;	
+	private Color flagColor = Color.getHSBColor((float) Math.random(), 0.9f, 0.97f);
 
-	public Trace getTrace() {
-		return traceInFile;
+	private final Model model;
+
+	private TraceKey trace;
+
+	public FoundPlace(TraceKey trace, Model model) {
+		Check.notNull(trace);
+
+		this.model = model;
+		this.trace = trace;
 	}
 
-	public int getTraceInFile() {
-		return traceInFile.getIndexInFile();
+	public TraceKey getTrace() {
+		return trace;
+	}
+
+	@Override
+	public int getTraceIndex() {
+		return trace.getIndex();
+	}
+
+	@Override
+	public void offset(int traceOffset) {
+		trace.offset(traceOffset);
 	}
 
 	public Color getFlagColor() {
 		return flagColor;
-	}
-	
-	/*public static FoundPlace loadFromJson(JSONObject json, SgyFile sgyFile) {
-		int traceNum = (int) (long) (Long) json.get("trace");		
-		return new FoundPlace(traceNum, sgyFile.getOffset());
-	}*/
-	
-	public FoundPlace(Trace trace, VerticalCutPart offset, Model model) {
-		super(model);
-		this.offset = offset;
-		this.traceInFile = trace;
 	}
 
 	@Override
 	public boolean mousePressHandle(Point2D point, MapField field) {
 		Rectangle r = getRect(field);
 		if (r.contains(point.getX(), point.getY())) {
-			ScrollableData scrollable;
-			if (traceInFile.getFile() instanceof CsvFile csvFile) {
-				scrollable = model.getChart(csvFile).get();
-			} else {
-				scrollable = model.getProfileField(traceInFile.getFile());
+			ScrollableData scrollable = model.getFileChart(trace.getFile());
+			int traceIndex = getTraceIndex();
+			if (scrollable != null) {
+				scrollable.setMiddleTrace(traceIndex);
 			}
-			scrollable.setMiddleTrace(offset.localToGlobal(traceInFile.getIndexInFile()));
 
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 
@@ -81,9 +85,12 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 	}
 
 	public void coordinatesToStatus() {
-		Trace tr = traceInFile;//getTrace();
-		if (tr != null && tr.getLatLon() != null) {
-			AppContext.status.showProgressText(tr.getLatLon().toString());
+		if (trace == null) {
+			return;
+		}
+		LatLon latlon = trace.getLatLon();
+		if (latlon != null) {
+			AppContext.status.showProgressText(latlon.toString());
 		}
 	}
 	
@@ -100,28 +107,22 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 
 	@Override
 	public boolean mouseMoveHandle(Point2D point, ScrollableData profField) {
-		
-		TraceSample ts = profField.screenToTraceSample(point); //, offset);
-		
-		traceInFile = traceInFile.getFile()
-				.getTraces().get(
-						Math.min(offset.getTraces() - 1,
-						Math.max(
-								0,
-								offset.globalToLocal(ts.getTrace()))));
-
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		
+		if (trace.getFile() instanceof TraceFile traceFile) {
+			GPRChart chart = model.getGprChart(traceFile);
+			if (chart != null) {
+				TraceSample sample = profField.screenToTraceSample(point);
+				List<Trace> traces = traceFile.getTraces();
+				int traceIndex = Math.clamp(sample.getTrace(), 0, traces.size() - 1);
+				trace = new TraceKey(traceFile, traceIndex);
+				model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+			}
+		}
 		coordinatesToStatus();
-		
 		return true;
 	}
-	
-	
 
 	@Override
 	public void drawOnMap(Graphics2D g2, MapField mapField) {
-		
 		Rectangle rect = getRect(mapField);
 		
 		g2.setColor(flagColor);
@@ -160,9 +161,10 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 				g2.setStroke(VERTICAL_STROKE);
 				g2.setColor(Color.blue);
 				g2.setXORMode(Color.gray);
-				g2.drawLine(0, 0, 0,
-						gprChart.sampleToScreen(
-								offset.getMaxSamples()) - Model.TOP_MARGIN);
+				int maxSamples = gprChart.getField().getMaxHeightInSamples();
+				g2.drawLine(
+						0, 0,
+						0, gprChart.sampleToScreen(maxSamples) - Model.TOP_MARGIN);
 				g2.setPaintMode();
 			}
 
@@ -171,7 +173,7 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 	}
 	
 	private Rectangle getRect(ScrollableData scrollableData) {
-		int x = scrollableData.traceToScreen(offset.localToGlobal(traceInFile.getIndexInFile()));
+		int x = scrollableData.traceToScreen(getTraceIndex());
 		Rectangle rect = new Rectangle(x, 
 				Model.TOP_MARGIN - R_VER_M * 2,
 				R_HOR_M * 2,
@@ -180,18 +182,12 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 	}
 	
 	private Rectangle getRect(MapField mapField) {
-		Trace tr = traceInFile;//getTrace();
-		Point2D p =  mapField.latLonToScreen(tr.getLatLon());		
+		Point2D p = mapField.latLonToScreen(trace.getLatLon());
 		
 		Rectangle rect = new Rectangle((int) p.getX(), (int) p.getY() - R_VER_M * 2, 
 				R_HOR_M * 2, R_VER_M * 2);
 		return rect;
 	}
-
-	//private Trace getTrace() {
-	//	return AppContext.model.getGprTraces().get(
-	//			offset.localToGlobal(traceInFile));
-	//}
 
 	@Override
 	public boolean isPointInside(Point2D localPoint, ScrollableData profField) {
@@ -200,18 +196,21 @@ public class FoundPlace extends BaseObjectWithModel { //, MouseHandler {
 	}
 
 	@Override
-	public BaseObject copy(int traceoffset, VerticalCutPart verticalCutPart) {
-		Trace newTrace = traceInFile.getFile().getTraces().get(traceInFile.getIndexInFile() - traceoffset);
-		return new FoundPlace(newTrace, verticalCutPart, model);
+	public BaseObject copy(int traceOffset) {
+		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
+		FoundPlace copy = new FoundPlace(newTrace, model);
+		// keep flag color
+		copy.flagColor = flagColor;
+		return copy;
 	}
 
 	@Override
 	public boolean isFit(int begin, int end) {
-		return traceInFile.getIndexInFile() >= begin && traceInFile.getIndexInFile() <= end;
+		int traceIndex = getTraceIndex();
+		return traceIndex >= begin && traceIndex <= end;
 	}
 
 	public LatLon getLatLon() {
-		return traceInFile.getLatLon();
+		return trace.getLatLon();
 	}
-
 }

@@ -1,5 +1,7 @@
 package com.ugcs.gprvisualizer.app.parcers;
 
+import com.github.thecoldwine.sigrun.common.ext.LatLon;
+
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -27,6 +29,23 @@ public class GeoCoordinates {
 
     public GeoCoordinates(LocalDateTime dateTime, double lat, double lon, Double alt, int traceNumber) {
         this(lat, lon, alt, null, traceNumber, dateTime);
+    }
+
+    public LatLon getLatLon() {
+        if (latitude == null || longitude == null) {
+            return null;
+        }
+        return new LatLon(latitude, longitude);
+    }
+
+    public void setLatLon(LatLon latLon) {
+        if (latLon != null) {
+            latitude = latLon.getLatDgr();
+            longitude = latLon.getLonDgr();
+        } else {
+            latitude = null;
+            longitude = null;
+        }
     }
 
     public Double getLatitude() {

@@ -32,7 +32,7 @@ public class PositionFile {
 		this.fileTemplates = fileTemplates;
 	}
 
-	public void load(SgyFile sgyFile) throws Exception {
+	public void load(TraceFile sgyFile) throws Exception {
 		var posFile = getPositionFileBySgy(sgyFile.getFile());
 		if (posFile.isPresent()) {
 			load(sgyFile, posFile.get());
@@ -41,7 +41,7 @@ public class PositionFile {
 		}
 	}
 
-	private void load(SgyFile sgyFile, File positionFile) {
+	private void load(TraceFile sgyFile, File positionFile) {
 		this.positionFile = positionFile;
 
 		String logPath = positionFile.getAbsolutePath();
@@ -61,7 +61,7 @@ public class PositionFile {
 				//	sgyFile.setFile(csvFile);
 				//}
 
-				HorizontalProfile hp = new HorizontalProfile(sgyFile.getTraces().size());		    
+				HorizontalProfile hp = new HorizontalProfile(sgyFile.numTraces());
    		    	StretchArray altArr = new StretchArray();
 
 				double hair =  100 / sgyFile.getSamplesToCmAir();
@@ -98,92 +98,6 @@ public class PositionFile {
 			}
 	}
 
-
-	public void load_old(SgyFile sgyFile, File posfile) throws Exception {
-
-		if (!posfile.exists()) {
-			System.out.println("Position file not exists " + posfile.getAbsolutePath());
-			return;
-		}
-		
-		//[Elapsed, Date, Time, Pitch, Roll, Yaw, Latitude, Longitude, Altitude, Velocity, RTK Status, Latitude RTK, Longitude RTK, Altitude RTK, ALT:Altitude, ALT:Filtered Altitude, GPR:Trace]
-		//[309793, 2021/05/12, 07:48:58.574, -6.03, -0.73, 137.52, 56.86301828, 24.11194153, 3.60, 5.20, OFF, , , , 2.91, 2.91, 999]
-
-		//Elapsed, Date, Time, Pitch, Roll, Heading, Latitude, Longitude, Altitude, Next WP, Velocity, Status RTK, Latitude RTK, Longitude RTK, Altitude RTK, GPR:Trace
-
-		try (CSVReader csvReader = new CSVReader(new FileReader(posfile));) {
-			
-			String[] header = csvReader.readNext();
-			
-			//точная высота относительно земли высотометр
-			int altAltIndex = ArrayUtils.indexOf(header, "ALT:Altitude");
-			
-			//барометрическая относительно точки взлета
-			int altIndex = ArrayUtils.indexOf(header, "Altitude");
-			
-			//эллипсоидная относительно уровня моря
-			int altRtkIndex = ArrayUtils.indexOf(header, "Altitude RTK");
-
-			//колонка "номер трейса". может называться по разному
-			int gprTrace = IntStream.range(0, header.length)
-				.filter(i -> StringUtils.containsIgnoreCase(header[i], "GPR:Trace"))
-				.findFirst().getAsInt();
-
-		    String[] values = null;
-		    
-		    HorizontalProfile hp = new HorizontalProfile(sgyFile.getTraces().size());
-		    HorizontalProfile hp2 = new HorizontalProfile(sgyFile.getTraces().size());
-		    
-		    double hair =  100 / sgyFile.getSamplesToCmAir();
-		    
-   		    StretchArray altArr = new StretchArray();
-   		    StretchArray altAltArr = new StretchArray();
-   		    while ((values = csvReader.readNext()) != null) {
- 	
-		    	
-	    	    //skip empty row or traces less than positions
-		    	if(values.length >= 3 && StringUtils.isNotBlank(values[gprTrace])) {
-//		    		hp.deep[posCount] = (int)(Double.valueOf(values[altAltIndex]) * hair);
-//		    		hp2.deep[posCount] = (int)(Double.valueOf(values[altIndex]) * hair);
-					if (altAltIndex != -1 && StringUtils.isNotBlank(values[altAltIndex])) {
-						altAltArr.add((int) (Double.valueOf(values[altAltIndex]) * hair));
-					}
-
-					if (altIndex != -1 && StringUtils.isNotBlank(values[altIndex])) {
-						altArr.add((int) (Double.valueOf(values[altIndex]) * hair));
-					}
-				}
-			}
-
-    		hp.deep = altAltArr.stretchToArray(sgyFile.getTraces().size());
-    		hp2.deep = altArr.stretchToArray(sgyFile.getTraces().size());
-   		    
-   		    
-		    hp.finish(sgyFile.getTraces());			
-			hp.color = Color.red;
-			
-			sgyFile.setGroundProfile(hp);
-			
-			
-			hp2.finish(sgyFile.getTraces());			
-			hp2.color = Color.green;
-			
-			System.out.println("Count of traces in position file is: " + altAltArr.size() + ",  Count of traces in GPR file is: " + sgyFile.getTraces().size());
-			if (altAltArr.size() != sgyFile.getTraces().size()) {
-				
-				MessageBoxHelper.showError(
-						"Warning", 
-						"Count of traces in GPR file is " + sgyFile.getTraces().size() 
-						+ " and count of traces in position file is " + altAltArr.size()
-						+ ". \nPositions array is stretched to fit trace count.");
-			}
-			
-			sgyFile.profiles = new ArrayList<>();
-			sgyFile.profiles.add(hp2);
-		}
-
-	}
-	
 	private Optional<File> getPositionFileBySgy(File file) {
 		
 		String mrkupName = null; 

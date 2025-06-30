@@ -1,6 +1,5 @@
 package com.ugcs.gprvisualizer.math;
 
-import java.util.Arrays;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.Trace;
@@ -8,33 +7,35 @@ import com.github.thecoldwine.sigrun.common.ext.Trace;
 public class BackgroundRemovalFilter {
 	
 	public void removeConstantNoise(List<Trace> lst) {
-		float[] avg = prepareNoiseProfile(lst, lst.get(1).getNormValues().length);
+		if (lst.isEmpty()) {
+			return;
+		}
+		int depthIndex = lst.size() > 1 ? 1 : 0;
+		float[] avg = prepareNoiseProfile(lst, lst.get(depthIndex).numSamples());
 		subtractProfile(lst, avg);
 	}
 
 	public void subtractProfile(List<Trace> lst, float[] avg) {
-		for (int index = 0; index < lst.size(); index++) {
-			Trace trace = lst.get(index);
-
-			float[] normval = Arrays.copyOf(
-					trace.getNormValues(), trace.getNormValues().length);
-			ArrayMath.arraySub(normval, avg);
-
-			trace.setNormValues(normval);
-		}
+        for (Trace trace : lst) {
+            int n = Math.min(avg.length, trace.numSamples());
+			for (int i = 0; i < n; i++) {
+				float value = trace.getSample(i) - avg[i];
+				trace.setSample(i, value);
+			}
+        }
 	}
 
 	public float[] prepareNoiseProfile(List<Trace> lst, int deep) {
 		float[] avg = new float[deep];
 
-		for (int index = 0; index < lst.size(); index++) {
-			Trace trace = lst.get(index);
-
-			ArrayMath.arraySum(avg, trace.getNormValues());
-		}
+        for (Trace trace : lst) {
+            int n = Math.min(avg.length, trace.numSamples());
+            for (int i = 0; i < n; i++) {
+                avg[i] += trace.getSample(i);
+            }
+        }
 
 		ArrayMath.arrayDiv(avg, lst.size());
 		return avg;
 	}
-
 }

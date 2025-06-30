@@ -3,13 +3,12 @@ package com.ugcs.gprvisualizer.app;
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -30,7 +29,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
@@ -42,9 +40,7 @@ public class ProfileView implements InitializingBean {
 	private final Model model;
 	private final Navigator navigator;
 	private final Saver saver;
-	private final SampleCutter sampleCutter;
-
-	private final ToggleButton auxModeBtn = new ToggleButton("aux");
+	private final TraceTransform traceTransform;
 
 	private final ToolBar toolBar = new ToolBar();
 	
@@ -57,11 +53,11 @@ public class ProfileView implements InitializingBean {
 	private SgyFile currentFile;
 
 	public ProfileView(Model model, Navigator navigator,
-                       Saver saver, SampleCutter sampleCutter) {
+                       Saver saver, TraceTransform traceTransform) {
 		this.model = model;
         this.navigator = navigator;
 		this.saver = saver;
-		this.sampleCutter = sampleCutter;
+		this.traceTransform = traceTransform;
 	}
 
 	@Override
@@ -80,46 +76,37 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void fitCurrentFile(ActionEvent actionEvent) {
-		if (currentFile instanceof CsvFile csvFile) {
-			model.getChart(csvFile).ifPresent(SensorLineChart::zoomToFit);
-		} else {
-			var chart = model.getProfileField(currentFile);
-			chart.fitFull();
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomToFit();
 		}
 	}
 
 	private void zoomIn(ActionEvent event) {
-		if (currentFile instanceof CsvFile csvFile) {
-			Optional<SensorLineChart> chart = model.getChart(csvFile);
-			chart.ifPresent(SensorLineChart::zoomIn);
-		} else {
-			if (currentFile != null) {
-				model.getProfileField(currentFile).zoom(1, false); //zoom(1, width / 2, height / 2, false);
-			}
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomIn();
 		}
 	}
 
 	private void zoomOut(ActionEvent event) {
-		if (currentFile instanceof CsvFile csvFile) {
-			Optional<SensorLineChart> chart = model.getChart(csvFile);
-			chart.ifPresent(SensorLineChart::zoomOut);
-		} else {
-			if (currentFile != null) {
-				model.getProfileField(currentFile).zoom(-1, false); //zoom(-1, width / 2, height / 2, false);
-			}
+		Chart chart = model.getFileChart(currentFile);
+		if (chart != null) {
+			chart.zoomOut();
 		}
 	}
 
 	private void cropSamples(ActionEvent actionEvent) {
-		Chart chart = model.getFileChart(currentFile);
-		if (chart instanceof GPRChart gprChart) {
-			ProfileField profileField = gprChart.getField();
-			Settings profileSettings = profileField.getProfileSettings();
+		if (currentFile instanceof TraceFile traceFile) {
+			GPRChart chart = model.getGprChart(traceFile);
+			if (chart != null) {
+				ProfileField profileField = chart.getField();
+				Settings profileSettings = profileField.getProfileSettings();
 
-			int offset = profileSettings.getLayer();
-			int length = profileSettings.hpage;
-			sampleCutter.cropGprSamples(gprChart, offset, length);
+				int offset = profileSettings.getLayer();
+				int length = profileSettings.hpage;
+				traceTransform.cropGprSamples(traceFile, offset, length);
+			}
 		}
 	}
 
@@ -180,17 +167,19 @@ public class ProfileView implements InitializingBean {
 		return center;
 	}
 
-	public List<Node> getRight(SgyFile file) {
-		var contrastNode = model.getProfileField(file).getContrastSlider().produce();
+	public List<Node> getRight(TraceFile file) {
+		var contrastNode = model.getGprChart(file).getContrastSlider().produce();
 		return List.of(contrastNode);
 	}
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (changed.isJustdraw() && currentFile != null && !(currentFile instanceof CsvFile)
-				&& model.getProfileField(currentFile) instanceof GPRChart gprChart) {
-			gprChart.updateScroll();
-			gprChart.repaintEvent();
+		if (changed.isJustdraw() && currentFile instanceof TraceFile traceFile) {
+			GPRChart gprChart = model.getGprChart(traceFile);
+			if (gprChart != null) {
+				gprChart.updateScroll();
+				gprChart.repaintEvent();
+			}
 		}
 	}
 
@@ -198,24 +187,18 @@ public class ProfileView implements InitializingBean {
 	private void fileClosed(FileClosedEvent event) {
 		SgyFile closedFile = event.getSgyFile();
 
-		if (model.getProfileField(closedFile) instanceof GPRChart gprPane) {
-			var vbox = (VBox) gprPane.getRootNode();
+		if (closedFile instanceof TraceFile traceFile) {
+			GPRChart gprChart = model.getGprChart(traceFile);
+			if (gprChart != null) {
+				model.getFileManager().removeFile(closedFile);
+				gprChart.getProfileScroll().setVisible(false);
 
-			gprPane.getField().removeSgyFile(closedFile);
-			model.getFileManager().removeFile(closedFile);
-
-			if (gprPane.getField().getGprTraces().isEmpty()) {
-				gprPane.getProfileScroll().setVisible(false);
+				VBox vbox = (VBox)gprChart.getRootNode();
 				model.getChartsContainer().getChildren().remove(vbox);
+
 				currentFile = null;
 				model.publishEvent(new FileSelectedEvent(this, currentFile));
-			} else {
-				if (currentFile != null && currentFile.equals(closedFile)) {
-					//TODO: maybe need to fix
-					model.publishEvent(new FileSelectedEvent(this, gprPane.getField().getSgyFiles()));
-				}
 			}
-			gprPane.fitFull();
 		}
 
 		if (closedFile instanceof CsvFile csvFile) {
@@ -238,8 +221,8 @@ public class ProfileView implements InitializingBean {
 			System.out.println("ProfileView.fileOpened " + file.getAbsolutePath());
 			model.getFileManager().getGprFiles().stream().filter(f -> f.getFile().equals(file)).findFirst().ifPresent(f -> {
 				System.out.println("Loaded traces: " + f.getTraces().size());
-				var gprPane = model.getProfileFieldByPattern(f);
-				var vbox = (VBox) gprPane.getRootNode();
+				var gprChart = model.getOrCreateGprChart(f);
+				var vbox = (VBox) gprChart.getRootNode();
 
 				//TODO:
 				//gprPane.clear();
@@ -251,10 +234,11 @@ public class ProfileView implements InitializingBean {
 					vbox.setMinHeight(Math.max(400, vbox.getScene().getHeight() / 2));
 				}
 
-				gprPane.fitFull();
+				updateGprChartSize(gprChart);
+				gprChart.fitFull();
 
 				fileSelected(new FileSelectedEvent(this, f));
-				model.selectAndScrollToChart(gprPane);
+				model.selectAndScrollToChart(gprChart);
 			});
 		});
 
@@ -283,14 +267,14 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private ProfileScroll getFileProfileScroll(SgyFile file) {
-		if (file instanceof GprFile gprFile) {
-			var gprChart = model.getProfileField(gprFile);
+		if (file instanceof TraceFile traceFile) {
+			var gprChart = model.getGprChart(traceFile);
 			return gprChart != null
 					? gprChart.getProfileScroll()
 					: null;
 		}
 		if (file instanceof CsvFile csvFile) {
-			var csvChart = model.getChart(csvFile);
+			var csvChart = model.getCsvChart(csvFile);
 			return csvChart.isPresent()
 					? csvChart.get().getProfileScroll()
 					: null;
@@ -305,21 +289,31 @@ public class ProfileView implements InitializingBean {
 
 		if (event.getFile() != null) {
 			currentFile = event.getFile();
-			if (currentFile instanceof GprFile) {
-				var gprChart = model.getProfileField(currentFile);
-
-				ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> {
-					if (Math.abs(newValue.intValue() - oldValue.intValue()) > 1) {
-						gprChart.setSize((int) (center.getWidth() - 21), (int) (Math.max(400, ((VBox) gprChart.getRootNode()).getHeight()) - 4));
-					}
-				};
-				center.widthProperty().addListener(sp2SizeListener);
-				//((VBox) gprChart.getRootNode()).widthProperty().addListener(sp2SizeListener);
-				((VBox) gprChart.getRootNode()).heightProperty().addListener(sp2SizeListener);
+			if (currentFile instanceof TraceFile traceFile) {
+				var gprChart = model.getGprChart(traceFile);
+				if (gprChart != null) {
+					ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> {
+						if (Math.abs(newValue.intValue() - oldValue.intValue()) > 1) {
+							updateGprChartSize(gprChart);
+						}
+					};
+					center.widthProperty().addListener(sp2SizeListener);
+					//((VBox) gprChart.getRootNode()).widthProperty().addListener(sp2SizeListener);
+					((VBox) gprChart.getRootNode()).heightProperty().addListener(sp2SizeListener);
+				}
 			}
 		}
 
 		Platform.runLater(this::enableToolbar);
+	}
+
+	private void updateGprChartSize(GPRChart chart) {
+		if (chart == null) {
+			return;
+		}
+		chart.setSize(
+				(int) (center.getWidth() - 21),
+				(int) (Math.max(400, ((VBox) chart.getRootNode()).getHeight()) - 4));
 	}
 
 	private Region getSpacer() {

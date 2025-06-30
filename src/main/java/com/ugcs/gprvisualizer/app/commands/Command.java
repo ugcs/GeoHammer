@@ -1,12 +1,11 @@
 package com.ugcs.gprvisualizer.app.commands;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
-import com.ugcs.gprvisualizer.event.WhatChanged;
 
 
 public interface Command extends BaseCommand {
 		
-	void execute(SgyFile file, ProgressListener listener);
+	void execute(TraceFile file, ProgressListener listener);
 
 }

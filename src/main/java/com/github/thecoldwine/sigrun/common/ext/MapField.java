@@ -1,13 +1,12 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
-import com.ugcs.gprvisualizer.draw.GoogleMapProvider;
-import com.ugcs.gprvisualizer.draw.HereMapProvider;
 import com.ugcs.gprvisualizer.draw.MapProvider;
-import com.ugcs.gprvisualizer.math.MinMaxAvg;
 import javafx.geometry.Point2D;
 import org.jspecify.annotations.Nullable;
 
 public class MapField {
+
+	private static final double R = 6378137;
 
 	@Nullable
 	private LatLon pathCenter;
@@ -39,30 +38,6 @@ public class MapField {
 
 	public boolean isActive() {
 		return pathCenter != null; 
-	}
-	
-	protected void tst(LatLon ll) {
-		Point2D p = latLonToScreen(ll);
-		LatLon ll2 = screenTolatLon(p);
-	}
-	
-	protected void tst2(Point2D p1) {
-		LatLon ll = screenTolatLon(p1);
-		Point2D p2 = latLonToScreen(ll);
-	}
-	
-	protected void test() {
-		setSceneCenter(new LatLon(15, 40));
-		setZoom(19);		
-		tst(new LatLon(15, 40));
-		tst(new LatLon(15.001, 40.001));
-		tst(new LatLon(15.002, 40.002));
-		
-		tst2(new Point2D(0, 0));
-		tst2(new Point2D(10, 10));
-		tst2(new Point2D(20, 20));
-		tst2(new Point2D(40, 40));
-		tst2(new Point2D(100, 100));
 	}
 	
 	public Point2D latLonToScreen(@Nullable LatLon latlon) {
@@ -97,7 +72,7 @@ public class MapField {
 	private double getTileSize() {
 		return 256;
 	}
-	private static final double R = 6378137;
+
 	private double getInitialResolution() {
 		return 2 * Math.PI * R / getTileSize();
 	}
@@ -158,7 +133,6 @@ public class MapField {
 	}
 	
 	public void adjustZoom(int screenWidth, int screenHeight) {
-		
 		int zoom = 28;
 		setZoom(zoom);
 		Point2D scr = latLonToScreen(pathRb);
@@ -183,6 +157,4 @@ public class MapField {
 	public MapProvider getMapProvider() {
 		return mapProvider;
 	}
-	
-	
 }

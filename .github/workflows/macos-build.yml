@@ -12,7 +12,6 @@ jobs:
           java-version: '21'
           distribution: 'liberica'
           java-package: 'jdk+fx'
-          architecture: 'x64'
       - name: Cache local Maven repository
         uses: actions/cache@v4
         with:

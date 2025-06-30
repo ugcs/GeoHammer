@@ -38,15 +38,15 @@ public class Loader {
 		this.status = status;
 		this.eventPublisher = eventPublisher;
 	}
-	
+
 	public EventHandler<DragEvent> getDragHandler() {
 		return dragHandler;
 	}
-	
+
 	public EventHandler<DragEvent> getDropHandler() {
 		return dropHandler;
 	}
-	
+
 	private final EventHandler<DragEvent> dragHandler = new EventHandler<DragEvent>() {
 
         @Override
@@ -127,16 +127,16 @@ public class Loader {
 
 		model.updateAuxElements();
 	}
-    
+
     private final EventHandler<DragEvent> dropHandler = new EventHandler<DragEvent>() {
         @Override
         public void handle(DragEvent event) {
-        	
+
         	Dragboard db = event.getDragboard();
         	if (!db.hasFiles()) {
         		return;
         	}
-        	
+
          	final List<File> files = db.getFiles();
 
 			if (load(files)) return;
@@ -159,7 +159,7 @@ public class Loader {
 					model.getFileManager().addFile(csvFile);	
 
 					//model.init();			
-		
+
 					//when open file by dnd (not after save)
 					model.initField();
 
@@ -180,7 +180,7 @@ public class Loader {
 								"Probably file has incorrect format");
 			}
 		}
-		
+
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.updateButtons));
 	}
 
@@ -217,10 +217,10 @@ public class Loader {
 		load(files, listener);
 		eventPublisher.publishEvent(new FileOpenedEvent(this, files));
 	}
-    
+
 	public void load(final List<File> files, ProgressListener listener) 
 			throws Exception {
-		
+
 		int filesCountBefore = model.getFileManager().getFilesCount();
 		try {
 			model.setLoading(true);
@@ -228,23 +228,23 @@ public class Loader {
 		} finally {
 			model.setLoading(false);
 		}
-		
+
 		int loadedFiles = model.getFileManager().getFilesCount() - filesCountBefore;
 
 		if (loadedFiles > 0) {
-			status.showProgressText("loaded " 
-				+ model.getFileManager().getFilesCount() + " files");
+			status.showMessage("loaded " 
+				+ model.getFileManager().getFilesCount() + " files", "File Loader");
 		} else {
-			status.showProgressText("no files loaded");
-		
+			status.showMessage("no files loaded", "File Loader");
+
 		}
 	}        		
-    
+
 	private void loadInt(List<File> files, ProgressListener listener) throws Exception {
 		/// clear
 		//model.getAuxElements().clear();
 		//model.getChanges().clear();
-		
+
 		listener.progressMsg("load");
 
 		if (isCsvFile(files)) {
@@ -253,10 +253,10 @@ public class Loader {
 			model.getFileManager().processList(files, listener);
 			//model.closeAllCharts();
 			model.init();			
-		
+
 			//when open file by dnd (not after save)
 			model.initField();	
-		
+
 			// FIXME: not need? remove it
 			/*SgyFile file = model.getFileManager().getGprFiles().get(0);
 			if (file.getSampleInterval() < 105) {
@@ -272,7 +272,7 @@ public class Loader {
 		return files.size() == 1 
 				&& files.get(0).getName().endsWith(".constPoints");
 	}
-	
+
 	private boolean isCsvFile(final List<File> files) {
 		return !files.isEmpty() 
 				&& (files.get(0).getName().toLowerCase().endsWith(".csv")

@@ -97,8 +97,9 @@ public class Model implements InitializingBean {
 
 	private final Random rand = new Random();
 
+	@SuppressWarnings("NullAway.Init")
 	@Value( "${trace.lookup.threshold}" )
-	private double traceLookupThreshold;
+	private Double traceLookupThreshold;
 
 	private boolean loading = false; 
 
@@ -320,6 +321,7 @@ public class Model implements InitializingBean {
         // if there is a chart for a given file then put new chart
 		// to the same position as it was before
 		int index = -1;
+
 		SensorLineChart chart = csvFiles.get(csvFile);
 		if (chart != null) {
 			Node chartBox = chart.getRootNode();

@@ -13,7 +13,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
 public class TaskRunner implements ProgressListener {
-	
+
 	private Status status;
 	private Stage primaryStage = AppContext.stage;
 	private Stage dialog = new Stage();
@@ -21,35 +21,35 @@ public class TaskRunner implements ProgressListener {
 	private ProgressTask task;
 
 	private VBox dialogVbox = new VBox(20);
-	
+
 	private Button closeButton = new Button("Close");
-	
+
 	private String message = "";
-	
+
 	public TaskRunner(Status status, ProgressTask task) {
 		this.status = status;
-		
+
 		this.task = task;
-		
-		
+
+
 		closeButton.setOnAction(e -> {
 			closePopup();
 		});
-		
+
 		//new Image(this.getClass().getResource("java.gif").toExternalForm());
-		
+
 		dialog.initStyle(StageStyle.UNDECORATED);
         dialog.initModality(Modality.APPLICATION_MODAL);
         dialog.initOwner(primaryStage);
-        
-        
+
+
         dialogVbox.getChildren().addAll(loadingView);
-		
+
 	}
-	
+
 	public void start() {
 		showPopup();
-		
+
 		//new Thread() {
 		//	public void run() {
 				try {
@@ -64,11 +64,11 @@ public class TaskRunner implements ProgressListener {
 			//}
 		//}.start();
 	}
-	
+
 	protected void closePopup() {
 		Platform.runLater(() -> primaryStage.getScene().setCursor(Cursor.DEFAULT));
 	}
-	
+
 	protected void showPopup() {
 		Platform.runLater(() -> primaryStage.getScene().setCursor(Cursor.WAIT));
 	}
@@ -76,23 +76,23 @@ public class TaskRunner implements ProgressListener {
 	@Override
 	public void progressMsg(String msg) {
 		this.message = msg;
-		
+
 		show(message);
 	}
-	
+
 	protected void show(String msg) {
-		Platform.runLater(() -> status.showProgressText(msg));
+		Platform.runLater(() -> status.showMessage(msg, "Task"));
 	}
 
 	@Override
 	public void progressPercent(int percent) {
-		
+
 	}
 
 	@Override
 	public void progressSubMsg(String msg) {
 		show(message + " " + msg);
-		
+
 	}
 
 }

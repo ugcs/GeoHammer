@@ -22,6 +22,8 @@ import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import edu.mines.jtk.interp.SplinesGridder2;
 import javafx.scene.control.Button;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.index.kdtree.KdTree;
 import org.springframework.beans.factory.InitializingBean;
@@ -75,9 +77,13 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		}
 	};
 
+	@SuppressWarnings({"NullAway.Init"})
 	private ThrQueue q;
 
+	@Nullable
 	private CsvFile currentFile;
+
+	@Nullable
 	private GriddingParamsSetted currentParams;
 
 	private volatile boolean recalcGrid;

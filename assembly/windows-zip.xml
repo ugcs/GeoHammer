@@ -20,20 +20,20 @@
         </fileSet>    
 	</fileSets>
     <files>
-        <file>
+        <!--<file>
             <source> ${project.build.directory}/${project.artifactId}-jar-with-dependencies.jar</source>
             <outputDirectory>/</outputDirectory>
             <fileMode>777</fileMode>
-        </file>
+        </file>-->
         
         <file>
             <source> ${project.build.directory}/${project.artifactId}.exe</source>
             <outputDirectory>/</outputDirectory>
         </file>
         
-        <file>
+        <!--<file>
             <source> ${project.basedir}/assembly/start.cmd</source>
             <outputDirectory>/</outputDirectory>
-        </file>
+        </file>-->
     </files>
 </assembly>

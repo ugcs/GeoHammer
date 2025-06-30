@@ -562,7 +562,7 @@
 								<txtFileVersion>${project.version}</txtFileVersion>
 								<fileDescription>GeoHammer</fileDescription>
 								<copyright>SPH Engeneering 2024</copyright>
-								<productVersion>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.${maven.build.timestamp}</productVersion>
+								<productVersion>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.0</productVersion>
 								<txtProductVersion>${project.version}</txtProductVersion>
 								<productName>GeoHammer</productName>
 								<internalName>geohammer</internalName>

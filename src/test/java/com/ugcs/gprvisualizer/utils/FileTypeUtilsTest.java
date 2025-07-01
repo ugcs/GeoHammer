@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.utils;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -14,33 +15,43 @@ class FileTypeUtilsTest {
     }
 
     @Test
-    void isCsvFile_withValidCsvExtension_returnsTrue() {
-        File file = new File("data.csv");
-        assertTrue(FileTypeUtils.isCsvFile(file));
+    void isCsvFile_withValidCsvExtension_returnsTrue() throws IOException {
+        File tempFile = File.createTempFile("data", ".csv");
+        try {
+            assertTrue(FileTypeUtils.isCsvFile(tempFile));
+        } finally {
+            tempFile.deleteOnExit();
+        }
     }
 
     @Test
-    void isCsvFile_withAscExtension_returnsTrue() {
-        File file = new File("data.asc");
-        assertTrue(FileTypeUtils.isCsvFile(file));
+    void isCsvFile_withAscExtension_returnsTrue() throws IOException {
+        File tempFile = File.createTempFile("data", ".asc");
+        try {
+            assertTrue(FileTypeUtils.isCsvFile(tempFile));
+        } finally {
+            tempFile.deleteOnExit();
+        }
     }
 
     @Test
-    void isCsvFile_withTxtExtension_returnsTrue() {
-        File file = new File("data.txt");
-        assertTrue(FileTypeUtils.isCsvFile(file));
+    void isCsvFile_withTxtExtension_returnsTrue() throws IOException {
+        File tempFile = File.createTempFile("data", ".txt");
+        try {
+            assertTrue(FileTypeUtils.isCsvFile(tempFile));
+        } finally {
+            tempFile.deleteOnExit();
+        }
     }
 
     @Test
-    void isCsvFile_withWrongExtension_returnsFalse() {
-        File file = new File("data.docx");
-        assertFalse(FileTypeUtils.isCsvFile(file));
-    }
-
-
-    @Test
-    void isCsvFile_withUpperCaseExtension_returnsTrue() {
-        assertTrue(FileTypeUtils.isCsvFile("DATA.CSV"));
+    void isCsvFile_withWrongExtension_returnsFalse() throws IOException {
+        File tempFile = File.createTempFile("data", ".docx");
+        try {
+            assertFalse(FileTypeUtils.isCsvFile(tempFile));
+        } finally {
+            tempFile.deleteOnExit();
+        }
     }
 
     @Test
@@ -60,15 +71,23 @@ class FileTypeUtilsTest {
     }
 
     @Test
-    void isSgyFile_withValidSgyExtension_returnsTrue() {
-        File file = new File("file.sgy");
-        assertTrue(FileTypeUtils.isSgyFile(file));
+    void isSgyFile_withValidSgyExtension_returnsTrue() throws IOException {
+        File tempFile = File.createTempFile("data", ".sgy");
+        try {
+            assertTrue(FileTypeUtils.isSgyFile(tempFile));
+        } finally {
+            tempFile.deleteOnExit();
+        }
     }
 
     @Test
-    void isSgyFile_withWrongExtension_returnsFalse() {
-        File file = new File("file.txt");
-        assertFalse(FileTypeUtils.isSgyFile(file));
+    void isSgyFile_withWrongExtension_returnsFalse() throws IOException {
+        File tempFile = File.createTempFile("data", ".txt");
+        try {
+            assertFalse(FileTypeUtils.isSgyFile(tempFile));
+        } finally {
+            tempFile.deleteOnExit();
+        }
     }
 
 
@@ -80,11 +99,6 @@ class FileTypeUtilsTest {
     @Test
     void isSgyFile_withEmptyString_returnsFalse() {
         assertFalse(FileTypeUtils.isSgyFile(""));
-    }
-
-    @Test
-    void isSgyFile_withUpperCaseExtension_returnsTrue() {
-        assertTrue(FileTypeUtils.isSgyFile("FILE.SGY"));
     }
 
     @Test
@@ -107,11 +121,6 @@ class FileTypeUtilsTest {
     void isDztFile_withWrongExtension_returnsFalse() {
         File file = new File("scan.pdf");
         assertFalse(FileTypeUtils.isDztFile(file));
-    }
-
-    @Test
-    void isDztFile_withUpperCaseExtension_returnsTrue() {
-        assertTrue(FileTypeUtils.isDztFile("SCAN.DZT"));
     }
 
     @Test

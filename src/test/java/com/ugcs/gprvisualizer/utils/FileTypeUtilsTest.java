@@ -58,4 +58,12 @@ class FileTypeUtilsTest {
         assertFalse(FileTypeUtils.isDztFile("scan.sgy"));
         assertFalse(FileTypeUtils.isDztFile("scan"));
     }
+
+    @Test
+    void debugCsvLowercaseCheck() {
+        String name = "data.csv";
+        String lower = name.trim().toLowerCase();
+        System.out.println("Lower: [" + lower + "]");
+        assertTrue(lower.endsWith(".csv"));
+    }
 }

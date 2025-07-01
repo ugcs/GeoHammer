@@ -12,11 +12,11 @@ public class FileTypeUtils {
     }
 
     public static boolean isCsvFile(String filename) {
-        if (filename == null || filename.isEmpty()) {
-            return false;
-        }
-        String name = filename.trim().toLowerCase();
-        return name.endsWith(".csv") || name.endsWith(".asc") || name.endsWith(".txt");
+        String name = normalize(filename);
+        System.out.println("Normalized name: [" + name + "]");
+        boolean result = name.endsWith(".csv") || name.endsWith(".asc") || name.endsWith(".txt");
+        System.out.println("CSV result: " + result);
+        return result;
     }
 
     public static boolean isSgyFile(File file) {
@@ -30,7 +30,7 @@ public class FileTypeUtils {
         if (filename == null || filename.isEmpty()) {
             return false;
         }
-        return filename.trim().toLowerCase().endsWith(".sgy");
+        return normalize(filename).endsWith(".sgy");
     }
 
     public static boolean isDztFile(File file) {
@@ -41,9 +41,11 @@ public class FileTypeUtils {
     }
 
     public static boolean isDztFile(String filename) {
-        if (filename == null || filename.isEmpty()) {
-            return false;
-        }
-        return filename.trim().toLowerCase().endsWith(".dzt");
+        return normalize(filename).endsWith(".dzt");
     }
+
+    private static String normalize(String name) {
+        return name == null ? "" : name.replaceAll("\\p{C}", "").trim().toLowerCase();
+    }
+
 }

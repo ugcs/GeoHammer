@@ -15,7 +15,7 @@ public class FileTypeUtils {
         if (filename == null || filename.isEmpty()) {
             return false;
         }
-        String name = filename.toLowerCase();
+        String name = filename.trim().toLowerCase();
         return name.endsWith(".csv") || name.endsWith(".asc") || name.endsWith(".txt");
     }
 
@@ -30,7 +30,7 @@ public class FileTypeUtils {
         if (filename == null || filename.isEmpty()) {
             return false;
         }
-        return filename.toLowerCase().endsWith(".sgy");
+        return filename.trim().toLowerCase().endsWith(".sgy");
     }
 
     public static boolean isDztFile(File file) {
@@ -44,6 +44,6 @@ public class FileTypeUtils {
         if (filename == null || filename.isEmpty()) {
             return false;
         }
-        return filename.toLowerCase().endsWith(".dzt");
+        return filename.trim().toLowerCase().endsWith(".dzt");
     }
 }

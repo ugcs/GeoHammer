@@ -9,61 +9,118 @@ import static org.junit.jupiter.api.Assertions.*;
 class FileTypeUtilsTest {
 
     @Test
-    void testIsCsvFileWithFile() {
-        assertTrue(FileTypeUtils.isCsvFile(new File("data.csv")));
-        assertTrue(FileTypeUtils.isCsvFile(new File("data.TXT")));
-        assertFalse(FileTypeUtils.isCsvFile(new File("data.sgy")));
-        assertFalse(FileTypeUtils.isCsvFile(new File("data.dzt")));
-        assertFalse(FileTypeUtils.isCsvFile(new File("data")));
+    void isCsvFile_withNullFile_returnsFalse() {
+        assertFalse(FileTypeUtils.isCsvFile((File) null));
     }
 
     @Test
-    void testIsCsvFileWithString() {
-        assertTrue(FileTypeUtils.isCsvFile("file.csv"));
-        assertTrue(FileTypeUtils.isCsvFile("file.asc"));
-        assertTrue(FileTypeUtils.isCsvFile("file.txt"));
-        assertFalse(FileTypeUtils.isCsvFile("file.sgy"));
-        assertFalse(FileTypeUtils.isCsvFile("file.dzt"));
-        assertFalse(FileTypeUtils.isCsvFile("file"));
+    void isCsvFile_withValidCsvExtension_returnsTrue() {
+        File file = new File("data.csv");
+        assertTrue(FileTypeUtils.isCsvFile(file));
     }
 
     @Test
-    void testIsSgyFileWithFile() {
-        assertTrue(FileTypeUtils.isSgyFile(new File("trace.sgy")));
-        assertFalse(FileTypeUtils.isSgyFile(new File("trace.csv")));
-        assertFalse(FileTypeUtils.isSgyFile(new File("trace.dzt")));
-        assertFalse(FileTypeUtils.isSgyFile(new File("trace")));
+    void isCsvFile_withAscExtension_returnsTrue() {
+        File file = new File("data.asc");
+        assertTrue(FileTypeUtils.isCsvFile(file));
     }
 
     @Test
-    void testIsSgyFileWithString() {
-        assertTrue(FileTypeUtils.isSgyFile("trace.sgy"));
-        assertFalse(FileTypeUtils.isSgyFile("trace.csv"));
-        assertFalse(FileTypeUtils.isSgyFile("trace.dzt"));
-        assertFalse(FileTypeUtils.isSgyFile("trace"));
+    void isCsvFile_withTxtExtension_returnsTrue() {
+        File file = new File("data.txt");
+        assertTrue(FileTypeUtils.isCsvFile(file));
     }
 
     @Test
-    void testIsDztFileWithFile() {
-        assertTrue(FileTypeUtils.isDztFile(new File("scan.dzt")));
-        assertFalse(FileTypeUtils.isDztFile(new File("scan.csv")));
-        assertFalse(FileTypeUtils.isDztFile(new File("scan.sgy")));
-        assertFalse(FileTypeUtils.isDztFile(new File("scan")));
+    void isCsvFile_withWrongExtension_returnsFalse() {
+        File file = new File("data.docx");
+        assertFalse(FileTypeUtils.isCsvFile(file));
+    }
+
+
+    @Test
+    void isCsvFile_withUpperCaseExtension_returnsTrue() {
+        assertTrue(FileTypeUtils.isCsvFile("DATA.CSV"));
     }
 
     @Test
-    void testIsDztFileWithString() {
-        assertTrue(FileTypeUtils.isDztFile("scan.dzt"));
-        assertFalse(FileTypeUtils.isDztFile("scan.csv"));
-        assertFalse(FileTypeUtils.isDztFile("scan.sgy"));
-        assertFalse(FileTypeUtils.isDztFile("scan"));
+    void isCsvFile_withWhitespaceAndControlChars_returnsTrue() {
+        assertTrue(FileTypeUtils.isCsvFile(" \tdata.csv\n"));
     }
 
     @Test
-    void debugCsvLowercaseCheck() {
-        String name = "data.csv";
-        String lower = name.trim().toLowerCase();
-        System.out.println("Lower: [" + lower + "]");
-        assertTrue(lower.endsWith(".csv"));
+    void isCsvFile_withNullString_returnsFalse() {
+        assertFalse(FileTypeUtils.isCsvFile((String) null));
+    }
+
+
+    @Test
+    void isSgyFile_withNullFile_returnsFalse() {
+        assertFalse(FileTypeUtils.isSgyFile((File) null));
+    }
+
+    @Test
+    void isSgyFile_withValidSgyExtension_returnsTrue() {
+        File file = new File("file.sgy");
+        assertTrue(FileTypeUtils.isSgyFile(file));
+    }
+
+    @Test
+    void isSgyFile_withWrongExtension_returnsFalse() {
+        File file = new File("file.txt");
+        assertFalse(FileTypeUtils.isSgyFile(file));
+    }
+
+
+    @Test
+    void isSgyFile_withNullString_returnsFalse() {
+        assertFalse(FileTypeUtils.isSgyFile((String) null));
+    }
+
+    @Test
+    void isSgyFile_withEmptyString_returnsFalse() {
+        assertFalse(FileTypeUtils.isSgyFile(""));
+    }
+
+    @Test
+    void isSgyFile_withUpperCaseExtension_returnsTrue() {
+        assertTrue(FileTypeUtils.isSgyFile("FILE.SGY"));
+    }
+
+    @Test
+    void isSgyFile_withWhitespace_returnsTrue() {
+        assertTrue(FileTypeUtils.isSgyFile("   file.sgy  "));
+    }
+
+    @Test
+    void isDztFile_withNullFile_returnsFalse() {
+        assertFalse(FileTypeUtils.isDztFile((File) null));
+    }
+
+    @Test
+    void isDztFile_withValidDztExtension_returnsTrue() {
+        File file = new File("scan.dzt");
+        assertTrue(FileTypeUtils.isDztFile(file));
+    }
+
+    @Test
+    void isDztFile_withWrongExtension_returnsFalse() {
+        File file = new File("scan.pdf");
+        assertFalse(FileTypeUtils.isDztFile(file));
+    }
+
+    @Test
+    void isDztFile_withUpperCaseExtension_returnsTrue() {
+        assertTrue(FileTypeUtils.isDztFile("SCAN.DZT"));
+    }
+
+    @Test
+    void isDztFile_withWhitespace_returnsTrue() {
+        assertTrue(FileTypeUtils.isDztFile("   scan.dzt  "));
+    }
+
+    @Test
+    void isDztFile_withNullString_returnsFalse() {
+        assertFalse(FileTypeUtils.isDztFile((String) null));
     }
 }

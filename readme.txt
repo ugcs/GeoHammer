@@ -11,3 +11,5 @@ For support:
 To run the application:
 - On Windows - run geohammer.exe or start.cmd
 - On macOS - open GeoHammer.app
+
+This software may collect anonymous usage statistics to improve its functionality and performance. By using GeoHammer, you consent to this data collection. No personally identifiable information is collected.

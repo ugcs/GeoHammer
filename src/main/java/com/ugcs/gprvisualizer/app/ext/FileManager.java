@@ -1,30 +1,20 @@
 package com.ugcs.gprvisualizer.app.ext;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
-
-import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
-import com.github.thecoldwine.sigrun.common.ext.PositionFile;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.*;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.dzt.DztFile;
+import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Component;
+
+import java.io.File;
+import java.io.FilenameFilter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class FileManager {
@@ -44,8 +34,11 @@ public class FileManager {
 
 	private final FileTemplates fileTemplates;
 
-	FileManager(FileTemplates fileTemplates) {
+    private final ApplicationEventPublisher eventPublisher;
+
+	FileManager(FileTemplates fileTemplates, ApplicationEventPublisher eventPublisher) {
 		this.fileTemplates = fileTemplates;
+        this.eventPublisher = eventPublisher;
 	}
 
 	public boolean isActive() {
@@ -92,16 +85,21 @@ public class FileManager {
 		if (sgyFile == null) {
 			return;
 		}
-		
-		sgyFile.open(fl);
-		
-		files.add(sgyFile);
 
-		try {	
-			new PositionFile(fileTemplates).load(sgyFile);
-		} catch (Exception e) {
-			log.warn("Error loading markup or position files: {}", e.getMessage());
-		}
+		try {
+            sgyFile.open(fl);
+
+            files.add(sgyFile);
+
+            try {
+                new  PositionFile(fileTemplates).load(sgyFile);
+            } catch (Exception e) {
+                log.warn("Error loading markup or position files: {}", e.getMessage());
+            }
+        } catch (Exception e) {
+            eventPublisher.publishEvent(new FileOpenErrorEvent(this, fl, e));
+            throw e;
+        }
 	}
 
 	private void processFileList(List<File> fileList) throws Exception {

@@ -18,7 +18,7 @@ import java.util.List;
 @Component
 public class UndoModel {
 
-    @Value("${undo.depth:7}")
+    @Value("${undo.depth:3}")
     private int undoDepth;
 
     private final Deque<UndoFrame> frames = new ArrayDeque<>();

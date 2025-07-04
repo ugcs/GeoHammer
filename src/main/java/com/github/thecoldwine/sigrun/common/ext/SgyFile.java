@@ -41,7 +41,7 @@ public abstract class SgyFile {
 
 	public abstract int numTraces();
 
-	public abstract void open(File file) throws Exception;
+	public abstract void open(File file) throws IOException;
 	
 	public abstract void save(File file) throws IOException;
 

@@ -12,7 +12,7 @@ import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
-import com.ugcs.gprvisualizer.utils.FileTypeUtils;
+import com.ugcs.gprvisualizer.utils.FileTypes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -137,8 +137,8 @@ class AmplitudeEventSenderTest {
             when(file.exists()).thenReturn(true);
             when(event.getFiles()).thenReturn(List.of(file));
 
-            try (MockedStatic<FileTypeUtils> fileTypeUtilsStatic = mockStatic(FileTypeUtils.class)) {
-                fileTypeUtilsStatic.when(() -> FileTypeUtils.isCsvFile(file)).thenReturn(true);
+            try (MockedStatic<FileTypes> fileTypeUtilsStatic = mockStatic(FileTypes.class)) {
+                fileTypeUtilsStatic.when(() -> FileTypes.isCsvFile(file)).thenReturn(true);
 
                 Model model = mock(Model.class);
                 when(model.getFileManager()).thenReturn(mock(FileManager.class));
@@ -153,7 +153,7 @@ class AmplitudeEventSenderTest {
     @Test
     void testListenFileOpenedEvent_withCsvFileWithParser() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class);
-             MockedStatic<FileTypeUtils> fileTypeUtilsStatic = mockStatic(FileTypeUtils.class)) {
+             MockedStatic<FileTypes> fileTypeUtilsStatic = mockStatic(FileTypes.class)) {
 
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
             AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
@@ -164,7 +164,7 @@ class AmplitudeEventSenderTest {
             when(file.exists()).thenReturn(true);
             when(event.getFiles()).thenReturn(List.of(file));
             when(mockUserIdService.getOrCreateUserId()).thenReturn("test-user-id");
-            fileTypeUtilsStatic.when(() -> FileTypeUtils.isCsvFile(file)).thenReturn(true);
+            fileTypeUtilsStatic.when(() -> FileTypes.isCsvFile(file)).thenReturn(true);
 
             CsvFile csvFile = mock(CsvFile.class);
             when(csvFile.getFile()).thenReturn(file);
@@ -226,7 +226,7 @@ class AmplitudeEventSenderTest {
             when(file.exists()).thenReturn(true);
             when(event.getFile()).thenReturn(file);
             when(event.getException()).thenReturn(new Exception("error"));
-            mockStatic(FileTypeUtils.class).when(() -> FileTypeUtils.isCsvFile(file)).thenReturn(true);
+            mockStatic(FileTypes.class).when(() -> FileTypes.isCsvFile(file)).thenReturn(true);
 
             Model model = mock(Model.class);
             when(model.getFileManager()).thenReturn(mock(FileManager.class));

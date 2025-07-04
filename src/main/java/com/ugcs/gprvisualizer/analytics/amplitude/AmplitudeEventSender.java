@@ -23,7 +23,7 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static com.ugcs.gprvisualizer.utils.FileTypeUtils.*;
+import static com.ugcs.gprvisualizer.utils.FileTypes.*;
 
 public class AmplitudeEventSender implements EventSender {
 
@@ -145,7 +145,7 @@ public class AmplitudeEventSender implements EventSender {
     private void handleFileOpenedEvent(File file) {
         if (isCsvFile(file)) {
             handleCsvFileOpened(file);
-        } else if (isSgyFile(file)) {
+        } else if (isGprFile(file)) {
             send(Events.createFileOpenedEvent("sgy"));
         } else if (isDztFile(file)) {
             send(Events.createFileOpenedEvent("dzt"));
@@ -190,7 +190,7 @@ public class AmplitudeEventSender implements EventSender {
     private void handleFileOpenErrorEvent(File file, String errorMessage) {
         if (isCsvFile(file)) {
             handleCsvFileOpenError(file, errorMessage);
-        } else if (isSgyFile(file)) {
+        } else if (isGprFile(file)) {
             send(Events.createFileOpenedErrorEvent("sgy", errorMessage));
         } else if (isDztFile(file)) {
             send(Events.createFileOpenedErrorEvent("dzt", errorMessage));

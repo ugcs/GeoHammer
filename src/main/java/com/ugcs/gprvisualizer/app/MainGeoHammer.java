@@ -98,7 +98,7 @@ public class MainGeoHammer extends Application {
 		if (!getParameters().getRaw().isEmpty()) {
 			String name = getParameters().getRaw().get(0);
 			List<File> f = Arrays.asList(new File(name));			
-			loader.loadWithNotify(f, emptyListener);
+			loader.load(f);
 		}
 
 		eventSender.send(Events.createAppStartedEvent(appBuildInfo.getBuildVersion()));

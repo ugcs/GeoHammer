@@ -219,7 +219,7 @@ public abstract class Parser implements IGeoCoordinateParser {
             return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
         }
 
-        throw new RuntimeException("Cannot parse DateTime form file");
+        throw new RuntimeException("Cannot parse DateTime from file");
     }
 
     // TODO: Add tests for new format

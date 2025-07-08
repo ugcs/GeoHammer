@@ -14,7 +14,7 @@ public abstract class ScrollableData {
     private int middleTrace;
     private double vertScale = 1.0;
 
-    private int zoom = 1;
+    private double zoom = 0.0;
     public static final double ZOOM_A = 1.05;
 
     private final ProfileScroll profileScroll;
@@ -23,12 +23,12 @@ public abstract class ScrollableData {
         this.profileScroll = new ProfileScroll(model, this);
     }
 
-    public int getZoom() {
+    public double getZoom() {
         return zoom;
     }
 
-    public void setZoom(int zoom) {
-        this.zoom = Math.clamp(zoom, 1, 100);
+    public void setZoom(double zoom) {
+        this.zoom = Math.clamp(zoom, -100.0, 100.0);
         vertScale = Math.pow(ZOOM_A, zoom);
     }
 
@@ -69,7 +69,7 @@ public abstract class ScrollableData {
     }
 
     protected void clear() {
-        setZoom(1);
+        setZoom(0.0);
     }
 
     public ProfileScroll getProfileScroll() {

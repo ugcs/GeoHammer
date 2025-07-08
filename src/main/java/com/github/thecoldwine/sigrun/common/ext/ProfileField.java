@@ -16,7 +16,7 @@ public class ProfileField {
 	private Rectangle topRuleRect = new Rectangle();
 	private Rectangle leftRuleRect = new Rectangle();
 	private Rectangle infoRect = new Rectangle();
-	private Rectangle mainRectRect = new Rectangle();
+	private Rectangle mainRect = new Rectangle();
 
 	//draw coordinates
 	private Rectangle clipMainRect = new Rectangle();
@@ -98,14 +98,14 @@ public class ProfileField {
 				leftMargin + topRuleRect.width,
 				Model.TOP_MARGIN,
 				ruleWidth,
-				viewDimension.height - leftMargin);
-		mainRectRect = new Rectangle(
+				viewDimension.height - Model.TOP_MARGIN);
+		mainRect = new Rectangle(
 				leftMargin,
 				Model.TOP_MARGIN,
 				viewDimension.width - leftMargin - ruleWidth,
-				viewDimension.height - leftMargin);
+				viewDimension.height - Model.TOP_MARGIN);
 
-		visibleStart = -mainRectRect.x - mainRectRect.width / 2;
+		visibleStart = -mainRect.x - mainRect.width / 2;
 
 		initClipRects();
  	}
@@ -119,7 +119,7 @@ public class ProfileField {
 	}
 
 	public Rectangle getMainRect() {
-		return mainRectRect;
+		return mainRect;
 	}
 
 	public Rectangle getInfoRect() {
@@ -160,7 +160,7 @@ public class ProfileField {
 	}
 
 	public int getTopMargin() {
-		return mainRectRect.y;
+		return mainRect.y;
 	}
 
 	public TraceFile getFile() {

@@ -71,9 +71,12 @@ public class PrismDrawer {
 		
 		int startTrace = field.getFirstVisibleTrace();
 		int finishTrace = field.getLastVisibleTrace();
-		int lastSample = field.getLastVisibleSample(rect.height);
-		
-		for (int i = startTrace; i < finishTrace; i++) {
+		int lastSample = field.getLastVisibleSample();
+
+		for (int i = startTrace; i <= finishTrace; i++) {
+			if (i < 0 || i >= traces.size()) {
+				continue;
+			}
 
 			int traceStartX = field.traceToScreen(i);
 			int traceFinishX = field.traceToScreen(i + 1);

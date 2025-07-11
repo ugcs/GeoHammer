@@ -1,10 +1,8 @@
 package com.ugcs.gprvisualizer.app.commands;
 
-import java.io.File;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.AmplitudeMatrix;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
@@ -35,13 +33,11 @@ public class LevelScanner implements Command {
 		
 		//aux tasks 
 		new EdgeFinder().execute(file, listener);
-		new EdgeSubtractGround().execute(file, listener);		
-		
+		new EdgeSubtractGround().execute(file, listener);
 	}
 
 	@Override
 	public String getButtonText() {
-
 		return "Find ground level";
 	}
 

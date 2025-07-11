@@ -32,10 +32,10 @@ public class LevelManualSetter implements Command {
 		int level = model.getGprChart(file).getField().getProfileSettings().getLayer();
 		
 		for (int i = 0; i < file.numTraces(); i++) {
-			levelProfile.deep[i] = level;
+			levelProfile.setDepth(i, level);
 		}
 		
-		levelProfile.finish(file.getTraces());
+		levelProfile.finish();
 		
 		file.setGroundProfile(levelProfile);		
 	}

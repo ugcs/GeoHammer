@@ -1,6 +1,5 @@
 package com.ugcs.gprvisualizer.math;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -18,7 +17,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -155,7 +153,7 @@ public class LevelFilter implements ToolProducer {
 					}
 
 					TraceFile file = gprChart.getField().getFile();
-					file.getGroundProfile().shift(newValue.intValue());
+					file.getGroundProfile().setOffset(newValue.intValue());
 					model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
 				}
 		});

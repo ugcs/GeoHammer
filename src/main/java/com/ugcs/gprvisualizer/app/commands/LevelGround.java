@@ -25,7 +25,7 @@ public class LevelGround implements Command {
 			return;
 		}
 		
-		int level = (hp.minDeep + hp.maxDeep) / 2;
+		int level = (hp.getMinDepth() + hp.getMaxDepth()) / 2;
 
 		// keep undo state
 		TraceFile copy = file.copy();
@@ -36,7 +36,7 @@ public class LevelGround implements Command {
 
 		// update samples
 		for (Trace trace: file.getTraces()) {
-			int deep = hp.deep[trace.getIndex()];
+			int deep = hp.getDepth(trace.getIndex());
 			int numValues = trace.numSamples();
 
 			int n = Math.max(0, numValues - Math.abs(deep - level));

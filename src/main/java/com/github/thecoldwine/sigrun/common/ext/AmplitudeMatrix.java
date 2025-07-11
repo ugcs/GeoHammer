@@ -135,15 +135,14 @@ public class AmplitudeMatrix {
 		for (int i = 0; i < selrow.size(); i++) {
 			 int r = calcAvgHeight(selrow, i);
 			 
-			 hp.deep[i] = r;
+			 hp.setDepth(i, r);
 			 //level[i] = r;
 			 //trace.get(i).maxindex = r;
 			 //trace.get(i).maxindex2 = r;
 		}
 		
-		hp.finish(traces);
-		
-		hp.color = Color.red;
+		hp.finish();
+		hp.setColor(Color.red);
 		
 		return hp;
 	}

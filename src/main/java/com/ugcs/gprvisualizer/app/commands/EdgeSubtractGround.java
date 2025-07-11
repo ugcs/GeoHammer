@@ -7,18 +7,15 @@ import java.util.Queue;
 
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.math.HalfHyperDst;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 
 public class EdgeSubtractGround implements Command {
 
-	private Model model = AppContext.model;
-	private int[] etsum = new int [5];
-	
+	private static final int MARGIN = 5;
+
 	static class EdgeCoord {
 		int index;
 		int smp;
@@ -35,7 +32,7 @@ public class EdgeSubtractGround implements Command {
 		private final List<Trace> list;
 		private double foundDst = 0;
 		private int lastRemoved = -1;
-		private Queue<EdgeCoord> queue = new LinkedList<EdgeCoord>();
+		private Queue<EdgeCoord> queue = new LinkedList<>();
 		
 		public EdgeQueue(List<Trace> list, int edgeType) {
 			this.list = list;
@@ -76,12 +73,10 @@ public class EdgeSubtractGround implements Command {
 
 	}
 
-	private static final int MARGIN = 5;
-	
 	@Override
 	public void execute(TraceFile file, ProgressListener listener) {
 		if (file.getGroundProfile() == null) {
-			System.out.println("!!!!!!!!!!!!!1 file.groundProfile == null");
+			System.out.println("No ground profile");
 			return;
 		}
 		
@@ -91,22 +86,20 @@ public class EdgeSubtractGround implements Command {
 		
 		// ground profile
 		hplist.add(file.getGroundProfile());
-		
-		
+
 		// ground profile * 2
 		hplist.add(multTwice(file.getGroundProfile()));
 		
 		for (HorizontalProfile hp : hplist) {
-			
-			int from = -hp.minDeep + MARGIN;
-			int to = file.getMaxSamples() - hp.maxDeep - MARGIN;
+			int from = -hp.getMinDepth() + MARGIN;
+			int to = file.getMaxSamples() - hp.getMaxDepth() - MARGIN;
 			
 			for (int deep = from; deep < to; deep++) {			
 				
 				// minimal length of curve which must be similar to hp (cm) 
 				double minDst = HalfHyperDst.getGoodSideDstGrnd(
-						file, deep + hp.avgdeep, 
-						file.getGroundProfile().avgdeep) * 4;
+						file, deep + hp.getAverageDepth(),
+						file.getGroundProfile().getAverageDepth()) * 4;
 				
 				processDeep(file, hp,  deep, minDst);
 			}
@@ -123,32 +116,22 @@ public class EdgeSubtractGround implements Command {
 	}
 
 	private HorizontalProfile multTwice(HorizontalProfile groundProfile) {
-		HorizontalProfile hp = new HorizontalProfile(groundProfile.deep.length);
+		HorizontalProfile hp = new HorizontalProfile(groundProfile.size());
 		
-		for (int i = 0; i < groundProfile.deep.length; i++) {
-			hp.deep[i] = groundProfile.deep[i] * 2;
+		for (int i = 0; i < groundProfile.size(); i++) {
+			hp.setDepth(i, groundProfile.getDepth(i) * 2);
 		}
 		
-		hp.finish(null);
+		hp.finish();
 		
 		return hp;
 	}
 
 	private HorizontalProfile getHorizontal(int size) {
-
 		HorizontalProfile hp = new HorizontalProfile(size);
-		
-		hp.finish(null);
+		hp.finish();
 		
 		return hp;
-	}
-
-	public int getMaxGroundSmp(TraceFile file) {
-		int maxGroundDeep = 0;
-		for (Trace trace : file.getTraces()) {
-			maxGroundDeep = Math.max(maxGroundDeep, trace.getMaxIndex());
-		}
-		return maxGroundDeep;
 	}
 
 	private void processDeep(TraceFile file, HorizontalProfile hp, int shift, double minDst) {
@@ -164,7 +147,7 @@ public class EdgeSubtractGround implements Command {
 			
 			currentTail += trace.getPrevDist();
 			
-			int smp = hp.deep[i] + shift;
+			int smp = hp.getDepth(i) + shift;
 			
 			// 1 2 3 4 / check range from 0 above to 1 below
 			
@@ -204,7 +187,6 @@ public class EdgeSubtractGround implements Command {
 
 	@Override
 	public String getButtonText() {
-
 		return "Filter edges";
 	}
 

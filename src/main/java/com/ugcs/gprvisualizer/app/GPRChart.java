@@ -28,7 +28,6 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
-import javafx.geometry.Dimension2D;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
@@ -461,14 +460,14 @@ public class GPRChart extends Chart {
                                        int startTraceIndex, HorizontalProfile pf,
                                        int voffset) {
 
-        g2.setColor(pf.color);
+        g2.setColor(pf.getColor());
         Point2D p1 = traceSampleToScreenCenter(new TraceSample(
-                startTraceIndex, pf.deep[0] + voffset));
+                startTraceIndex, pf.getDepth(0) + voffset));
         int max2 = 0;
 
-        for (int i = 1; i < pf.deep.length; i++) {
+        for (int i = 1; i < pf.size(); i++) {
 
-            max2 = Math.max(max2, pf.deep[i] + voffset);
+            max2 = Math.max(max2, pf.getDepth(i) + voffset);
 
             Point2D p2 = traceSampleToScreenCenter(new TraceSample(
                     startTraceIndex + i, max2));

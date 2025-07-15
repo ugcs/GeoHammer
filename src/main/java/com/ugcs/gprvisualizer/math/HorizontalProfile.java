@@ -66,10 +66,6 @@ public class HorizontalProfile {
 		return maxDepth;
 	}
 
-	public int getHeight() {
-		return maxDepth - minDepth;
-	}
-
 	public void finish() {
 		smooth();
 

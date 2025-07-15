@@ -339,19 +339,8 @@ public class GPRChart extends Chart {
 
     private void drawFileProfiles(Graphics2D graphicsContext) {
         TraceFile file = profileField.getFile();
-        if (file.getProfiles() != null) {
-            // pf
-            graphicsContext.setColor(new Color(50, 200, 250));
-            graphicsContext.setStroke(AMP_STROKE);
-            for (HorizontalProfile pf : file.getProfiles()) {
-                drawHorizontalProfile(graphicsContext,
-                        0, pf, 0);
-            }
-        }
-
         // ground
         if (file.getGroundProfile() != null) {
-            graphicsContext.setColor(new Color(210, 105, 30));
             graphicsContext.setStroke(LEVEL_STROKE);
             drawHorizontalProfile(graphicsContext,
                     0, file.getGroundProfile(),

@@ -41,14 +41,10 @@ public abstract class TraceFile extends SgyFile {
     private boolean spreadCoordinatesNecessary = false;
 
     @Nullable
-    // horizontal cohesive lines of edges
-    private List<HorizontalProfile> profiles;
-
-    @Nullable
     private HorizontalProfile groundProfile;
 
     @Nullable
-    // hyperbola probability calculated by AlgoritmicScan
+    // hyperbola probability calculated by AlgorithmicScan
     private ScanProfile algoScan;
 
     @Nullable
@@ -128,14 +124,6 @@ public abstract class TraceFile extends SgyFile {
 
     public void setSpreadCoordinatesNecessary(boolean spreadCoordinatesNecessary) {
         this.spreadCoordinatesNecessary = spreadCoordinatesNecessary;
-    }
-
-    public @Nullable List<HorizontalProfile> getProfiles() {
-        return profiles;
-    }
-
-    public void setProfiles(@Nullable List<HorizontalProfile> profiles) {
-        this.profiles = profiles;
     }
 
     public void setGroundProfileSource(PositionFile positionFile) {

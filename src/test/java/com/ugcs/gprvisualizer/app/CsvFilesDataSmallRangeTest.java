@@ -60,7 +60,6 @@ public class CsvFilesDataSmallRangeTest {
         // Create the OptionPane with mocked dependencies
         optionPane = new OptionPane(
             mock(MapView.class),
-            mock(UiUtils.class),
             mock(ProfileView.class),
             mock(CommandRegistry.class),
             model,

@@ -12,7 +12,9 @@ import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Settings;
+import com.ugcs.gprvisualizer.ui.BaseSlider;
 import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Strings;
 import javafx.event.ActionEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -22,7 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.ugcs.gprvisualizer.app.UiUtils;
 import com.ugcs.gprvisualizer.app.commands.BackgroundNoiseRemover;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
 import com.ugcs.gprvisualizer.app.commands.LevelGround;
@@ -30,7 +31,6 @@ import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.draw.ToolProducer;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -45,9 +45,6 @@ public class LevelFilter implements ToolProducer {
 
     @Autowired
     private UndoModel undoModel;
-
-    @Autowired
-    private UiUtils uiUtils;
 
     @Autowired
     private CommandRegistry commandRegistry;
@@ -101,24 +98,8 @@ public class LevelFilter implements ToolProducer {
         }
 
         if (slider == null) {
-            slider = uiUtils.createSlider(levelSettings.levelPreviewShift, WhatChanged.Change.justdraw, -50, 50, """
-                    Elevation lag, 
-                    traces""", new ChangeListener<Number>() {
-                @Override
-                public void changed(
-                        ObservableValue<? extends Number> observable,
-                        Number oldValue,
-                        Number newValue) {
-                    if (selectedFile == null) {
-                        return;
-                    }
-                    HorizontalProfile profile = selectedFile.getGroundProfile();
-                    if (profile != null) {
-                        profile.setOffset(newValue.intValue());
-                        model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
-                    }
-                }
-            });
+            OffsetSlider offsetSlider = new OffsetSlider();
+            slider = offsetSlider.produce();
         }
 
         List<Node> result = new ArrayList<>();
@@ -201,6 +182,67 @@ public class LevelFilter implements ToolProducer {
     private void fileOpened(FileOpenedEvent event) {
         if (buttonSpreadCoord != null) {
             buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
+        }
+    }
+
+    public void sliderChanged(ObservableValue<? extends Number> observable,
+                        Number oldValue, Number newValue) {
+        if (selectedFile != null) {
+            int value = levelSettings.levelPreviewShift.intValue();
+            HorizontalProfile profile = selectedFile.getGroundProfile();
+            if (profile != null) {
+                profile.setOffset(value);
+                model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+            }
+        }
+    }
+
+    class OffsetSlider extends BaseSlider {
+
+        private static final int LENGTH = 100;
+        // when slider gets to an edge in a given factor
+        // of its length it would shift its range toward the edge
+        private static final float EXPAND_THRESHOLD = 0.2f;
+
+        public OffsetSlider() {
+            super(levelSettings, LevelFilter.this::sliderChanged);
+            name = "Elevation lag,\ntraces";
+            units = Strings.empty();
+            tickUnits = 5;
+        }
+
+        @Override
+        public int updateModel() {
+            int value = (int)slider.getValue();
+            levelSettings.levelPreviewShift.setValue(value);
+            return value;
+        }
+
+        @Override
+        public void updateUI() {
+            int value = levelSettings.levelPreviewShift.intValue();
+            int halfLength = LENGTH / 2;
+            slider.setMin(value - halfLength);
+            slider.setMax(value + halfLength);
+            slider.setValue(value);
+
+            slider.setOnMouseReleased(event -> {
+                // expand slider range when value is close to edges
+                double width = slider.getMax() - slider.getMin();
+                double position = slider.getValue() - slider.getMin();
+                double margin = EXPAND_THRESHOLD * width;
+                int offset = 0;
+                if (position < margin) {
+                    offset = (int)-margin;
+                }
+                if (position > width - margin) {
+                    offset = (int)margin;
+                }
+                if (offset != 0) {
+                    slider.setMin((int)slider.getMin() + offset);
+                    slider.setMax((int)slider.getMax() + offset);
+                }
+            });
         }
     }
 }

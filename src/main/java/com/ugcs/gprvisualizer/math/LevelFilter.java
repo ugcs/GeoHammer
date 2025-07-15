@@ -1,13 +1,10 @@
 package com.ugcs.gprvisualizer.math;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.GPRChart;
-import com.ugcs.gprvisualizer.app.commands.CancelKmlToFlag;
-import com.ugcs.gprvisualizer.app.commands.KmlToFlag;
 
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -22,14 +19,11 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.UiUtils;
 import com.ugcs.gprvisualizer.app.commands.BackgroundNoiseRemover;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
 import com.ugcs.gprvisualizer.app.commands.LevelClear;
 import com.ugcs.gprvisualizer.app.commands.LevelGround;
-import com.ugcs.gprvisualizer.app.commands.LevelManualSetter;
-import com.ugcs.gprvisualizer.app.commands.LevelScanner;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.draw.ToolProducer;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -38,248 +32,187 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.ToggleButton;
 
 @Component
 public class LevelFilter implements ToolProducer {
 
-	@Autowired
-	private Model model;	
-	
-	@Autowired
-	private UiUtils uiUtils;
+    Settings levelSettings = new Settings();
 
-	@Autowired
-	private CommandRegistry commandRegistry;
+    @Autowired
+    private Model model;
 
-	private Button buttonRemoveLevel;
+    @Autowired
+    private UiUtils uiUtils;
 
-	private Button buttonLevelGround;
+    @Autowired
+    private CommandRegistry commandRegistry;
 
-	private ToggleButton levelPreview;
+    private Button buttonRemoveLevel;
 
-	private Node slider;
+    private Button buttonLevelGround;
 
-	private Button buttonSpreadCoord;
+    private Node slider;
 
-	private Button buttonKmlToFlag;
+    private Button buttonSpreadCoord;
 
-	private Button buttonCancelKmlToFlag;
+    private List<TraceFile> undoFiles;
 
-	private List<TraceFile> undoFiles;
+    private TraceFile selectedFile;
 
-	Settings levelSettings = new Settings();
+    @EventListener
+    private void selectFile(FileSelectedEvent event) {
+        if (event.getFile() instanceof TraceFile traceFile) {
+            selectedFile = traceFile;
+        } else {
+            selectedFile = null;
+        }
+        clearForNewFile(selectedFile);
+    }
 
-	private TraceFile selectedFile;
+    @Override
+    public List<Node> getToolNodes() {
+        buttonSpreadCoord = commandRegistry.createButton(new SpreadCoordinates(),
+                e -> {
+                    updateButtons(selectedFile);
+                });
 
-	@EventListener
-	private void selectFile(FileSelectedEvent event) {
-		if (event.getFile() instanceof TraceFile traceFile) {
-			selectedFile = traceFile;
-		} else {
-			selectedFile = null;
-		}
-		clearForNewFile(selectedFile);
-	}
+        var buttons = List.of(commandRegistry.createButton(new BackgroundNoiseRemover()), buttonSpreadCoord);
 
-	@Override
-	public List<Node> getToolNodes() {
+        HBox hbox = new HBox();
+        hbox.setSpacing(8);
 
-		buttonSpreadCoord = commandRegistry.createButton(new SpreadCoordinates(), 
-			e -> {
-				updateButtons(selectedFile);
-			});
-			
-		var buttons = List.of(commandRegistry.createButton(new BackgroundNoiseRemover()), buttonSpreadCoord);
+        buttons.forEach(b -> {
+            b.setMaxWidth(Double.MAX_VALUE);
+        });
 
-		HBox hbox = new HBox();
-		hbox.setSpacing(8);
+        HBox.setHgrow(buttons.get(0), Priority.ALWAYS);
+        HBox.setHgrow(buttons.get(1), Priority.ALWAYS);
 
-		buttons.forEach(b -> {
-			b.setMaxWidth(Double.MAX_VALUE);
-		});
+        hbox.getChildren().addAll(buttons);
 
-		HBox.setHgrow(buttons.get(0), Priority.ALWAYS);
-		HBox.setHgrow(buttons.get(1), Priority.ALWAYS);
+        return List.of(hbox);
+    }
 
-		hbox.getChildren().addAll(buttons);
+    public List<Node> getToolNodes2() {
+        if (buttonRemoveLevel == null) {
+            buttonRemoveLevel = commandRegistry.createButton(new LevelClear(this), e -> {
+                List<SgyFile> files = new ArrayList<>();
+                files.addAll(model.getFileManager().getGprFiles());
+                files.addAll(model.getFileManager().getCsvFiles());
+                model.getFileManager().updateFiles(files);
+                updateButtons(selectedFile);
+            });
+        }
 
-		return List.of(hbox);
-	}
+        if (buttonLevelGround == null) {
+            buttonLevelGround = commandRegistry.createButton(new LevelGround(this), e -> {
+                updateButtons(selectedFile);
+            });
+        }
 
-	public List<Node> getToolNodes2() {
-		buttonKmlToFlag = commandRegistry.createButton(new KmlToFlag(),
-			e -> {
-			});
-		buttonCancelKmlToFlag = commandRegistry.createButton(new CancelKmlToFlag(),
-			e -> {
-			});
+        if (slider == null) {
+            slider = uiUtils.createSlider(levelSettings.levelPreviewShift, WhatChanged.Change.justdraw, -50, 50, """
+                    Elevation lag, 
+                    traces""", new ChangeListener<Number>() {
+                @Override
+                public void changed(
+                        ObservableValue<? extends Number> observable,
+                        Number oldValue,
+                        Number newValue) {
+                    if (selectedFile == null) {
+                        return;
+                    }
+                    GPRChart gprChart = model.getGprChart(selectedFile);
+                    if (gprChart == null) {
+                        return;
+                    }
 
-		levelPreview = uiUtils.prepareToggleButton("Level preview", null, 
-				levelSettings.levelPreview,
-				WhatChanged.Change.justdraw);
+                    TraceFile file = gprChart.getField().getFile();
+                    file.getGroundProfile().setOffset(newValue.intValue());
+                    model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+                }
+            });
+        }
 
-		if (buttonRemoveLevel == null) {	
-			buttonRemoveLevel = commandRegistry.createButton(new LevelClear(this), e -> { 
-				List<SgyFile> files = new ArrayList<>();
-				files.addAll(model.getFileManager().getGprFiles());
-				files.addAll(model.getFileManager().getCsvFiles());
-				model.getFileManager().updateFiles(files);
-				updateButtons(selectedFile);
-			});
-		}
-		
-		if (buttonLevelGround == null) {
-			buttonLevelGround = commandRegistry.createButton(new LevelGround(this), e -> {				
-				updateButtons(selectedFile);
-			});		
-		}		
-		
-		if (slider == null) {
-			slider = uiUtils.createSlider(levelSettings.levelPreviewShift, WhatChanged.Change.justdraw, -50, 50, """
-			Elevation lag, 
-			traces""", 	new ChangeListener<Number>() {
-				@Override
-				public void changed(
-					ObservableValue<? extends Number> observable,
-					Number oldValue,
-					Number newValue) {
-					if (selectedFile == null) {
-						return;
-					}
-					GPRChart gprChart = model.getGprChart(selectedFile);
-					if (gprChart == null) {
-						return;
-					}
+        List<Node> result = new ArrayList<>();
 
-					TraceFile file = gprChart.getField().getFile();
-					file.getGroundProfile().setOffset(newValue.intValue());
-					model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
-				}
-		});
-		}
+        HBox hbox = new HBox();
+        hbox.setSpacing(8);
 
-		List<Node> result = new ArrayList<>();
-		
-		if (!AppContext.PRODUCTION) {
-		    result.addAll(Arrays.asList(
-			 
-			commandRegistry.createButton(new LevelScanner(), "scanLevel.png", 
-					e -> {
-						updateButtons(selectedFile);
-					}),
-			commandRegistry.createButton(new LevelManualSetter(model),
-					e -> {
-						updateButtons(selectedFile);
-					}),
-			
-				buttonRemoveLevel, buttonLevelGround, levelPreview, slider, buttonKmlToFlag, buttonCancelKmlToFlag
-		
-		    	));		
-		} else {
-			HBox hbox = new HBox();
-			hbox.setSpacing(8);
+        buttonRemoveLevel.setMaxWidth(Double.MAX_VALUE);
+        buttonLevelGround.setMaxWidth(Double.MAX_VALUE);
 
-			buttonRemoveLevel.setMaxWidth(Double.MAX_VALUE);
-			buttonLevelGround.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(buttonRemoveLevel, Priority.ALWAYS);
+        HBox.setHgrow(buttonLevelGround, Priority.ALWAYS);
 
-			HBox.setHgrow(buttonRemoveLevel, Priority.ALWAYS);
-			HBox.setHgrow(buttonLevelGround, Priority.ALWAYS);
+        hbox.getChildren().addAll(buttonLevelGround, buttonRemoveLevel);
+        result.addAll(List.of(
+                slider,
+                hbox
+        ));
 
-			hbox.getChildren().addAll(buttonLevelGround, buttonRemoveLevel);					
-			result.addAll(List.of(
-					slider,
-					hbox 
-			));
-		}
+        VBox vbox = new VBox();
+        vbox.setSpacing(5);
 
-		VBox vbox = new VBox();
-		vbox.setSpacing(5);
+        updateButtons(selectedFile);
 
-		updateButtons(selectedFile);
+        vbox.getChildren().addAll(result);
 
-		vbox.getChildren().addAll(result);
+        return List.of(vbox);
+    }
 
-		return List.of(vbox);
-	}
+    private void updateButtons(TraceFile file) {
+        if (buttonSpreadCoord != null) {
+            buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
+        }
 
-	private void updateButtons(TraceFile file) {
+        if (buttonLevelGround != null) {
+            buttonLevelGround.setDisable(!isGroundProfileExists(file));
+        }
+        if (buttonRemoveLevel != null) {
+            buttonRemoveLevel.setDisable(!isUndoFilesExists());
+        }
+        if (slider != null) {
+            slider.setDisable(!isGroundProfileExists(file));
+        }
+    }
 
-		if (buttonSpreadCoord != null) {
-			buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
-		}
+    private boolean isUndoFilesExists() {
+        return undoFiles != null && !undoFiles.isEmpty();
+    }
 
-		if (buttonLevelGround != null) {
-			buttonLevelGround.setDisable(!isGroundProfileExists(file));
-		}
-		if (buttonRemoveLevel != null) {
-			buttonRemoveLevel.setDisable(!isUndoFilesExists());
-		}
-		if (levelPreview != null) {
-			levelPreview.setDisable(!isGroundProfileExists(file));
-		}
-		if (slider != null) {
-			slider.setDisable(!isGroundProfileExists(file));
-		}
-	}
-	
-	private boolean isUndoFilesExists() {
-		return undoFiles != null && !undoFiles.isEmpty();
-	}
+    protected boolean isGroundProfileExists(TraceFile file) {
+        GPRChart gprChart = model.getGprChart(file);
+        return gprChart != null && file.getGroundProfile() != null;
+    }
 
-	protected boolean isGroundProfileExists(TraceFile file) {
-		GPRChart gprChart = model.getGprChart(file);
-		return gprChart != null && file.getGroundProfile() != null;
-	}
-	
-	private void clearForNewFile(TraceFile file) {
-		updateButtons(file);
-	}
-	
-	@EventListener
-	private void somethingChanged(WhatChanged changed) {
-		if (changed.isUpdateButtons() || changed.isTraceCut()) {
-			
-			clearForNewFile(selectedFile);
-			
-			if (buttonSpreadCoord != null) {
-				buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
-			}
+    private void clearForNewFile(TraceFile file) {
+        updateButtons(file);
+    }
 
-			if (buttonKmlToFlag != null) {
-				buttonKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-				buttonKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-			}
+    @EventListener
+    private void somethingChanged(WhatChanged changed) {
+        if (changed.isUpdateButtons() || changed.isTraceCut()) {
+            clearForNewFile(selectedFile);
 
-			if (buttonCancelKmlToFlag != null) {
-				buttonCancelKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-				buttonCancelKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-			}
-		}
-	}
+            if (buttonSpreadCoord != null) {
+                buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
+            }
+        }
+    }
 
-	@EventListener
-	private void fileOpened(FileOpenedEvent event) {
-		if (buttonSpreadCoord != null) {
-			buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
-		}
+    @EventListener
+    private void fileOpened(FileOpenedEvent event) {
+        if (buttonSpreadCoord != null) {
+            buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
+        }
+    }
 
-		if (buttonKmlToFlag != null) {
-			buttonKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-			buttonKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-		}
+    public List<TraceFile> getUndoFiles() {
+        return undoFiles;
+    }
 
-		if (buttonCancelKmlToFlag != null) {
-			buttonCancelKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-			buttonCancelKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-		}
-	}
-	
-	public List<TraceFile> getUndoFiles() {
-		return undoFiles;
-	}
-
-	public void setUndoFiles(List<TraceFile> undoFiles) {
-		this.undoFiles = undoFiles;
-	}
+    public void setUndoFiles(List<TraceFile> undoFiles) {
+        this.undoFiles = undoFiles;
+    }
 }

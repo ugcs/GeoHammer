@@ -18,8 +18,6 @@ public class HorizontalProfile {
 
 	private int maxDepth;
 
-	private int avgDepth;
-
 	public HorizontalProfile(int size) {
 		depths = new int[size];
 	}
@@ -68,10 +66,6 @@ public class HorizontalProfile {
 		return maxDepth;
 	}
 
-	public int getAverageDepth() {
-		return avgDepth;
-	}
-
 	public int getHeight() {
 		return maxDepth - minDepth;
 	}
@@ -82,13 +76,10 @@ public class HorizontalProfile {
 		minDepth = depths.length > 0 ? depths[0] : 0;
 		maxDepth = minDepth;
 
-		long sum = 0;
         for (int depth : depths) {
             minDepth = Math.min(depth, minDepth);
             maxDepth = Math.max(depth, maxDepth);
-            sum += depth;
         }
-		avgDepth = depths.length > 0 ? (int)(sum / depths.length) : 0;
 	}
 
 	private void smooth() {

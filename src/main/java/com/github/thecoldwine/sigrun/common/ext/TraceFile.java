@@ -2,8 +2,8 @@ package com.github.thecoldwine.sigrun.common.ext;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
-import com.ugcs.gprvisualizer.app.commands.DistCalculator;
-import com.ugcs.gprvisualizer.app.commands.DistancesSmoother;
+import com.ugcs.gprvisualizer.app.commands.DistanceCalculator;
+import com.ugcs.gprvisualizer.app.commands.DistanceSmoother;
 import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.app.meta.SampleRange;
@@ -211,10 +211,10 @@ public abstract class TraceFile extends SgyFile {
     public void updateTraceDistances() {
         //	calcDistances();
         //	prolongDistances();
-        new DistCalculator().execute(this, null);
+        new DistanceCalculator().execute(this, null);
         setSpreadCoordinatesNecessary(SpreadCoordinates.isSpreadingNecessary(this));
         //smoothDistances();
-        new DistancesSmoother().execute(this, null);
+        new DistanceSmoother().execute(this, null);
     }
 
     public void copyMarkedTracesToAuxElements() {

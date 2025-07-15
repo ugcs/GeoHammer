@@ -61,9 +61,6 @@ public class PrismDrawer {
 		Settings profileSettings = field.getField().getProfileSettings();
 		boolean showInlineHyperbolas = profileSettings.showGood.booleanValue();
 		boolean showEdge = profileSettings.showEdge.booleanValue();
-		boolean shiftGround = profileSettings.levelPreview.booleanValue();
-
-		HorizontalProfile gp = field.getFile().getGroundProfile();
 
 		List<Trace> traces = field.getField().getGprTraces();
 		
@@ -88,12 +85,6 @@ public class PrismDrawer {
 			Trace trace = traces.get(i);
 			float middleAmp = profileSettings.hypermiddleamp;
 
-			int horshift = profileSettings.levelPreviewShift.intValue();
-			int gpi = i + horshift;
-			int vertshift = shiftGround && gp != null && gpi >=0 && gpi < gp.size()
-					? gp.getDepth(i + horshift) - gp.getAverageDepth()
-					: 0;
-			
 			for (int j = field.getStartSample();
                  j < Math.min(lastSample, trace.numSamples()); j++) {
 				
@@ -105,11 +96,10 @@ public class PrismDrawer {
 					continue;
 				}
 				
-				int z = j + vertshift;
-				if (z < 0 || z >= trace.numSamples()) {
+				if (j < 0 || j >= trace.numSamples()) {
 					continue;
 				}
-				float v = trace.getSample(z);
+				float v = trace.getSample(j);
 				int color = tanh.trans(v - middleAmp);
 				
 				if (showEdge && trace.getEdge(j) > 0) {

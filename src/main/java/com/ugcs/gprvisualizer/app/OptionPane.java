@@ -140,13 +140,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 
-        Tab tab2 = new Tab("Experimental");
-
 		prepareCsvTab(csvTab);
-
-        if (!AppContext.PRODUCTION) {
-        	tabPane.getTabs().add(tab2);
-        }
 	}
 
 	private void prepareCsvTab(Tab tab) {

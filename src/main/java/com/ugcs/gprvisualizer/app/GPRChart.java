@@ -343,7 +343,7 @@ public class GPRChart extends Chart {
         if (file.getGroundProfile() != null) {
             graphicsContext.setStroke(LEVEL_STROKE);
             drawHorizontalProfile(graphicsContext,
-                    0, file.getGroundProfile(),
+                    file.getGroundProfile(),
                     shiftGround.intValue());
         }
     }
@@ -446,20 +446,17 @@ public class GPRChart extends Chart {
     }
 
     private void drawHorizontalProfile(Graphics2D g2,
-                                       int startTraceIndex, HorizontalProfile pf,
-                                       int voffset) {
-
+            HorizontalProfile pf, int voffset) {
         g2.setColor(pf.getColor());
         Point2D p1 = traceSampleToScreenCenter(new TraceSample(
-                startTraceIndex, pf.getDepth(0) + voffset));
+                0, pf.getDepth(0) + voffset));
         int max2 = 0;
 
         for (int i = 1; i < pf.size(); i++) {
 
             max2 = Math.max(max2, pf.getDepth(i) + voffset);
 
-            Point2D p2 = traceSampleToScreenCenter(new TraceSample(
-                    startTraceIndex + i, max2));
+            Point2D p2 = traceSampleToScreenCenter(new TraceSample(i, max2));
 
             if (p2.getX() - p1.getX() > 0 || Math.abs(p2.getY() - p1.getY()) > 0) {
                 g2.drawLine((int) p1.getX(), (int) p1.getY(), (int) p2.getX(), (int) p2.getY());
@@ -527,7 +524,7 @@ public class GPRChart extends Chart {
         canvas.setCursor(cursor);
     }
 
-    private void repaint() {
+    public void repaint() {
         draw(width, height);
     }
 

@@ -9,7 +9,6 @@ import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public abstract class FileSnapshot<T extends SgyFile> implements UndoSnapshot {
@@ -28,7 +27,7 @@ public abstract class FileSnapshot<T extends SgyFile> implements UndoSnapshot {
         return file;
     }
 
-    abstract void restoreFile(Model model);
+    public abstract void restoreFile(Model model);
 
     @Override
     public void restore(Model model) {

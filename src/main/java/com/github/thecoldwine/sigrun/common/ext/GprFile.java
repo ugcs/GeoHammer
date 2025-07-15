@@ -22,6 +22,7 @@ import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.gpr.SgyLoader;
+import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
@@ -264,6 +265,10 @@ public class GprFile extends TraceFile {
 			copy.metaFile = new MetaFile();
 			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
 			copy.metaFile.initTraces(tracesCopy);
+		}
+
+		if (groundProfile != null) {
+			copy.groundProfile = new HorizontalProfile(groundProfile, copy.metaFile);
 		}
 
 		copy.setTraces(tracesCopy);

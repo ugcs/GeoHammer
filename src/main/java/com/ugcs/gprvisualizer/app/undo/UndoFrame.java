@@ -1,15 +1,11 @@
 package com.ugcs.gprvisualizer.app.undo;
 
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Nulls;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
@@ -23,18 +19,22 @@ public class UndoFrame {
         this.snapshots = snapshots;
     }
 
+    public UndoFrame(UndoSnapshot snapshot) {
+        Check.notNull(snapshot);
+
+        this.snapshots = new ArrayList<>();
+        this.snapshots.add(snapshot);
+    }
+
     public List<UndoSnapshot> getSnapshots() {
         return snapshots;
     }
 
     private static UndoSnapshot createSnapshot(SgyFile file) {
-        if (file instanceof TraceFile traceFile) {
-            return new GprSnapshot(traceFile);
+        if (file == null) {
+            return null;
         }
-        if (file instanceof CsvFile csvFile) {
-            return new CsvSnapshot(csvFile);
-        }
-        return null;
+        return file.createSnapshot();
     }
 
     public static UndoFrame create(Collection<SgyFile> files) {

@@ -92,10 +92,10 @@ public class PositionFile {
 		StretchArray altitudes = toAltitudesInSamples(coordinates, samplesPerMeter);
 
 		// create horizontal profile
-
+		int numGlobalTraces = traceFile.traces.size();
 		HorizontalProfile profile = new HorizontalProfile(
-				altitudes.stretchToArray(traceFile.numTraces()));
-		profile.finish();
+				altitudes.stretchToArray(numGlobalTraces),
+				traceFile.getMetaFile());
 		profile.setColor(Color.red);
 
 		this.positionFile = positionFile;

@@ -278,11 +278,9 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	}
 
 	public ScanProfile getFileScanProfile(TraceFile file) {
-		ScanProfile profile;
+		ScanProfile profile = null;
 		if (radarMapSettings.radarMapMode == RadarMapMode.AMPLITUDE) {
 			profile = file.getAmplScan();
-		} else {
-			profile = file.getAlgoScan();
 		}
 		return profile;
 	}

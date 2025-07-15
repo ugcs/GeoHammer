@@ -4,12 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.ugcs.gprvisualizer.app.GPRChart;
 
+import com.ugcs.gprvisualizer.app.undo.UndoFrame;
+import com.ugcs.gprvisualizer.app.undo.UndoModel;
+import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Settings;
+import com.ugcs.gprvisualizer.utils.Nulls;
+import javafx.event.ActionEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -18,11 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.UiUtils;
 import com.ugcs.gprvisualizer.app.commands.BackgroundNoiseRemover;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
-import com.ugcs.gprvisualizer.app.commands.LevelClear;
 import com.ugcs.gprvisualizer.app.commands.LevelGround;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.draw.ToolProducer;
@@ -42,20 +44,19 @@ public class LevelFilter implements ToolProducer {
     private Model model;
 
     @Autowired
+    private UndoModel undoModel;
+
+    @Autowired
     private UiUtils uiUtils;
 
     @Autowired
     private CommandRegistry commandRegistry;
-
-    private Button buttonRemoveLevel;
 
     private Button buttonLevelGround;
 
     private Node slider;
 
     private Button buttonSpreadCoord;
-
-    private List<TraceFile> undoFiles;
 
     private TraceFile selectedFile;
 
@@ -94,20 +95,9 @@ public class LevelFilter implements ToolProducer {
     }
 
     public List<Node> getToolNodes2() {
-        if (buttonRemoveLevel == null) {
-            buttonRemoveLevel = commandRegistry.createButton(new LevelClear(this), e -> {
-                List<SgyFile> files = new ArrayList<>();
-                files.addAll(model.getFileManager().getGprFiles());
-                files.addAll(model.getFileManager().getCsvFiles());
-                model.getFileManager().updateFiles(files);
-                updateButtons(selectedFile);
-            });
-        }
-
         if (buttonLevelGround == null) {
-            buttonLevelGround = commandRegistry.createButton(new LevelGround(this), e -> {
-                updateButtons(selectedFile);
-            });
+            buttonLevelGround = new Button("Flatten surface");
+            buttonLevelGround.setOnAction(this::flattenSurface);
         }
 
         if (slider == null) {
@@ -122,14 +112,11 @@ public class LevelFilter implements ToolProducer {
                     if (selectedFile == null) {
                         return;
                     }
-                    GPRChart gprChart = model.getGprChart(selectedFile);
-                    if (gprChart == null) {
-                        return;
+                    HorizontalProfile profile = selectedFile.getGroundProfile();
+                    if (profile != null) {
+                        profile.setOffset(newValue.intValue());
+                        model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
                     }
-
-                    TraceFile file = gprChart.getField().getFile();
-                    file.getGroundProfile().setOffset(newValue.intValue());
-                    model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
                 }
             });
         }
@@ -139,16 +126,14 @@ public class LevelFilter implements ToolProducer {
         HBox hbox = new HBox();
         hbox.setSpacing(8);
 
-        buttonRemoveLevel.setMaxWidth(Double.MAX_VALUE);
         buttonLevelGround.setMaxWidth(Double.MAX_VALUE);
 
-        HBox.setHgrow(buttonRemoveLevel, Priority.ALWAYS);
         HBox.setHgrow(buttonLevelGround, Priority.ALWAYS);
 
-        hbox.getChildren().addAll(buttonLevelGround, buttonRemoveLevel);
+        hbox.getChildren().addAll(buttonLevelGround);
         result.addAll(List.of(
                 slider,
-                hbox
+                buttonLevelGround
         ));
 
         VBox vbox = new VBox();
@@ -161,29 +146,40 @@ public class LevelFilter implements ToolProducer {
         return List.of(vbox);
     }
 
+    private void saveUndoSnapshots(List<TraceFile> files) {
+        files = Nulls.toEmpty(files);
+        ArrayList<UndoSnapshot> snapshots = new ArrayList<>(files.size());
+        for (TraceFile file : files) {
+            if (file.getGroundProfile() == null) {
+                continue;
+            }
+            snapshots.add(file.createSnapshotWithTraces());
+        }
+        if (!snapshots.isEmpty()) {
+            undoModel.push(new UndoFrame(snapshots));
+        }
+    }
+
+    private void flattenSurface(ActionEvent event) {
+        saveUndoSnapshots(model.getFileManager().getGprFiles());
+        commandRegistry.runForGprFiles(new LevelGround());
+        updateButtons(selectedFile);
+    }
+
     private void updateButtons(TraceFile file) {
         if (buttonSpreadCoord != null) {
             buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
         }
-
         if (buttonLevelGround != null) {
             buttonLevelGround.setDisable(!isGroundProfileExists(file));
-        }
-        if (buttonRemoveLevel != null) {
-            buttonRemoveLevel.setDisable(!isUndoFilesExists());
         }
         if (slider != null) {
             slider.setDisable(!isGroundProfileExists(file));
         }
     }
 
-    private boolean isUndoFilesExists() {
-        return undoFiles != null && !undoFiles.isEmpty();
-    }
-
     protected boolean isGroundProfileExists(TraceFile file) {
-        GPRChart gprChart = model.getGprChart(file);
-        return gprChart != null && file.getGroundProfile() != null;
+        return file != null && file.getGroundProfile() != null;
     }
 
     private void clearForNewFile(TraceFile file) {
@@ -206,13 +202,5 @@ public class LevelFilter implements ToolProducer {
         if (buttonSpreadCoord != null) {
             buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
         }
-    }
-
-    public List<TraceFile> getUndoFiles() {
-        return undoFiles;
-    }
-
-    public void setUndoFiles(List<TraceFile> undoFiles) {
-        this.undoFiles = undoFiles;
     }
 }

@@ -1,17 +1,23 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
 import com.ugcs.gprvisualizer.app.AppContext;
+import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.commands.DistanceCalculator;
 import com.ugcs.gprvisualizer.app.commands.DistanceSmoother;
 import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.app.meta.SampleRange;
+import com.ugcs.gprvisualizer.app.meta.TraceMeta;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
+import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
+import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.math.ScanProfile;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
 import org.jspecify.annotations.Nullable;
@@ -33,6 +39,7 @@ public abstract class TraceFile extends SgyFile {
 
     protected List<Trace> traces = new ArrayList<>();
 
+    @Nullable
     protected MetaFile metaFile;
 
     @Nullable
@@ -41,11 +48,7 @@ public abstract class TraceFile extends SgyFile {
     private boolean spreadCoordinatesNecessary = false;
 
     @Nullable
-    private HorizontalProfile groundProfile;
-
-    @Nullable
-    // hyperbola probability calculated by AlgorithmicScan
-    private ScanProfile algoScan;
+    protected HorizontalProfile groundProfile;
 
     @Nullable
     // amplitude
@@ -102,14 +105,6 @@ public abstract class TraceFile extends SgyFile {
 
     public abstract double getSamplesToCmAir();
 
-    public @Nullable ScanProfile getAlgoScan() {
-        return algoScan;
-    }
-
-    public void setAlgoScan(@Nullable ScanProfile algoScan) {
-        this.algoScan = algoScan;
-    }
-
     public @Nullable ScanProfile getAmplScan() {
         return amplScan;
     }
@@ -163,6 +158,15 @@ public abstract class TraceFile extends SgyFile {
 
     @Override
     public abstract TraceFile copy();
+
+    @Override
+    public FileSnapshot<TraceFile> createSnapshot() {
+        return new Snapshot(this);
+    }
+
+    public FileSnapshot<TraceFile> createSnapshotWithTraces() {
+        return new SnapshotWithTraces(this);
+    }
 
     public abstract void normalize();
 
@@ -230,25 +234,75 @@ public abstract class TraceFile extends SgyFile {
 
         @Override
         public Trace get(int index) {
-            if (metaFile == null) {
-                return traces.get(index);
-            }
-
-            List<? extends GeoData> values = metaFile.getValues();
-            if (values.get(index) instanceof TraceGeoData value) {
-                return traces.get(value.getTraceIndex());
-            }
-            throw new IllegalStateException();
+            int traceIndex = metaFile != null
+                    ? metaFile.getTraceIndex(index)
+                    : index;
+            return traces.get(traceIndex);
         }
 
         @Override
         public int size() {
+            return metaFile != null
+                    ? metaFile.numTraces()
+                    : traces.size();
+        }
+    }
+
+    public static class Snapshot extends FileSnapshot<TraceFile> {
+
+        private final TraceMeta meta;
+
+        public Snapshot(TraceFile file) {
+            super(file);
+
+            this.meta = copyMeta(file);
+        }
+
+        private static TraceMeta copyMeta(TraceFile file) {
+            MetaFile metaFile = file.getMetaFile();
+            return metaFile != null
+                    ? metaFile.getMetaFromState()
+                    : null;
+        }
+
+        @Override
+        public void restoreFile(Model model) {
+            if (meta == null) {
+                return; // no meta
+            }
+            MetaFile metaFile = file.getMetaFile();
             if (metaFile == null) {
-                return traces.size();
+                return; // no meta file
             }
 
-            List<? extends GeoData> values = metaFile.getValues();
-            return values.size();
+            metaFile.setMetaToState(meta);
+            file.updateTracesFromMeta();
+        }
+    }
+
+    public static class SnapshotWithTraces extends Snapshot {
+
+        private List<Trace> traces;
+
+        private List<BaseObject> elements;
+
+        private HorizontalProfile profile;
+
+        public SnapshotWithTraces(TraceFile file) {
+            super(file);
+
+            this.traces = Traces.copy(file.traces);
+            this.elements = AuxElements.copy(file.getAuxElements());
+            this.profile = file.getGroundProfile();
+        }
+
+        @Override
+        public void restoreFile(Model model) {
+            file.traces = traces;
+            file.setAuxElements(elements);
+            file.setGroundProfile(profile);
+
+            super.restoreFile(model);
         }
     }
 }

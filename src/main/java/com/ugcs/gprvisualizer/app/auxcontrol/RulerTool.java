@@ -201,45 +201,6 @@ public class RulerTool extends BaseObjectImpl {
 		return diag;
 	}
 
-	public static int diagonalToSmp(TraceFile file, int tr, int smp, double c) {
-		int grn = file.getGroundProfile().getDepth(tr);
-	
-		int i=0;
-		double dst = 0;
-		while (dst < c) {
-			if (i < grn) {
-				dst += file.getSamplesToCmAir();
-			} else {
-				dst += file.getSamplesToCmGrn();
-			}
-			i++;
-		}
-
-		return i;
-	}
-		
-	public static int diagonalToSmp2(TraceFile file, int tr, int smp, double c) {
-		int grn = file.getGroundProfile().getDepth(tr);
-		
-		//part of air
-		
-		double fullCm = distanceCm(file, tr, tr, 0, smp);
-		double grndCm = distanceCm(file, tr, tr, 0, grn);
-		double f = grndCm / fullCm;
-		
-		f = Math.clamp(f, 0, 1);
-		
-		double diagAir = c * f;
-		double diagGrn = c * (1 - f);
-		
-		double smpAir = diagAir / file.getSamplesToCmAir();
-		double smpGrn = diagGrn / file.getSamplesToCmGrn();
-		
-		double smpSum = smpAir + smpGrn;
-
-		return (int) smpSum;
-	}
-
 	@Override
 	public List<BaseObject> getControls() {
 		return List.of(anch1, anch2);

@@ -1,10 +1,19 @@
 package com.ugcs.gprvisualizer.math;
 
+import com.github.thecoldwine.sigrun.common.ext.MetaFile;
+import com.ugcs.gprvisualizer.app.meta.SampleRange;
+import com.ugcs.gprvisualizer.utils.Check;
+import org.jspecify.annotations.Nullable;
+
 import java.awt.Color;
+import java.util.Arrays;
 
 public class HorizontalProfile {
 
 	private static final int SMOOTHING_WINDOW = 7;
+
+	@Nullable
+	private MetaFile metaFile;
 
 	private Color color = Color.red;
 
@@ -14,16 +23,23 @@ public class HorizontalProfile {
 	// depths in samples
 	private int[] depths;
 
-	private int minDepth;
+	public HorizontalProfile(int[] depths, MetaFile metaFile) {
+		Check.notNull(depths);
 
-	private int maxDepth;
+		this.depths = depths;
+		this.metaFile = metaFile;
 
-	public HorizontalProfile(int size) {
-		depths = new int[size];
+		finish();
 	}
 
-	public HorizontalProfile(int[] depths) {
-		this.depths = depths;
+	public HorizontalProfile(HorizontalProfile source, MetaFile metaFile) {
+		Check.notNull(source);
+
+		this.depths = Arrays.copyOf(source.depths, source.depths.length);
+		this.offset = source.offset;
+		this.metaFile = metaFile;
+
+		finish();
 	}
 
 	public Color getColor() {
@@ -43,39 +59,40 @@ public class HorizontalProfile {
 	}
 
 	public int size() {
-		return depths.length;
+		return metaFile != null
+				? metaFile.numTraces()
+				: depths.length;
+	}
+
+	private int getIndex(int localIndex, int offset) {
+		// global trace index
+		int globalIndex = metaFile != null
+				? metaFile.getTraceIndex(localIndex)
+				: localIndex;
+		// offset index
+		return globalIndex - offset;
+	}
+
+	private int relativeToSampleRange(int depth) {
+		if (metaFile == null) {
+			return depth;
+		}
+		SampleRange sampleRange = metaFile.getSampleRange();
+		if (sampleRange == null) {
+			return depth;
+		}
+		depth = Math.clamp(depth, sampleRange.getFrom(), sampleRange.getTo() - 1);
+		return depth - sampleRange.getFrom();
 	}
 
 	public int getDepth(int index) {
-		int i = index - offset;
-		return i >= 0 && i < depths.length ? depths[i] : 0;
-	}
-
-	public void setDepth(int index, int depth) {
-		int i = index - offset;
-		if (i >= 0 && i < depths.length) {
-			depths[i] = depth;
-		}
-	}
-
-	public int getMinDepth() {
-		return minDepth;
-	}
-
-	public int getMaxDepth() {
-		return maxDepth;
+		int i = getIndex(index, offset);
+		int depth = i >= 0 && i < depths.length ? depths[i] : 0;
+		return relativeToSampleRange(depth);
 	}
 
 	public void finish() {
 		smooth();
-
-		minDepth = depths.length > 0 ? depths[0] : 0;
-		maxDepth = minDepth;
-
-        for (int depth : depths) {
-            minDepth = Math.min(depth, minDepth);
-            maxDepth = Math.max(depth, maxDepth);
-        }
 	}
 
 	private void smooth() {
@@ -105,5 +122,17 @@ public class HorizontalProfile {
 		}
 
 		return (int) Math.round(sum / cnt);
+	}
+
+	public int getLevel() {
+		int n = size();
+		int minDepth = n > 0 ? getDepth(0) : 0;
+		int maxDepth = minDepth;
+		for (int i = 0; i < n; i++) {
+			int depth = getDepth(i);
+			minDepth = Math.min(depth, minDepth);
+			maxDepth = Math.max(depth, maxDepth);
+		}
+		return (minDepth + maxDepth) / 2;
 	}
 }

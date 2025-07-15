@@ -1121,8 +1121,11 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	@EventListener
     private void handleFileSelectedEvent(FileSelectedEvent event) {
+		// do nothing if selected file is same as previously selected
+		if (Objects.equals(event.getFile(), selectedFile)) {
+			return;
+		}
         selectedFile = event.getFile();
-
 		if (selectedFile == null) {
 			clear();
 			return;

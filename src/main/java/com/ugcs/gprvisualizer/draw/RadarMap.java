@@ -80,21 +80,11 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 
 	private final Settings radarMapSettings = new Settings();
 	
-
-	
 	private EventHandler<ActionEvent> showMapListener = new EventHandler<ActionEvent>() {
 		
 		@Override
 		public void handle(ActionEvent event) {
-
-			//setActive(showMapButtonAlg.isSelected() || showMapButtonAmp.isSelected());
 			setActive(showMapButtonAmp.isSelected());
-			//vertBox.setDisable(!isActive());
-			
-			
-			/*if (showMapButtonAlg.isSelected()) {
-				model.getSettings().radarMapMode = RadarMapMode.SEARCH;
-			}*/
 
 			if (showMapButtonAmp.isSelected()) {
                 radarMapSettings.radarMapMode = RadarMapMode.AMPLITUDE;
@@ -103,40 +93,22 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 			
 			if (isActive()) {
 				q.add();
-				
 			} else {
 				q.clear();
 				getRepaintListener().repaint();
 			}
-			
 		}
 	};
 	
 	ToggleGroup group = new ToggleGroup();
 	private ToggleButton showMapButtonAmp = ResourceImageHolder.setButtonImage(ResourceImageHolder.LIGHT, new ToggleButton());
-			//new ToggleButton("", ResourceImageHolder.getImageView("light-20.png"));
-	
+
 	{
 		showMapButtonAmp.setTooltip(new Tooltip("Toggle amplitude map layer"));
 		showMapButtonAmp.setSelected(true);
 		showMapButtonAmp.setOnAction(showMapListener);
 		showMapButtonAmp.setToggleGroup(group);
 	}
-	
-	//private ToggleButton showMapButtonAlg = 
-	//		new ToggleButton("", ResourceImageHolder.getImageView("floodlight-20.png"));
-	
-	/*{
-		showMapButtonAlg.setTooltip(new Tooltip("Toggle algorithm search layer"));
-		showMapButtonAlg.setSelected(false);
-		showMapButtonAlg.setOnAction(showMapListener);
-		showMapButtonAlg.setToggleGroup(group);
-	}*/
-	
-	/*public void selectAlgMode() {
-		showMapButtonAlg.setSelected(true);		
-		showMapListener.handle(null);
-	}*/
 	
 	private ChangeListener<Number> sliderListener = new ChangeListener<Number>() {
 		@Override
@@ -173,14 +145,12 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	public void initQ() {
 		q = new ThrQueue(model, mapView) {
 			protected void draw(BufferedImage backImg, MapField field) {
-				
 				createHiRes(field, backImg);
 			}
 			
 			public void ready() {
 				getRepaintListener().repaint();
 			}			
-			
 		};
 	}
 	
@@ -232,8 +202,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 				|| changed.isAdjusting() 
 				|| changed.isMapscroll() 
 				|| changed.isWindowresized()) {
-			
-			//System.out.println("RadarMap start asinq");
+
 			q.add();
 		}		
 	}
@@ -248,8 +217,6 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 
 	// prepare image in thread
 	public void createHiRes(MapField field, BufferedImage img) {
-		
-				
 		DblArray da = new DblArray(img.getWidth(), img.getHeight());
 
 		int[] palette;
@@ -332,10 +299,6 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		return List.of(
 			showMapButtonAmp
 		);
-
-		//return Arrays.asList(
-		//	showMapButtonAmp, showMapButtonAlg);	
-		
 	}
 
 	private ArrayBuilder getArrayBuilder() {
@@ -345,5 +308,4 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 			return scaleArrayBuilder;
 		}
 	}
-
 }

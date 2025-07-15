@@ -1,7 +1,6 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
 import com.ugcs.gprvisualizer.app.AppContext;
-import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.commands.DistanceCalculator;
 import com.ugcs.gprvisualizer.app.commands.DistanceSmoother;
@@ -11,13 +10,11 @@ import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.meta.TraceMeta;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
-import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.math.ScanProfile;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
 import org.jspecify.annotations.Nullable;
@@ -188,7 +185,7 @@ public abstract class TraceFile extends SgyFile {
         return new TraceList();
     }
 
-    public void setTraces(List<Trace> traces) {
+    protected void setTraces(List<Trace> traces) {
         this.traces = traces;
         new EdgeFinder().execute(this, null);
     }
@@ -284,22 +281,18 @@ public abstract class TraceFile extends SgyFile {
 
         private List<Trace> traces;
 
-        private List<BaseObject> elements;
-
         private HorizontalProfile profile;
 
         public SnapshotWithTraces(TraceFile file) {
             super(file);
 
-            this.traces = Traces.copy(file.traces);
-            this.elements = AuxElements.copy(file.getAuxElements());
-            this.profile = file.getGroundProfile();
+            traces = Traces.copy(file.traces);
+            profile = file.getGroundProfile();
         }
 
         @Override
         public void restoreFile(Model model) {
-            file.traces = traces;
-            file.setAuxElements(elements);
+            file.setTraces(traces);
             file.setGroundProfile(profile);
 
             super.restoreFile(model);

@@ -1,0 +1,62 @@
+  # Template display name
+  name: "Geolux-RSS-2-AB"
+  # Code of template
+  code: "Geolux-RSS-2-AB"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: CSV
+  # Applies to the first 10 non-empty lines of the file to detect template
+  match-regex: >-
+    ^.*Date,Time,.*Latitude,Longitude,Heading,Altitude MSL,Altitude AGL,RSS:Direction,RSS:Velocity raw,RSS:Velocity filtered,RSS:Signal,RSS:Q1,RSS:Q2,RSS:Tilt,RSS:Trace
+  file-format:
+  # Applies to CSV type. 'true' if file has headers, otherwise false
+    has-header: true
+    # The symbol which used to make a comment
+    comment-prefix: '#'
+    # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+    # Applies to CSV type. The symbol to separate values from line in CSV file;
+    separator: ','
+  # Applied on a quality check to all data values
+  data-validation: '{LX:SNR} > 30 && {LX:SD} < 100'
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  data-mapping:
+    latitude:
+      header: Latitude
+    longitude:
+      header: Longitude
+    altitude:
+      header: Altitude AGL
+    time:
+      header: Time
+      format: 'H:mm:ss.fff'
+    date:
+      header: Date
+      format: 'yyyy/MM/dd'
+    data-values:
+      - header: "Heading"
+        semantic: "Heading"
+        units: "deg"
+      - header: "Altitude AGL"
+        semantic: "Altitude AGL"
+        units: "m"
+      - header: "RSS:Velocity raw"
+        semantic: "RSS:Velocity raw"
+        units: "m/s"
+      - header: "RSS:Velocity filtered"
+        semantic: "RSS:Velocity filtered"
+        units: "m/s"
+      - header: "RSS:Signal"
+        semantic: "RSS:Signal"
+        units: ""
+      - header: "RSS:Q1"
+        semantic: "LRSS:Q1"
+        units: ""
+      - header: "RSS:Q2"
+        semantic: "RSS:Q2"
+        units: ""
+      - header: "RSS:Tilt"
+        semantic: "RSS:Tilt"
+        units: ""
+
+
+

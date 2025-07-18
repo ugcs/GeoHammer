@@ -14,11 +14,12 @@ import org.springframework.stereotype.Component;
 @Component
 public final class AppContext implements ApplicationContextAware {
 	
-	public static boolean PRODUCTION = true;
-
 	public static Stage stage;
+
 	public static Scene scene;
+
 	public static Model model;
+
 	public static Status status;
 
 	private static ApplicationContext context;

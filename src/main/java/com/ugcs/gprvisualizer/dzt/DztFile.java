@@ -22,6 +22,7 @@ import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceGeoData;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.math.MinMaxAvg;
 import com.ugcs.gprvisualizer.obm.ObjectByteMapper;
 import com.ugcs.gprvisualizer.utils.AuxElements;
@@ -320,6 +321,10 @@ public class DztFile extends TraceFile {
 			copy.metaFile = new MetaFile();
 			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
 			copy.metaFile.initTraces(tracesCopy);
+		}
+
+		if (groundProfile != null) {
+			copy.groundProfile = new HorizontalProfile(groundProfile, copy.metaFile);
 		}
 
 		copy.setTraces(tracesCopy);

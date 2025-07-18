@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Optional;
 
+import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
@@ -14,65 +16,33 @@ import com.ugcs.gprvisualizer.app.parcers.csv.CSVParsersFactory;
 import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PositionFile {
 
-	private FileTemplates fileTemplates;
+	private static final Logger log = LoggerFactory.getLogger(PositionFile.class);
+
+	private FileTemplates templates;
 
 	@Nullable
 	private File positionFile;
 
-	public PositionFile(FileTemplates fileTemplates) {
-		this.fileTemplates = fileTemplates;
+	public PositionFile(FileTemplates templates) {
+		this.templates = templates;
 	}
 
-	public void load(TraceFile traceFile) throws Exception {
-		var positionFile = getPositionFileBySgy(traceFile.getFile());
-		if (positionFile.isPresent()) {
-			load(traceFile, positionFile.get());
-		} else {
-			System.out.println("Position file not found for " + traceFile.getFile().getAbsolutePath());
-		}
+	@Nullable
+	public File getPositionFile() {
+		return positionFile;
 	}
 
-	private void load(TraceFile traceFile, File positionFile) throws FileNotFoundException {
-		this.positionFile = positionFile;
-
-		String logPath = positionFile.getAbsolutePath();
-		var fileTemplate = fileTemplates.findTemplate(fileTemplates.getTemplates(), logPath);
-
-		if (fileTemplate == null) {
-			throw new RuntimeException("Can`t find template for file " + positionFile.getName());
+	private Optional<File> getPositionFileFor(File file) {
+		if (file == null) {
+			return Optional.empty();
 		}
-
-		System.out.println("template: " + fileTemplate.getName());
-		CsvParser parser = new CSVParsersFactory().createCSVParser(fileTemplate);
-
-		List<GeoCoordinates> coordinates = parser.parse(logPath);
-
-		HorizontalProfile hp = new HorizontalProfile(traceFile.numTraces());
-		StretchArray altArr = new StretchArray();
-
-		double hair = 100 / traceFile.getSamplesToCmAir();
-
-		for (GeoCoordinates coord : coordinates) {
-			if (coord instanceof GeoData && ((GeoData) coord).getSensorValue(GeoData.Semantic.ALTITUDE_AGL).data() != null) {
-				double alt = ((GeoData) coord).getSensorValue(GeoData.Semantic.ALTITUDE_AGL).data().doubleValue();
-				altArr.add((int) (alt * hair));
-			}
-		}
-
-		hp.deep = altArr.stretchToArray(traceFile.getTraces().size());
-
-		hp.finish(traceFile.getTraces());
-		hp.color = Color.red;
-
-		traceFile.setGroundProfile(hp);
-		traceFile.setGroundProfileSource(this);
-	}
-
-	private Optional<File> getPositionFileBySgy(File file) {
 		if (!FileTypes.isGprFile(file)) {
 			return Optional.empty();
 		}
@@ -97,8 +67,69 @@ public class PositionFile {
 		return Optional.empty();
 	}
 
-	@Nullable
-	public File getPositionFile() {
-		return positionFile;
+	public void load(TraceFile traceFile) throws Exception {
+		Check.notNull(traceFile);
+
+		var positionFile = getPositionFileFor(traceFile.getFile());
+		if (positionFile.isPresent()) {
+			load(traceFile, positionFile.get());
+		} else {
+			log.info("No position file found for {}", traceFile.getFile());
+		}
+	}
+
+	private void load(TraceFile traceFile, File positionFile) throws FileNotFoundException {
+		Check.notNull(traceFile);
+		Check.notNull(positionFile);
+
+		List<GeoCoordinates> coordinates = parsePositionFile(positionFile);
+
+		// sample distance in cm
+		double sampleDistance = traceFile.getSamplesToCmAir();
+		// num samples in a meter
+		double samplesPerMeter = 100.0 / sampleDistance;
+
+		StretchArray altitudes = toAltitudesInSamples(coordinates, samplesPerMeter);
+
+		// create horizontal profile
+		int numGlobalTraces = traceFile.traces.size();
+		HorizontalProfile profile = new HorizontalProfile(
+				altitudes.stretchToArray(numGlobalTraces),
+				traceFile.getMetaFile());
+		profile.setColor(Color.red);
+
+		this.positionFile = positionFile;
+		traceFile.setGroundProfileSource(this);
+		traceFile.setGroundProfile(profile);
+	}
+
+	private List<GeoCoordinates> parsePositionFile(File file) throws FileNotFoundException {
+		Check.notNull(file);
+
+		String path = file.getAbsolutePath();
+		var template = templates.findTemplate(templates.getTemplates(), path);
+		if (template == null) {
+			throw new RuntimeException("Can`t find template for file " + file.getName());
+		}
+
+		log.info("Using position file template: {}", template.getName());
+		CsvParser parser = new CSVParsersFactory().createCSVParser(template);
+        return parser.parse(path);
+	}
+
+	private StretchArray toAltitudesInSamples(List<GeoCoordinates> coordinates, double samplesPerMeter) {
+		StretchArray altitudes = new StretchArray();
+
+		for (GeoCoordinates c : Nulls.toEmpty(coordinates)) {
+			if (c instanceof GeoData geoData) {
+				SensorValue altitudeAgl = geoData.getSensorValue(GeoData.Semantic.ALTITUDE_AGL);
+				if (altitudeAgl != null && altitudeAgl.data() != null) {
+					double altitudeSamples = samplesPerMeter * altitudeAgl.data().doubleValue();
+					altitudes.add((int)altitudeSamples);
+				}
+			}
+		}
+
+		return altitudes;
 	}
 }

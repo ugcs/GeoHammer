@@ -4,22 +4,16 @@ import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.gpr.Model;
 
 public class EdgeFinder implements Command {
 
 	private static double SPEED_SM_NS_VACUUM = 30.0;
 	private static double SPEED_SM_NS_SOIL = SPEED_SM_NS_VACUUM / 3.0;
 	
-	private Model model = AppContext.model;
-	
-	
-	public void execute(TraceFile sgyFile, ProgressListener listener) {
-		
-		List<Trace> traces = sgyFile.getTraces();
+	public void execute(TraceFile traceFile, ProgressListener listener) {
+		List<Trace> traces = traceFile.getTraces();
 		
 		for (int i = 0; i < traces.size(); i++) {
 			Trace trace = traces.get(i);
@@ -45,10 +39,8 @@ public class EdgeFinder implements Command {
 
 	@Override
 	public String getButtonText() {
-		
 		return "Scan for Edges";
 	}
-
 
 	@Override
 	public WhatChanged.Change getChange() {

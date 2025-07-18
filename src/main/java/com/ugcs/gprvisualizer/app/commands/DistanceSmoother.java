@@ -1,15 +1,13 @@
 package com.ugcs.gprvisualizer.app.commands;
 
-import java.io.File;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.app.auxcontrol.RulerTool;
 
-public class DistancesSmoother implements Command {
+public class DistanceSmoother implements Command {
 
 	double smoothDist;
 

@@ -65,7 +65,6 @@ public class GriddingRangeFormattingTest {
         // Create an instance of OptionPane with mocked dependencies
         optionPane = new OptionPane(
             mock(MapView.class),
-            mock(UiUtils.class),
             mock(ProfileView.class),
             mock(CommandRegistry.class),
             model,

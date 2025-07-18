@@ -7,7 +7,7 @@ import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.ProgressListener;
 import com.ugcs.gprvisualizer.math.CoordinatesMath;
 
-public class DistCalculator implements Command {
+public class DistanceCalculator implements Command {
 
 	@Override
 	public String getButtonText() {

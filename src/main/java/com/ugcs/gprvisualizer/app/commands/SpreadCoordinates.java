@@ -23,13 +23,13 @@ public class SpreadCoordinates implements Command {
 	@Override
 	public void execute(TraceFile file, ProgressListener listener) {
 		
-		new DistCalculator().execute(file, null);	
+		new DistanceCalculator().execute(file, null);
 		
 		//Sout.p("prolong");
 		prolongDistances(file.getTraces());
 		
-		new DistCalculator().execute(file, null);		
-		new DistancesSmoother().execute(file, null);
+		new DistanceCalculator().execute(file, null);
+		new DistanceSmoother().execute(file, null);
 	}
 
 	private void prolongDistances(List<Trace> traces) {

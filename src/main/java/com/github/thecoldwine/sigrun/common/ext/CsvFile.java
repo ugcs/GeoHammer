@@ -15,6 +15,10 @@ import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
+import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
+import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
+import com.ugcs.gprvisualizer.gpr.Model;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,7 +226,37 @@ public class CsvFile extends SgyFile {
         return new CsvFile(this);
     }
 
+    @Override
+    public FileSnapshot<CsvFile> createSnapshot() {
+        return new Snapshot(this);
+    }
+
     public boolean isSameTemplate(CsvFile file) {
         return file.getParser().getTemplate().equals(getParser().getTemplate());
+    }
+
+    public static class Snapshot extends FileSnapshot<CsvFile> {
+
+        private final List<GeoData> values;
+
+        public Snapshot(CsvFile file) {
+            super(file);
+
+            this.values = copyValues(file);
+        }
+
+        private static List<GeoData> copyValues(CsvFile file) {
+            List<GeoData> values = Nulls.toEmpty(file.getGeoData());
+            List<GeoData> snapshot = new ArrayList<>(values.size());
+            for (GeoData value : values) {
+                snapshot.add(new GeoData(value));
+            }
+            return snapshot;
+        }
+
+        @Override
+        public void restoreFile(Model model) {
+            file.setGeoData(values);
+        }
     }
 }

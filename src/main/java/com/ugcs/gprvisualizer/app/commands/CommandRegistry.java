@@ -82,23 +82,6 @@ public class CommandRegistry {
 		
 		listener.progressMsg("process finished '" + command.getButtonText() + "'");
 	}
-	
-	public Button createAsinqTaskButton(AsinqCommand command, Consumer<Object> finish) {
-		
-		Button button = new Button(command.getButtonText());
-		
-		ProgressTask task = listener -> {
-				runForGprFiles(command, listener);				
-				
-				if (finish != null) {
-					finish.accept(null);
-				}
-		};
-		
-		button.setOnAction(event -> new TaskRunner(status, task).start());
-		
-		return button;
-	}
 
 	public Button createButton(Command command) {
 		return createButton(command, null);

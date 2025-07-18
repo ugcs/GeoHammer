@@ -1,8 +1,11 @@
-package com.github.thecoldwine.sigrun.common.ext;
+package com.ugcs.gprvisualizer.app;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.LatLon;
+import com.github.thecoldwine.sigrun.common.ext.MapField;
+import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Nulls;

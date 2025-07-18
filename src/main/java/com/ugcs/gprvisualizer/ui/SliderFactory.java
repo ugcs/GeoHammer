@@ -11,7 +11,7 @@ public class SliderFactory {
 			int min, int max, ChangeListener<Number> listener,
 			double tickUnits) {
 
-		BaseSlider sliderProduucer = new BaseSlider(null, listener) {
+		BaseSlider sliderProducer = new BaseSlider(null, listener) {
 
 			public void updateUI() {
 				slider.setMax(max);
@@ -21,15 +21,15 @@ public class SliderFactory {
 
 			public int updateModel() {
 				valueHolder.setValue((int) slider.getValue());
-				return (int) valueHolder.intValue();
+				return valueHolder.intValue();
 			}
 		};
 
-		sliderProduucer.name = name;
-		sliderProduucer.units = "";
-		sliderProduucer.tickUnits = tickUnits;
+		sliderProducer.name = name;
+		sliderProducer.units = "";
+		sliderProducer.tickUnits = tickUnits;
 
-		return sliderProduucer.produce();
+		return sliderProducer.produce();
 	}
 
 }

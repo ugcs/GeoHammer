@@ -54,12 +54,21 @@ public class WhatChanged extends BaseEvent {
 		return change == Change.traceValues;
 	}
 
-	public boolean isCsvDataFiltered() { return change == Change.csvDataFiltered; }
+	public boolean isCsvDataFiltered() {
+		return change == Change.csvDataFiltered;
+	}
+
+	public boolean isCsvDataZoom() {
+		return change == Change.csvDataZoom;
+	}
 
 	public boolean isGriddingRangeChanged() {
 		return change == Change.griddingRange;
 	}
 
+	public boolean isTraceSelected() {
+		return change == Change.traceSelected;
+	}
 
 	public enum Change {
 
@@ -75,6 +84,8 @@ public class WhatChanged extends BaseEvent {
 		updateButtons,
 		fileSelected,
 		csvDataFiltered,
-		griddingRange;
+		csvDataZoom,
+		griddingRange,
+		traceSelected;
 	}
 }

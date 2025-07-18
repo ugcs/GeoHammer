@@ -72,6 +72,14 @@ public class GeoData extends GeoCoordinates {
                 : Optional.empty();
     }
 
+    public Optional<Double> getValue(String semantic) {
+        SensorValue sensorValue = getSensorValue(semantic);
+        return sensorValue != null && sensorValue.data() != null
+                ? Optional.of(sensorValue.data().doubleValue())
+                : Optional.empty();
+
+    }
+
     public SensorValue getLine() {
         return getSensorValue(Semantic.LINE);    
     }

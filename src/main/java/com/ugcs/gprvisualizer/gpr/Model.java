@@ -676,6 +676,7 @@ public class Model implements InitializingBean {
 		}
 		TraceKey trace = getSelectedTrace(chart);
 		chart.selectTrace(trace, focusOnTrace);
+		publishEvent(new WhatChanged(this, WhatChanged.Change.traceSelected));
 	}
 
 	// flags

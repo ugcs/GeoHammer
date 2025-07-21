@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 
+import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
 import com.ugcs.gprvisualizer.app.undo.UndoFrame;
 import com.ugcs.gprvisualizer.app.undo.UndoModel;
 import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
@@ -127,24 +128,25 @@ public class LevelFilter implements ToolProducer {
         return List.of(vbox);
     }
 
-    private void saveUndoSnapshots(List<TraceFile> files) {
-        files = Nulls.toEmpty(files);
-        ArrayList<UndoSnapshot> snapshots = new ArrayList<>(files.size());
-        for (TraceFile file : files) {
-            if (file.getGroundProfile() == null) {
-                continue;
-            }
-            snapshots.add(file.createSnapshotWithTraces());
+    private void saveUndoSnapshot(TraceFile file) {
+        if (file == null) {
+            return;
         }
-        if (!snapshots.isEmpty()) {
-            undoModel.push(new UndoFrame(snapshots));
-        }
+
+        FileSnapshot<TraceFile> snapshot = file.createSnapshotWithTraces();
+        undoModel.push(new UndoFrame(snapshot));
     }
 
     private void flattenSurface(ActionEvent event) {
-        saveUndoSnapshots(model.getFileManager().getGprFiles());
-        commandRegistry.runForGprFiles(new LevelGround());
-        updateButtons(selectedFile);
+        if (selectedFile instanceof TraceFile traceFile) {
+            if (isGroundProfileExists(traceFile)) {
+                saveUndoSnapshot(traceFile);
+                commandRegistry.runForGprFiles(
+                        List.of(traceFile),
+                        new LevelGround());
+                updateButtons(traceFile);
+            }
+        }
     }
 
     private void updateButtons(TraceFile file) {

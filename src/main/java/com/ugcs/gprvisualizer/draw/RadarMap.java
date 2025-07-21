@@ -222,7 +222,9 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		int[] palette;
 		if (radarMapSettings.radarMapMode == RadarMapMode.AMPLITUDE) {
 			// fill file.amplScan
-			commandRegistry.runForGprFiles(new RadarMapScan(getArrayBuilder(), model));
+			commandRegistry.runForGprFiles(
+					model.getFileManager().getGprFiles(),
+					new RadarMapScan(getArrayBuilder(), model));
 			palette = DblArray.paletteAmp;
 		} else {
 			palette = DblArray.paletteAlg;

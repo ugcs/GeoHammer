@@ -1,5 +1,6 @@
 package com.ugcs.gprvisualizer.app.commands;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
@@ -50,14 +51,13 @@ public class CommandRegistry {
 		}
 	};
 	
-	public void runForGprFiles(Command command) {		
-		runForGprFiles(command, emptyListener);
+	public void runForGprFiles(List<TraceFile> files, Command command) {
+		runForGprFiles(files, command, emptyListener);
 	}
 	
-	private void runForGprFiles(Command command, ProgressListener listener) {
+	private void runForGprFiles(List<TraceFile> files, Command command, ProgressListener listener) {
 	
 		int number = 1;
-		var files = model.getFileManager().getGprFiles();
 		int count = files.size();
 		
 		for (TraceFile sgyFile : files) {
@@ -82,23 +82,6 @@ public class CommandRegistry {
 		
 		listener.progressMsg("process finished '" + command.getButtonText() + "'");
 	}
-	
-	public Button createAsinqTaskButton(AsinqCommand command, Consumer<Object> finish) {
-		
-		Button button = new Button(command.getButtonText());
-		
-		ProgressTask task = listener -> {
-				runForGprFiles(command, listener);				
-				
-				if (finish != null) {
-					finish.accept(null);
-				}
-		};
-		
-		button.setOnAction(event -> new TaskRunner(status, task).start());
-		
-		return button;
-	}
 
 	public Button createButton(Command command) {
 		return createButton(command, null);
@@ -112,7 +95,7 @@ public class CommandRegistry {
 		}
 		
 		button.setOnAction(e -> {
-			runForGprFiles(command);
+			runForGprFiles(model.getFileManager().getGprFiles(), command);
 			
 			if (finish != null) {
 				finish.accept(null);

@@ -78,8 +78,6 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private MapView mapView;
 
-	private UiUtils uiUtils;
-
 	private ProfileView profileView;
 
 	private CommandRegistry commandRegistry;
@@ -90,9 +88,8 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private PrefSettings prefSettings;
 
-	public OptionPane(MapView mapView, UiUtils uiUtils, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings) {
+	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings) {
 		this.mapView = mapView;
-		this.uiUtils = uiUtils;
 		this.profileView = profileView;
 		this.commandRegistry = commandRegistry;
 		this.model = model;
@@ -141,13 +138,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 
-        Tab tab2 = new Tab("Experimental");
-
 		prepareCsvTab(csvTab);
-
-        if (!AppContext.PRODUCTION) {
-        	tabPane.getTabs().add(tab2);
-        }
 	}
 
 	private void prepareCsvTab(Tab tab) {

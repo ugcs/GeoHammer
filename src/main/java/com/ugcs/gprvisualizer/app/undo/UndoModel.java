@@ -35,16 +35,7 @@ public class UndoModel {
 
     public void saveSnapshot(Collection<SgyFile> files) {
         UndoFrame frame = UndoFrame.create(files);
-        if (frame == null) {
-            return;
-        }
-        // push undo frame
-        frames.addFirst(frame);
-        // maintain undo depth
-        if (frames.size() > undoDepth) {
-            frames.removeLast();
-        }
-        model.publishEvent(new UndoStackChanged(this));
+        push(frame);
     }
 
     public void removeSnapshots(SgyFile file) {
@@ -59,6 +50,19 @@ public class UndoModel {
                 model.publishEvent(new UndoStackChanged(this));
             }
         }
+    }
+
+    public void push(UndoFrame frame) {
+        if (frame == null) {
+            return;
+        }
+        // push undo frame
+        frames.addFirst(frame);
+        // maintain undo depth
+        if (frames.size() > undoDepth) {
+            frames.removeLast();
+        }
+        model.publishEvent(new UndoStackChanged(this));
     }
 
     public boolean canUndo() {

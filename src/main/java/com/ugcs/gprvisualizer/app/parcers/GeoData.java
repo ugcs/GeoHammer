@@ -66,18 +66,21 @@ public class GeoData extends GeoCoordinates {
     }
 
     public Optional<Integer> getLineIndex() {
-        SensorValue line = getSensorValue(Semantic.LINE);
-        return line != null && line.data() != null
-                ? Optional.of(line.data().intValue())
-                : Optional.empty();
+        return getInt(Semantic.LINE.name);
     }
 
-    public Optional<Double> getValue(String semantic) {
+    public Optional<Double> getDouble(String semantic) {
         SensorValue sensorValue = getSensorValue(semantic);
         return sensorValue != null && sensorValue.data() != null
                 ? Optional.of(sensorValue.data().doubleValue())
                 : Optional.empty();
+    }
 
+    public Optional<Integer> getInt(String semantic) {
+        SensorValue sensorValue = getSensorValue(semantic);
+        return sensorValue != null && sensorValue.data() != null
+                ? Optional.of(sensorValue.data().intValue())
+                : Optional.empty();
     }
 
     public SensorValue getLine() {

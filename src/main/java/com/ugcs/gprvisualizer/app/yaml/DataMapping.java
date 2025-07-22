@@ -20,7 +20,16 @@ public class DataMapping {
     private BaseData timestamp;
     private BaseData traceNumber;
 
+    private List<BaseData> gprTraces;
     private List<SensorData> dataValues;
+
+    public List<BaseData> getGprTraces() {
+        return gprTraces;
+    }
+
+    public void setGprTraces(List<BaseData> gprTraces) {
+        this.gprTraces = gprTraces;
+    }
 
     /**
      * Gets the sensors of the template.

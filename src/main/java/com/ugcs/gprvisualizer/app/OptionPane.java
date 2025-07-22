@@ -1088,8 +1088,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
 		// elevation
-		options.getChildren().add(new Label("Elevation source: "
-				+ getSourceName(file.getGroundProfileSource())));
 		options.getChildren().addAll(levelFilter.getToolNodes2());
 
 		options.setVisible(false);
@@ -1098,11 +1096,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return new StackPane(options);
 	}
 
-	private String getSourceName(PositionFile positionFile) {
-		return (positionFile != null && positionFile.getPositionFile() != null) ? positionFile.getPositionFile().getName() : "not found";
-	}
-
-	private ToggleButton prepareToggleButton(String title, 
+	private ToggleButton prepareToggleButton(String title,
 			String imageName, MutableBoolean bool, Consumer<ToggleButton> consumer ) {
 
 		ToggleButton btn = new ToggleButton(title, 

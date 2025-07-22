@@ -384,7 +384,7 @@ public class StatisticsView extends VBox {
         public Double get(int index) {
             GeoData value = values.get(index);
             return value != null
-                    ? value.getValue(semantic).orElse(0.0)
+                    ? value.getDouble(semantic).orElse(0.0)
                     : 0.0;
         }
 

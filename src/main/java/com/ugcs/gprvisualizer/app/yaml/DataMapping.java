@@ -20,15 +20,15 @@ public class DataMapping {
     private BaseData timestamp;
     private BaseData traceNumber;
 
-    private List<BaseData> gprTraces;
+    private List<BaseData> sgyTraces;
     private List<SensorData> dataValues;
 
-    public List<BaseData> getGprTraces() {
-        return gprTraces;
+    public List<BaseData> getSgyTraces() {
+        return sgyTraces;
     }
 
-    public void setGprTraces(List<BaseData> gprTraces) {
-        this.gprTraces = gprTraces;
+    public void setSgyTraces(List<BaseData> sgyTraces) {
+        this.sgyTraces = sgyTraces;
     }
 
     /**

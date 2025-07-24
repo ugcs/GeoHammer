@@ -170,11 +170,14 @@ public class PositionFile {
 		}
 
 		Set<String> traceHeaders = new HashSet<>();
-		for (BaseData gprTrace : Nulls.toEmpty(mapping.getGprTraces())) {
-			traceHeaders.add(Strings.nullToEmpty(gprTrace.getHeader()));
+		for (BaseData sgyTrace : Nulls.toEmpty(mapping.getSgyTraces())) {
+			traceHeaders.add(Strings.nullToEmpty(sgyTrace.getHeader()));
 		}
 		List<String> traceSemantics = new ArrayList<>();
 		for (SensorData sensorData : Nulls.toEmpty(mapping.getDataValues())) {
+			if (sensorData.getIndex() == -1) {
+				continue; // no header in the data file
+			}
 			if (traceHeaders.contains(sensorData.getHeader())) {
 				traceSemantics.add(sensorData.getSemantic());
 			}

@@ -3,10 +3,16 @@ package com.github.thecoldwine.sigrun.common.ext;
 import java.awt.Color;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
-import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.app.yaml.DataMapping;
+import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
+import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 
@@ -17,6 +23,7 @@ import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Strings;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +36,10 @@ public class PositionFile {
 
 	@Nullable
 	private File positionFile;
+
+	private Template template;
+
+	private List<GeoCoordinates> coordinates;
 
 	public PositionFile(FileTemplates templates) {
 		this.templates = templates;
@@ -82,32 +93,21 @@ public class PositionFile {
 		Check.notNull(traceFile);
 		Check.notNull(positionFile);
 
-		List<GeoCoordinates> coordinates = parsePositionFile(positionFile);
-
-		// sample distance in cm
-		double sampleDistance = traceFile.getSamplesToCmAir();
-		// num samples in a meter
-		double samplesPerMeter = 100.0 / sampleDistance;
-
-		StretchArray altitudes = toAltitudesInSamples(coordinates, samplesPerMeter);
-
-		// create horizontal profile
-		int numGlobalTraces = traceFile.traces.size();
-		HorizontalProfile profile = new HorizontalProfile(
-				altitudes.stretchToArray(numGlobalTraces),
-				traceFile.getMetaFile());
-		profile.setColor(Color.red);
-
+		this.coordinates = parsePositionFile(positionFile);
 		this.positionFile = positionFile;
+
 		traceFile.setGroundProfileSource(this);
-		traceFile.setGroundProfile(profile);
+		List<String> traceSemantics = getAvailableTraceSemantics();
+		if (!traceSemantics.isEmpty()) {
+			setGroundProfile(traceFile, traceSemantics.getFirst());
+		}
 	}
 
 	private List<GeoCoordinates> parsePositionFile(File file) throws FileNotFoundException {
 		Check.notNull(file);
 
 		String path = file.getAbsolutePath();
-		var template = templates.findTemplate(templates.getTemplates(), path);
+		template = templates.findTemplate(templates.getTemplates(), path);
 		if (template == null) {
 			throw new RuntimeException("Can`t find template for file " + file.getName());
 		}
@@ -117,19 +117,71 @@ public class PositionFile {
         return parser.parse(path);
 	}
 
-	private StretchArray toAltitudesInSamples(List<GeoCoordinates> coordinates, double samplesPerMeter) {
-		StretchArray altitudes = new StretchArray();
+	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceSemantic) {
+		Check.notNull(traceFile);
+
+		// sample distance in cm
+		double sampleDistance = traceFile.getSamplesToCmAir();
+		// num samples in a meter
+		double samplesPerMeter = 100.0 / sampleDistance;
+
+		// total number of traces
+		int numTraces = traceFile.traces.size();
+		int[] depths = new int[numTraces];
 
 		for (GeoCoordinates c : Nulls.toEmpty(coordinates)) {
 			if (c instanceof GeoData geoData) {
-				SensorValue altitudeAgl = geoData.getSensorValue(GeoData.Semantic.ALTITUDE_AGL);
-				if (altitudeAgl != null && altitudeAgl.data() != null) {
-					double altitudeSamples = samplesPerMeter * altitudeAgl.data().doubleValue();
-					altitudes.add((int)altitudeSamples);
+				Integer traceIndex = geoData.getInt(traceSemantic).orElse(null);
+				if (traceIndex == null || traceIndex < 0 || traceIndex >= numTraces) {
+					continue;
+				}
+				Optional<Double> altitudeAgl = geoData
+						.getDouble(GeoData.Semantic.ALTITUDE_AGL.getName());
+				if (altitudeAgl.isPresent()) {
+					double altitudeSamples = samplesPerMeter * altitudeAgl.get();
+					depths[traceIndex] = (int)altitudeSamples;
 				}
 			}
 		}
 
-		return altitudes;
+		// create horizontal profile
+		HorizontalProfile profile = new HorizontalProfile(
+				depths,
+				traceFile.getMetaFile());
+		profile.setColor(Color.red);
+		return profile;
+	}
+
+	public void setGroundProfile(TraceFile traceFile, String traceSemantic) {
+		HorizontalProfile profile = loadGroundProfile(traceFile, traceSemantic);
+
+		traceFile.setGroundProfileSource(this);
+		traceFile.setGroundProfileTraceSemantic(traceSemantic);
+		traceFile.setGroundProfile(profile);
+	}
+
+	public List<String> getAvailableTraceSemantics() {
+		if (template == null) {
+			return List.of();
+		}
+		DataMapping mapping = template.getDataMapping();
+		if (mapping == null) {
+			return List.of();
+		}
+
+		Set<String> traceHeaders = new HashSet<>();
+		for (BaseData sgyTrace : Nulls.toEmpty(mapping.getSgyTraces())) {
+			traceHeaders.add(Strings.nullToEmpty(sgyTrace.getHeader()));
+		}
+		List<String> traceSemantics = new ArrayList<>();
+		for (SensorData sensorData : Nulls.toEmpty(mapping.getDataValues())) {
+			if (sensorData.getIndex() == -1) {
+				continue; // no header in the data file
+			}
+			if (traceHeaders.contains(sensorData.getHeader())) {
+				traceSemantics.add(sensorData.getSemantic());
+			}
+		}
+		return traceSemantics;
 	}
 }

@@ -30,6 +30,10 @@
     date:
       header: Date
       format: 'yyyy/MM/dd'
+    sgy-traces:
+      - header: "ECHO:Trace Hi"
+      - header: "ECHO:Trace Lo"
+      - header: "GPR:Trace"
     data-values:
       - header: "Altitude"
         semantic: "Altitude"
@@ -115,3 +119,12 @@
       - header: "MBES:Roll"
         semantic: "MBES:Roll"
         units: "°"
+      - header: "ECHO:Trace Hi"
+        semantic: "ECHO:Trace Hi"
+        units: ""
+      - header: "ECHO:Trace Lo"
+        semantic: "ECHO:Trace Lo"
+        units: ""
+      - header: "GPR:Trace"
+        semantic: "GPR:Trace"
+        units: ""

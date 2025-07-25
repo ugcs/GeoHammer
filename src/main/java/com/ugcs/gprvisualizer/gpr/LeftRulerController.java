@@ -73,13 +73,11 @@ public class LeftRulerController {
 
 		@Override
 		public Pair<Integer, Integer> convert(int s, int f) {
-			
-			TraceFile fl = sgyFile;//model.getFileManager().getGprFiles().get(0);
-			
-			
+			int sampleInterval = sgyFile.getSampleInterval();
+
 			return Pair.of(
-					fl.getSampleInterval() * s / 1000, 
-					fl.getSampleInterval() * f / 1000);
+					(int)Math.ceil(sampleInterval * s / 1000.0),
+					sampleInterval * f / 1000);
 		}
 		
 		public int back(int unt) {
@@ -113,15 +111,15 @@ public class LeftRulerController {
 				g2.setColor(Color.darkGray);
 				String text = getConverter().getUnit();
 				int width = g2.getFontMetrics().stringWidth(text);
-				g2.drawString(text, r.x + r.width - width - 4, r.y + r.height - 5);
+				g2.drawString(text, r.x + r.width - width - 6, r.y + r.height - 7);
 			}
 		}
 
 		//@Override
 		private Rectangle getRect(ProfileField profField) {
 				Rectangle  r = profField.getInfoRect();
-				return new Rectangle(profField.getVisibleStart() + r.x + 5, r.y + r.height - 25,
-						r.width - 10, 20);
+				return new Rectangle(profField.getVisibleStart() + r.x + 12, r.y + r.height - 35,
+						r.width - 15, 20);
 		}
 
 		@Override

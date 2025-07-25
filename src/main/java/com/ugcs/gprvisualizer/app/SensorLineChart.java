@@ -17,6 +17,7 @@ import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nodes;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -24,6 +25,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
 import javafx.geometry.Side;
 import javafx.scene.Cursor;
+import javafx.scene.chart.ValueAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.control.Label;
@@ -427,22 +429,16 @@ public class SensorLineChart extends Chart {
         var data = plotData.data();
 
         // X-axis, common for all charts
-        NumberAxis xAxis = getXAxis(data.size() / 10);
+        ValueAxis<Number> xAxis = createXAxis(plotData);
 
         // Y-axis
-        NumberAxis yAxis = new NumberAxis();
-        yAxis.setLabel(plotData.units());
-        yAxis.setSide(Side.RIGHT); // Y-axis on the right
-        yAxis.setMinorTickVisible(false);
-
-        Range valueRange = getValueRange(data, plotData.semantic);
-        yAxis.setTickUnit(valueRange.getWidth() / 10);
-        yAxis.setPrefWidth(70);
+        ValueAxis<Number> yAxis = createYAxis(plotData);
         if (!primary) {
             yAxis.setOpacity(0);
         }
 
         // Creating chart
+        Range valueRange = getValueRange(data, plotData.semantic);
         ZoomRect outZoomRect = new ZoomRect(0, Math.max(0, data.size() - 1),
                 valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
         LineChartWithMarkers lineChart = new LineChartWithMarkers(xAxis, yAxis, outZoomRect, plotData);
@@ -496,6 +492,33 @@ public class SensorLineChart extends Chart {
         return lineChart;
     }
 
+    private ValueAxis<Number> createXAxis(PlotData plotData) {
+        NumberAxis xAxis = new NumberAxis();
+        xAxis.setMinorTickVisible(false);
+        xAxis.setTickMarkVisible(false);
+        xAxis.setTickLabelsVisible(false);
+
+        int numValues = Nulls.toEmpty(plotData.data).size();
+        double tickUnit = numValues > 0 ? numValues / 10.0 : 1.0;
+        xAxis.setTickUnit(tickUnit);
+
+        return xAxis;
+    }
+
+    private ValueAxis<Number> createYAxis(PlotData plotData) {
+        SensorLineChartYAxis yAxis = new SensorLineChartYAxis(10);
+        yAxis.setLabel(plotData.units());
+        yAxis.setSide(Side.RIGHT); // Y-axis on the right
+        yAxis.setPrefWidth(70);
+        yAxis.setMinorTickVisible(false);
+
+        Range valueRange = getValueRange(plotData.data, plotData.semantic);
+        yAxis.setLowerBound(valueRange.getMin().doubleValue());
+        yAxis.setUpperBound(valueRange.getMax().doubleValue());
+
+        return yAxis;
+    }
+
     @Override
     public void reload() {
         // clear selection
@@ -516,10 +539,6 @@ public class SensorLineChart extends Chart {
             }
 
             Range valueRange = getValueRange(plotData.data, plotData.semantic);
-
-            NumberAxis yAxis = (NumberAxis) lineChart.getYAxis();
-            yAxis.setTickUnit(valueRange.getWidth() / 10);
-            yAxis.setPrefWidth(70);
 
             lineChart.outZoomRect = new ZoomRect(
                     0, Math.max(0, plotData.data.size() - 1),
@@ -622,7 +641,7 @@ public class SensorLineChart extends Chart {
     private List<Data<Number, Number>> getSubsampleInRange(List<Number> data, int lowerIndex, int upperIndex,
             Set<Number> filter) {
         // Validate indices
-        if (lowerIndex < 0 || upperIndex > data.size() || lowerIndex >= upperIndex) {
+        if (lowerIndex < 0 || upperIndex > data.size()) {
             throw new IllegalArgumentException("Invalid range specified.");
         }
 
@@ -694,7 +713,7 @@ public class SensorLineChart extends Chart {
         String seriesName = getSelectedSeriesName();
         LineChartWithMarkers selectedChart = getCharts().get(seriesName);
         if (selectedChart != null) {
-            NumberAxis xAxis = (NumberAxis) selectedChart.getXAxis();
+            ValueAxis<Number> xAxis = (ValueAxis<Number>) selectedChart.getXAxis();
             int xCenter = (int) (0.5 * (xAxis.getLowerBound() + xAxis.getUpperBound()));
             return getValueLineIndex(xCenter);
         }
@@ -977,18 +996,6 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    private NumberAxis getXAxis(int tickUnit) {
-        NumberAxis xAxis = new NumberAxis();
-        //xAxis.setLabel("Common X Axis");
-        xAxis.setMinorTickVisible(false);
-        xAxis.setTickMarkVisible(false);
-        xAxis.setTickLabelsVisible(false);
-        //xAxis.setAutoRanging(false);
-        //xAxis.setUpperBound(2000);
-        xAxis.setTickUnit(tickUnit);
-        return xAxis;
-    }
-
     private Map<String, Double> semanticMinValues = new HashMap<>();
     private Map<String, Double> semanticMaxValues = new HashMap<>();
 
@@ -1119,9 +1126,6 @@ public class SensorLineChart extends Chart {
             Range oldYRange = new Range(outZoomRect.yMin, outZoomRect.yMax);
             Range newYRange = getValueRange(plotData.data, plotData.semantic);
 
-            NumberAxis yAxis = (NumberAxis)getYAxis();
-            yAxis.setTickUnit(newYRange.getWidth() / 10);
-
             outZoomRect = new ZoomRect(
                     0, Math.max(0, plotData.data.size() - 1),
                     newYRange.getMin(), newYRange.getMax());
@@ -1148,11 +1152,11 @@ public class SensorLineChart extends Chart {
                     Math.clamp(end.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
                     Math.clamp(end.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
 
-            NumberAxis xAxis = (NumberAxis)getXAxis();
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             Number xMin = xAxis.getValueForDisplay(plotStart.getX());
             Number xMax = xAxis.getValueForDisplay(plotEnd.getX());
 
-            NumberAxis yAxis = (NumberAxis)getYAxis();
+            ValueAxis<Number> yAxis = (ValueAxis<Number>)getYAxis();
             Number yMax = yAxis.getValueForDisplay(plotStart.getY());
             Number yMin = yAxis.getValueForDisplay(plotEnd.getY());
 
@@ -1228,12 +1232,12 @@ public class SensorLineChart extends Chart {
         }
 
         private void applyZoom() {
-            NumberAxis xAxis = (NumberAxis)getXAxis();
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             xAxis.setAutoRanging(false);
             xAxis.setLowerBound(zoomRect.xMin.doubleValue());
             xAxis.setUpperBound(zoomRect.xMax.doubleValue());
 
-            NumberAxis yAxis = (NumberAxis) getYAxis();
+            ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();
             yAxis.setAutoRanging(false);
             yAxis.setLowerBound(zoomRect.yMin.doubleValue());
             yAxis.setUpperBound(zoomRect.yMax.doubleValue());
@@ -1728,7 +1732,7 @@ public class SensorLineChart extends Chart {
         // TODO focus does not affect behavior
 
         int selectedX = trace.getIndex();
-        NumberAxis xAxis = (NumberAxis) lastLineChart.getXAxis();
+        ValueAxis<Number> xAxis = (ValueAxis<Number>)lastLineChart.getXAxis();
         var dataSize = lastLineChart.plotData.data().size();
 
         if (selectedX < 0 || selectedX > dataSize) {
@@ -1748,7 +1752,7 @@ public class SensorLineChart extends Chart {
             log.debug("Shifted charts, lowerIndex: {} upperIndex: {} size: {}", lowerIndex, upperIndex, dataSize);
 
             for (LineChartWithMarkers chart: charts) {
-                var yAxis = (NumberAxis) chart.getYAxis();
+                var yAxis = (ValueAxis<Number>) chart.getYAxis();
 
                 ZoomRect zoomRect = new ZoomRect(lowerIndex, upperIndex, yAxis.getLowerBound(), yAxis.getUpperBound());
                 chart.setZoomRect(zoomRect);

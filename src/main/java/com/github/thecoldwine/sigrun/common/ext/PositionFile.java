@@ -120,6 +120,10 @@ public class PositionFile {
 	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceSemantic) {
 		Check.notNull(traceFile);
 
+		if (Strings.isNullOrEmpty(traceSemantic)) {
+			return null;
+		}
+
 		// sample distance in cm
 		double sampleDistance = traceFile.getSamplesToCmAir();
 		// num samples in a meter
@@ -153,10 +157,12 @@ public class PositionFile {
 	}
 
 	public void setGroundProfile(TraceFile traceFile, String traceSemantic) {
+		Check.notNull(traceFile);
+
 		HorizontalProfile profile = loadGroundProfile(traceFile, traceSemantic);
 
 		traceFile.setGroundProfileSource(this);
-		traceFile.setGroundProfileTraceSemantic(traceSemantic);
+		traceFile.setGroundProfileTraceSemantic(Strings.emptyToNull(traceSemantic));
 		traceFile.setGroundProfile(profile);
 	}
 

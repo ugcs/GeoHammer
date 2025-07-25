@@ -2,26 +2,19 @@ package com.ugcs.gprvisualizer.analytics.amplitude;
 
 import com.amplitude.Amplitude;
 import com.amplitude.AmplitudeCallbacks;
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.analytics.Event;
 import com.ugcs.gprvisualizer.analytics.EventType;
-import com.ugcs.gprvisualizer.app.ext.FileManager;
-import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.service.UserIdService;
-import com.ugcs.gprvisualizer.app.yaml.Template;
-import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
-import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
-import com.ugcs.gprvisualizer.utils.FileTypeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
-import java.io.File;
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class AmplitudeEventSenderTest {
@@ -34,6 +27,7 @@ class AmplitudeEventSenderTest {
     void setUp() {
         mockAmplitude = mock(Amplitude.class);
         mockUserIdService = mock(UserIdService.class);
+        mock(Model.class);
     }
 
     @Test
@@ -47,207 +41,193 @@ class AmplitudeEventSenderTest {
     }
 
     @Test
-    void testSendEventSuccess() {
+    void testAmplitudeNotInitializedWithEmptyApiKey() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            AmplitudeEventSender sender = new AmplitudeEventSender("", true);
             sender.setUserIdService(mockUserIdService);
 
-            Event event = mock(Event.class);
-            EventType eventType = mock(EventType.class);
-            when(event.getEventType()).thenReturn(eventType);
-            when(eventType.getCode()).thenReturn("test_event");
-            when(event.getProperties()).thenReturn(Collections.emptyMap());
-            when(mockUserIdService.getOrCreateUserId()).thenReturn("user123");
-
-            ArgumentCaptor<AmplitudeCallbacks> captor = ArgumentCaptor.forClass(AmplitudeCallbacks.class);
-
+            Event event = createMockEvent();
             sender.send(event);
 
-            verify(mockAmplitude).logEvent(any(), captor.capture());
-            AmplitudeCallbacks callbacks = captor.getValue();
-            callbacks.onLogEventServerResponse(null, 200, "OK");
+            amplitudeStatic.verify(Amplitude::getInstance, never());
         }
     }
 
     @Test
-    void testAmplitudeNotInitializedWithEmptyApiKey() {
+    void testAmplitudeNotInitializedWithNullApiKey() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender("", true);
+            AmplitudeEventSender sender = new AmplitudeEventSender(null, true);
             sender.setUserIdService(mockUserIdService);
 
-            Event event = mock(Event.class);
+            Event event = createMockEvent();
             sender.send(event);
 
-            verify(mockAmplitude, never()).logEvent(any(), any(AmplitudeCallbacks.class));
+            amplitudeStatic.verify(Amplitude::getInstance, never());
         }
     }
 
     @Test
     void testAmplitudeDisabledByConfig() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
             AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, false);
             sender.setUserIdService(mockUserIdService);
 
-            Event event = mock(Event.class);
+            Event event = createMockEvent();
             sender.send(event);
 
-            verify(mockAmplitude, never()).logEvent(any(), any(AmplitudeCallbacks.class));
+            amplitudeStatic.verify(Amplitude::getInstance, never());
         }
     }
 
     @Test
-    void testListenFileOpenedEvent_withNullAmplitude() {
-        AmplitudeEventSender sender = new AmplitudeEventSender("key", true);
+    void testSendEventSuccess() {
+        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
+            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            sender.setUserIdService(mockUserIdService);
+
+            Event event = createMockEvent();
+            when(mockUserIdService.getOrCreateUserId()).thenReturn("user123");
+
+            ArgumentCaptor<com.amplitude.Event> eventCaptor = ArgumentCaptor.forClass(com.amplitude.Event.class);
+            ArgumentCaptor<AmplitudeCallbacks> callbackCaptor = ArgumentCaptor.forClass(AmplitudeCallbacks.class);
+
+            sender.send(event);
+
+            verify(mockAmplitude).logEvent(eventCaptor.capture(), callbackCaptor.capture());
+
+            com.amplitude.Event capturedEvent = eventCaptor.getValue();
+            assertEquals("test_event", capturedEvent.eventType);
+            assertEquals("user123", capturedEvent.userId);
+
+            // Simulate successful callback
+            AmplitudeCallbacks callbacks = callbackCaptor.getValue();
+            callbacks.onLogEventServerResponse(capturedEvent, 200, "OK");
+        }
+    }
+
+    @Test
+    void testSendEventWithEventData() {
+        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
+            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            sender.setUserIdService(mockUserIdService);
+
+            Event event = createMockEventWithData();
+            when(mockUserIdService.getOrCreateUserId()).thenReturn("user123");
+
+            ArgumentCaptor<com.amplitude.Event> eventCaptor = ArgumentCaptor.forClass(com.amplitude.Event.class);
+
+            sender.send(event);
+
+            verify(mockAmplitude).logEvent(eventCaptor.capture(), any(AmplitudeCallbacks.class));
+
+            com.amplitude.Event capturedEvent = eventCaptor.getValue();
+            assertEquals("test_event", capturedEvent.eventType);
+            assertEquals("macOS", capturedEvent.osName);
+            assertEquals("14.0", capturedEvent.osVersion);
+            assertEquals("1.0.0", capturedEvent.appVersion);
+        }
+    }
+
+    @Test
+    void testSendEventWithProperties() {
+        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
+            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            sender.setUserIdService(mockUserIdService);
+
+            Event event = createMockEventWithProperties();
+            when(mockUserIdService.getOrCreateUserId()).thenReturn("user123");
+
+            ArgumentCaptor<com.amplitude.Event> eventCaptor = ArgumentCaptor.forClass(com.amplitude.Event.class);
+
+            sender.send(event);
+
+            verify(mockAmplitude).logEvent(eventCaptor.capture(), any(AmplitudeCallbacks.class));
+
+            com.amplitude.Event capturedEvent = eventCaptor.getValue();
+            assertNotNull(capturedEvent.eventProperties);
+            assertNotNull(capturedEvent.userProperties);
+        }
+    }
+
+    @Test
+    void testSendEventWhenAmplitudeIsNull() {
+        AmplitudeEventSender sender = new AmplitudeEventSender("", true);
         sender.setUserIdService(mockUserIdService);
-        when(mockUserIdService.getOrCreateUserId()).thenReturn("test-user-id");
-        AmplitudeEventSender spySender = spy(sender);
-        FileOpenedEvent event = mock(FileOpenedEvent.class);
-        spySender.listenFileOpenedEvent(event);
+
+        Event event = createMockEvent();
+
+        // Should not throw exception, just log warning
+        assertDoesNotThrow(() -> sender.send(event));
     }
 
     @Test
-    void testListenFileOpenedEvent_withNonExistingFile() {
+    void testShutdownWithAmplitude() throws InterruptedException {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
             AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
-            sender.setUserIdService(mockUserIdService);
 
-            FileOpenedEvent event = mock(FileOpenedEvent.class);
-            File file = mock(File.class);
-            when(file.exists()).thenReturn(false);
-            when(event.getFiles()).thenReturn(List.of(file));
-
-            sender.listenFileOpenedEvent(event);
-        }
-    }
-
-    @Test
-    void testListenFileOpenedEvent_withCsvFileNotInModel() {
-        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
-            sender.setUserIdService(mockUserIdService);
-            when(mockUserIdService.getOrCreateUserId()).thenReturn("test-user-id");
-
-            FileOpenedEvent event = mock(FileOpenedEvent.class);
-            File file = mock(File.class);
-            when(file.exists()).thenReturn(true);
-            when(event.getFiles()).thenReturn(List.of(file));
-
-            try (MockedStatic<FileTypeUtils> fileTypeUtilsStatic = mockStatic(FileTypeUtils.class)) {
-                fileTypeUtilsStatic.when(() -> FileTypeUtils.isCsvFile(file)).thenReturn(true);
-
-                Model model = mock(Model.class);
-                when(model.getFileManager()).thenReturn(mock(FileManager.class));
-                when(model.getFileManager().getCsvFiles()).thenReturn(List.of());
-                sender.setModel(model);
-
-                sender.listenFileOpenedEvent(event);
-            }
-        }
-    }
-
-    @Test
-    void testListenFileOpenedEvent_withCsvFileWithParser() {
-        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class);
-             MockedStatic<FileTypeUtils> fileTypeUtilsStatic = mockStatic(FileTypeUtils.class)) {
-
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
-            sender.setUserIdService(mockUserIdService);
-
-            FileOpenedEvent event = mock(FileOpenedEvent.class);
-            File file = mock(File.class);
-            when(file.exists()).thenReturn(true);
-            when(event.getFiles()).thenReturn(List.of(file));
-            when(mockUserIdService.getOrCreateUserId()).thenReturn("test-user-id");
-            fileTypeUtilsStatic.when(() -> FileTypeUtils.isCsvFile(file)).thenReturn(true);
-
-            CsvFile csvFile = mock(CsvFile.class);
-            when(csvFile.getFile()).thenReturn(file);
-            CsvParser parser = mock(CsvParser.class);
-            when(csvFile.getParser()).thenReturn(parser);
-            Template template = mock(Template.class);
-            when(parser.getTemplate()).thenReturn(template);
-            when(template.getName()).thenReturn("templateName");
-
-            FileManager fileManager = mock(FileManager.class);
-            when(fileManager.getCsvFiles()).thenReturn(List.of(csvFile));
-            Model model = mock(Model.class);
-            when(model.getFileManager()).thenReturn(fileManager);
-            sender.setModel(model);
-
-            sender.listenFileOpenedEvent(event);
-            verify(mockAmplitude).logEvent(any(), any(AmplitudeCallbacks.class));
-        }
-    }
-
-    @Test
-    void testListenFileOpenedErrorEvent_withNullAmplitude() {
-        AmplitudeEventSender sender = new AmplitudeEventSender("key", true);
-        sender.setUserIdService(mockUserIdService);
-        when(mockUserIdService.getOrCreateUserId()).thenReturn("test-user-id");
-        AmplitudeEventSender spySender = spy(sender);
-        FileOpenErrorEvent event = mock(FileOpenErrorEvent.class);
-        spySender.listenFileOpenedErrorEvent(event);
-        // Should log a warning, nothing else
-    }
-
-    @Test
-    void testListenFileOpenedErrorEvent_withNonExistingFile() {
-        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
-            sender.setUserIdService(mockUserIdService);
-
-            FileOpenErrorEvent event = mock(FileOpenErrorEvent.class);
-            File file = mock(File.class);
-            when(file.exists()).thenReturn(false);
-            when(event.getFile()).thenReturn(file);
-
-            sender.listenFileOpenedErrorEvent(event);
-            // Should log a warning, nothing else
-        }
-    }
-
-    @Test
-    void testListenFileOpenedErrorEvent_withCsvFileNotInModel() {
-        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
-            sender.setUserIdService(mockUserIdService);
-            when(mockUserIdService.getOrCreateUserId()).thenReturn("test-user-id");
-
-            FileOpenErrorEvent event = mock(FileOpenErrorEvent.class);
-            File file = mock(File.class);
-            when(file.exists()).thenReturn(true);
-            when(event.getFile()).thenReturn(file);
-            when(event.getException()).thenReturn(new Exception("error"));
-            mockStatic(FileTypeUtils.class).when(() -> FileTypeUtils.isCsvFile(file)).thenReturn(true);
-
-            Model model = mock(Model.class);
-            when(model.getFileManager()).thenReturn(mock(FileManager.class));
-            when(model.getFileManager().getCsvFiles()).thenReturn(List.of());
-            sender.setModel(model);
-
-
-            sender.listenFileOpenedErrorEvent(event);
-            verify(mockAmplitude).logEvent(any(), any(AmplitudeCallbacks.class));
-        }
-    }
-
-    @Test
-    void testShutdown() throws InterruptedException {
-        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
-            sender.setUserIdService(mockUserIdService);
             sender.shutdown();
+
             verify(mockAmplitude).flushEvents();
             verify(mockAmplitude).shutdown();
         }
+    }
+
+    @Test
+    void testShutdownWithoutAmplitude() {
+        AmplitudeEventSender sender = new AmplitudeEventSender("", true);
+
+        // Should not throw exception
+        assertDoesNotThrow(sender::shutdown);
+    }
+
+    @Test
+    void testShutdownHandlesInterruptedException() throws InterruptedException {
+        try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
+            amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
+            doThrow(new InterruptedException()).when(mockAmplitude).shutdown();
+
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+
+            sender.shutdown();
+
+            verify(mockAmplitude).flushEvents();
+            verify(mockAmplitude).shutdown();
+            assertTrue(Thread.currentThread().isInterrupted());
+        }
+    }
+
+    private Event createMockEvent() {
+        Event event = mock(Event.class);
+        EventType eventType = mock(EventType.class);
+        when(event.getEventType()).thenReturn(eventType);
+        when(eventType.getCode()).thenReturn("test_event");
+        when(event.getProperties()).thenReturn(Collections.emptyMap());
+        when(event.getUserProperties()).thenReturn(Collections.emptyMap());
+        when(event.getData()).thenReturn(null);
+        return event;
+    }
+
+    private Event createMockEventWithData() {
+        Event event = createMockEvent();
+        Event.Data eventData = mock(Event.Data.class);
+        when(eventData.getOsName()).thenReturn("macOS");
+        when(eventData.getOsVersion()).thenReturn("14.0");
+        when(eventData.getAppVersion()).thenReturn("1.0.0");
+        when(eventData.getIpAddress()).thenReturn("127.0.0.1");
+        when(event.getData()).thenReturn(eventData);
+        return event;
+    }
+
+    private Event createMockEventWithProperties() {
+        Event event = createMockEvent();
+        Map<String, Object> properties = Map.of("key1", "value1", "key2", 123);
+        Map<String, Object> userProperties = Map.of("userKey1", "userValue1");
+        when(event.getProperties()).thenReturn(properties);
+        when(event.getUserProperties()).thenReturn(userProperties);
+        return event;
     }
 }

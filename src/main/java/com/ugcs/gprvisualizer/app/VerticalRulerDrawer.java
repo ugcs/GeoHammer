@@ -4,7 +4,10 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.List;
 
+import com.ugcs.gprvisualizer.utils.Ticks;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.ugcs.gprvisualizer.gpr.LeftRulerController.Converter;
@@ -33,34 +36,37 @@ public class VerticalRulerDrawer {
 		Pair<Integer, Integer> p = converter.convert(firstSample, lastSample);
 		int first = p.getLeft();
 		int last = p.getRight();
-		
-		int[] tick = {100, 50, 10, 5};
-		
-		int sz = 21;
-		
-		for (int b : tick) {
-			
-			int s = (first / b + 1) * b;
-			int f = last / b * b;
-			boolean drawText = (f - s) / b < 8;
-			
-			for (int i = s; i <= f; i += b) {
-				
-				int y = field.sampleToScreen(converter.back(i));
-				
-				g2.setColor(Color.lightGray);
-                g2.drawLine(rect.x , y, rect.x + sz, y);
+		int tick = Math.max(1, (int)Ticks.getPrettyTick(first, last, 10));
 
-                if (drawText) {
+		List<Integer> steps = new ArrayList<>();
+		steps.add(tick);
+		if (tick % 2 == 0) {
+			steps.add(tick /2);
+		}
+		if (tick % 10 == 0) {
+			steps.add(tick / 10);
+		}
+
+		g2.setFont(new Font("Arial", Font.PLAIN, 11));
+
+		int sz = 21;
+		for (int step : steps) {
+			int s = (int)Math.ceil((double)first / step) * step;
+			int f = last / step * step;
+			for (int i = s; i <= f; i += step) {
+				int y = field.sampleToScreen(converter.back(i));
+
+				g2.setColor(Color.lightGray);
+				g2.drawLine(rect.x, y, rect.x + sz, y);
+
+				if (step == tick) {
 					g2.setColor(Color.darkGray);
-					g2.setFont(new Font("Arial", Font.PLAIN, 12));
-					g2.drawString(String.format("%1$3s", i), 
+					g2.drawString(String.format("%1$3s", i),
 							rect.x + rect.width / 3, y + 4);
 				}
-				
 			}
 			sz = sz * 2 / 3;
-		}		
+		}
 	}
 
 	private Converter getConverter() {

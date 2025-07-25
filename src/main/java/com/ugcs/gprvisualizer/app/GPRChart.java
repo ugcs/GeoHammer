@@ -442,7 +442,7 @@ public class GPRChart extends Chart {
         g2.drawLine(leftRuleRect.x + 1,
                 leftRuleRect.y,
                 leftRuleRect.x + 1,
-                mainRectRect.height);
+                leftRuleRect.y + leftRuleRect.height);
     }
 
     private void drawHorizontalProfile(Graphics2D g2,

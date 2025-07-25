@@ -2,8 +2,8 @@ package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.analytics.EventSender;
-import com.ugcs.gprvisualizer.analytics.Events;
 import com.ugcs.gprvisualizer.analytics.EventsFactory;
+import com.ugcs.gprvisualizer.app.file.FileEventListener;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.geolocation.GeolocationService;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -58,6 +58,9 @@ public class MainGeoHammer extends Application {
 		loader = context.getBean(Loader.class);
 
 		eventSender = context.getBean(EventSender.class);
+
+		context.getBean(FileEventListener.class);
+
 		context.getBean(GeolocationService.class);
 
 		eventsFactory = context.getBean(EventsFactory.class);

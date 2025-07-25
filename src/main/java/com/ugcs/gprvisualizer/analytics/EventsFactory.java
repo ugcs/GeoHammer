@@ -26,8 +26,8 @@ public class EventsFactory {
                 .withProperty("template", template);
     }
 
-    public Event createFileOpenedErrorEvent(String template, String errorMessage) {
-        return new Event(EventType.FILE_OPENED_ERROR, null, null, null)
+    public Event createFileOpenErrorEvent(String template, String errorMessage) {
+        return new Event(EventType.FILE_OPEN_ERROR, null, null, null)
                 .withProperty("template", template)
                 .withProperty("error_message", errorMessage);
     }

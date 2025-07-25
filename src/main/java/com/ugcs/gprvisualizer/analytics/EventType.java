@@ -3,7 +3,7 @@ package com.ugcs.gprvisualizer.analytics;
 public enum EventType {
     APP_STARTED("geohammer-app-started"),
     FILE_OPENED("geohammer-file-opened"),
-    FILE_OPENED_ERROR("geohammer-file-opened-error");
+    FILE_OPEN_ERROR("geohammer-file-open-error");
 
     private final String code;
 

@@ -2,8 +2,10 @@ package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.analytics.EventSender;
-import com.ugcs.gprvisualizer.analytics.Events;
+import com.ugcs.gprvisualizer.analytics.EventsFactory;
+import com.ugcs.gprvisualizer.app.file.FileEventListener;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
+import com.ugcs.gprvisualizer.geolocation.GeolocationService;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -31,6 +33,7 @@ public class MainGeoHammer extends Application {
 	private Loader loader;
 	private SceneContent sceneContent;
 	private EventSender eventSender;
+	private EventsFactory eventsFactory;
 
 	public static void main(String[] args) {
 		launch(args);
@@ -55,7 +58,13 @@ public class MainGeoHammer extends Application {
 		loader = context.getBean(Loader.class);
 
 		eventSender = context.getBean(EventSender.class);
-    }	
+
+		context.getBean(FileEventListener.class);
+
+		context.getBean(GeolocationService.class);
+
+		eventsFactory = context.getBean(EventsFactory.class);
+    }
 
 	@Override
 	public void start(Stage stage) throws Exception {
@@ -101,7 +110,7 @@ public class MainGeoHammer extends Application {
 			loader.load(f);
 		}
 
-		eventSender.send(Events.createAppStartedEvent(appBuildInfo.getBuildVersion()));
+		eventSender.send(eventsFactory.createAppStartedEvent(appBuildInfo.getBuildVersion()));
 	}
 
 

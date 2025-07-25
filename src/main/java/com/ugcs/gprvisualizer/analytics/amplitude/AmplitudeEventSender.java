@@ -6,14 +6,18 @@ import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.analytics.Event;
 import com.ugcs.gprvisualizer.analytics.EventSender;
 import com.ugcs.gprvisualizer.app.service.UserIdService;
-import javafx.util.Pair;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.stereotype.Component;
 
 import java.util.concurrent.CompletableFuture;
 
+@Component
+@PropertySource("classpath:analytics.properties")
 public class AmplitudeEventSender implements EventSender {
 
     private static final Logger log = LoggerFactory.getLogger(AmplitudeEventSender.class);
@@ -24,7 +28,10 @@ public class AmplitudeEventSender implements EventSender {
     @Autowired
     private UserIdService userIdService;
 
-    public AmplitudeEventSender(String apiKey, Boolean isEnabled) {
+    public AmplitudeEventSender(
+            @Value("${amplitude.api-key:}") String apiKey,
+            @Value("${amplitude.enabled:false}") Boolean isEnabled
+    ) {
         if (!isEnabled) {
             log.info("Amplitude integration is disabled by configuration");
             amplitude = null;
@@ -62,9 +69,9 @@ public class AmplitudeEventSender implements EventSender {
     private JSONObject buildUserProperties(Event event) {
         JSONObject userProperties = new JSONObject();
         event.getUserProperties().forEach((originalKey, originalValue) -> {
-            Pair<String, Object> property = mapUserProperty(originalKey, originalValue);
-            String key = property.getKey();
-            Object value = property.getValue();
+            Property property = mapUserProperty(originalKey, originalValue);
+            String key = property.key();
+            Object value = property.value();
             if (value != null) {
                 userProperties.put(key, value.toString());
             } else {
@@ -86,8 +93,8 @@ public class AmplitudeEventSender implements EventSender {
         return eventProperties;
     }
 
-    private Pair<String, Object> mapUserProperty(String key, Object value) {
-        return new Pair<>(key, value);
+    private Property mapUserProperty(String key, Object value) {
+        return new Property(key, value);
     }
 
     @Override
@@ -98,13 +105,11 @@ public class AmplitudeEventSender implements EventSender {
         }
         CompletableFuture<Void> future = new CompletableFuture<>();
         com.amplitude.Event amplitudeEvent = toAmplitudeEvent(event);
-        log.trace("Sending event to Amplitude: {}", amplitudeEvent);
         amplitude.logEvent(amplitudeEvent, new AmplitudeCallbacks() {
             @Override
             public void onLogEventServerResponse(com.amplitude.Event event, int status, String message) {
                 if (status == HTTP_STATUS_OK) {
                     future.complete(null);
-                    log.trace("Amplitude event logged successfully: {}", event);
                 } else {
                     String errorMessage = String.format("Amplitude error %s: %s", status, message);
                     future.completeExceptionally(new Exception(errorMessage));

@@ -52,9 +52,6 @@ public class OptionPaneTest {
     private CommandRegistry commandRegistry;
 
     @Mock
-    private UiUtils uiUtils;
-
-    @Mock
     private LevelFilter levelFilter;
 
     private OptionPane optionPane;
@@ -63,7 +60,7 @@ public class OptionPaneTest {
     @Start
     private void start(Stage stage) throws Exception {
         // Create and init the OptionPane
-        optionPane = new OptionPane(mapView, uiUtils, profileView, commandRegistry, model, levelFilter, prefSettings);
+        optionPane = new OptionPane(mapView, profileView, commandRegistry, model, levelFilter, prefSettings);
 
         // Create the range slider directly 
         griddingRangeSlider = new RangeSlider(0, 100, 25, 75);

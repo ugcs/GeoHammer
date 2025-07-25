@@ -26,7 +26,7 @@ public class VerticalRulerDrawer {
 		firstSample = field.getStartSample();		
 		lastSample = 
 				Math.min(
-					field.getLastVisibleSample(rect.height),
+					field.getLastVisibleSample(),
 					field.getField().getMaxHeightInSamples());
 		
 		Converter converter = getConverter();

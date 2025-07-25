@@ -61,19 +61,19 @@ public class PrismDrawer {
 		Settings profileSettings = field.getField().getProfileSettings();
 		boolean showInlineHyperbolas = profileSettings.showGood.booleanValue();
 		boolean showEdge = profileSettings.showEdge.booleanValue();
-		boolean shiftGround = profileSettings.levelPreview.booleanValue();
-		
-		HorizontalProfile gp = model.getFileManager().getGprFiles().get(0).getGroundProfile();
-		
+
 		List<Trace> traces = field.getField().getGprTraces();
 		
 		tanh.setThreshold((float) threshold);
 		
 		int startTrace = field.getFirstVisibleTrace();
 		int finishTrace = field.getLastVisibleTrace();
-		int lastSample = field.getLastVisibleSample(rect.height);
-		
-		for (int i = startTrace; i < finishTrace; i++) {
+		int lastSample = field.getLastVisibleSample();
+
+		for (int i = startTrace; i <= finishTrace; i++) {
+			if (i < 0 || i >= traces.size()) {
+				continue;
+			}
 
 			int traceStartX = field.traceToScreen(i);
 			int traceFinishX = field.traceToScreen(i + 1);
@@ -85,10 +85,6 @@ public class PrismDrawer {
 			Trace trace = traces.get(i);
 			float middleAmp = profileSettings.hypermiddleamp;
 
-			int horshift = profileSettings.levelPreviewShift.intValue();
-			int gpi = i + horshift;
-			int vertshift = shiftGround && gp != null && gpi >=0 && gpi < gp.deep.length ? gp.deep[i + horshift] - gp.avgdeep : 0;
-			
 			for (int j = field.getStartSample();
                  j < Math.min(lastSample, trace.numSamples()); j++) {
 				
@@ -100,11 +96,10 @@ public class PrismDrawer {
 					continue;
 				}
 				
-				int z = j + vertshift;
-				if (z < 0 || z >= trace.numSamples()) {
+				if (j < 0 || j >= trace.numSamples()) {
 					continue;
 				}
-				float v = trace.getSample(z);
+				float v = trace.getSample(j);
 				int color = tanh.trans(v - middleAmp);
 				
 				if (showEdge && trace.getEdge(j) > 0) {

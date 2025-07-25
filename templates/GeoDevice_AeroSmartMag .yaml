@@ -1,0 +1,49 @@
+  # Template display name
+  name: "AeroSmartMag"
+  # Code of template
+  code: "AeroSmartMag"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: CSV
+  # Applies to the first 10 non-empty lines of the file to detect template
+  match-regex: >-
+    ^.*UTC_date.*UTC_time.*Time_zone.*Field.*Error.*Lat.*Lon.*Alt.*hAcc.*vAcc
+  file-format:
+  # Applies to CSV type. 'true' if file has headers, otherwise false
+    has-header: true
+    # The symbol which uses to make a comment
+    comment-prefix: '#'
+    # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+    # Applies to CSV type. The symbol to separate values from line in CSV file;
+    separator: '	'
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  data-mapping:
+    latitude:
+      header: Lat
+    longitude:
+      header: Lon
+    altitude:
+      header: Alt
+    time:
+      header: UTC_time
+      type: UTC
+      format: 'HH:mm:ss.fff'
+    date:
+      header: UTC_date
+      format: 'dd-MM-yyyy'
+    data-values:
+      - header: "Field"
+        semantic: "TMI"
+        units: "nT"
+      - header: "Alt"
+        semantic: "Altitude"
+        units: "m"
+      - header: "Line"
+        semantic: "Line"
+        units: ""
+      - header: "TMI_anomaly"
+        semantic: "TMI_anomaly"
+        units: "nT"
+      - header: "Error"
+        semantic: "Error"
+        units: ""

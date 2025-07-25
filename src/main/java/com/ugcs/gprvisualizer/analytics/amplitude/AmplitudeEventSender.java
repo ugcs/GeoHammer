@@ -69,7 +69,7 @@ public class AmplitudeEventSender implements EventSender {
     private JSONObject buildUserProperties(Event event) {
         JSONObject userProperties = new JSONObject();
         event.getUserProperties().forEach((originalKey, originalValue) -> {
-            Property property = mapUserProperty(originalKey, originalValue);
+            Property property = new Property(originalKey, originalValue);
             String key = property.key();
             Object value = property.value();
             if (value != null) {
@@ -91,10 +91,6 @@ public class AmplitudeEventSender implements EventSender {
             }
         });
         return eventProperties;
-    }
-
-    private Property mapUserProperty(String key, Object value) {
-        return new Property(key, value);
     }
 
     @Override

@@ -1,105 +1,138 @@
 package com.ugcs.gprvisualizer.math;
 
-import java.awt.Color;
-import java.util.List;
+import com.github.thecoldwine.sigrun.common.ext.MetaFile;
+import com.ugcs.gprvisualizer.app.meta.SampleRange;
+import com.ugcs.gprvisualizer.utils.Check;
+import org.jspecify.annotations.Nullable;
 
-import com.github.thecoldwine.sigrun.common.ext.Trace;
+import java.awt.Color;
+import java.util.Arrays;
 
 public class HorizontalProfile {
 
-	// in smp
-	public int[] deep;
-	public int[] originalDeep;
+	private static final int SMOOTHING_WINDOW = 7;
 
-	public int minDeep;
-	public int maxDeep;
-	public int height;
-	public double avgval;
-	public int avgdeep;
-	
-	public Color color = new Color(50, 200, 255);
-	
-	public HorizontalProfile(int size) {
-		deep = new int[size];
+	@Nullable
+	private MetaFile metaFile;
+
+	private Color color = Color.red;
+
+	// horizontal offset applied to profile
+	private int offset = 0;
+
+	// depths in samples
+	private int[] depths;
+
+	public HorizontalProfile(int[] depths, MetaFile metaFile) {
+		Check.notNull(depths);
+
+		this.depths = depths;
+		this.metaFile = metaFile;
+
+		finish();
 	}
-	
-	public void finish(List<Trace> list) {
-		minDeep = deep[0];
-		maxDeep = deep[0];
-		
-		double valsum = 0;
-		long deepsum = 0;
-		
-		//smooth
-		smoothLevel();
-		
-		//min, max, avg_val
-		for (int i = 0; i < deep.length; i++) {
-			
-			minDeep = Math.min(deep[i], minDeep);
-			maxDeep = Math.max(deep[i], maxDeep);
-			
-			int d = deep[i];
-			
-			if (list != null) {
-				Trace trace = list.get(i);
 
-				if (d >= 0 && d < trace.numSamples()) {
-					valsum += trace.getSample(d);
-				}
-			}
-			deepsum += d;
+	public HorizontalProfile(HorizontalProfile source, MetaFile metaFile) {
+		Check.notNull(source);
+
+		this.depths = Arrays.copyOf(source.depths, source.depths.length);
+		this.offset = source.offset;
+		this.metaFile = metaFile;
+
+		finish();
+	}
+
+	public Color getColor() {
+		return color;
+	}
+
+	public void setColor(Color color) {
+		this.color = color;
+	}
+
+	public int getOffset() {
+		return offset;
+	}
+
+	public void setOffset(int offset) {
+		this.offset = offset;
+	}
+
+	public int size() {
+		return metaFile != null
+				? metaFile.numTraces()
+				: depths.length;
+	}
+
+	private int getIndex(int localIndex, int offset) {
+		// global trace index
+		int globalIndex = metaFile != null
+				? metaFile.getTraceIndex(localIndex)
+				: localIndex;
+		// offset index
+		return globalIndex - offset;
+	}
+
+	private int relativeToSampleRange(int depth) {
+		if (metaFile == null) {
+			return depth;
 		}
-		
-		avgval = valsum / deep.length;
-		avgdeep = (int) (deepsum / deep.length);
-		height = maxDeep - minDeep;
-	}
-	
-	private void smoothLevel() {
-		int[] result = new int[deep.length];
-		for (int i = 0; i < deep.length; i++) {
-			result[i] = avg(i);
+		SampleRange sampleRange = metaFile.getSampleRange();
+		if (sampleRange == null) {
+			return depth;
 		}
-
-		deep = result;
+		depth = Math.clamp(depth, sampleRange.getFrom(), sampleRange.getTo() - 1);
+		return depth - sampleRange.getFrom();
 	}
 
-	private static final int R = 7;
-	private static final double DR = R;
-	
-	private int avg(int i) {
-		
-		int from = i - R;
+	public int getDepth(int index) {
+		int i = getIndex(index, offset);
+		int depth = i >= 0 && i < depths.length ? depths[i] : 0;
+		return relativeToSampleRange(depth);
+	}
+
+	public void finish() {
+		smooth();
+	}
+
+	private void smooth() {
+		int[] result = new int[depths.length];
+		for (int i = 0; i < depths.length; i++) {
+			result[i] = weightedAverageAt(i);
+		}
+		depths = result;
+	}
+
+	private int weightedAverageAt(int i) {
+		int r = SMOOTHING_WINDOW;
+
+		int from = i - r;
 		from = Math.max(0, from);
-		int to = i + R;
-		to = Math.min(to, deep.length - 1);
+		int to = i + r;
+		to = Math.min(to, depths.length - 1);
 		double sum = 0;
 		double cnt = 0;
-		
+
 		for (int j = from; j <= to; j++) {
-			double kfx = (DR + j - i) / (DR * 2);
-			double kf = kfx * kfx * (1 - kfx) * (1 - kfx); 
-			
-			sum += deep[j] * kf;
+			double kfx = (double)(r + j - i) / (r * 2);
+			double kf = kfx * kfx * (1 - kfx) * (1 - kfx);
+
+			sum += depths[j] * kf;
 			cnt += kf;
 		}
-		
+
 		return (int) Math.round(sum / cnt);
 	}
 
-    public void shift(int intValue) {
-		if (originalDeep == null) {
-			originalDeep = deep.clone();
+	public int getLevel() {
+		int n = size();
+		int minDepth = n > 0 ? getDepth(0) : 0;
+		int maxDepth = minDepth;
+		for (int i = 0; i < n; i++) {
+			int depth = getDepth(i);
+			minDepth = Math.min(depth, minDepth);
+			maxDepth = Math.max(depth, maxDepth);
 		}
-		int[] newDeep = new int[deep.length];
-		for (int i = 0; i < deep.length; i++) {
-			if (i + intValue >= 0 && i + intValue < deep.length) {
-				newDeep[i + intValue] = originalDeep[i];
-			} else {
-				newDeep[i] = 0;
-			}
-		}
-		this.deep = newDeep;
-    }	
+		return (minDepth + maxDepth) / 2;
+	}
 }

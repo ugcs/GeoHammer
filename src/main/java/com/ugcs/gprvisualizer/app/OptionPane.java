@@ -64,9 +64,9 @@ import javafx.scene.layout.VBox;
 @Component
 public class OptionPane extends VBox implements InitializingBean {
 
-	private static final double DEFAULT_SPACING = 5;
+	public static final double DEFAULT_SPACING = 5;
 
-	private static final Insets DEFAULT_OPTIONS_INSETS = new Insets(10, 0, 10, 0);
+	public static final Insets DEFAULT_OPTIONS_INSETS = new Insets(10, 0, 10, 0);
 
 	private static final Insets DEFAULT_GPR_OPTIONS_INSETS = new Insets(10, 8, 10, 8);
 
@@ -78,8 +78,6 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private MapView mapView;
 
-	private UiUtils uiUtils;
-
 	private ProfileView profileView;
 
 	private CommandRegistry commandRegistry;
@@ -90,9 +88,8 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private PrefSettings prefSettings;
 
-	public OptionPane(MapView mapView, UiUtils uiUtils, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings) {
+	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings) {
 		this.mapView = mapView;
-		this.uiUtils = uiUtils;
 		this.profileView = profileView;
 		this.commandRegistry = commandRegistry;
 		this.model = model;
@@ -117,12 +114,13 @@ public class OptionPane extends VBox implements InitializingBean {
 		-fx-border-style: solid;
 		""";
 
-	private ToggleButton  gridding = new ToggleButton("Gridding");
+	private ToggleButton gridding = new ToggleButton("Gridding");
 	private Map<String, TextField> filterInputs = new HashMap<>();
 	private ProgressIndicator griddingProgressIndicator;
 	private Button showGriddingButton;
 	private Button showGriddingAllButton;
 	private RangeSlider griddingRangeSlider;
+	private StatisticsView statisticsView;
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
@@ -140,21 +138,17 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 
-        Tab tab2 = new Tab("Experimental");
-
 		prepareCsvTab(csvTab);
-
-        if (!AppContext.PRODUCTION) {
-        	tabPane.getTabs().add(tab2);
-        }
 	}
 
 	private void prepareCsvTab(Tab tab) {
+		ToggleButton statisticsButton = new ToggleButton("Statistics");
 		ToggleButton lowPassFilterButton = new ToggleButton("Low-pass filter");
 		ToggleButton timeLagButton = new ToggleButton("GNSS time-lag");
 		ToggleButton medianCorrection = new ToggleButton("Running median filter");
 		ToggleButton qualityControl = new ToggleButton("Quality control");
 
+		statisticsButton.setMaxWidth(Double.MAX_VALUE);
 		lowPassFilterButton.setMaxWidth(Double.MAX_VALUE);
 		gridding.setMaxWidth(Double.MAX_VALUE);
 		timeLagButton.setMaxWidth(Double.MAX_VALUE);
@@ -164,6 +158,9 @@ public class OptionPane extends VBox implements InitializingBean {
 		VBox container = new VBox();
 		container.setPadding(new Insets(10, 8, 10, 8));
 		container.setSpacing(5);
+
+		statisticsView = new StatisticsView(model);
+		StackPane statisticsPane = new StackPane(statisticsView);
 
 		FilterActions lowPassActions = new FilterActions();
 		lowPassActions.constraint = i -> {
@@ -215,12 +212,15 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		container.getChildren().addAll(List.of(lowPassFilterButton, lowPassOptions,
+		container.getChildren().addAll(List.of(
+				statisticsButton, statisticsPane,
+				lowPassFilterButton, lowPassOptions,
 				gridding, griddingPane,
 				timeLagButton, timeLagOptions,
 				medianCorrection, medianCorrectionOptions,
 				qualityControl, qualityControlView.getRoot()));
 
+		statisticsButton.setOnAction(getChangeVisibleAction(statisticsPane));
 		lowPassFilterButton.setOnAction(getChangeVisibleAction(lowPassOptions));
 		gridding.setOnAction(getChangeVisibleAction(griddingPane));
 		timeLagButton.setOnAction(getChangeVisibleAction(timeLagOptions));
@@ -292,6 +292,13 @@ public class OptionPane extends VBox implements InitializingBean {
 	public void on(WhatChanged changed) {
 		if (changed.isTraceCut()) {
 			showGridInputDataChangedWarning(true);
+		}
+		if (changed.isCsvDataZoom() || changed.isTraceCut() || changed.isTraceSelected()) {
+			if (statisticsView != null) {
+				Platform.runLater(() -> {
+					statisticsView.update(selectedFile);
+				});
+			}
 		}
 	}
 
@@ -1081,8 +1088,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
 		// elevation
-		options.getChildren().add(new Label("Elevation source: "
-				+ getSourceName(file.getGroundProfileSource())));
 		options.getChildren().addAll(levelFilter.getToolNodes2());
 
 		options.setVisible(false);
@@ -1091,11 +1096,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		return new StackPane(options);
 	}
 
-	private String getSourceName(PositionFile positionFile) {
-		return (positionFile != null && positionFile.getPositionFile() != null) ? positionFile.getPositionFile().getName() : "not found";
-	}
-
-	private ToggleButton prepareToggleButton(String title, 
+	private ToggleButton prepareToggleButton(String title,
 			String imageName, MutableBoolean bool, Consumer<ToggleButton> consumer ) {
 
 		ToggleButton btn = new ToggleButton(title, 
@@ -1117,12 +1118,18 @@ public class OptionPane extends VBox implements InitializingBean {
 		return btn;
 	}
 
-
-
 	@EventListener
     private void handleFileSelectedEvent(FileSelectedEvent event) {
+        if (statisticsView != null) {
+            Platform.runLater(() -> {
+                statisticsView.update(event.getFile());
+            });
+        }
+		// do nothing if selected file is same as previously selected
+		if (Objects.equals(event.getFile(), selectedFile)) {
+			return;
+		}
         selectedFile = event.getFile();
-
 		if (selectedFile == null) {
 			clear();
 			return;

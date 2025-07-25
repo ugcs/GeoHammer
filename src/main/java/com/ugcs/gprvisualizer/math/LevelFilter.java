@@ -1,287 +1,333 @@
 package com.ugcs.gprvisualizer.math;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
+import com.github.thecoldwine.sigrun.common.ext.PositionFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.ugcs.gprvisualizer.app.GPRChart;
-import com.ugcs.gprvisualizer.app.commands.CancelKmlToFlag;
-import com.ugcs.gprvisualizer.app.commands.KmlToFlag;
 
+import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
+import com.ugcs.gprvisualizer.app.undo.UndoFrame;
+import com.ugcs.gprvisualizer.app.undo.UndoModel;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Settings;
+import com.ugcs.gprvisualizer.ui.BaseSlider;
+import com.ugcs.gprvisualizer.utils.Strings;
+import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.ugcs.gprvisualizer.app.AppContext;
-import com.ugcs.gprvisualizer.app.UiUtils;
 import com.ugcs.gprvisualizer.app.commands.BackgroundNoiseRemover;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
-import com.ugcs.gprvisualizer.app.commands.LevelClear;
 import com.ugcs.gprvisualizer.app.commands.LevelGround;
-import com.ugcs.gprvisualizer.app.commands.LevelManualSetter;
-import com.ugcs.gprvisualizer.app.commands.LevelScanner;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
 import com.ugcs.gprvisualizer.draw.ToolProducer;
 import com.ugcs.gprvisualizer.gpr.Model;
 
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.ToggleButton;
 
 @Component
 public class LevelFilter implements ToolProducer {
 
-	@Autowired
-	private Model model;	
-	
-	@Autowired
-	private UiUtils uiUtils;
+    Settings levelSettings = new Settings();
 
-	@Autowired
-	private CommandRegistry commandRegistry;
+    @Autowired
+    private Model model;
 
-	private Button buttonRemoveLevel;
+    @Autowired
+    private UndoModel undoModel;
 
-	private Button buttonLevelGround;
+    @Autowired
+    private CommandRegistry commandRegistry;
 
-	private ToggleButton levelPreview;
+    private Label elevationSourceName;
 
-	private Node slider;
+    private ComboBox<String> traceColumnSelector;
 
-	private Button buttonSpreadCoord;
+    private Button buttonLevelGround;
 
-	private Button buttonKmlToFlag;
+    private Node slider;
 
-	private Button buttonCancelKmlToFlag;
+    private Button buttonSpreadCoord;
 
-	private List<TraceFile> undoFiles;
+    private TraceFile selectedFile;
 
-	Settings levelSettings = new Settings();
+    @EventListener
+    private void selectFile(FileSelectedEvent event) {
+        if (event.getFile() instanceof TraceFile traceFile) {
+            selectedFile = traceFile;
+        } else {
+            selectedFile = null;
+        }
+        clearForNewFile(selectedFile);
+    }
 
-	private TraceFile selectedFile;
+    @Override
+    public List<Node> getToolNodes() {
+        buttonSpreadCoord = commandRegistry.createButton(new SpreadCoordinates(),
+                e -> {
+                    updateView(selectedFile);
+                });
 
-	@EventListener
-	private void selectFile(FileSelectedEvent event) {
-		if (event.getFile() instanceof TraceFile traceFile) {
-			selectedFile = traceFile;
-		} else {
-			selectedFile = null;
-		}
-		clearForNewFile(selectedFile);
-	}
+        var buttons = List.of(commandRegistry.createButton(new BackgroundNoiseRemover()), buttonSpreadCoord);
 
-	@Override
-	public List<Node> getToolNodes() {
+        HBox hbox = new HBox();
+        hbox.setSpacing(8);
 
-		buttonSpreadCoord = commandRegistry.createButton(new SpreadCoordinates(), 
-			e -> {
-				updateButtons(selectedFile);
-			});
-			
-		var buttons = List.of(commandRegistry.createButton(new BackgroundNoiseRemover()), buttonSpreadCoord);
+        buttons.forEach(b -> {
+            b.setMaxWidth(Double.MAX_VALUE);
+        });
 
-		HBox hbox = new HBox();
-		hbox.setSpacing(8);
+        HBox.setHgrow(buttons.get(0), Priority.ALWAYS);
+        HBox.setHgrow(buttons.get(1), Priority.ALWAYS);
 
-		buttons.forEach(b -> {
-			b.setMaxWidth(Double.MAX_VALUE);
-		});
+        hbox.getChildren().addAll(buttons);
 
-		HBox.setHgrow(buttons.get(0), Priority.ALWAYS);
-		HBox.setHgrow(buttons.get(1), Priority.ALWAYS);
+        return List.of(hbox);
+    }
 
-		hbox.getChildren().addAll(buttons);
+    public List<Node> getToolNodes2() {
+        // elevation source
+        if (elevationSourceName == null) {
+            elevationSourceName = new Label();
+        }
+        // trace semantic
+        if (traceColumnSelector == null) {
+            traceColumnSelector = new ComboBox<>();
+            traceColumnSelector.setPrefWidth(200);
+            traceColumnSelector.setOnAction(this::traceColumnSelected);
+        }
 
-		return List.of(hbox);
-	}
+        HBox traceColumn = new HBox();
+        traceColumn.setAlignment(Pos.BASELINE_LEFT);
+        traceColumn.setSpacing(8);
 
-	public List<Node> getToolNodes2() {
-		buttonKmlToFlag = commandRegistry.createButton(new KmlToFlag(),
-			e -> {
-			});
-		buttonCancelKmlToFlag = commandRegistry.createButton(new CancelKmlToFlag(),
-			e -> {
-			});
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-		levelPreview = uiUtils.prepareToggleButton("Level preview", null, 
-				levelSettings.levelPreview,
-				WhatChanged.Change.justdraw);
+        traceColumn.getChildren().addAll(
+                new Label("Trace column"),
+                spacer,
+                traceColumnSelector);
 
-		if (buttonRemoveLevel == null) {	
-			buttonRemoveLevel = commandRegistry.createButton(new LevelClear(this), e -> { 
-				List<SgyFile> files = new ArrayList<>();
-				files.addAll(model.getFileManager().getGprFiles());
-				files.addAll(model.getFileManager().getCsvFiles());
-				model.getFileManager().updateFiles(files);
-				updateButtons(selectedFile);
-			});
-		}
-		
-		if (buttonLevelGround == null) {
-			buttonLevelGround = commandRegistry.createButton(new LevelGround(this), e -> {				
-				updateButtons(selectedFile);
-			});		
-		}		
-		
-		if (slider == null) {
-			slider = uiUtils.createSlider(levelSettings.levelPreviewShift, WhatChanged.Change.justdraw, -50, 50, """
-			Elevation lag, 
-			traces""", 	new ChangeListener<Number>() {
-				@Override
-				public void changed(
-					ObservableValue<? extends Number> observable,
-					Number oldValue,
-					Number newValue) {
-					if (selectedFile == null) {
-						return;
-					}
-					GPRChart gprChart = model.getGprChart(selectedFile);
-					if (gprChart == null) {
-						return;
-					}
+        VBox elevationSource = new VBox();
+        elevationSource.setStyle("-fx-border-color: #cccccc;-fx-border-width: 1px;-fx-border-radius: 6px;");
+        elevationSource.setSpacing(12);
+        elevationSource.setPadding(new Insets(12));
+        elevationSource.getChildren().addAll(
+                elevationSourceName,
+                traceColumn);
 
-					TraceFile file = gprChart.getField().getFile();
-					file.getGroundProfile().shift(newValue.intValue());
-					model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
-				}
-		});
-		}
+        if (buttonLevelGround == null) {
+            buttonLevelGround = new Button("Flatten surface");
+            buttonLevelGround.setMaxWidth(Double.MAX_VALUE);
+            buttonLevelGround.setOnAction(this::flattenSurface);
+        }
 
-		List<Node> result = new ArrayList<>();
-		
-		if (!AppContext.PRODUCTION) {
-		    result.addAll(Arrays.asList(
-			 
-			commandRegistry.createButton(new LevelScanner(), "scanLevel.png", 
-					e -> {
-						updateButtons(selectedFile);
-					}),
-			commandRegistry.createButton(new LevelManualSetter(model),
-					e -> {
-						updateButtons(selectedFile);
-					}),
-			
-				buttonRemoveLevel, buttonLevelGround, levelPreview, slider, buttonKmlToFlag, buttonCancelKmlToFlag
-		
-		    	));		
-		} else {
-			HBox hbox = new HBox();
-			hbox.setSpacing(8);
+        if (slider == null) {
+            OffsetSlider offsetSlider = new OffsetSlider();
+            slider = offsetSlider.produce();
+        }
 
-			buttonRemoveLevel.setMaxWidth(Double.MAX_VALUE);
-			buttonLevelGround.setMaxWidth(Double.MAX_VALUE);
+        VBox vbox = new VBox();
+        vbox.setSpacing(8);
+        vbox.getChildren().addAll(List.of(
+                elevationSource,
+                slider,
+                buttonLevelGround
+        ));
 
-			HBox.setHgrow(buttonRemoveLevel, Priority.ALWAYS);
-			HBox.setHgrow(buttonLevelGround, Priority.ALWAYS);
+        updateView(selectedFile);
 
-			hbox.getChildren().addAll(buttonLevelGround, buttonRemoveLevel);					
-			result.addAll(List.of(
-					slider,
-					hbox 
-			));
-		}
+        return List.of(vbox);
+    }
 
-		VBox vbox = new VBox();
-		vbox.setSpacing(5);
+    private void saveUndoSnapshot(TraceFile traceFile) {
+        if (traceFile == null) {
+            return;
+        }
 
-		updateButtons(selectedFile);
+        FileSnapshot<TraceFile> snapshot = traceFile.createSnapshotWithTraces();
+        undoModel.push(new UndoFrame(snapshot));
+    }
 
-		vbox.getChildren().addAll(result);
+    private void flattenSurface(ActionEvent event) {
+        if (selectedFile instanceof TraceFile traceFile) {
+            if (isGroundProfileExists(traceFile)) {
+                saveUndoSnapshot(traceFile);
+                commandRegistry.runForGprFiles(
+                        List.of(traceFile),
+                        new LevelGround());
+                updateView(traceFile);
+            }
+        }
+    }
 
-		return List.of(vbox);
-	}
+    private void updateView(TraceFile traceFile) {
+        if (elevationSourceName != null) {
+            elevationSourceName.setText("Elevation source: " + getElevationSourceName(traceFile));
+        }
+        if (traceColumnSelector != null) {
+            initTraceColumnSelector(traceFile);
+        }
+        if (buttonSpreadCoord != null) {
+            buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
+        }
+        if (buttonLevelGround != null) {
+            buttonLevelGround.setDisable(!isGroundProfileExists(traceFile));
+        }
+        if (slider != null) {
+            slider.setDisable(!isGroundProfileExists(traceFile));
+        }
+    }
 
-	private void updateButtons(TraceFile file) {
+    private String getElevationSourceName(TraceFile traceFile) {
+        File file = null;
+        if (traceFile != null) {
+            PositionFile positionFile = traceFile.getGroundProfileSource();
+            if (positionFile != null) {
+                file = positionFile.getPositionFile();
+            }
+        }
+        return file != null ? file.getName() : "not found";
+    }
 
-		if (buttonSpreadCoord != null) {
-			buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
-		}
+    private void initTraceColumnSelector(TraceFile traceFile) {
+        traceColumnSelector.setDisable(!isGroundProfileExists(traceFile));
+        traceColumnSelector.getItems().clear();
 
-		if (buttonLevelGround != null) {
-			buttonLevelGround.setDisable(!isGroundProfileExists(file));
-		}
-		if (buttonRemoveLevel != null) {
-			buttonRemoveLevel.setDisable(!isUndoFilesExists());
-		}
-		if (levelPreview != null) {
-			levelPreview.setDisable(!isGroundProfileExists(file));
-		}
-		if (slider != null) {
-			slider.setDisable(!isGroundProfileExists(file));
-		}
-	}
-	
-	private boolean isUndoFilesExists() {
-		return undoFiles != null && !undoFiles.isEmpty();
-	}
+        PositionFile positionFile = traceFile != null
+                ? traceFile.getGroundProfileSource()
+                : null;
+        if (positionFile != null) {
+            traceColumnSelector.getItems().addAll(positionFile.getAvailableTraceSemantics());
+            traceColumnSelector.setValue(traceFile.getGroundProfileTraceSemantic());
+        } else {
+            traceColumnSelector.setValue(null);
+        }
+    }
 
-	protected boolean isGroundProfileExists(TraceFile file) {
-		GPRChart gprChart = model.getGprChart(file);
-		return gprChart != null && file.getGroundProfile() != null;
-	}
-	
-	private void clearForNewFile(TraceFile file) {
-		updateButtons(file);
-	}
-	
-	@EventListener
-	private void somethingChanged(WhatChanged changed) {
-		if (changed.isUpdateButtons() || changed.isTraceCut()) {
-			
-			clearForNewFile(selectedFile);
-			
-			if (buttonSpreadCoord != null) {
-				buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
-			}
+    private void traceColumnSelected(ActionEvent event) {
+        TraceFile traceFile = selectedFile;
+        if (traceFile == null) {
+            return;
+        }
+        String traceSemantic = traceColumnSelector.getValue();
+        if (Objects.equals(traceSemantic, traceFile.getGroundProfileTraceSemantic())) {
+            return; // already selected
+        }
+        PositionFile positionFile = traceFile.getGroundProfileSource();
+        if (positionFile != null) {
+            positionFile.setGroundProfile(traceFile, traceSemantic);
+            HorizontalProfile profile = traceFile.getGroundProfile();
+            if (profile != null) {
+                // apply offset
+                int offset = levelSettings.levelPreviewShift.intValue();
+                profile.setOffset(offset);
+            }
+            model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+        }
+    }
 
-			if (buttonKmlToFlag != null) {
-				buttonKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-				buttonKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-			}
+    protected boolean isGroundProfileExists(TraceFile traceFile) {
+        return traceFile != null && traceFile.getGroundProfile() != null;
+    }
 
-			if (buttonCancelKmlToFlag != null) {
-				buttonCancelKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-				buttonCancelKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-			}
-		}
-	}
+    private void clearForNewFile(TraceFile traceFile) {
+        updateView(traceFile);
+    }
 
-	@EventListener
-	private void fileOpened(FileOpenedEvent event) {
-		if (buttonSpreadCoord != null) {
-			buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
-		}
+    @EventListener
+    private void somethingChanged(WhatChanged changed) {
+        if (changed.isUpdateButtons() || changed.isTraceCut()) {
+            clearForNewFile(selectedFile);
 
-		if (buttonKmlToFlag != null) {
-			buttonKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-			buttonKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-		}
+            if (buttonSpreadCoord != null) {
+                buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
+            }
+        }
+    }
 
-		if (buttonCancelKmlToFlag != null) {
-			buttonCancelKmlToFlag.setVisible(model.isKmlToFlagAvailable());
-			buttonCancelKmlToFlag.setManaged(model.isKmlToFlagAvailable());
-		}
-	}
-	
-	public List<TraceFile> getUndoFiles() {
-		return undoFiles;
-	}
+    @EventListener
+    private void fileOpened(FileOpenedEvent event) {
+        if (buttonSpreadCoord != null) {
+            buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
+        }
+    }
 
-	public void setUndoFiles(List<TraceFile> undoFiles) {
-		this.undoFiles = undoFiles;
-	}
+    public void sliderChanged(ObservableValue<? extends Number> observable,
+                        Number oldValue, Number newValue) {
+        if (selectedFile != null) {
+            int value = levelSettings.levelPreviewShift.intValue();
+            HorizontalProfile profile = selectedFile.getGroundProfile();
+            if (profile != null) {
+                profile.setOffset(value);
+                model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+            }
+        }
+    }
+
+    class OffsetSlider extends BaseSlider {
+
+        private static final int LENGTH = 100;
+        // when slider gets to an edge in a given factor
+        // of its length it would shift its range toward the edge
+        private static final float EXPAND_THRESHOLD = 0.2f;
+
+        public OffsetSlider() {
+            super(levelSettings, LevelFilter.this::sliderChanged);
+            name = "Elevation lag,\ntraces";
+            units = Strings.empty();
+            tickUnits = 5;
+        }
+
+        @Override
+        public int updateModel() {
+            int value = (int)slider.getValue();
+            levelSettings.levelPreviewShift.setValue(value);
+            return value;
+        }
+
+        @Override
+        public void updateUI() {
+            int value = levelSettings.levelPreviewShift.intValue();
+            int halfLength = LENGTH / 2;
+            slider.setMin(value - halfLength);
+            slider.setMax(value + halfLength);
+            slider.setValue(value);
+
+            slider.setOnMouseReleased(event -> {
+                // expand slider range when value is close to edges
+                double width = slider.getMax() - slider.getMin();
+                double position = slider.getValue() - slider.getMin();
+                double margin = EXPAND_THRESHOLD * width;
+                int offset = 0;
+                if (position < margin) {
+                    offset = (int)-margin;
+                }
+                if (position > width - margin) {
+                    offset = (int)margin;
+                }
+                if (offset != 0) {
+                    slider.setMin((int)slider.getMin() + offset);
+                    slider.setMax((int)slider.getMax() + offset);
+                }
+            });
+        }
+    }
 }

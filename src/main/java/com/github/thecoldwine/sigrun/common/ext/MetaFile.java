@@ -59,6 +59,16 @@ public class MetaFile {
         return values;
     }
 
+    public int numTraces() {
+        return values.size();
+    }
+
+    // global trace index for ith value
+    public int getTraceIndex(int index) {
+        TraceGeoData value = values.get(index);
+        return value.getTraceIndex();
+    }
+
     public static Path getMetaPath(File source) {
         Check.notNull(source);
 

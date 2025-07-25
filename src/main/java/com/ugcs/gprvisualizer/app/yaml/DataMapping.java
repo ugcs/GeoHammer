@@ -20,7 +20,16 @@ public class DataMapping {
     private BaseData timestamp;
     private BaseData traceNumber;
 
+    private List<BaseData> sgyTraces;
     private List<SensorData> dataValues;
+
+    public List<BaseData> getSgyTraces() {
+        return sgyTraces;
+    }
+
+    public void setSgyTraces(List<BaseData> sgyTraces) {
+        this.sgyTraces = sgyTraces;
+    }
 
     /**
      * Gets the sensors of the template.

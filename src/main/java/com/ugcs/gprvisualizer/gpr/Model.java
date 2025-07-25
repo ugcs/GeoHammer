@@ -535,9 +535,12 @@ public class Model implements InitializingBean {
 	@EventListener
 	private void onChange(WhatChanged event) {
 		if (event.isJustdraw()) {
-			csvFiles.values().forEach(v ->
-					Platform.runLater(v::updateChartName)
+			csvFiles.values().forEach(chart ->
+					Platform.runLater(chart::updateChartName)
 			);
+			gprCharts.values().forEach(chart -> {
+				Platform.runLater(chart::repaint);
+			});
 		}
 	}
 
@@ -676,6 +679,7 @@ public class Model implements InitializingBean {
 		}
 		TraceKey trace = getSelectedTrace(chart);
 		chart.selectTrace(trace, focusOnTrace);
+		publishEvent(new WhatChanged(this, WhatChanged.Change.traceSelected));
 	}
 
 	// flags

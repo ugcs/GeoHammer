@@ -14,6 +14,7 @@ import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
+import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nodes;
 import com.ugcs.gprvisualizer.utils.Range;
@@ -586,6 +587,16 @@ public class SensorLineChart extends Chart {
         lastLineChart.addVerticalValueMarker(verticalMarker, line, null, flagMarker, false);
     }
 
+    public Range getVisibleXRange() {
+        String seriesName = getSelectedSeriesName();
+        LineChartWithMarkers selectedChart = getCharts().get(seriesName);
+        if (selectedChart == null) {
+            return new Range(0, 0);
+        }
+        ZoomRect zoomRect = selectedChart.zoomRect;
+        return new Range(zoomRect.xMin, zoomRect.xMax);
+    }
+
     @Override
     public int getVisibleNumberOfTrace() {
         String seriesName = getSelectedSeriesName();
@@ -663,7 +674,13 @@ public class SensorLineChart extends Chart {
         plotData.setRendered(subsample);
     }
 
-    private int getValueLineIndex(int index) {
+    public int getSelectedLineIndex() {
+        return selectionMarker != null
+                ? getValueLineIndex(selectionMarker.getXValue().intValue())
+                : getViewLineIndex();
+    }
+
+    public int getValueLineIndex(int index) {
         List<GeoData> values = file.getGeoData();
         if (values == null || values.isEmpty()) {
             return 0;
@@ -673,7 +690,7 @@ public class SensorLineChart extends Chart {
         return values.get(index).getLineIndexOrDefault();
     }
 
-    private int getViewLineIndex() {
+    public int getViewLineIndex() {
         String seriesName = getSelectedSeriesName();
         LineChartWithMarkers selectedChart = getCharts().get(seriesName);
         if (selectedChart != null) {
@@ -745,12 +762,7 @@ public class SensorLineChart extends Chart {
 
     @Override
     public void zoomToCurrentLine() {
-        int lineIndex;
-        if (selectionMarker != null) {
-            lineIndex = getValueLineIndex(selectionMarker.getXValue().intValue());
-        } else {
-            lineIndex = getViewLineIndex();
-        }
+        int lineIndex = getSelectedLineIndex();
         zoomToLine(lineIndex);
         updateOnZoom(false);
     }
@@ -814,6 +826,8 @@ public class SensorLineChart extends Chart {
 
     private void updateOnZoom(boolean delayed) {
         updateProfileScroll();
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
+
         if (delayed) {
             scheduleUpdate(() -> {
                 Platform.runLater(this::updateChartData);
@@ -1740,6 +1754,8 @@ public class SensorLineChart extends Chart {
                 chart.setZoomRect(zoomRect);
                 chart.updateLineChartData();
             }
+
+            model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
         }
         putSelectionMarker(selectedX);
         updateProfileScroll();

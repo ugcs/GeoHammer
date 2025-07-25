@@ -14,7 +14,6 @@ import com.ugcs.gprvisualizer.app.ScrollableData;
 import javafx.geometry.Point2D;
 
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import org.jspecify.annotations.Nullable;
@@ -156,7 +155,7 @@ public class RulerTool extends BaseObjectImpl {
 	public static double distanceVCm(TraceFile file, int tr, double smp1, double smp2) {
 		double grndLevel = 0;
 		if (file.getGroundProfile() != null) {
-			grndLevel = file.getGroundProfile().deep[tr];
+			grndLevel = file.getGroundProfile().getDepth(tr);
 		}
 
 		double h1 = Math.min(smp1, smp2); 
@@ -174,7 +173,7 @@ public class RulerTool extends BaseObjectImpl {
 	public static double distanceCm(TraceFile file, int tr1, int tr2, double smp1, double smp2) {
 		double grndLevel = 0;
 		if (file.getGroundProfile() != null) {
-			grndLevel = file.getGroundProfile().deep[(tr1 + tr2) / 2];
+			grndLevel = file.getGroundProfile().getDepth((tr1 + tr2) / 2);
 		}
 
 		int s = Math.max(0, Math.min(tr1, tr2));
@@ -200,45 +199,6 @@ public class RulerTool extends BaseObjectImpl {
 		
 		double diag = Math.sqrt(horDistCm * horDistCm + vertDistCm * vertDistCm);
 		return diag;
-	}
-
-	public static int diagonalToSmp(TraceFile file, int tr, int smp, double c) {
-		int grn = file.getGroundProfile().deep[tr];
-	
-		int i=0;
-		double dst = 0;
-		while (dst < c) {
-			if (i < grn) {
-				dst += file.getSamplesToCmAir();
-			} else {
-				dst += file.getSamplesToCmGrn();
-			}
-			i++;
-		}
-
-		return i;
-	}
-		
-	public static int diagonalToSmp2(TraceFile file, int tr, int smp, double c) {
-		int grn = file.getGroundProfile().deep[tr];
-		
-		//part of air
-		
-		double fullCm = distanceCm(file, tr, tr, 0, smp);
-		double grndCm = distanceCm(file, tr, tr, 0, grn);
-		double f = grndCm / fullCm;
-		
-		f = Math.clamp(f, 0, 1);
-		
-		double diagAir = c * f;
-		double diagGrn = c * (1 - f);
-		
-		double smpAir = diagAir / file.getSamplesToCmAir();
-		double smpGrn = diagGrn / file.getSamplesToCmGrn();
-		
-		double smpSum = smpAir + smpGrn;
-
-		return (int) smpSum;
 	}
 
 	@Override

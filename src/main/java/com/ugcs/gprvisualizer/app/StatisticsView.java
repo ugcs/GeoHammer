@@ -5,10 +5,15 @@ import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
+import com.ugcs.gprvisualizer.app.yaml.DataMapping;
+import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.math.PrefixSum;
 import com.ugcs.gprvisualizer.math.SegmentTree;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Strings;
 import javafx.beans.value.ObservableValue;
@@ -50,6 +55,8 @@ public class StatisticsView extends VBox {
 
     private SensorLineChart chart;
 
+    private int chartDecimals = SensorData.DEFAULT_DECIMALS;
+
     public StatisticsView(Model model) {
         this.model = model;
 
@@ -89,9 +96,44 @@ public class StatisticsView extends VBox {
         setManaged(false);
     }
 
+    private int getDecimals(CsvFile csvFile, String semantic) {
+        SensorData sensorData = getSensorDataBySemantic(csvFile, semantic);
+        return sensorData != null
+                ? sensorData.getDecimals()
+                : SensorData.DEFAULT_DECIMALS;
+    }
+
+    private SensorData getSensorDataBySemantic(CsvFile csvFile, String semantic) {
+        if (csvFile == null) {
+            return null;
+        }
+        CsvParser parser = csvFile.getParser();
+        if (parser == null) {
+            return null;
+        }
+        Template template = parser.getTemplate();
+        if (template == null) {
+            return null;
+        }
+        DataMapping dataMapping = template.getDataMapping();
+        if (dataMapping == null) {
+            return null;
+        }
+        for (SensorData sensorData : Nulls.toEmpty(dataMapping.getDataValues())) {
+            if (Objects.equals(semantic, sensorData.getSemantic())) {
+                return sensorData;
+            }
+        }
+        return null;
+    }
+
     public void update(SgyFile selectedFile) {
+        chartDecimals = SensorData.DEFAULT_DECIMALS;
         if (selectedFile instanceof CsvFile csvFile) {
             chart = model.getCsvChart(csvFile).orElse(null);
+            if (chart != null) {
+                chartDecimals = getDecimals(csvFile, chart.getSelectedSeriesName());
+            }
         } else {
             chart = null;
         }
@@ -135,9 +177,7 @@ public class StatisticsView extends VBox {
     }
 
     private String formatValue(double value) {
-        int magnitude = (int) Math.floor(Math.log10(Math.abs(value)));
-        int decimals = Math.max(0, 1 - magnitude);
-        return String.format("%." + decimals + "f", value);
+        return String.format("%." + chartDecimals + "f", value);
     }
 
     private BorderPane createMetricsGroup(MetricsView metricsView, MetricsContextSelector metricsContextSelector) {

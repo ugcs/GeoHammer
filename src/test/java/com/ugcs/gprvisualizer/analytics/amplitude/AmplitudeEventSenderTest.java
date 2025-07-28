@@ -207,18 +207,18 @@ class AmplitudeEventSenderTest {
         when(eventType.getCode()).thenReturn("test_event");
         when(event.getProperties()).thenReturn(Collections.emptyMap());
         when(event.getUserProperties()).thenReturn(Collections.emptyMap());
-        when(event.getData()).thenReturn(null);
+        when(event.getClientProperties()).thenReturn(null);
         return event;
     }
 
     private Event createMockEventWithData() {
         Event event = createMockEvent();
-        Event.Data eventData = mock(Event.Data.class);
-        when(eventData.getOsName()).thenReturn("macOS");
-        when(eventData.getOsVersion()).thenReturn("14.0");
-        when(eventData.getAppVersion()).thenReturn("1.0.0");
-        when(eventData.getIpAddress()).thenReturn("127.0.0.1");
-        when(event.getData()).thenReturn(eventData);
+        Event.ClientProperties clientProperties = mock(Event.ClientProperties.class);
+        when(clientProperties.getOsName()).thenReturn("macOS");
+        when(clientProperties.getOsVersion()).thenReturn("14.0");
+        when(clientProperties.getAppVersion()).thenReturn("1.0.0");
+        when(clientProperties.getIpAddress()).thenReturn("127.0.0.1");
+        when(event.getClientProperties()).thenReturn(clientProperties);
         return event;
     }
 

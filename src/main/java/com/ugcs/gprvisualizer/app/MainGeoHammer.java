@@ -3,9 +3,8 @@ package com.ugcs.gprvisualizer.app;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.analytics.EventSender;
 import com.ugcs.gprvisualizer.analytics.EventsFactory;
-import com.ugcs.gprvisualizer.app.file.FileEventListener;
+import com.ugcs.gprvisualizer.app.service.FileOpenEventsAnalytics;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
-import com.ugcs.gprvisualizer.geolocation.GeolocationService;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -59,9 +58,7 @@ public class MainGeoHammer extends Application {
 
 		eventSender = context.getBean(EventSender.class);
 
-		context.getBean(FileEventListener.class);
-
-		context.getBean(GeolocationService.class);
+		context.getBean(FileOpenEventsAnalytics.class);
 
 		eventsFactory = context.getBean(EventsFactory.class);
     }

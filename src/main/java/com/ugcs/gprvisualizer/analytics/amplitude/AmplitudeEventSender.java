@@ -54,12 +54,12 @@ public class AmplitudeEventSender implements EventSender {
                 event.getEventType().getCode(),
                 userIdService.getOrCreateUserId()
         );
-        Event.Data eventData = event.getData();
-        if (eventData != null) {
-            amplitudeEvent.osName = eventData.getOsName();
-            amplitudeEvent.osVersion = eventData.getOsVersion();
-            amplitudeEvent.appVersion = eventData.getAppVersion();
-            amplitudeEvent.ip = eventData.getIpAddress();
+        Event.ClientProperties clientProperties = event.getClientProperties();
+        if (clientProperties != null) {
+            amplitudeEvent.osName = clientProperties.getOsName();
+            amplitudeEvent.osVersion = clientProperties.getOsVersion();
+            amplitudeEvent.appVersion = clientProperties.getAppVersion();
+            amplitudeEvent.ip = clientProperties.getIpAddress();
         }
         amplitudeEvent.userProperties = buildUserProperties(event);
         amplitudeEvent.eventProperties = buildEventProperties(event);

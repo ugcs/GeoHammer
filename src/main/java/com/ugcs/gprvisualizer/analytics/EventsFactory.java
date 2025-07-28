@@ -1,24 +1,24 @@
 package com.ugcs.gprvisualizer.analytics;
 
-import com.ugcs.gprvisualizer.geolocation.IpProvider;
+import com.ugcs.gprvisualizer.app.service.PublicIpAddressProvider;
 import org.springframework.stereotype.Component;
 
 @Component
 public class EventsFactory {
-    private final IpProvider ipProvider;
+    private final PublicIpAddressProvider publicIpAddressProvider;
 
-    public EventsFactory(IpProvider ipProvider) {
-        this.ipProvider = ipProvider;
+    public EventsFactory(PublicIpAddressProvider publicIpAddressProvider) {
+        this.publicIpAddressProvider = publicIpAddressProvider;
     }
 
     public Event createAppStartedEvent(String appVersion) {
-        Event.Data data = new Event.Data(
+        Event.ClientProperties clientProperties = new Event.ClientProperties(
                 System.getProperty("os.name"),
                 System.getProperty("os.version"),
                 appVersion,
-                ipProvider.getIpAddress()
+                publicIpAddressProvider.getPublicIpAddress()
         );
-        return new Event(EventType.APP_STARTED, data, null, null);
+        return new Event(EventType.APP_STARTED, clientProperties, null, null);
     }
 
     public Event createFileOpenedEvent(String template) {

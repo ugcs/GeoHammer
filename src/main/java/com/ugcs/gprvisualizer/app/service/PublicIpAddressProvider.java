@@ -1,26 +1,35 @@
-package com.ugcs.gprvisualizer.geolocation;
+package com.ugcs.gprvisualizer.app.service;
 
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.json.JSONObject;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Service
-public class GeolocationService {
-    private static final Logger log = LoggerFactory.getLogger(GeolocationService.class);
-    private static final String IP_GEOLOCATION_URL = "https://api.ipify.org";
+public class PublicIpAddressProvider {
+    private static final Logger log = LoggerFactory.getLogger(PublicIpAddressProvider.class);
+    private static final String IP_API_URL = "https://api.ipify.org";
 
     private final WebClient webClient;
 
-    public GeolocationService() {
+    public PublicIpAddressProvider() {
         this.webClient = WebClient.builder()
-                .baseUrl(IP_GEOLOCATION_URL)
+                .baseUrl(IP_API_URL)
                 .build();
     }
 
-    public Mono<String> getIp() {
+    public String getPublicIpAddress() {
+        try {
+            return fetchPublicIpAddress().block();
+        } catch (Exception e) {
+            log.warn("Failed to get IP from  service", e);
+            return "UNKNOWN";
+        }
+    }
+
+    private  Mono<String> fetchPublicIpAddress() {
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .queryParam("format", "json")

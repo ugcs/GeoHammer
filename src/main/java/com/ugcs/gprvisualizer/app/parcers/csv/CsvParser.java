@@ -12,6 +12,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -21,6 +23,8 @@ import com.ugcs.gprvisualizer.app.parcers.*;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -144,7 +148,7 @@ public class CsvParser extends Parser {
 
                     List<SensorValue> sensorValues = new ArrayList<>();
                     if (template.getDataMapping().getDataValues() != null) {
-                        for (SensorData sensor : template.getDataMapping().getDataValues()) {
+                        for (SensorData sensor : filterSensors(template.getDataMapping().getDataValues())) {
                             String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < data.length) ? data[sensor.getIndex()] : null;
                             sensorValues.add(new SensorValue(sensor.getSemantic(), sensor.getUnits(), parseNumber(sensor, sensorData)));
                         }    
@@ -172,6 +176,44 @@ public class CsvParser extends Parser {
             }
 
             return coordinates;
+        }
+
+        protected List<SensorData> filterSensors(List<SensorData> sensors) {
+            // semantic with column in a file
+            Set<String> hasColumn = Nulls.toEmpty(sensors).stream()
+                    .filter(Objects::nonNull)
+                    .filter(sensor -> sensor.getIndex() != null && sensor.getIndex() != -1)
+                    .map(SensorData::getSemantic)
+                    .filter(semantic -> !Strings.isNullOrEmpty(semantic))
+                    .collect(Collectors.toSet());
+
+            return Nulls.toEmpty(sensors).stream()
+                    .filter(Objects::nonNull)
+                    .filter(sensor -> {
+                        String semantic = Strings.nullToEmpty(sensor.getSemantic());
+
+                        // present column
+                        if (hasColumn.contains(semantic)) {
+                            return true;
+                        }
+
+                        // is line or mark
+                        if (Objects.equals(semantic, GeoData.Semantic.LINE.getName()) ||
+                                Objects.equals(semantic, GeoData.Semantic.MARK.getName())) {
+                            return true;
+                        }
+
+                        // is anomaly for present column
+                        if (semantic.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX)) {
+                            String sourceSemantic = semantic.substring(
+                                    0,
+                                    semantic.length() - GeoData.ANOMALY_SEMANTIC_SUFFIX.length());
+                            return hasColumn.contains(sourceSemantic);
+                        }
+
+                        return false;
+                    })
+                    .toList();
         }
 
         protected void parseDateFromNameOfFile(String logName) {

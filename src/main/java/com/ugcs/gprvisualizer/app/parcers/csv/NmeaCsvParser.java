@@ -12,13 +12,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import org.yaml.snakeyaml.Yaml;
-
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.NMEACoordinates;
 import com.ugcs.gprvisualizer.app.yaml.Template;
-import com.ugcs.gprvisualizer.app.yaml.data.Date;
-import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
 
 public class NmeaCsvParser extends CsvParser {
 

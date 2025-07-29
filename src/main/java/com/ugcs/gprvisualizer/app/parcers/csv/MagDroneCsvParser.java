@@ -16,7 +16,6 @@ import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.parcers.SensorValue;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
-import com.ugcs.gprvisualizer.app.yaml.data.DateTime;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 
 public class MagDroneCsvParser extends CsvParser {
@@ -84,7 +83,7 @@ public class MagDroneCsvParser extends CsvParser {
             
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
-                    for (SensorData sensor : template.getDataMapping().getDataValues()) {
+                    for (SensorData sensor : filterSensors(template.getDataMapping().getDataValues())) {
                         String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < data.length) ? data[sensor.getIndex()] : null;
                         sensorValues.add(new SensorValue(sensor.getSemantic(), sensor.getUnits(), parseNumber(sensor, sensorData)));
                     }    

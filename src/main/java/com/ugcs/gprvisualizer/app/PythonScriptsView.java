@@ -1,7 +1,10 @@
 package com.ugcs.gprvisualizer.app;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataMetadataLoader;
+import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Platform;
@@ -18,7 +21,11 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +34,7 @@ import java.util.concurrent.Executors;
 
 public class PythonScriptsView extends VBox {
 
+    private static final Logger log = LoggerFactory.getLogger(PythonScriptsView.class);
     private final Model model;
     private final ExecutorService executor;
     private final SgyFile selectedFile;
@@ -43,25 +51,23 @@ public class PythonScriptsView extends VBox {
         ProgressIndicator progressIndicator = new ProgressIndicator();
         progressIndicator.setVisible(false);
 
-        ComboBox<String> scriptSelector = new ComboBox<>();
-        scriptSelector.setPromptText("Select Python script");
-        scriptSelector.setMaxWidth(Double.MAX_VALUE);
+        ComboBox<String> scriptsMetadataSelector = new ComboBox<>();
+        scriptsMetadataSelector.setPromptText("Select Python script");
+        scriptsMetadataSelector.setMaxWidth(Double.MAX_VALUE);
 
-        // TODO: 28. 7. 2025. Remove mock
-        List<PythonScript> scripts = List.of(
-                new PythonScript("quspin_compensation.py", "QuSpin heading error compensation",
-                        List.of(new PythonScriptParameter("threshold", "Error threshold",
-                                PythonScriptParameter.ParameterType.DOUBLE, "0.1", true))),
-                new PythonScript("noise_filter.py", "Advanced noise filtering",
-                        List.of(new PythonScriptParameter("window_size", "Window size",
-                                        PythonScriptParameter.ParameterType.INTEGER, "10", true),
-                                new PythonScriptParameter("apply_smoothing", "Apply smoothing",
-                                        PythonScriptParameter.ParameterType.BOOLEAN, "true", false)))
-        );
+        PythonScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataMetadataLoader();
+        List<PythonScriptMetadata> loadedScriptsMetadata;
+        try {
+            loadedScriptsMetadata = scriptsMetadataLoader.loadScriptsMetadata(Path.of("scripts"));
+        } catch (IOException e) {
+            log.warn("Failed to load Python scripts", e);
+            loadedScriptsMetadata = List.of();
+        }
+        final List<PythonScriptMetadata> scriptsMetadata = loadedScriptsMetadata;
 
-        scriptSelector.getItems().addAll(
-                scripts.stream()
-                        .map(PythonScript::fileName)
+        scriptsMetadataSelector.getItems().addAll(
+                scriptsMetadata.stream()
+                        .map(PythonScriptMetadata::filename)
                         .toList()
         );
 
@@ -75,18 +81,22 @@ public class PythonScriptsView extends VBox {
         Button applyButton = new Button("Apply");
         applyButton.setDisable(true);
 
-        scriptSelector.setOnAction(e -> {
-            String filename = scriptSelector.getValue();
-            PythonScript selected = scripts.stream()
-                    .filter(script -> script.fileName.equals(filename))
+        scriptsMetadataSelector.setOnAction(e -> {
+            String filename = scriptsMetadataSelector.getValue();
+            PythonScriptMetadata selected = scriptsMetadata.stream()
+                    .filter(scriptMetadata -> scriptMetadata.filename.equals(filename))
                     .findFirst()
                     .orElse(null);
 
             parametersBox.getChildren().clear();
 
             if (selected != null) {
-                parametersLabel.setVisible(true);
-                parametersBox.getChildren().add(parametersLabel);
+                if (selected.parameters().isEmpty()) {
+                    parametersLabel.setVisible(false);
+                } else {
+                    parametersLabel.setVisible(true);
+                    parametersBox.getChildren().add(parametersLabel);
+                }
 
                 for (PythonScriptParameter param : selected.parameters()) {
                     VBox paramBox = createParameterInput(param);
@@ -101,16 +111,16 @@ public class PythonScriptsView extends VBox {
         });
 
         applyButton.setOnAction(event -> {
-            String filename = scriptSelector.getValue();
-            PythonScript selected = scripts.stream()
-                    .filter(script -> script.fileName.equals(filename))
+            String filename = scriptsMetadataSelector.getValue();
+            PythonScriptMetadata selected = scriptsMetadata.stream()
+                    .filter(scriptMetadata -> scriptMetadata.filename.equals(filename))
                     .findFirst()
                     .orElse(null);
             executeScript(selected, parametersBox, progressIndicator, applyButton);
         });
 
         VBox contentBox = new VBox();
-        contentBox.getChildren().addAll(scriptSelector, parametersBox, applyButton);
+        contentBox.getChildren().addAll(scriptsMetadataSelector, parametersBox, applyButton);
 
         StackPane stackPane = new StackPane(contentBox, progressIndicator);
         StackPane.setAlignment(progressIndicator, Pos.CENTER);
@@ -155,9 +165,9 @@ public class PythonScriptsView extends VBox {
         return paramBox;
     }
 
-    private void executeScript(@Nullable PythonScript script, VBox parametersBox,
-                               ProgressIndicator progressIndicator, Button executeButton) {
-        if (script == null) return;
+    private void executeScript(PythonScriptsView.@Nullable PythonScriptMetadata scriptMetadata, VBox parametersBox,
+							   ProgressIndicator progressIndicator, Button executeButton) {
+        if (scriptMetadata == null) return;
 
         // TODO: 29. 7. 2025. In feature need to send this params to python script
         Map<String, String> parameters = new HashMap<>();
@@ -187,7 +197,7 @@ public class PythonScriptsView extends VBox {
                     Dialog<String> dialog = new Dialog<>();
                     dialog.setTitle("Script Execution");
                     dialog.setHeaderText("Success");
-                    dialog.setContentText("Python script '" + script.displayName() + "' executed successfully.");
+                    dialog.setContentText("Python script '" + scriptMetadata.displayName() + "' executed successfully.");
                     dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
                     dialog.showAndWait();
 
@@ -225,8 +235,9 @@ public class PythonScriptsView extends VBox {
         };
     }
 
-    public record PythonScript(
-            String fileName,
+    public record PythonScriptMetadata(
+            String filename,
+            @JsonProperty("display_name")
             String displayName,
             List<PythonScriptParameter> parameters
     ) {

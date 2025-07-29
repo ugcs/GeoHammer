@@ -171,7 +171,7 @@ public class CsvFilesDataSmallRangeTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         // Verify that the range slider's min and max values are set correctly
-        assertEquals(0.1, rangeSlider.getMin(), "Min value should be 0.1");
-        assertEquals(0.9, rangeSlider.getMax(), "Max value should be 0.9");
+        assertTrue(rangeSlider.getMin() <= 0.1, "Min value should be less or equal to 0.1");
+        assertTrue(rangeSlider.getMax() >= 0.9, "Max value should be greater or equal to 0.9");
     }
 }

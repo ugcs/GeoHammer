@@ -75,7 +75,6 @@ public class SensorLineChart extends Chart {
     private static final double ZOOM_STEP = 1.38;
 
     private static final String FILTERED_SERIES_SUFFIX = "_filtered";
-    private static final String ANOMALY_SERIES_SUFFIX = "_anomaly";
 
     private static final Logger log = LoggerFactory.getLogger(SensorLineChart.class);
 
@@ -1622,16 +1621,16 @@ public class SensorLineChart extends Chart {
         if (Strings.isNullOrEmpty(seriesName)) {
             return;
         }
-        if (seriesName.endsWith(ANOMALY_SERIES_SUFFIX)) {
+        if (seriesName.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX)) {
             seriesName = seriesName.substring(0,
-                    seriesName.length() - ANOMALY_SERIES_SUFFIX.length());
+                    seriesName.length() - GeoData.ANOMALY_SEMANTIC_SUFFIX.length());
         }
         LineChartWithMarkers chart = getDataChart(seriesName);
         if (chart == null) {
             return;
         }
 
-        String filteredSeriesName = chart.plotData.semantic + ANOMALY_SERIES_SUFFIX;
+        String filteredSeriesName = chart.plotData.semantic + GeoData.ANOMALY_SEMANTIC_SUFFIX;
         Template template = file.getParser().getTemplate();
         boolean hasAnomalySemantic = template.getDataMapping().getDataValues().stream()
                 .anyMatch(v -> v != null && Objects.equals(v.getSemantic(), filteredSeriesName));

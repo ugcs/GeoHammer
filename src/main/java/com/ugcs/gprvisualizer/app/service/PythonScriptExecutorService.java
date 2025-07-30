@@ -60,10 +60,9 @@ public class PythonScriptExecutorService {
 		int exitCode = process.waitFor();
 		if (exitCode != 0) {
 			log.error("Script {} execution failed with exit code {}: {}", scriptFilename, exitCode, output);
-		} else {
-			log.info("Script {} executed successfully with exit code {}: {}", scriptFilename, exitCode, output);
+			return new ScriptExecutionResult.Error(exitCode, output.toString());
 		}
-		return new ScriptExecutionResult(exitCode, output.toString());
+		return new ScriptExecutionResult.Success(output.toString());
 	}
 
 	private boolean isBooleanParameter(PythonScriptsView.PythonScriptMetadata metadata, String paramName) {
@@ -71,21 +70,33 @@ public class PythonScriptExecutorService {
 				.anyMatch(param -> param.name().equals(paramName) && param.type() == PythonScriptsView.PythonScriptParameter.ParameterType.BOOLEAN);
 	}
 
-	public static class ScriptExecutionResult {
-		private final int exitCode;
+	public static sealed abstract class ScriptExecutionResult permits ScriptExecutionResult.Success, ScriptExecutionResult.Error {
 		private final String output;
-
-		public ScriptExecutionResult(int exitCode, String output) {
-			this.exitCode = exitCode;
+		private ScriptExecutionResult(String output) {
 			this.output = output;
-		}
-
-		public int getExitCode() {
-			return exitCode;
 		}
 
 		public String getOutput() {
 			return output;
+		}
+
+		public static final class Success extends ScriptExecutionResult {
+			public Success(String output) {
+				super(output);
+			}
+		}
+
+		public static final class Error extends ScriptExecutionResult {
+			private final int code;
+
+			public Error(int code, String output) {
+				super(output);
+				this.code = code;
+			}
+
+			public int getCode() {
+				return code;
+			}
 		}
 	}
 }

@@ -196,7 +196,7 @@ public class PythonScriptsView extends VBox {
 		executor.submit(() -> {
 			try {
 				PythonScriptExecutorService.ScriptExecutionResult result = future.get();
-				if (result.getExitCode() == 0) {
+				if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
 					Platform.runLater(() -> {
 						showSuccessDialog(scriptMetadata.displayName, result.getOutput());
 						// TODO: 29. 7. 2025. add other files check (sgy, dzt)
@@ -205,7 +205,8 @@ public class PythonScriptsView extends VBox {
 						}
 					});
 				} else {
-					showErrorDialog(scriptMetadata.displayName, result.getExitCode(), result.getOutput());
+					PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
+					showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
 				}
 			} catch (Exception e) {
 				showExceptionDialog(e.getMessage());

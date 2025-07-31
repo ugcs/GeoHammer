@@ -18,6 +18,7 @@ import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.LevelFilter;
+import com.ugcs.gprvisualizer.utils.Range;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -308,42 +309,73 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	public record GriddingRange(double lowValue, double highValue, double min, double max) {}
 
+	private Range getSelectedSeriesRange() {
+		if (selectedFile instanceof CsvFile csvFile) {
+			SensorLineChart chart = model.getCsvChart(csvFile).orElse(null);
+			if (chart != null) {
+				return new Range(
+						chart.getSemanticMinValue(),
+						chart.getSemanticMaxValue()
+				);
+			}
+		}
+		return null;
+	}
+
+	private void updateGriddingMinMaxPreserveUserRange() {
+		updateGriddingMinMaxPreserveUserRange(null);
+	}
+
 	/**
 	 * Updates the gridding range slider min/max values if needed, while maintaining
 	 * the user's selected range proportionally.
 	 */
-	private void updateGriddingMinMaxPreserveUserRange() {
+	private void updateGriddingMinMaxPreserveUserRange(Range rangeBefore) {
 		if (!(selectedFile instanceof CsvFile)) {
 			return;
 		}
 
-		// Get new min/max values
-		SensorLineChart selectedChart = model.getCsvChart((CsvFile) selectedFile).orElse(null);
-		if (selectedChart == null) {
+		// get current min/max range
+		Range range = getSelectedSeriesRange();
+		if (range == null) {
 			return;
 		}
+		if (range.getWidth() == 0) {
+			range = range.scaleToWidth(1, 0.5);
+		}
 
-		double newMin = selectedChart.getSemanticMinValue();
-		double newMax = selectedChart.getSemanticMaxValue();
-
-		var savedValues = savedGriddingRange.getOrDefault(selectedChart.toString() + selectedChart.getSelectedSeriesName(),
-				new GriddingRange(newMin, newMax, newMin, newMax));
+		GriddingRange defaultGriddingRange = new GriddingRange(
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue(),
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue());
+		GriddingRange griddingRange = loadGriddingRange().orElse(defaultGriddingRange);
 
 		// Only update min/max if they changed
-		if (savedValues.min != newMin || savedValues.max != newMax) {
+		if (rangeBefore != null
+				&& (!Objects.equals(rangeBefore.getMin(), range.getMin())
+				|| !Objects.equals(rangeBefore.getMax(), range.getMax()))) {
+
 			// Calculate relative positions within the range
-			double lowRatio = (savedValues.max - savedValues.min) <= 0 ? 0 :
-				(savedValues.lowValue - savedValues.min) / (savedValues.max - savedValues.min);
-			double highRatio = (savedValues.max - savedValues.min) <= 0 ? 1 :
-				(savedValues.highValue - savedValues.min) / (savedValues.max - savedValues.min);
-			// Maintain the relative position of user's selection
-			double newLowValue = newMin + (lowRatio * (newMax - newMin));
-			double newHighValue = newMin + (highRatio * (newMax - newMin));
-			updateGriddingRangeSlider(new GriddingRange(newLowValue, newHighValue, newMin, newMax));
-		} else {
-			updateGriddingRangeSlider(savedValues);
+			double widthBefore = rangeBefore.getWidth();
+			double lowRatio = widthBefore > 0
+					? (griddingRange.lowValue - rangeBefore.getMin().doubleValue()) / widthBefore
+					: 0;
+			lowRatio = Math.clamp(lowRatio, 0, 1);
+			double highRatio = widthBefore > 0
+					? (griddingRange.highValue - rangeBefore.getMin().doubleValue()) / widthBefore
+					: 1;
+			highRatio = Math.clamp(highRatio, 0, 1);
+
+			// maintain the relative range of user's selection
+			griddingRange = new GriddingRange(
+					range.getMin().doubleValue() + lowRatio * range.getWidth(),
+					range.getMin().doubleValue() + highRatio * range.getWidth(),
+					range.getMin().doubleValue(),
+					range.getMax().doubleValue());
 		}
-		savedGriddingRange.put(selectedChart.toString()+selectedChart.getSelectedSeriesName(), fetchGriddingRange());
+
+		updateGriddingRangeSlider(griddingRange);
 		griddingRangeSlider.setDisable(false);
 	}
 
@@ -361,6 +393,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		expandGriddingRangeSlider();
+		saveGriddingRange();
 	}
 
 	private void expandGriddingRangeSlider() {
@@ -372,6 +405,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		// shrink
 		if ((r - l) > 1e-12 && (r - l) / (max - min) < SLIDER_SHRINK_WIDTH_THRESHOLD) {
+			System.out.println("SHRINK");
 			double center = l + 0.5 * (r - l);
 			double centerRatio = (center - min) / (max - min);
 			double newWidth = (r - l) / SLIDER_SHRINK_WIDTH_THRESHOLD;
@@ -384,14 +418,20 @@ public class OptionPane extends VBox implements InitializingBean {
 		double threshold = SLIDER_EXPAND_THRESHOLD * (max - min);
 		double k = SLIDER_EXPAND_THRESHOLD; // expand margin ratio to a new width
 		if (l - min < threshold) {
-			double margin = k / (1 - k) * (max - l);
-			max = r + (max - r) * (r - l + margin) / (r - min);
-			min = l - margin;
+			// l - min2 = margin
+			// margin = k * (max2 - min2)
+			// (r - min2) / (max2 - min2) = (r - min) / (max - min)
+			double rRatio = (r - min) / (max - min);
+			min = (k * r - rRatio * l) / (k - rRatio);
+			max = min + (r - min) / rRatio;
 		}
 		if (max - r < threshold) {
-			double margin = k / (1 - k) * (r - min);
-			min = l - (l - min) * (r - l + margin) / (max - l);
-			max = r + margin;
+			// max2 - r = margin
+			// margin = k * (max2 - min2)
+			// (l - min2) / (max2 - min2) = (l - min) / (max - min)
+			double lRatio = (l - min) / (max - min);
+			min = (r * lRatio + l * (k - 1)) / (lRatio + k - 1);
+			max = (r - k * min) / (1 - k);
 		}
 
 		griddingRangeSlider.setMin(min);
@@ -414,6 +454,34 @@ public class OptionPane extends VBox implements InitializingBean {
 				griddingRangeSlider.getHighValue(),
 				griddingRangeSlider.getMin(),
 				griddingRangeSlider.getMax());
+	}
+
+	private void saveGriddingRange() {
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return;
+		}
+
+		model.getCsvChart(csvFile).ifPresent(chart -> {
+			GriddingRange griddingRange = fetchGriddingRange();
+			savedGriddingRange.put(
+					chart.toString() + chart.getSelectedSeriesName(),
+					griddingRange);
+		});
+	}
+
+	private Optional<GriddingRange> loadGriddingRange() {
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return Optional.empty();
+		}
+
+		SensorLineChart chart = model.getCsvChart(csvFile).orElse(null);
+		if (chart == null) {
+			return Optional.empty();
+		}
+
+		GriddingRange griddingRange = savedGriddingRange.get(
+				chart.toString() + chart.getSelectedSeriesName());
+		return Optional.ofNullable(griddingRange);
 	}
 
 	private enum Filter {
@@ -756,20 +824,19 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		griddingRangeSlider.lowValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Min: ", minLabel);
-			var chart = model.getCsvChart((CsvFile) selectedFile).get();
-			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
+			saveGriddingRange();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.highValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Max: ", maxLabel);
-			var chart = model.getCsvChart((CsvFile) selectedFile).get();
-			savedGriddingRange.put(chart.toString()+chart.getSelectedSeriesName(), fetchGriddingRange());
+			saveGriddingRange();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.setOnMouseReleased(event -> {
 			expandGriddingRangeSlider();
+			saveGriddingRange();
 		});
 
 		VBox vbox = new VBox(10, griddingRangeSlider, coloursInput);
@@ -1001,20 +1068,22 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private void applyMedianCorrection(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
+		var rangeBefore = getSelectedSeriesRange();
 		chart.ifPresent(c -> c.medianCorrection(c.getSelectedSeriesName(), value));
-		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
+		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
 		showGridInputDataChangedWarning(true);
 	}
 
 	private void applyMedianCorrectionToAll(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
+		var rangeBefore = getSelectedSeriesRange();
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()
 					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
 					.forEach(c -> c.medianCorrection(seriesName, value));
 		});
-		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
+		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
 		showGridInputDataChangedWarning(true);
 	}	
 
@@ -1171,16 +1240,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	@EventListener
     private void handleFileSelectedEvent(FileSelectedEvent event) {
-        if (statisticsView != null) {
-            Platform.runLater(() -> {
-                statisticsView.update(event.getFile());
-            });
-        }
-		// do nothing if selected file is same as previously selected
-		if (Objects.equals(event.getFile(), selectedFile)) {
-			return;
-		}
-        selectedFile = event.getFile();
+		selectedFile = event.getFile();
 		if (selectedFile == null) {
 			clear();
 			return;
@@ -1188,7 +1248,12 @@ public class OptionPane extends VBox implements InitializingBean {
 
         if (selectedFile instanceof CsvFile) {
             showTab(csvTab);
-            //setGriddingMinMax();
+			if (statisticsView != null) {
+				Platform.runLater(() -> {
+					statisticsView.update(event.getFile());
+				});
+			}
+			//setGriddingMinMax();
 			Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
 			setSavedFilterInputValue(Filter.lowpass);
             setSavedFilterInputValue(Filter.timelag);
@@ -1213,8 +1278,11 @@ public class OptionPane extends VBox implements InitializingBean {
         }
 
 		if (selectedFile instanceof TraceFile traceFile) {
-            showTab(gprTab);
-            prepareGprTab(gprTab, traceFile);
+			// do nothing if selected file is same as previously selected
+			if (!Objects.equals(event.getFile(), selectedFile)) {
+				showTab(gprTab);
+				prepareGprTab(gprTab, traceFile);
+			}
         }
     }
 

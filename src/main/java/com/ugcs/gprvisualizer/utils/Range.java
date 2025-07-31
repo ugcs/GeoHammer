@@ -39,4 +39,13 @@ public class Range {
                 max.doubleValue() + (1 - centerRatio) * dw
         );
     }
+
+    public Range scaleToWidth(double width, double centerRatio) {
+        centerRatio = Math.clamp(centerRatio, 0, 1);
+        double dw = width - getWidth();
+        return new Range(
+                min.doubleValue() - centerRatio * dw,
+                max.doubleValue() + (1 - centerRatio) * dw
+        );
+    }
 }

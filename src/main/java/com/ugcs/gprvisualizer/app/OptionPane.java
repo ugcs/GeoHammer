@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.quality.AltitudeCheck;
 import com.ugcs.gprvisualizer.app.quality.DataCheck;
 import com.ugcs.gprvisualizer.app.quality.LineDistanceCheck;
@@ -92,14 +93,16 @@ public class OptionPane extends VBox implements InitializingBean {
 	private LevelFilter levelFilter;
 
 	private PrefSettings prefSettings;
+	private final Status status;
 
-	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings) {
+	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings, Status status) {
 		this.mapView = mapView;
 		this.profileView = profileView;
 		this.commandRegistry = commandRegistry;
 		this.model = model;
 		this.levelFilter = levelFilter;
 		this.prefSettings = prefSettings;
+		this.status = status;
 	}
 
 	private ToggleButton showGreenLineBtn = new ToggleButton("",
@@ -220,7 +223,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		pythonScriptsView = new PythonScriptsView(model, selectedFile, pythonScriptExecutorService);
+		pythonScriptsView = new PythonScriptsView(model, status, selectedFile, pythonScriptExecutorService);
 		StackPane pythonScriptPane = new StackPane(pythonScriptsView);
 
 		container.getChildren().addAll(List.of(
@@ -1101,7 +1104,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
-		pythonScriptsView = new PythonScriptsView(model, selectedFile, pythonScriptExecutorService);
+		pythonScriptsView = new PythonScriptsView(model, status, selectedFile, pythonScriptExecutorService);
 		StackPane pythonScriptsPane = new StackPane(pythonScriptsView);
 		ToggleButton pythonScriptsButton = new ToggleButton("Scripts");
 		pythonScriptsButton.setMaxWidth(Double.MAX_VALUE);

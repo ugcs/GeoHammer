@@ -2,6 +2,7 @@ package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
+import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.math.LevelFilter;
@@ -54,13 +55,16 @@ public class OptionPaneTest {
     @Mock
     private LevelFilter levelFilter;
 
+    @Mock
+    private Status status;
+
     private OptionPane optionPane;
     private RangeSlider griddingRangeSlider;
 
     @Start
     private void start(Stage stage) throws Exception {
         // Create and init the OptionPane
-        optionPane = new OptionPane(mapView, profileView, commandRegistry, model, levelFilter, prefSettings);
+        optionPane = new OptionPane(mapView, profileView, commandRegistry, model, levelFilter, prefSettings, status);
 
         // Create the range slider directly 
         griddingRangeSlider = new RangeSlider(0, 100, 25, 75);

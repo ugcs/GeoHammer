@@ -2,6 +2,7 @@ package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
+import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.math.LevelFilter;
@@ -64,7 +65,8 @@ public class CsvFilesDataSmallRangeTest {
             mock(CommandRegistry.class),
             model,
             mock(LevelFilter.class),
-            settings
+            settings,
+            mock(Status.class)
         );
 
         // Create the RangeSlider
@@ -90,7 +92,7 @@ public class CsvFilesDataSmallRangeTest {
         SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings);
 
         // Get the getScaleFactor method using reflection
-        Method getScaleFactorMethod = 
+        Method getScaleFactorMethod =
             SensorLineChart.class.getDeclaredMethod("getScaleFactor", double.class);
         getScaleFactorMethod.setAccessible(true);
 
@@ -113,7 +115,7 @@ public class CsvFilesDataSmallRangeTest {
         SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings);
 
         // Get the getValueRange method using reflection
-        Method getValueRangeMethod = 
+        Method getValueRangeMethod =
             SensorLineChart.class.getDeclaredMethod("getValueRange", List.class, String.class);
         getValueRangeMethod.setAccessible(true);
 

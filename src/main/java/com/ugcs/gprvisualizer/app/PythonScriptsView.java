@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.app;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
@@ -38,9 +39,11 @@ public class PythonScriptsView extends VBox {
 	private final Model model;
 	private final SgyFile selectedFile;
 	private final PythonScriptExecutorService scriptExecutorService;
+	private final Status status;
 
-	public PythonScriptsView(Model model, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
+	public PythonScriptsView(Model model, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
+		this.status = status;
 		this.selectedFile = selectedFile;
 		this.scriptExecutorService = scriptExecutorService;
 
@@ -193,7 +196,12 @@ public class PythonScriptsView extends VBox {
 			PythonScriptExecutorService.ScriptExecutionResult result = future.get();
 			if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
 				Platform.runLater(() -> {
-					showSuccessDialog(scriptMetadata.displayName, result.getOutput());
+					String successMessage = "Python script '" + scriptMetadata.displayName + "' executed successfully.";
+					String output = result.getOutput();
+					if (output != null && !output.isEmpty()) {
+						successMessage += "\nOutput: " + output + ".";
+					}
+					status.showMessage(successMessage, "Python Script");
 					// TODO: 29. 7. 2025. add other files check (sgy, dzt)
 					if (selectedFile instanceof CsvFile) {
 						model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
@@ -221,17 +229,6 @@ public class PythonScriptsView extends VBox {
 			case CheckBox checkBox -> String.valueOf(checkBox.isSelected());
 			default -> "";
 		};
-	}
-
-	private void showSuccessDialog(String scriptName, String output) {
-		Platform.runLater(() -> {
-			Dialog<String> dialog = new Dialog<>();
-			dialog.setTitle("Script Execution Success");
-			dialog.setHeaderText("Success");
-			dialog.setContentText("Python script '" + scriptName + "' executed successfully.\nOutput: " + output);
-			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
-			dialog.showAndWait();
-		});
 	}
 
 	private void showErrorDialog(String scriptName, int exitCode, String output) {

@@ -3,18 +3,11 @@
   "display_name": "Example Script",
   "parameters": [
     {
-      "name": "input",
-      "displayName": "Input File",
-      "type": "FILE_PATH",
-      "defaultValue": "",
-      "required": true
-    },
-    {
       "name": "threshold",
       "displayName": "Threshold",
       "type": "DOUBLE",
       "defaultValue": "0.5",
-      "required": false
+      "required": true
     },
     {
       "name": "verbose",

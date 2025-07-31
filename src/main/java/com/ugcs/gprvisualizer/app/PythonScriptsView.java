@@ -30,23 +30,19 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class PythonScriptsView extends VBox {
 
 	private static final Logger log = LoggerFactory.getLogger(PythonScriptsView.class);
 	private final Model model;
-	private final ExecutorService executor;
 	private final SgyFile selectedFile;
-	private final PythonScriptExecutorService scriptExecutorService = new PythonScriptExecutorService();
+	private final PythonScriptExecutorService scriptExecutorService;
 
-	public PythonScriptsView(Model model, SgyFile selectedFile) {
+	public PythonScriptsView(Model model, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
 		this.selectedFile = selectedFile;
-
-		this.executor = Executors.newSingleThreadExecutor();
+		this.scriptExecutorService = scriptExecutorService;
 
 		setSpacing(OptionPane.DEFAULT_SPACING);
 		setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
@@ -191,34 +187,32 @@ public class PythonScriptsView extends VBox {
 		executeButton.setDisable(true);
 
 		Future<PythonScriptExecutorService.ScriptExecutionResult> future =
-				scriptExecutorService.executeScriptAsync(scriptMetadata, parameters);
+				scriptExecutorService.executeScriptAsync(selectedFile, scriptMetadata, parameters);
 
-		executor.submit(() -> {
-			try {
-				PythonScriptExecutorService.ScriptExecutionResult result = future.get();
-				if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
-					Platform.runLater(() -> {
-						showSuccessDialog(scriptMetadata.displayName, result.getOutput());
-						// TODO: 29. 7. 2025. add other files check (sgy, dzt)
-						if (selectedFile instanceof CsvFile) {
-							model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
-						}
-					});
-				} else {
-					PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
-					showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
-				}
-			} catch (Exception e) {
-				showExceptionDialog(e.getMessage());
-			} finally {
+		try {
+			PythonScriptExecutorService.ScriptExecutionResult result = future.get();
+			if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
 				Platform.runLater(() -> {
-					progressIndicator.setVisible(false);
-					progressIndicator.setManaged(false);
-					parametersBox.setDisable(false);
-					executeButton.setDisable(false);
+					showSuccessDialog(scriptMetadata.displayName, result.getOutput());
+					// TODO: 29. 7. 2025. add other files check (sgy, dzt)
+					if (selectedFile instanceof CsvFile) {
+						model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
+					}
 				});
+			} else {
+				PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
+				showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
 			}
-		});
+		} catch (Exception e) {
+			showExceptionDialog(e.getMessage());
+		} finally {
+			Platform.runLater(() -> {
+				progressIndicator.setVisible(false);
+				progressIndicator.setManaged(false);
+				parametersBox.setDisable(false);
+				executeButton.setDisable(false);
+			});
+		}
 	}
 
 	private String extractValueFromNode(Node node) {

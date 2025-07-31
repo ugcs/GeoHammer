@@ -13,6 +13,7 @@ import com.ugcs.gprvisualizer.app.quality.LineDistanceCheck;
 import com.ugcs.gprvisualizer.app.quality.QualityCheck;
 import com.ugcs.gprvisualizer.app.quality.QualityControl;
 import com.ugcs.gprvisualizer.app.quality.QualityIssue;
+import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.draw.QualityLayer;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -41,6 +42,7 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -126,6 +128,9 @@ public class OptionPane extends VBox implements InitializingBean {
 	private StatisticsView statisticsView;
 	private PythonScriptsView pythonScriptsView;
 
+	@Autowired
+	private PythonScriptExecutorService pythonScriptExecutorService;
+
 	@Override
 	public void afterPropertiesSet() throws Exception {
 
@@ -139,10 +144,7 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void prepareTabPane() {
-
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-
-		prepareCsvTab(csvTab);
 	}
 
 	private void prepareCsvTab(Tab tab) {
@@ -218,7 +220,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		pythonScriptsView = new PythonScriptsView(model, selectedFile);
+		pythonScriptsView = new PythonScriptsView(model, selectedFile, pythonScriptExecutorService);
 		StackPane pythonScriptPane = new StackPane(pythonScriptsView);
 
 		container.getChildren().addAll(List.of(
@@ -1099,7 +1101,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
-		pythonScriptsView = new PythonScriptsView(model, selectedFile);
+		pythonScriptsView = new PythonScriptsView(model, selectedFile, pythonScriptExecutorService);
 		StackPane pythonScriptsPane = new StackPane(pythonScriptsView);
 		ToggleButton pythonScriptsButton = new ToggleButton("Apply Python script");
 		pythonScriptsButton.setMaxWidth(Double.MAX_VALUE);
@@ -1202,6 +1204,8 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		if (selectedFile instanceof CsvFile) {
 			showTab(csvTab);
+			prepareCsvTab(csvTab);
+
 			//setGriddingMinMax();
 			Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
 			setSavedFilterInputValue(Filter.lowpass);

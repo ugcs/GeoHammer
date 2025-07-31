@@ -4,6 +4,8 @@ import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.analytics.EventSender;
 import com.ugcs.gprvisualizer.analytics.EventsFactory;
 import com.ugcs.gprvisualizer.app.service.FileOpenEventsAnalytics;
+import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
+import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Application;
@@ -22,7 +24,7 @@ import java.util.List;
 public class MainGeoHammer extends Application {
 
 	private static final String TITLE_VERSION = "GeoHammer v.";
-	
+
 	private Model model;
 	//private RootControls rootControls;
 	private ApplicationContext context;
@@ -33,6 +35,7 @@ public class MainGeoHammer extends Application {
 	private SceneContent sceneContent;
 	private EventSender eventSender;
 	private EventsFactory eventsFactory;
+	private PythonConfig pythonConfig;
 
 	public static void main(String[] args) {
 		launch(args);
@@ -61,6 +64,10 @@ public class MainGeoHammer extends Application {
 		context.getBean(FileOpenEventsAnalytics.class);
 
 		eventsFactory = context.getBean(EventsFactory.class);
+
+		context.getBean(PythonScriptExecutorService.class);
+
+		pythonConfig = context.getBean(PythonConfig.class);
     }
 
 	@Override
@@ -94,7 +101,14 @@ public class MainGeoHammer extends Application {
             Platform.exit();
             System.exit(0);
         });
-		
+
+		if (Desktop.isDesktopSupported()) {
+			Desktop desktop = Desktop.getDesktop();
+			desktop.setPreferencesHandler(e -> Platform.runLater(() -> {
+				new SettingsView(pythonConfig);
+			}));
+		}
+
 		if (fileTemplates.getTemplates().isEmpty()) {
             MessageBoxHelper.showError("There are no templates for the csv files",  
 			"There are no templates for the csv files loaded, so you could not open any csv");

@@ -153,7 +153,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		ToggleButton timeLagButton = new ToggleButton("GNSS time-lag");
 		ToggleButton medianCorrection = new ToggleButton("Running median filter");
 		ToggleButton qualityControl = new ToggleButton("Quality control");
-		ToggleButton pythonScriptButton = new ToggleButton("Apply Python script");
+		ToggleButton pythonScriptButton = new ToggleButton("Scripts");
 
 		statisticsButton.setMaxWidth(Double.MAX_VALUE);
 		lowPassFilterButton.setMaxWidth(Double.MAX_VALUE);
@@ -1103,7 +1103,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		pythonScriptsView = new PythonScriptsView(model, selectedFile, pythonScriptExecutorService);
 		StackPane pythonScriptsPane = new StackPane(pythonScriptsView);
-		ToggleButton pythonScriptsButton = new ToggleButton("Apply Python script");
+		ToggleButton pythonScriptsButton = new ToggleButton("Scripts");
 		pythonScriptsButton.setMaxWidth(Double.MAX_VALUE);
 		pythonScriptsButton.setOnAction(getChangeVisibleAction(pythonScriptsPane));
 

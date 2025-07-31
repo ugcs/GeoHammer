@@ -22,6 +22,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,7 @@ public class PythonScriptsView extends VBox {
 	private final SgyFile selectedFile;
 	private final PythonScriptExecutorService scriptExecutorService;
 	private final Status status;
+	private final Stage primaryStage = AppContext.stage;
 
 	public PythonScriptsView(Model model, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
@@ -234,6 +236,7 @@ public class PythonScriptsView extends VBox {
 	private void showErrorDialog(String scriptName, int exitCode, String output) {
 		Platform.runLater(() -> {
 			Dialog<String> dialog = new Dialog<>();
+			dialog.initOwner(primaryStage);
 			dialog.setTitle("Script Execution Error");
 			dialog.setHeaderText("Error");
 			dialog.setContentText("Python script '" + scriptName + "' failed with exit code " + exitCode + ".\nOutput: " + output);
@@ -245,6 +248,7 @@ public class PythonScriptsView extends VBox {
 	private void showExceptionDialog(String errorMessage) {
 		Platform.runLater(() -> {
 			Dialog<String> dialog = new Dialog<>();
+			dialog.initOwner(primaryStage);
 			dialog.setTitle("Script Execution Error");
 			dialog.setHeaderText("Error");
 			dialog.setContentText("Failed to execute script: " + errorMessage);

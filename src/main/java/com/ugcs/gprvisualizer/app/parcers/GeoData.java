@@ -6,6 +6,8 @@ import java.util.Optional;
 
 public class GeoData extends GeoCoordinates {
 
+    public static final String ANOMALY_SEMANTIC_SUFFIX = "_anomaly";
+
     public enum Semantic {
 
         LINE("Line"),

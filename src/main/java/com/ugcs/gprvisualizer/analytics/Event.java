@@ -10,16 +10,13 @@ import java.util.Map;
 public class Event {
     private static final Logger log = LoggerFactory.getLogger(Event.class);
     private final EventType eventType;
+    private final ClientProperties clientProperties;
     private final Map<String, Object> properties;
     private final Map<String, Object> userProperties;
 
-    public static final String KEY_APP_VERSION = "appVersion";
-    public static final String KEY_OS_NAME = "osName";
-    public static final String KEY_OS_VERSION = "osVersion";
-    public static final String KEY_COUNTRY = "country";
-
-    public Event(EventType eventType, @Nullable Map<String, Object> properties, @Nullable Map<String, Object> userProperties) {
+    public Event(EventType eventType, @Nullable ClientProperties clientProperties, @Nullable Map<String, Object> properties, @Nullable Map<String, Object> userProperties) {
         this.eventType = eventType;
+        this.clientProperties = clientProperties;
         this.properties = properties != null ? properties : new HashMap<>();
         this.userProperties = userProperties != null ? userProperties : new HashMap<>();
     }
@@ -34,6 +31,7 @@ public class Event {
         return this;
     }
 
+    @SuppressWarnings("unused")
     public Event withUserProperty(String key, Object value) {
         if (value == null) {
             log.warn("Setting user property '{}' to null, removing it from user properties", key);
@@ -48,11 +46,45 @@ public class Event {
         return eventType;
     }
 
+    public ClientProperties getClientProperties() {
+        return clientProperties;
+    }
+
     public Map<String, Object> getProperties() {
         return properties;
     }
 
     public Map<String, Object> getUserProperties() {
         return userProperties;
+    }
+
+    public static class ClientProperties {
+        private final String osName;
+        private final String osVersion;
+        private final String appVersion;
+        private final String ipAddress;
+
+        public ClientProperties(String osName, String osVersion, String appVersion, String ipAddress) {
+            this.osName = osName;
+            this.osVersion = osVersion;
+            this.appVersion = appVersion;
+            this.ipAddress = ipAddress;
+        }
+
+        public String getOsName() {
+            return osName;
+        }
+
+        public String getOsVersion() {
+            return osVersion;
+        }
+
+        public String getAppVersion() {
+            return appVersion;
+        }
+
+        public String getIpAddress() {
+            return ipAddress;
+        }
     }
 }

@@ -71,6 +71,10 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private static final int RIGHT_BOX_WIDTH = 350;
 
+	private static final float SLIDER_EXPAND_THRESHOLD = 0.15f;
+
+	private static final float SLIDER_SHRINK_WIDTH_THRESHOLD = 0.3f;
+
 	private static final Logger log = LoggerFactory.getLogger(OptionPane.class);
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -353,12 +357,7 @@ public class OptionPane extends VBox implements InitializingBean {
 	private void updateGriddingRangeSlider(GriddingRange sliderRange) {
 		griddingRangeSlider.setMax(sliderRange.max);
 		griddingRangeSlider.setMin(sliderRange.min);
-		double width = sliderRange.max - sliderRange.min;
-		if (width > 0.0) {
-			griddingRangeSlider.setMajorTickUnit(width / 100);
-			griddingRangeSlider.setMinorTickCount((int) (width / 1000));
-			griddingRangeSlider.setBlockIncrement(width / 2000);
-		}
+
 		// for correctly asign and adjust values
 		if (sliderRange.highValue > griddingRangeSlider.getLowValue()) {
 			griddingRangeSlider.adjustHighValue(sliderRange.highValue);
@@ -366,6 +365,54 @@ public class OptionPane extends VBox implements InitializingBean {
 		} else {
 			griddingRangeSlider.adjustLowValue(sliderRange.lowValue);
 			griddingRangeSlider.adjustHighValue(sliderRange.highValue);
+		}
+
+		expandGriddingRangeSlider();
+	}
+
+	private void expandGriddingRangeSlider() {
+		double min = griddingRangeSlider.getMin();
+		double max = griddingRangeSlider.getMax();
+
+		double l = griddingRangeSlider.getLowValue();
+		double r = griddingRangeSlider.getHighValue();
+
+		// shrink
+		if ((r - l) > 1e-12 && (r - l) / (max - min) < SLIDER_SHRINK_WIDTH_THRESHOLD) {
+			double center = l + 0.5 * (r - l);
+			double centerRatio = (center - min) / (max - min);
+			double newWidth = (r - l) / SLIDER_SHRINK_WIDTH_THRESHOLD;
+
+			min = center - centerRatio * newWidth;
+			max = center + (1.0 - centerRatio) * newWidth;
+		}
+
+		// expand
+		double threshold = SLIDER_EXPAND_THRESHOLD * (max - min);
+		double k = SLIDER_EXPAND_THRESHOLD; // expand margin ratio to a new width
+		if (l - min < threshold) {
+			double margin = k / (1 - k) * (max - l);
+			max = r + (max - r) * (r - l + margin) / (r - min);
+			min = l - margin;
+		}
+		if (max - r < threshold) {
+			double margin = k / (1 - k) * (r - min);
+			min = l - (l - min) * (r - l + margin) / (max - l);
+			max = r + margin;
+		}
+
+		griddingRangeSlider.setMin(min);
+		griddingRangeSlider.setMax(max);
+
+		updateGriddingRangeSliderTicks();
+	}
+
+	private void updateGriddingRangeSliderTicks() {
+		double width = griddingRangeSlider.getMax() - griddingRangeSlider.getMin();
+		if (width > 0.0) {
+			griddingRangeSlider.setMajorTickUnit(width / 100);
+			griddingRangeSlider.setMinorTickCount((int) (width / 1000));
+			griddingRangeSlider.setBlockIncrement(width / 2000);
 		}
 	}
 
@@ -726,6 +773,10 @@ public class OptionPane extends VBox implements InitializingBean {
 			var chart = model.getCsvChart((CsvFile) selectedFile).get();
 			savedGriddingRange.put(chart.toString() + chart.getSelectedSeriesName(), fetchGriddingRange());
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
+		});
+
+		griddingRangeSlider.setOnMouseReleased(event -> {
+			expandGriddingRangeSlider();
 		});
 
 		VBox vbox = new VBox(10, griddingRangeSlider, coloursInput);

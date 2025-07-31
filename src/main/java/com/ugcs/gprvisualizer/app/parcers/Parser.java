@@ -3,7 +3,6 @@ package com.ugcs.gprvisualizer.app.parcers;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.Reader;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,10 +17,7 @@ import java.util.regex.Pattern;
 
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
 import org.springframework.util.StringUtils;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.reader.StreamReader;
 
-import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.DateTime;

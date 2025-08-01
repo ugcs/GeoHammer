@@ -9,7 +9,6 @@ import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
-import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -32,6 +31,8 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class PythonScriptsView extends VBox {
@@ -42,6 +43,7 @@ public class PythonScriptsView extends VBox {
 	private final PythonScriptExecutorService scriptExecutorService;
 	private final Status status;
 	private final Stage primaryStage = AppContext.stage;
+	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
 	public PythonScriptsView(Model model, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
@@ -173,6 +175,11 @@ public class PythonScriptsView extends VBox {
 							   ProgressIndicator progressIndicator, Button executeButton) {
 		if (scriptMetadata == null) return;
 
+		progressIndicator.setVisible(true);
+		progressIndicator.setManaged(true);
+		parametersBox.setDisable(true);
+		executeButton.setDisable(true);
+
 		Map<String, String> parameters = new HashMap<>();
 		for (Node node : parametersBox.getChildren()) {
 			if (node instanceof VBox paramBox) {
@@ -186,43 +193,36 @@ public class PythonScriptsView extends VBox {
 			}
 		}
 
-		progressIndicator.setVisible(true);
-		progressIndicator.setManaged(true);
-		parametersBox.setDisable(true);
-		executeButton.setDisable(true);
-
 		Future<PythonScriptExecutorService.ScriptExecutionResult> future =
 				scriptExecutorService.executeScriptAsync(selectedFile, scriptMetadata, parameters);
 
-		try {
-			PythonScriptExecutorService.ScriptExecutionResult result = future.get();
-			if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
-				Platform.runLater(() -> {
+		executor.submit(() -> {
+			try {
+				PythonScriptExecutorService.ScriptExecutionResult result = future.get();
+				if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
 					String successMessage = "Python script '" + scriptMetadata.displayName + "' executed successfully.";
 					String output = result.getOutput();
 					if (output != null && !output.isEmpty()) {
-						successMessage += "\nOutput: " + output + ".";
+						successMessage += "\nOutput: " + output;
 					}
 					status.showMessage(successMessage, "Python Script");
 					// TODO: 29. 7. 2025. add other files check (sgy, dzt)
 					if (selectedFile instanceof CsvFile) {
 						model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 					}
-				});
-			} else {
-				PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
-				showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
-			}
-		} catch (Exception e) {
-			showExceptionDialog(e.getMessage());
-		} finally {
-			Platform.runLater(() -> {
+				} else {
+					PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
+					showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
+				}
+			} catch (Exception e) {
+				showExceptionDialog(e.getMessage());
+			} finally {
 				progressIndicator.setVisible(false);
 				progressIndicator.setManaged(false);
 				parametersBox.setDisable(false);
 				executeButton.setDisable(false);
-			});
-		}
+			}
+		});
 	}
 
 	private String extractValueFromNode(Node node) {
@@ -234,27 +234,23 @@ public class PythonScriptsView extends VBox {
 	}
 
 	private void showErrorDialog(String scriptName, int exitCode, String output) {
-		Platform.runLater(() -> {
-			Dialog<String> dialog = new Dialog<>();
-			dialog.initOwner(primaryStage);
-			dialog.setTitle("Script Execution Error");
-			dialog.setHeaderText("Error");
-			dialog.setContentText("Python script '" + scriptName + "' failed with exit code " + exitCode + ".\nOutput: " + output);
-			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
-			dialog.showAndWait();
-		});
+		Dialog<String> dialog = new Dialog<>();
+		dialog.initOwner(primaryStage);
+		dialog.setTitle("Script Execution Error");
+		dialog.setHeaderText("Error");
+		dialog.setContentText("Python script '" + scriptName + "' failed with exit code " + exitCode + ".\nOutput: " + output);
+		dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
+		dialog.showAndWait();
 	}
 
 	private void showExceptionDialog(String errorMessage) {
-		Platform.runLater(() -> {
-			Dialog<String> dialog = new Dialog<>();
-			dialog.initOwner(primaryStage);
-			dialog.setTitle("Script Execution Error");
-			dialog.setHeaderText("Error");
-			dialog.setContentText("Failed to execute script: " + errorMessage);
-			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
-			dialog.showAndWait();
-		});
+		Dialog<String> dialog = new Dialog<>();
+		dialog.initOwner(primaryStage);
+		dialog.setTitle("Script Execution Error");
+		dialog.setHeaderText("Error");
+		dialog.setContentText("Failed to execute script: " + errorMessage);
+		dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
+		dialog.showAndWait();
 	}
 
 	public record PythonScriptMetadata(

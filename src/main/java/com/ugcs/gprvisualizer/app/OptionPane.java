@@ -23,6 +23,7 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -259,34 +260,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		};
 	}
 
-	/**
-	 * Sets up the gridding range slider with min/max values from the data.
-	 * This completely resets the slider to default values.
-	 */
-	private void setGriddingMinMax() {
-		if (!(selectedFile instanceof CsvFile)) {
-			return;
-		}
-
-		double max = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMaxValue();
-		double min = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMinValue();
-
-		griddingRangeSlider.setMin(min);
-		griddingRangeSlider.setMax(max);
-
-		double width = max - min;
-		if (width > 0.0) {
-			griddingRangeSlider.setMajorTickUnit(width / 100);
-			griddingRangeSlider.setMinorTickCount((int)(width / 1000));
-			griddingRangeSlider.setBlockIncrement(width / 2000);
-		}
-
-		griddingRangeSlider.setLowValue(min);
-		griddingRangeSlider.setHighValue(max);
-
-		griddingRangeSlider.setDisable(false);
-	}
-
 	Map<String, GriddingRange> savedGriddingRange = new HashMap<>();
 
 	public GriddingRange getSavedGriddingRangeValues(String seriesName) {
@@ -482,6 +455,23 @@ public class OptionPane extends VBox implements InitializingBean {
 		GriddingRange griddingRange = savedGriddingRange.get(
 				chart.toString() + chart.getSelectedSeriesName());
 		return Optional.ofNullable(griddingRange);
+	}
+
+	private void onResetGriddingRange(ActionEvent event) {
+		// get current min/max range
+		Range range = getSelectedSeriesRange();
+		if (range == null) {
+			return;
+		}
+		if (range.getWidth() == 0) {
+			range = range.scaleToWidth(1, 0.5);
+		}
+		GriddingRange griddingRange = new GriddingRange(
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue(),
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue());
+		updateGriddingRangeSlider(griddingRange);
 	}
 
 	private enum Filter {
@@ -803,7 +793,14 @@ public class OptionPane extends VBox implements InitializingBean {
 			}
 		});
 
+		HBox labelAndReset = new HBox(10);
 		Label label = new Label("Range");
+		Button resetButton = createGlyphButton("↺", 16, 16);
+		resetButton.setOnAction(this::onResetGriddingRange);
+
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		labelAndReset.getChildren().addAll(label, spacer, resetButton);
 
 		HBox coloursInput = new HBox(5);
 
@@ -841,7 +838,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		VBox vbox = new VBox(10, griddingRangeSlider, coloursInput);
 
-		filterInput.getChildren().addAll(gridCellSize, gridBlankingDistance, label, vbox, hillShadingControls);
+		filterInput.getChildren().addAll(gridCellSize, gridBlankingDistance, labelAndReset, vbox, hillShadingControls);
 
 		HBox filterButtons = new HBox(5);
 		HBox rightBox = new HBox();
@@ -857,6 +854,29 @@ public class OptionPane extends VBox implements InitializingBean {
 		griddingOptions.setManaged(false);
 
 		return griddingOptions;
+	}
+
+	private Button createGlyphButton(String text, int width, int height) {
+		Label iconLabel = new Label(text);
+		iconLabel.setStyle("-fx-font-family: 'System', 'Arial', sans-serif;"
+				+ "-fx-text-fill: white;"
+				+ "-fx-alignment: center;"
+				+ "-fx-text-alignment: center;"
+		);
+
+		Button button = new Button();
+		button.setGraphic(iconLabel);
+		button.setStyle("-fx-background-color: #a0a0a0;" +
+				"-fx-background-radius: 50%;" +
+				"-fx-alignment: center;" +
+				"-fx-content-display: graphic-only;"
+		);
+		button.setPadding(new Insets(2));
+		button.setPrefSize(width, height);
+		button.setMinSize(width, height);
+		button.setMaxSize(width, height);
+		button.setCursor(Cursor.HAND);
+		return button;
 	}
 
 	private void setFormattedValue(Number newVal, String prefix, Label label) {

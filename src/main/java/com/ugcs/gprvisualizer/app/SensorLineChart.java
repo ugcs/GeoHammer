@@ -692,10 +692,25 @@ public class SensorLineChart extends Chart {
         plotData.setRendered(subsample);
     }
 
+    @Override
     public int getSelectedLineIndex() {
-        return selectionMarker != null
-                ? getValueLineIndex(selectionMarker.getXValue().intValue())
-                : getViewLineIndex();
+        if (selectionMarker != null) {
+            int selectedIndex = selectionMarker.getXValue().intValue();
+            if (isValueVisible(selectedIndex)) {
+                return getValueLineIndex(selectedIndex);
+            }
+        }
+        return getViewLineIndex();
+    }
+
+    private boolean isValueVisible(int index) {
+        String seriesName = getSelectedSeriesName();
+        LineChartWithMarkers selectedChart = getCharts().get(seriesName);
+        if (selectedChart != null) {
+            ValueAxis<Number> xAxis = (ValueAxis<Number>) selectedChart.getXAxis();
+            return index >= xAxis.getLowerBound() && index <= xAxis.getUpperBound();
+        }
+        return false;
     }
 
     public int getValueLineIndex(int index) {
@@ -1231,6 +1246,8 @@ public class SensorLineChart extends Chart {
         }
 
         private void applyZoom() {
+            int lineIndexBefore = getSelectedLineIndex();
+
             ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             xAxis.setAutoRanging(false);
             xAxis.setLowerBound(zoomRect.xMin.doubleValue());
@@ -1240,6 +1257,15 @@ public class SensorLineChart extends Chart {
             yAxis.setAutoRanging(false);
             yAxis.setLowerBound(zoomRect.yMin.doubleValue());
             yAxis.setUpperBound(zoomRect.yMax.doubleValue());
+
+            int lineIndexAfter = getSelectedLineIndex();
+            if (lineIndexBefore != lineIndexAfter) {
+                // request redraw on selected line index update
+                eventPublisher.publishEvent(new WhatChanged(
+                        SensorLineChart.this,
+                        WhatChanged.Change.justdraw
+                ));
+            }
         }
 
         private void updateLineChartData() {

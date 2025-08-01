@@ -258,6 +258,18 @@ public class GPRChart extends Chart {
         return Math.max(minZoom, zoom);
     }
 
+    @Override
+    public void setMiddleTrace(int selectedTrace) {
+        int lineIndexBefore = getSelectedLineIndex();
+
+        super.setMiddleTrace(selectedTrace);
+
+        int lineIndexAfter = getSelectedLineIndex();
+        if (lineIndexBefore != lineIndexAfter) {
+            model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+        }
+    }
+
     void updateScroll() {
         if (!model.isActive() || getField().getGprTracesCount() == 0) {
             return;
@@ -808,6 +820,19 @@ public class GPRChart extends Chart {
 
     // zoom
 
+
+    @Override
+    public int getSelectedLineIndex() {
+        TraceKey mark = model.getSelectedTrace(this);
+        return mark != null && isTraceVisible(mark.getIndex())
+                ? getValueLineIndex(mark.getIndex())
+                : getValueLineIndex(getMiddleTrace());
+    }
+
+    private boolean isTraceVisible(int traceIndex) {
+        return traceIndex >= getFirstVisibleTrace() && traceIndex <= getLastVisibleTrace();
+    }
+
     private int getValueLineIndex(int index) {
         TraceFile file = profileField.getFile();
         List<GeoData> values = file.getGeoData();
@@ -849,13 +874,7 @@ public class GPRChart extends Chart {
         // zoom to a line containing that mark;
         // otherwise zoom to a line containing
         // the middle trace
-        int lineIndex;
-        TraceKey mark = model.getSelectedTrace(this);
-        if (mark != null) {
-            lineIndex = getValueLineIndex(mark.getIndex());
-        } else {
-            lineIndex = getValueLineIndex(getMiddleTrace());
-        }
+        int lineIndex = getSelectedLineIndex();
         zoomToLine(lineIndex);
     }
 

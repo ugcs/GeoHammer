@@ -70,7 +70,8 @@ public class GriddingRangeFormattingTest {
             model,
             mock(LevelFilter.class),
             prefSettings,
-            mock(Status.class)
+            mock(Status.class),
+            mock(Loader.class)
         );
 
         // Create a RangeSlider and set it in the OptionPane instance

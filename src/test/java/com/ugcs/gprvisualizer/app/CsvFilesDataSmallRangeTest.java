@@ -66,7 +66,8 @@ public class CsvFilesDataSmallRangeTest {
             model,
             mock(LevelFilter.class),
             settings,
-            mock(Status.class)
+            mock(Status.class),
+            mock(Loader.class)
         );
 
         // Create the RangeSlider

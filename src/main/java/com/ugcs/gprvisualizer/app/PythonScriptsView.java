@@ -3,11 +3,11 @@ package com.ugcs.gprvisualizer.app;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
-import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -27,11 +27,13 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -40,6 +42,7 @@ public class PythonScriptsView extends VBox {
 
 	private static final Logger log = LoggerFactory.getLogger(PythonScriptsView.class);
 	private final Model model;
+	private final Loader loader;
 	private final SgyFile selectedFile;
 	private final PythonScriptExecutorService scriptExecutorService;
 	private final Status status;
@@ -50,8 +53,10 @@ public class PythonScriptsView extends VBox {
 	private final ComboBox<String> scriptsMetadataSelector;
 	private final Button applyButton;
 
-	public PythonScriptsView(Model model, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
+
+	public PythonScriptsView(Model model, Loader loader, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
+		this.loader = loader;
 		this.status = status;
 		this.selectedFile = selectedFile;
 		this.scriptExecutorService = scriptExecutorService;
@@ -178,32 +183,16 @@ public class PythonScriptsView extends VBox {
 
 	private void executeScript(PythonScriptsView.@Nullable PythonScriptMetadata scriptMetadata) {
 		if (scriptMetadata == null) return;
-
 		setExecutingProgress(true);
 
-		Map<String, String> parameters = extractScriptParams();
-
+		Map<String, String> parameters = extractScriptParams(scriptMetadata.parameters);
 		Future<PythonScriptExecutorService.ScriptExecutionResult> future =
 				scriptExecutorService.executeScriptAsync(selectedFile, scriptMetadata, parameters);
 
 		executor.submit(() -> {
 			try {
 				PythonScriptExecutorService.ScriptExecutionResult result = future.get();
-				if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
-					String successMessage = "Python script '" + scriptMetadata.displayName + "' executed successfully.";
-					String output = result.getOutput();
-					if (output != null && !output.isEmpty()) {
-						successMessage += "\nOutput: " + output;
-					}
-					status.showMessage(successMessage, "Python Script");
-					// TODO: 29. 7. 2025. add other files check (sgy, dzt)
-					if (selectedFile instanceof CsvFile) {
-						model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
-					}
-				} else {
-					PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
-					showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
-				}
+				handleScriptResult(result, scriptMetadata);
 			} catch (Exception e) {
 				showExceptionDialog(e.getMessage());
 			} finally {
@@ -212,16 +201,68 @@ public class PythonScriptsView extends VBox {
 		});
 	}
 
-	private Map<String, String>  extractScriptParams() {
+	private void handleScriptResult(PythonScriptExecutorService.ScriptExecutionResult result, PythonScriptMetadata scriptMetadata) {
+		if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
+			handleSuccessResult(result, scriptMetadata);
+		} else {
+			PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
+			showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
+		}
+	}
+
+	private void handleSuccessResult(PythonScriptExecutorService.ScriptExecutionResult result, PythonScriptMetadata scriptMetadata) {
+		String successMessage = "Python script '" + scriptMetadata.displayName + "' executed successfully.";
+		String output = result.getOutput();
+		if (output != null && !output.isEmpty()) {
+			successMessage += "\nOutput: " + output;
+		}
+		status.showMessage(successMessage, "Python Script");
+		File currentFile = selectedFile.getFile();
+		if (currentFile != null && currentFile.exists()) {
+			Platform.runLater(() -> {
+				closeExistingChart();
+				loader.load(List.of(currentFile));
+			});
+		} else {
+			showExceptionDialog("Selected file does not exist or is not valid.");
+		}
+	}
+
+	private void closeExistingChart() {
+		if (selectedFile instanceof CsvFile) {
+			Optional<SensorLineChart> chart = model.getCsvChart((CsvFile) selectedFile);
+			if (chart.isPresent()) {
+				chart.get().close(true);
+			} else {
+				log.warn("No chart found for CSV file: {}", selectedFile.getFile());
+			}
+		} else if (selectedFile instanceof TraceFile) {
+			GPRChart chart = model.getGprChart((TraceFile) selectedFile);
+			if (chart != null) {
+				chart.close();
+			} else {
+				log.warn("No chart found for GPR file: {}", selectedFile.getFile());
+			}
+		} else {
+			log.warn("Unsupported file type for chart closing: {}", selectedFile.getFile());
+		}
+	}
+
+	private Map<String, String> extractScriptParams(List<PythonScriptParameter> params) {
 		Map<String, String> parameters = new HashMap<>();
-		for (Node node : parametersBox.getChildren()) {
-			if (node instanceof VBox paramBox) {
-				for (Node child : paramBox.getChildren()) {
-					if (child.getUserData() != null) {
-						String paramName = (String) child.getUserData();
-						String value = extractValueFromNode(child);
-						parameters.put(paramName, value);
-					}
+		for (Node paramBox : parametersBox.getChildren()) {
+			if (!(paramBox instanceof VBox)) continue;
+
+			for (Node inputNode : ((VBox) paramBox).getChildren()) {
+				String paramName = (String) inputNode.getUserData();
+				if (paramName == null) continue;
+
+				String value = extractValueFromNode(inputNode);
+				boolean isRequired = params.stream()
+						.anyMatch(param -> param.name().equals(paramName) && param.required());
+
+				if (!value.isEmpty() || isRequired) {
+					parameters.put(paramName, value);
 				}
 			}
 		}

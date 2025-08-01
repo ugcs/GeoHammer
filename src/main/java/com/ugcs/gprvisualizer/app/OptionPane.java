@@ -94,8 +94,9 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private PrefSettings prefSettings;
 	private final Status status;
+	private final Loader loader;
 
-	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings, Status status) {
+	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings, Status status, Loader loader) {
 		this.mapView = mapView;
 		this.profileView = profileView;
 		this.commandRegistry = commandRegistry;
@@ -103,6 +104,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		this.levelFilter = levelFilter;
 		this.prefSettings = prefSettings;
 		this.status = status;
+		this.loader = loader;
 	}
 
 	private ToggleButton showGreenLineBtn = new ToggleButton("",
@@ -223,7 +225,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		pythonScriptsView = new PythonScriptsView(model, status, selectedFile, pythonScriptExecutorService);
+		pythonScriptsView = new PythonScriptsView(model, loader, status, selectedFile, pythonScriptExecutorService);
 		StackPane pythonScriptPane = new StackPane(pythonScriptsView);
 
 		container.getChildren().addAll(List.of(
@@ -1104,7 +1106,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
-		pythonScriptsView = new PythonScriptsView(model, status, selectedFile, pythonScriptExecutorService);
+		pythonScriptsView = new PythonScriptsView(model, loader, status, selectedFile, pythonScriptExecutorService);
 		StackPane pythonScriptsPane = new StackPane(pythonScriptsView);
 		ToggleButton pythonScriptsButton = new ToggleButton("Scripts");
 		pythonScriptsButton.setMaxWidth(Double.MAX_VALUE);

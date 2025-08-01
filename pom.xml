@@ -673,6 +673,17 @@
                         			</arguments>
                     			</configuration>
                 			</execution>
+							<execution>
+								<id>copy-scripts</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>cp</executable>
+									<arguments>
+										<argument>-r</argument><argument>scripts</argument><argument>${installer.input}</argument>
+									</arguments>
+								</configuration>
+							</execution>
                             <execution>
                                 <id>Build Native Mac App</id>
                                 <phase>install</phase>

@@ -1,7 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -46,6 +45,8 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
 
     // trace == null -> clear current selection
     public abstract void selectTrace(@Nullable TraceKey trace, boolean focus);
+
+    public abstract int getSelectedLineIndex();
 
     // flags
 

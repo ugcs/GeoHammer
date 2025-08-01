@@ -9,6 +9,7 @@ import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -44,6 +45,10 @@ public class PythonScriptsView extends VBox {
 	private final Status status;
 	private final Stage primaryStage = AppContext.stage;
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final ProgressIndicator progressIndicator;
+	private final VBox parametersBox;
+	private final ComboBox<String> scriptsMetadataSelector;
+	private final Button applyButton;
 
 	public PythonScriptsView(Model model, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
@@ -54,10 +59,10 @@ public class PythonScriptsView extends VBox {
 		setSpacing(OptionPane.DEFAULT_SPACING);
 		setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
 
-		ProgressIndicator progressIndicator = new ProgressIndicator();
+		progressIndicator = new ProgressIndicator();
 		progressIndicator.setVisible(false);
 
-		ComboBox<String> scriptsMetadataSelector = new ComboBox<>();
+		scriptsMetadataSelector = new ComboBox<>();
 		scriptsMetadataSelector.setPromptText("Select Python script");
 		scriptsMetadataSelector.setMaxWidth(Double.MAX_VALUE);
 
@@ -77,14 +82,14 @@ public class PythonScriptsView extends VBox {
 						.toList()
 		);
 
-		VBox parametersBox = new VBox(OptionPane.DEFAULT_SPACING);
+		parametersBox = new VBox(OptionPane.DEFAULT_SPACING);
 		parametersBox.setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
 
 		Label parametersLabel = new Label("Parameters:");
 		parametersLabel.setStyle("-fx-font-weight: bold;");
 		parametersLabel.setVisible(false);
 
-		Button applyButton = new Button("Apply");
+		applyButton = new Button("Apply");
 		applyButton.setDisable(true);
 
 		scriptsMetadataSelector.setOnAction(e -> {
@@ -122,7 +127,7 @@ public class PythonScriptsView extends VBox {
 					.filter(scriptMetadata -> scriptMetadata.filename.equals(filename))
 					.findFirst()
 					.orElse(null);
-			executeScript(selected, parametersBox, progressIndicator, applyButton);
+			executeScript(selected);
 		});
 
 		VBox contentBox = new VBox();
@@ -171,27 +176,12 @@ public class PythonScriptsView extends VBox {
 		return paramBox;
 	}
 
-	private void executeScript(PythonScriptsView.@Nullable PythonScriptMetadata scriptMetadata, VBox parametersBox,
-							   ProgressIndicator progressIndicator, Button executeButton) {
+	private void executeScript(PythonScriptsView.@Nullable PythonScriptMetadata scriptMetadata) {
 		if (scriptMetadata == null) return;
 
-		progressIndicator.setVisible(true);
-		progressIndicator.setManaged(true);
-		parametersBox.setDisable(true);
-		executeButton.setDisable(true);
+		setExecutingProgress(true);
 
-		Map<String, String> parameters = new HashMap<>();
-		for (Node node : parametersBox.getChildren()) {
-			if (node instanceof VBox paramBox) {
-				for (Node child : paramBox.getChildren()) {
-					if (child.getUserData() != null) {
-						String paramName = (String) child.getUserData();
-						String value = extractValueFromNode(child);
-						parameters.put(paramName, value);
-					}
-				}
-			}
-		}
+		Map<String, String> parameters = extractScriptParams();
 
 		Future<PythonScriptExecutorService.ScriptExecutionResult> future =
 				scriptExecutorService.executeScriptAsync(selectedFile, scriptMetadata, parameters);
@@ -217,12 +207,25 @@ public class PythonScriptsView extends VBox {
 			} catch (Exception e) {
 				showExceptionDialog(e.getMessage());
 			} finally {
-				progressIndicator.setVisible(false);
-				progressIndicator.setManaged(false);
-				parametersBox.setDisable(false);
-				executeButton.setDisable(false);
+				setExecutingProgress(false);
 			}
 		});
+	}
+
+	private Map<String, String>  extractScriptParams() {
+		Map<String, String> parameters = new HashMap<>();
+		for (Node node : parametersBox.getChildren()) {
+			if (node instanceof VBox paramBox) {
+				for (Node child : paramBox.getChildren()) {
+					if (child.getUserData() != null) {
+						String paramName = (String) child.getUserData();
+						String value = extractValueFromNode(child);
+						parameters.put(paramName, value);
+					}
+				}
+			}
+		}
+		return parameters;
 	}
 
 	private String extractValueFromNode(Node node) {
@@ -233,24 +236,37 @@ public class PythonScriptsView extends VBox {
 		};
 	}
 
+	private void setExecutingProgress(boolean inProgress) {
+		progressIndicator.setVisible(inProgress);
+		progressIndicator.setManaged(inProgress);
+		parametersBox.setDisable(inProgress);
+		applyButton.setDisable(inProgress);
+		scriptsMetadataSelector.setDisable(inProgress);
+	}
+
 	private void showErrorDialog(String scriptName, int exitCode, String output) {
-		Dialog<String> dialog = new Dialog<>();
-		dialog.initOwner(primaryStage);
-		dialog.setTitle("Script Execution Error");
-		dialog.setHeaderText("Error");
-		dialog.setContentText("Python script '" + scriptName + "' failed with exit code " + exitCode + ".\nOutput: " + output);
-		dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
-		dialog.showAndWait();
+		Platform.runLater(() -> {
+			Dialog<String> dialog = new Dialog<>();
+			dialog.initOwner(primaryStage);
+			dialog.setTitle("Script Execution Error");
+			dialog.setHeaderText("Error");
+			dialog.setContentText("Python script '" + scriptName + "' failed with exit code " + exitCode + ".\nOutput: " + output);
+			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
+			dialog.showAndWait();
+		});
+
 	}
 
 	private void showExceptionDialog(String errorMessage) {
-		Dialog<String> dialog = new Dialog<>();
-		dialog.initOwner(primaryStage);
-		dialog.setTitle("Script Execution Error");
-		dialog.setHeaderText("Error");
-		dialog.setContentText("Failed to execute script: " + errorMessage);
-		dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
-		dialog.showAndWait();
+		Platform.runLater(() -> {
+			Dialog<String> dialog = new Dialog<>();
+			dialog.initOwner(primaryStage);
+			dialog.setTitle("Script Execution Error");
+			dialog.setHeaderText("Error");
+			dialog.setContentText("Failed to execute script: " + errorMessage);
+			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
+			dialog.showAndWait();
+		});
 	}
 
 	public record PythonScriptMetadata(

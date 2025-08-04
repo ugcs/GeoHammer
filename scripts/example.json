@@ -16,5 +16,6 @@
       "defaultValue": "false",
       "required": false
     }
-  ]
+  ],
+  "templates": ["MagNIMBUS", "sgy"]
 }

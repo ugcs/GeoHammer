@@ -9,6 +9,7 @@ import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.gpr.Model;
+import com.ugcs.gprvisualizer.utils.FileTemplate;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -79,7 +80,10 @@ public class PythonScriptsView extends VBox {
 			log.warn("Failed to load Python scripts", e);
 			loadedScriptsMetadata = List.of();
 		}
-		final List<PythonScriptMetadata> scriptsMetadata = loadedScriptsMetadata;
+		String currentFileTemplate = FileTemplate.getTemplateName(model, selectedFile.getFile());
+		final List<PythonScriptMetadata> scriptsMetadata = loadedScriptsMetadata.stream()
+				.filter(metadata -> metadata.templates().isEmpty() || metadata.templates().contains(currentFileTemplate))
+				.toList();
 
 		scriptsMetadataSelector.getItems().addAll(
 				scriptsMetadata.stream()
@@ -314,7 +318,8 @@ public class PythonScriptsView extends VBox {
 			String filename,
 			@JsonProperty("display_name")
 			String displayName,
-			List<PythonScriptParameter> parameters
+			List<PythonScriptParameter> parameters,
+			List<String> templates
 	) {
 	}
 

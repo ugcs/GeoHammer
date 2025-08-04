@@ -42,6 +42,7 @@ import java.util.concurrent.Future;
 public class PythonScriptsView extends VBox {
 
 	private static final Logger log = LoggerFactory.getLogger(PythonScriptsView.class);
+
 	private final Model model;
 	private final Loader loader;
 	private final SgyFile selectedFile;
@@ -53,7 +54,6 @@ public class PythonScriptsView extends VBox {
 	private final VBox parametersBox;
 	private final ComboBox<String> scriptsMetadataSelector;
 	private final Button applyButton;
-
 
 	public PythonScriptsView(Model model, Loader loader, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
@@ -147,8 +147,14 @@ public class PythonScriptsView extends VBox {
 
 		getChildren().add(stackPane);
 
-		setVisible(false);
-		setManaged(false);
+		if (scriptExecutorService.isExecuting(selectedFile)) {
+			setExecutingProgress(true);
+			setVisible(true);
+			setManaged(true);
+		} else {
+			setVisible(false);
+			setManaged(false);
+		}
 	}
 
 	private VBox createParameterInput(PythonScriptParameter param) {
@@ -223,7 +229,8 @@ public class PythonScriptsView extends VBox {
 		status.showMessage(successMessage, "Python Script");
 		File currentFile = selectedFile.getFile();
 		if (currentFile != null && currentFile.exists()) {
-			Platform.runLater(() -> {
+            Platform.runLater(() -> {
+				// workaround for reloading data from the script
 				closeExistingChart();
 				loader.load(List.of(currentFile));
 			});

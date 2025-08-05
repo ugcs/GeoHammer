@@ -46,7 +46,7 @@ public class SettingsView extends VBox {
 		pythonPathField.setPrefWidth(200);
 
 		String pythonPath = "";
-		String configPath = pythonConfig.getPythonPath();
+		String configPath = pythonConfig.getPythonExecutorPath();
 		if (configPath != null && !configPath.isEmpty()) {
 			pythonPath = configPath;
 		} else {
@@ -71,7 +71,7 @@ public class SettingsView extends VBox {
 			File file = fileChooser.showOpenDialog(settingsStage);
 			if (file != null) {
 				pythonPathField.setText(file.getAbsolutePath());
-				pythonConfig.setPythonPath(file.getAbsolutePath());
+				pythonConfig.setPythonExecutorPath(file.getAbsolutePath());
 			}
 		});
 

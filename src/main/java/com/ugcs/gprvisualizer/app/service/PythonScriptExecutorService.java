@@ -1,7 +1,7 @@
 package com.ugcs.gprvisualizer.app.service;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.ugcs.gprvisualizer.app.PythonScriptsView;
+import com.ugcs.gprvisualizer.app.ScriptExecutionView;
 import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
 import com.ugcs.gprvisualizer.utils.PythonLocator;
 import org.slf4j.Logger;
@@ -22,6 +22,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import javax.annotation.Nullable;
+
 
 @Service
 public class PythonScriptExecutorService {
@@ -33,11 +35,11 @@ public class PythonScriptExecutorService {
 	@Autowired
 	private PythonConfig pythonConfig;
 
-	private final Map<String, SgyFile> executingFiles = new ConcurrentHashMap<>();
+	private final Map<String, ScriptBinding> executingFiles = new ConcurrentHashMap<>();
 
 	public Future<ScriptExecutionResult> executeScriptAsync(
 			SgyFile selectedFile,
-			PythonScriptsView.PythonScriptMetadata scriptMetadata,
+			ScriptExecutionView.ScriptMetadata scriptMetadata,
 			Map<String, String> parameters) {
 		File currentFile = selectedFile.getFile();
 		if (currentFile == null || !currentFile.exists()) {
@@ -55,12 +57,12 @@ public class PythonScriptExecutorService {
 		return executor.submit(() -> executeScript(fileKey, selectedFile, scriptMetadata, parameters));
 	}
 
-	private ScriptExecutionResult executeScript(String fileKey, SgyFile selectedFile, PythonScriptsView.PythonScriptMetadata scriptMetadata, Map<String, String> parameters) throws IOException, InterruptedException {
-		executingFiles.put(fileKey, selectedFile);
+	private ScriptExecutionResult executeScript(String fileKey, SgyFile selectedFile, ScriptExecutionView.ScriptMetadata scriptMetadata, Map<String, String> parameters) throws IOException, InterruptedException {
+		executingFiles.put(fileKey, new ScriptBinding(scriptMetadata.filename(), selectedFile));
 		try {
 			String scriptFilename = scriptMetadata.filename();
 			List<String> command = new ArrayList<>();
-			String pythonPath = pythonConfig.getPythonPath();
+			String pythonPath = pythonConfig.getPythonExecutorPath();
 			Future<String> future = new PythonLocator().getPythonExecutorPathAsync();
 			if (pythonPath == null || pythonPath.isEmpty()) {
 				try {
@@ -126,18 +128,34 @@ public class PythonScriptExecutorService {
 		return executingFiles.containsKey(file.getName());
 	}
 
-	private boolean isBooleanParameter(PythonScriptsView.PythonScriptMetadata metadata, String paramName) {
+	@Nullable
+	public String getExecutingScriptName(SgyFile sgyFile) {
+		File file = sgyFile.getFile();
+		if (file == null || !file.exists()) {
+			return null;
+		}
+		ScriptBinding binding = executingFiles.get(file.getName());
+		if (binding != null) {
+			return binding.scriptFilename();
+		}
+		return null;
+	}
+
+	private boolean isBooleanParameter(ScriptExecutionView.ScriptMetadata metadata, String paramName) {
 		return metadata.parameters().stream()
-				.anyMatch(param -> param.name().equals(paramName) && param.type() == PythonScriptsView.PythonScriptParameter.ParameterType.BOOLEAN);
+				.anyMatch(param -> param.name().equals(paramName) && param.type() == ScriptExecutionView.PythonScriptParameter.ParameterType.BOOLEAN);
 	}
 
 	public static sealed abstract class ScriptExecutionResult permits ScriptExecutionResult.Success, ScriptExecutionResult.Error {
+
+		@Nullable
 		private final String output;
 
-		private ScriptExecutionResult(String output) {
+		private ScriptExecutionResult(@Nullable String output) {
 			this.output = output;
 		}
 
+		@Nullable
 		public String getOutput() {
 			return output;
 		}
@@ -161,4 +179,6 @@ public class PythonScriptExecutorService {
 			}
 		}
 	}
+
+	record ScriptBinding(String scriptFilename, SgyFile file) {}
 }

@@ -4,16 +4,16 @@
   "parameters": [
     {
       "name": "threshold",
-      "displayName": "Threshold",
+      "display_name": "Threshold",
       "type": "DOUBLE",
-      "defaultValue": "0.5",
+      "default_value": "0.5",
       "required": true
     },
     {
       "name": "verbose",
-      "displayName": "Verbose Output",
+      "display_name": "Verbose Output",
       "type": "BOOLEAN",
-      "defaultValue": "false",
+      "default_value": "false",
       "required": false
     }
   ],

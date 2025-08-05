@@ -4,13 +4,13 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PythonConfig {
-	private String pythonPath = "";
+	private String pythonExecutorPath = "";
 
-	public String getPythonPath() {
-		return pythonPath;
+	public String getPythonExecutorPath() {
+		return pythonExecutorPath;
 	}
 
-	public void setPythonPath(String pythonPath) {
-		this.pythonPath = pythonPath;
+	public void setPythonExecutorPath(String pythonExecutorPath) {
+		this.pythonExecutorPath = pythonExecutorPath;
 	}
 }

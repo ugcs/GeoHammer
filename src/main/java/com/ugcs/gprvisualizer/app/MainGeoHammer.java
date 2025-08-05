@@ -11,9 +11,6 @@ import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.Menu;
 import javafx.stage.Stage;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -38,7 +35,6 @@ public class MainGeoHammer extends Application {
 	private SceneContent sceneContent;
 	private EventSender eventSender;
 	private EventsFactory eventsFactory;
-	private PythonConfig pythonConfig;
 
 	public static void main(String[] args) {
 		launch(args);
@@ -70,7 +66,7 @@ public class MainGeoHammer extends Application {
 
 		context.getBean(PythonScriptExecutorService.class);
 
-		pythonConfig = context.getBean(PythonConfig.class);
+		context.getBean(PythonConfig.class);
     }
 
 	@Override
@@ -83,25 +79,6 @@ public class MainGeoHammer extends Application {
         stage.setTitle(TITLE_VERSION + appBuildInfo.getBuildVersion());
 		
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-
-		String os = System.getProperty("os.name").toLowerCase();
-		if (Desktop.isDesktopSupported() && os.contains("mac")) {
-			Desktop desktop = Desktop.getDesktop();
-			desktop.setPreferencesHandler(e -> Platform.runLater(() -> {
-				new SettingsView(pythonConfig);
-			}));
-		} else {
-			MenuBar menuBar = new MenuBar();
-			Menu menu = new Menu("File");
-			MenuItem settingsItem = new MenuItem("Settings");
-			settingsItem.setOnAction(e -> {
-				new SettingsView(pythonConfig);
-			});
-			menu.getItems().add(settingsItem);
-			menuBar.getMenus().add(menu);
-
-			sceneContent.setTop(menuBar);
-		}
         
 		Scene scene = new Scene(sceneContent, screenSize.getWidth()-80, 700);
 		//scene.set

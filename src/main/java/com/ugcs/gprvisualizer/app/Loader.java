@@ -252,6 +252,8 @@ public class Loader {
 			model.initCsvChart(csvFile);
 			model.initField();
 		} else if (csvFile.getFile() != null && Objects.equals(file.getAbsolutePath(), csvFile.getFile().getAbsolutePath())) {
+			// If the file is already opened, just update the chart view
+			// workaround for the case when the file is already opened
 			model.getCsvChart(csvFile).get().close(true);
 			model.getFileManager().addFile(csvFile);
 			model.updateAuxElements();

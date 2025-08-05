@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataLoader;
-import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
+import com.ugcs.gprvisualizer.app.scripts.ScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.FileTemplate;
@@ -36,9 +36,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public class PythonScriptsView extends VBox {
+public class ScriptExecutionView extends VBox {
 
-	private static final Logger log = LoggerFactory.getLogger(PythonScriptsView.class);
+	private static final Logger log = LoggerFactory.getLogger(ScriptExecutionView.class);
 
 	private final Loader loader;
 	private final SgyFile selectedFile;
@@ -51,7 +51,7 @@ public class PythonScriptsView extends VBox {
 	private final ComboBox<String> scriptsMetadataSelector;
 	private final Button applyButton;
 
-	public PythonScriptsView(Model model, Loader loader, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
+	public ScriptExecutionView(Model model, Loader loader, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.loader = loader;
 		this.status = status;
 		this.selectedFile = selectedFile;
@@ -67,22 +67,22 @@ public class PythonScriptsView extends VBox {
 		scriptsMetadataSelector.setPromptText("Select Python script");
 		scriptsMetadataSelector.setMaxWidth(Double.MAX_VALUE);
 
-		List<PythonScriptMetadata> loadedScriptsMetadata;
+		List<ScriptMetadata> loadedScriptsMetadata;
 		try {
-			PythonScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
-			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptsMetadata(Path.of("scripts"));
+			ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
+			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(Path.of("scripts"));
 		} catch (IOException e) {
 			log.warn("Failed to load Python scripts", e);
 			loadedScriptsMetadata = List.of();
 		}
 		String currentFileTemplate = FileTemplate.getTemplateName(model, selectedFile.getFile());
-		final List<PythonScriptMetadata> scriptsMetadata = loadedScriptsMetadata.stream()
+		final List<ScriptMetadata> scriptsMetadata = loadedScriptsMetadata.stream()
 				.filter(metadata -> metadata.templates().isEmpty() || metadata.templates().contains(currentFileTemplate))
 				.toList();
 
 		scriptsMetadataSelector.getItems().addAll(
 				scriptsMetadata.stream()
-						.map(PythonScriptMetadata::filename)
+						.map(ScriptMetadata::filename)
 						.toList()
 		);
 
@@ -98,7 +98,7 @@ public class PythonScriptsView extends VBox {
 
 		scriptsMetadataSelector.setOnAction(e -> {
 			String filename = scriptsMetadataSelector.getValue();
-			PythonScriptMetadata selected = scriptsMetadata.stream()
+			ScriptMetadata selected = scriptsMetadata.stream()
 					.filter(scriptMetadata -> scriptMetadata.filename.equals(filename))
 					.findFirst()
 					.orElse(null);
@@ -127,7 +127,7 @@ public class PythonScriptsView extends VBox {
 
 		applyButton.setOnAction(event -> {
 			String filename = scriptsMetadataSelector.getValue();
-			PythonScriptMetadata selected = scriptsMetadata.stream()
+			ScriptMetadata selected = scriptsMetadata.stream()
 					.filter(scriptMetadata -> scriptMetadata.filename.equals(filename))
 					.findFirst()
 					.orElse(null);
@@ -144,6 +144,12 @@ public class PythonScriptsView extends VBox {
 
 		if (scriptExecutorService.isExecuting(selectedFile)) {
 			setExecutingProgress(true);
+			String executingScriptName = scriptExecutorService.getExecutingScriptName(selectedFile);
+			if (executingScriptName != null) {
+				scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
+			} else {
+				scriptsMetadataSelector.getSelectionModel().clearSelection();
+			}
 			setVisible(true);
 			setManaged(true);
 		} else {
@@ -186,7 +192,7 @@ public class PythonScriptsView extends VBox {
 		return paramBox;
 	}
 
-	private void executeScript(PythonScriptsView.@Nullable PythonScriptMetadata scriptMetadata) {
+	private void executeScript(@Nullable ScriptMetadata scriptMetadata) {
 		if (scriptMetadata == null) return;
 		setExecutingProgress(true);
 
@@ -206,7 +212,7 @@ public class PythonScriptsView extends VBox {
 		});
 	}
 
-	private void handleScriptResult(PythonScriptExecutorService.ScriptExecutionResult result, PythonScriptMetadata scriptMetadata) {
+	private void handleScriptResult(PythonScriptExecutorService.ScriptExecutionResult result, ScriptMetadata scriptMetadata) {
 		if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
 			handleSuccessResult(result, scriptMetadata);
 		} else {
@@ -215,7 +221,7 @@ public class PythonScriptsView extends VBox {
 		}
 	}
 
-	private void handleSuccessResult(PythonScriptExecutorService.ScriptExecutionResult result, PythonScriptMetadata scriptMetadata) {
+	private void handleSuccessResult(PythonScriptExecutorService.ScriptExecutionResult result, ScriptMetadata scriptMetadata) {
 		String successMessage = "Python script '" + scriptMetadata.displayName + "' executed successfully.";
 		String output = result.getOutput();
 		if (output != null && !output.isEmpty()) {
@@ -267,13 +273,17 @@ public class PythonScriptsView extends VBox {
 		scriptsMetadataSelector.setDisable(inProgress);
 	}
 
-	private void showErrorDialog(String scriptName, int exitCode, String output) {
+	private void showErrorDialog(String scriptName, int exitCode, @javax.annotation.Nullable String output) {
 		Platform.runLater(() -> {
 			Dialog<String> dialog = new Dialog<>();
 			dialog.initOwner(primaryStage);
 			dialog.setTitle("Script Execution Error");
 			dialog.setHeaderText("Error");
-			dialog.setContentText("Python script '" + scriptName + "' failed with exit code " + exitCode + ".\nOutput: " + output);
+			String errorMessage = "Python script '" + scriptName + "' failed with exit code " + exitCode + ".";
+			if (output != null && !output.isEmpty()) {
+				errorMessage += "\nOutput: " + output;
+			}
+			dialog.setContentText(errorMessage);
 			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
 			dialog.showAndWait();
 		});
@@ -292,7 +302,7 @@ public class PythonScriptsView extends VBox {
 		});
 	}
 
-	public record PythonScriptMetadata(
+	public record ScriptMetadata(
 			String filename,
 			@JsonProperty("display_name")
 			String displayName,
@@ -303,8 +313,10 @@ public class PythonScriptsView extends VBox {
 
 	public record PythonScriptParameter(
 			String name,
+			@JsonProperty("display_name")
 			String displayName,
 			ParameterType type,
+			@JsonProperty("default_value")
 			String defaultValue,
 			boolean required
 	) {

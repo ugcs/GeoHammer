@@ -93,7 +93,9 @@ public class OptionPane extends VBox implements InitializingBean {
 	private LevelFilter levelFilter;
 
 	private PrefSettings prefSettings;
+
 	private final Status status;
+
 	private final Loader loader;
 
 	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings, Status status, Loader loader) {
@@ -131,7 +133,7 @@ public class OptionPane extends VBox implements InitializingBean {
 	private Button showGriddingAllButton;
 	private RangeSlider griddingRangeSlider;
 	private StatisticsView statisticsView;
-	private PythonScriptsView pythonScriptsView;
+	private ScriptExecutionView scriptExecutionView;
 
 	@Autowired
 	private PythonScriptExecutorService pythonScriptExecutorService;
@@ -225,8 +227,8 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		pythonScriptsView = new PythonScriptsView(model, loader, status, selectedFile, pythonScriptExecutorService);
-		StackPane pythonScriptPane = new StackPane(pythonScriptsView);
+		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		StackPane pythonScriptPane = new StackPane(scriptExecutionView);
 
 		container.getChildren().addAll(List.of(
 				statisticsButton, statisticsPane,
@@ -1106,8 +1108,8 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
-		pythonScriptsView = new PythonScriptsView(model, loader, status, selectedFile, pythonScriptExecutorService);
-		StackPane pythonScriptsPane = new StackPane(pythonScriptsView);
+		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		StackPane pythonScriptsPane = new StackPane(scriptExecutionView);
 		ToggleButton pythonScriptsButton = new ToggleButton("Scripts");
 		pythonScriptsButton.setMaxWidth(Double.MAX_VALUE);
 		pythonScriptsButton.setOnAction(getChangeVisibleAction(pythonScriptsPane));

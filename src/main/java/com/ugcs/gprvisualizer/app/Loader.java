@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.PositionFile;
@@ -246,6 +247,12 @@ public class Loader {
 		csvFile.open(file);
 
 		if (model.getCsvChart(csvFile).isEmpty()) {
+			model.getFileManager().addFile(csvFile);
+			model.updateAuxElements();
+			model.initCsvChart(csvFile);
+			model.initField();
+		} else if (csvFile.getFile() != null && Objects.equals(file.getAbsolutePath(), csvFile.getFile().getAbsolutePath())) {
+			model.getCsvChart(csvFile).get().close(true);
 			model.getFileManager().addFile(csvFile);
 			model.updateAuxElements();
 			model.initCsvChart(csvFile);

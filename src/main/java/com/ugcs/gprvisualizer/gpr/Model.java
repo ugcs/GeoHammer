@@ -22,7 +22,6 @@ import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.scene.layout.*;
@@ -295,9 +294,7 @@ public class Model implements InitializingBean {
 		var sensorLineChart = createSensorLineChart(csvFile);
 		saveColorSettings(semanticColors);
 
-		Platform.runLater(() -> {
-			selectAndScrollToChart(sensorLineChart);
-		});
+		Platform.runLater(() -> selectAndScrollToChart(sensorLineChart));
 	}
 
 	public void updateCsvChart(CsvFile csvFile) {

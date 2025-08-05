@@ -1,9 +1,7 @@
 package com.ugcs.gprvisualizer.app;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
@@ -34,7 +32,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -43,7 +40,6 @@ public class PythonScriptsView extends VBox {
 
 	private static final Logger log = LoggerFactory.getLogger(PythonScriptsView.class);
 
-	private final Model model;
 	private final Loader loader;
 	private final SgyFile selectedFile;
 	private final PythonScriptExecutorService scriptExecutorService;
@@ -56,7 +52,6 @@ public class PythonScriptsView extends VBox {
 	private final Button applyButton;
 
 	public PythonScriptsView(Model model, Loader loader, Status status, SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
-		this.model = model;
 		this.loader = loader;
 		this.status = status;
 		this.selectedFile = selectedFile;
@@ -229,33 +224,9 @@ public class PythonScriptsView extends VBox {
 		status.showMessage(successMessage, "Python Script");
 		File currentFile = selectedFile.getFile();
 		if (currentFile != null && currentFile.exists()) {
-            Platform.runLater(() -> {
-				// workaround for reloading data from the script
-				closeExistingChart();
-				loader.load(List.of(currentFile));
-			});
+            Platform.runLater(() -> loader.load(List.of(currentFile)));
 		} else {
 			showExceptionDialog("Selected file does not exist or is not valid.");
-		}
-	}
-
-	private void closeExistingChart() {
-		if (selectedFile instanceof CsvFile) {
-			Optional<SensorLineChart> chart = model.getCsvChart((CsvFile) selectedFile);
-			if (chart.isPresent()) {
-				chart.get().close(true);
-			} else {
-				log.warn("No chart found for CSV file: {}", selectedFile.getFile());
-			}
-		} else if (selectedFile instanceof TraceFile) {
-			GPRChart chart = model.getGprChart((TraceFile) selectedFile);
-			if (chart != null) {
-				chart.close();
-			} else {
-				log.warn("No chart found for GPR file: {}", selectedFile.getFile());
-			}
-		} else {
-			log.warn("Unsupported file type for chart closing: {}", selectedFile.getFile());
 		}
 	}
 

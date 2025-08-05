@@ -16,7 +16,7 @@ public class JsonScriptMetadataLoaderTest {
 	@Test
 	void loadsScriptsFromDirectory() throws Exception {
 		Path testDir = Paths.get("src/test/resources/scripts");
-		PythonScriptMetadataLoader loader = new JsonScriptMetadataMetadataLoader();
+		PythonScriptMetadataLoader loader = new JsonScriptMetadataLoader();
 		List<PythonScriptsView.PythonScriptMetadata> scripts = loader.loadScriptsMetadata(testDir);
 		Assertions.assertFalse(scripts.isEmpty());
 	}
@@ -25,7 +25,7 @@ public class JsonScriptMetadataLoaderTest {
 	@Test
 	void returnsEmptyListForEmptyDirectory() throws Exception {
 		Path emptyDir = Files.createTempDirectory("empty-scripts");
-		PythonScriptMetadataLoader loader = new JsonScriptMetadataMetadataLoader();
+		PythonScriptMetadataLoader loader = new JsonScriptMetadataLoader();
 		List<PythonScriptsView.PythonScriptMetadata> scripts = loader.loadScriptsMetadata(emptyDir);
 		assertTrue(scripts.isEmpty());
 		Files.delete(emptyDir);
@@ -36,7 +36,7 @@ public class JsonScriptMetadataLoaderTest {
 		Path tempDir = Files.createTempDirectory("malformed-scripts");
 		Path badJson = tempDir.resolve("bad.json");
 		Files.writeString(badJson, "{ this is not valid json }");
-		PythonScriptMetadataLoader loader = new JsonScriptMetadataMetadataLoader();
+		PythonScriptMetadataLoader loader = new JsonScriptMetadataLoader();
 		assertThrows(IOException.class, () -> loader.loadScriptsMetadata(tempDir));
 		Files.delete(badJson);
 		Files.delete(tempDir);
@@ -47,7 +47,7 @@ public class JsonScriptMetadataLoaderTest {
 		Path tempDir = Files.createTempDirectory("mixed-scripts");
 		Path txtFile = tempDir.resolve("not_a_script.txt");
 		Files.writeString(txtFile, "not a script");
-		PythonScriptMetadataLoader loader = new JsonScriptMetadataMetadataLoader();
+		PythonScriptMetadataLoader loader = new JsonScriptMetadataLoader();
 		List<PythonScriptsView.PythonScriptMetadata> scripts = loader.loadScriptsMetadata(tempDir);
 		assertTrue(scripts.isEmpty());
 		Files.delete(txtFile);

@@ -3,7 +3,7 @@ package com.ugcs.gprvisualizer.app;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.intf.Status;
-import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataMetadataLoader;
+import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.PythonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -69,7 +69,7 @@ public class PythonScriptsView extends VBox {
 
 		List<PythonScriptMetadata> loadedScriptsMetadata;
 		try {
-			PythonScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataMetadataLoader();
+			PythonScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
 			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptsMetadata(Path.of("scripts"));
 		} catch (IOException e) {
 			log.warn("Failed to load Python scripts", e);

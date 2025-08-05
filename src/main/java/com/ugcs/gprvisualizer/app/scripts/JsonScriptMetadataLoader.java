@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JsonScriptMetadataMetadataLoader implements PythonScriptMetadataLoader {
+public class JsonScriptMetadataLoader implements PythonScriptMetadataLoader {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override

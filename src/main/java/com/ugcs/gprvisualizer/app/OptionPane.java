@@ -20,10 +20,12 @@ import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.LevelFilter;
+import com.ugcs.gprvisualizer.utils.Range;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -274,34 +276,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		};
 	}
 
-	/**
-	 * Sets up the gridding range slider with min/max values from the data.
-	 * This completely resets the slider to default values.
-	 */
-	private void setGriddingMinMax() {
-		if (!(selectedFile instanceof CsvFile)) {
-			return;
-		}
-
-		double max = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMaxValue();
-		double min = model.getCsvChart((CsvFile) selectedFile).get().getSemanticMinValue();
-
-		griddingRangeSlider.setMin(min);
-		griddingRangeSlider.setMax(max);
-
-		double width = max - min;
-		if (width > 0.0) {
-			griddingRangeSlider.setMajorTickUnit(width / 100);
-			griddingRangeSlider.setMinorTickCount((int) (width / 1000));
-			griddingRangeSlider.setBlockIncrement(width / 2000);
-		}
-
-		griddingRangeSlider.setLowValue(min);
-		griddingRangeSlider.setHighValue(max);
-
-		griddingRangeSlider.setDisable(false);
-	}
-
 	Map<String, GriddingRange> savedGriddingRange = new HashMap<>();
 
 	public GriddingRange getSavedGriddingRangeValues(String seriesName) {
@@ -324,42 +298,73 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	public record GriddingRange(double lowValue, double highValue, double min, double max) {}
 
+	private Range getSelectedSeriesRange() {
+		if (selectedFile instanceof CsvFile csvFile) {
+			SensorLineChart chart = model.getCsvChart(csvFile).orElse(null);
+			if (chart != null) {
+				return new Range(
+						chart.getSemanticMinValue(),
+						chart.getSemanticMaxValue()
+				);
+			}
+		}
+		return null;
+	}
+
+	private void updateGriddingMinMaxPreserveUserRange() {
+		updateGriddingMinMaxPreserveUserRange(null);
+	}
+
 	/**
 	 * Updates the gridding range slider min/max values if needed, while maintaining
 	 * the user's selected range proportionally.
 	 */
-	private void updateGriddingMinMaxPreserveUserRange() {
+	private void updateGriddingMinMaxPreserveUserRange(Range rangeBefore) {
 		if (!(selectedFile instanceof CsvFile)) {
 			return;
 		}
 
-		// Get new min/max values
-		SensorLineChart selectedChart = model.getCsvChart((CsvFile) selectedFile).orElse(null);
-		if (selectedChart == null) {
+		// get current min/max range
+		Range range = getSelectedSeriesRange();
+		if (range == null) {
 			return;
 		}
+		if (range.getWidth() == 0) {
+			range = range.scaleToWidth(1, 0.5);
+		}
 
-		double newMin = selectedChart.getSemanticMinValue();
-		double newMax = selectedChart.getSemanticMaxValue();
-
-		var savedValues = savedGriddingRange.getOrDefault(selectedChart.toString() + selectedChart.getSelectedSeriesName(),
-				new GriddingRange(newMin, newMax, newMin, newMax));
+		GriddingRange defaultGriddingRange = new GriddingRange(
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue(),
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue());
+		GriddingRange griddingRange = loadGriddingRange().orElse(defaultGriddingRange);
 
 		// Only update min/max if they changed
-		if (savedValues.min != newMin || savedValues.max != newMax) {
+		if (rangeBefore != null
+				&& (!Objects.equals(rangeBefore.getMin(), range.getMin())
+				|| !Objects.equals(rangeBefore.getMax(), range.getMax()))) {
+
 			// Calculate relative positions within the range
-			double lowRatio = (savedValues.max - savedValues.min) <= 0 ? 0 :
-					(savedValues.lowValue - savedValues.min) / (savedValues.max - savedValues.min);
-			double highRatio = (savedValues.max - savedValues.min) <= 0 ? 1 :
-					(savedValues.highValue - savedValues.min) / (savedValues.max - savedValues.min);
-			// Maintain the relative position of user's selection
-			double newLowValue = newMin + (lowRatio * (newMax - newMin));
-			double newHighValue = newMin + (highRatio * (newMax - newMin));
-			updateGriddingRangeSlider(new GriddingRange(newLowValue, newHighValue, newMin, newMax));
-		} else {
-			updateGriddingRangeSlider(savedValues);
+			double widthBefore = rangeBefore.getWidth();
+			double lowRatio = widthBefore > 0
+					? (griddingRange.lowValue - rangeBefore.getMin().doubleValue()) / widthBefore
+					: 0;
+			lowRatio = Math.clamp(lowRatio, 0, 1);
+			double highRatio = widthBefore > 0
+					? (griddingRange.highValue - rangeBefore.getMin().doubleValue()) / widthBefore
+					: 1;
+			highRatio = Math.clamp(highRatio, 0, 1);
+
+			// maintain the relative range of user's selection
+			griddingRange = new GriddingRange(
+					range.getMin().doubleValue() + lowRatio * range.getWidth(),
+					range.getMin().doubleValue() + highRatio * range.getWidth(),
+					range.getMin().doubleValue(),
+					range.getMax().doubleValue());
 		}
-		savedGriddingRange.put(selectedChart.toString() + selectedChart.getSelectedSeriesName(), fetchGriddingRange());
+
+		updateGriddingRangeSlider(griddingRange);
 		griddingRangeSlider.setDisable(false);
 	}
 
@@ -377,6 +382,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		}
 
 		expandGriddingRangeSlider();
+		saveGriddingRange();
 	}
 
 	private void expandGriddingRangeSlider() {
@@ -400,14 +406,20 @@ public class OptionPane extends VBox implements InitializingBean {
 		double threshold = SLIDER_EXPAND_THRESHOLD * (max - min);
 		double k = SLIDER_EXPAND_THRESHOLD; // expand margin ratio to a new width
 		if (l - min < threshold) {
-			double margin = k / (1 - k) * (max - l);
-			max = r + (max - r) * (r - l + margin) / (r - min);
-			min = l - margin;
+			// l - min2 = margin
+			// margin = k * (max2 - min2)
+			// (r - min2) / (max2 - min2) = (r - min) / (max - min)
+			double rRatio = (r - min) / (max - min);
+			min = (k * r - rRatio * l) / (k - rRatio);
+			max = min + (r - min) / rRatio;
 		}
 		if (max - r < threshold) {
-			double margin = k / (1 - k) * (r - min);
-			min = l - (l - min) * (r - l + margin) / (max - l);
-			max = r + margin;
+			// max2 - r = margin
+			// margin = k * (max2 - min2)
+			// (l - min2) / (max2 - min2) = (l - min) / (max - min)
+			double lRatio = (l - min) / (max - min);
+			min = (r * lRatio + l * (k - 1)) / (lRatio + k - 1);
+			max = (r - k * min) / (1 - k);
 		}
 
 		griddingRangeSlider.setMin(min);
@@ -430,6 +442,51 @@ public class OptionPane extends VBox implements InitializingBean {
 				griddingRangeSlider.getHighValue(),
 				griddingRangeSlider.getMin(),
 				griddingRangeSlider.getMax());
+	}
+
+	private void saveGriddingRange() {
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return;
+		}
+
+		model.getCsvChart(csvFile).ifPresent(chart -> {
+			GriddingRange griddingRange = fetchGriddingRange();
+			savedGriddingRange.put(
+					chart.toString() + chart.getSelectedSeriesName(),
+					griddingRange);
+		});
+	}
+
+	private Optional<GriddingRange> loadGriddingRange() {
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return Optional.empty();
+		}
+
+		SensorLineChart chart = model.getCsvChart(csvFile).orElse(null);
+		if (chart == null) {
+			return Optional.empty();
+		}
+
+		GriddingRange griddingRange = savedGriddingRange.get(
+				chart.toString() + chart.getSelectedSeriesName());
+		return Optional.ofNullable(griddingRange);
+	}
+
+	private void onResetGriddingRange(ActionEvent event) {
+		// get current min/max range
+		Range range = getSelectedSeriesRange();
+		if (range == null) {
+			return;
+		}
+		if (range.getWidth() == 0) {
+			range = range.scaleToWidth(1, 0.5);
+		}
+		GriddingRange griddingRange = new GriddingRange(
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue(),
+				range.getMin().doubleValue(),
+				range.getMax().doubleValue());
+		updateGriddingRangeSlider(griddingRange);
 	}
 
 	private enum Filter {
@@ -506,18 +563,18 @@ public class OptionPane extends VBox implements InitializingBean {
 
 			// Publish GriddingParamsSetted event with current parameters
 			model.publishEvent(new GriddingParamsSetted(this,
-					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
-					false,
-					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
-							GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
-					GriddingParamsSetted.DEFAULT_POWER,
-					GriddingParamsSetted.DEFAULT_MIN_POINTS,
-					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false,
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
 					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
 			));
 		});
 
@@ -569,10 +626,10 @@ public class OptionPane extends VBox implements InitializingBean {
 			prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), Map.of(templateName, newVal.toString()));
 
 			// Publish GriddingParamsSetted event with current parameters
-			model.publishEvent(new GriddingParamsSetted(this,
-					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
-					false, Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
+			model.publishEvent(new GriddingParamsSetted(this, 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false, Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
 					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
 					GriddingParamsSetted.DEFAULT_POWER, GriddingParamsSetted.DEFAULT_MIN_POINTS,
 					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
@@ -599,19 +656,19 @@ public class OptionPane extends VBox implements InitializingBean {
 			prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), Map.of(templateName, newVal.toString()));
 
 			// Publish GriddingParamsSetted event with current parameters
-			model.publishEvent(new GriddingParamsSetted(this,
-					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
-					false,
-					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
-							GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
-					GriddingParamsSetted.DEFAULT_POWER,
-					GriddingParamsSetted.DEFAULT_MIN_POINTS,
-					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+			model.publishEvent(new GriddingParamsSetted(this, 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false,
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
 					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
 					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
 			));
 		});
 
@@ -631,29 +688,29 @@ public class OptionPane extends VBox implements InitializingBean {
 			prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, newVal.toString()));
 
 			// Publish GriddingParamsSetted event with current parameters
-			model.publishEvent(new GriddingParamsSetted(this,
-					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
-					false,
-					Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
-							GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
-					GriddingParamsSetted.DEFAULT_POWER,
-					GriddingParamsSetted.DEFAULT_MIN_POINTS,
-					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+			model.publishEvent(new GriddingParamsSetted(this, 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
+				false,
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
 					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
 					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
 			));
 		});
 
 		// Hill-shading controls container
-		VBox hillShadingControls = new VBox(5,
-				//hillShadingLabel,
+		VBox hillShadingControls = new VBox(5, 
+			//hillShadingLabel,
 				hillShadingEnabled, smoothingEnabled
-				//azimuthLabel, azimuthSlider,
-				//altitudeLabel, altitudeSlider,
-				//intensityLabel, intensitySlider
+			//azimuthLabel, azimuthSlider,
+			//altitudeLabel, altitudeSlider,
+			//intensityLabel, intensitySlider
 		);
 		hillShadingControls.setPadding(new Insets(5, 0, 5, 0));
 		hillShadingControls.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 5;");
@@ -669,18 +726,18 @@ public class OptionPane extends VBox implements InitializingBean {
 			//prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText()));
 
 			model.publishEvent(new GriddingParamsSetted(showGriddingButton,
-					Double.parseDouble(gridCellSize.getText()),
-					Double.parseDouble(gridBlankingDistance.getText()),
-					false,
-					Double.parseDouble(gridCellSize.getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
-							GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
-					GriddingParamsSetted.DEFAULT_POWER,
-					GriddingParamsSetted.DEFAULT_MIN_POINTS,
-					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+				Double.parseDouble(gridCellSize.getText()),
+				Double.parseDouble(gridBlankingDistance.getText()),
+				false,
+				Double.parseDouble(gridCellSize.getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
 					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
 					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
 			));
 			showGridInputDataChangedWarning(false);
 		});
@@ -697,18 +754,18 @@ public class OptionPane extends VBox implements InitializingBean {
 			//prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText()));
 
 			model.publishEvent(new GriddingParamsSetted(showGriddingAllButton,
-					Double.parseDouble(gridCellSize.getText()),
-					Double.parseDouble(gridBlankingDistance.getText()),
-					true,
-					Double.parseDouble(gridCellSize.getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
-							GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
-					GriddingParamsSetted.DEFAULT_POWER,
-					GriddingParamsSetted.DEFAULT_MIN_POINTS,
-					Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
+				Double.parseDouble(gridCellSize.getText()),
+				Double.parseDouble(gridBlankingDistance.getText()),
+				true,
+				Double.parseDouble(gridCellSize.getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
+				GriddingParamsSetted.DEFAULT_POWER,
+				GriddingParamsSetted.DEFAULT_MIN_POINTS,
+				Boolean.parseBoolean(filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()),
 					Boolean.parseBoolean(filterInputs.get(Filter.gridding_smoothing_enabled.name()).getText()),
 					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
-					Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()),
+				Double.parseDouble(filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText())
 			));
 			showGridInputDataChangedWarning(false);
 		});
@@ -751,7 +808,14 @@ public class OptionPane extends VBox implements InitializingBean {
 			}
 		});
 
+		HBox labelAndReset = new HBox(10);
 		Label label = new Label("Range");
+		Button resetButton = createGlyphButton("↺", 16, 16);
+		resetButton.setOnAction(this::onResetGriddingRange);
+
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		labelAndReset.getChildren().addAll(label, spacer, resetButton);
 
 		HBox coloursInput = new HBox(5);
 
@@ -772,25 +836,24 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		griddingRangeSlider.lowValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Min: ", minLabel);
-			var chart = model.getCsvChart((CsvFile) selectedFile).get();
-			savedGriddingRange.put(chart.toString() + chart.getSelectedSeriesName(), fetchGriddingRange());
+			saveGriddingRange();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.highValueProperty().addListener((obs, oldVal, newVal) -> {
 			setFormattedValue(newVal, "Max: ", maxLabel);
-			var chart = model.getCsvChart((CsvFile) selectedFile).get();
-			savedGriddingRange.put(chart.toString() + chart.getSelectedSeriesName(), fetchGriddingRange());
+			saveGriddingRange();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
 		});
 
 		griddingRangeSlider.setOnMouseReleased(event -> {
 			expandGriddingRangeSlider();
+			saveGriddingRange();
 		});
 
 		VBox vbox = new VBox(10, griddingRangeSlider, coloursInput);
 
-		filterInput.getChildren().addAll(gridCellSize, gridBlankingDistance, label, vbox, hillShadingControls);
+		filterInput.getChildren().addAll(gridCellSize, gridBlankingDistance, labelAndReset, vbox, hillShadingControls);
 
 		HBox filterButtons = new HBox(5);
 		HBox rightBox = new HBox();
@@ -806,6 +869,29 @@ public class OptionPane extends VBox implements InitializingBean {
 		griddingOptions.setManaged(false);
 
 		return griddingOptions;
+	}
+
+	private Button createGlyphButton(String text, int width, int height) {
+		Label iconLabel = new Label(text);
+		iconLabel.setStyle("-fx-font-family: 'System', 'Arial', sans-serif;"
+				+ "-fx-text-fill: white;"
+				+ "-fx-alignment: center;"
+				+ "-fx-text-alignment: center;"
+		);
+
+		Button button = new Button();
+		button.setGraphic(iconLabel);
+		button.setStyle("-fx-background-color: #a0a0a0;" +
+				"-fx-background-radius: 50%;" +
+				"-fx-alignment: center;" +
+				"-fx-content-display: graphic-only;"
+		);
+		button.setPadding(new Insets(2));
+		button.setPrefSize(width, height);
+		button.setMinSize(width, height);
+		button.setMaxSize(width, height);
+		button.setCursor(Cursor.HAND);
+		return button;
 	}
 
 	private void setFormattedValue(Number newVal, String prefix, Label label) {
@@ -1017,20 +1103,22 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private void applyMedianCorrection(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
+		var rangeBefore = getSelectedSeriesRange();
 		chart.ifPresent(c -> c.medianCorrection(c.getSelectedSeriesName(), value));
-		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
+		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
 		showGridInputDataChangedWarning(true);
 	}
 
 	private void applyMedianCorrectionToAll(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
+		var rangeBefore = getSelectedSeriesRange();
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCharts().stream()
 					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
 					.forEach(c -> c.medianCorrection(seriesName, value));
 		});
-		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
+		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
 		showGridInputDataChangedWarning(true);
 	}
 
@@ -1193,41 +1281,35 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	@EventListener
-	private void handleFileSelectedEvent(FileSelectedEvent event) {
-		if (statisticsView != null) {
-			Platform.runLater(() -> {
-				statisticsView.update(event.getFile());
-			});
-		}
-		// do nothing if selected file is same as previously selected
-		if (Objects.equals(event.getFile(), selectedFile)) {
-			return;
-		}
+    private void handleFileSelectedEvent(FileSelectedEvent event) {
 		selectedFile = event.getFile();
 		if (selectedFile == null) {
 			clear();
 			return;
 		}
 
-		if (selectedFile instanceof CsvFile) {
-			showTab(csvTab);
-			prepareCsvTab(csvTab);
-
+        if (selectedFile instanceof CsvFile) {
+            showTab(csvTab);
+			if (statisticsView != null) {
+				Platform.runLater(() -> {
+					statisticsView.update(event.getFile());
+				});
+			}
 			//setGriddingMinMax();
 			Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
 			setSavedFilterInputValue(Filter.lowpass);
-			setSavedFilterInputValue(Filter.timelag);
-			setSavedFilterInputValue(Filter.gridding_cellsize);
-			setSavedFilterInputValue(Filter.gridding_blankingdistance);
-			// Load hill-shading parameters
-			setSavedFilterInputValue(Filter.gridding_hillshading_enabled);
-			setSavedFilterInputValue(Filter.gridding_hillshading_azimuth);
-			setSavedFilterInputValue(Filter.gridding_hillshading_altitude);
-			setSavedFilterInputValue(Filter.gridding_hillshading_intensity);
+            setSavedFilterInputValue(Filter.timelag);
+            setSavedFilterInputValue(Filter.gridding_cellsize);
+            setSavedFilterInputValue(Filter.gridding_blankingdistance);
+            // Load hill-shading parameters
+            setSavedFilterInputValue(Filter.gridding_hillshading_enabled);
+            setSavedFilterInputValue(Filter.gridding_hillshading_azimuth);
+            setSavedFilterInputValue(Filter.gridding_hillshading_altitude);
+            setSavedFilterInputValue(Filter.gridding_hillshading_intensity);
 
 			setSavedFilterInputValue(Filter.gridding_smoothing_enabled);
 			//TODO: check if possible, that current file and sensor was not gridded with current parameters {
-			showGridInputDataChangedWarning(true);
+				showGridInputDataChangedWarning(true);
 			//}
 
 			setSavedFilterInputValue(Filter.median_correction);
@@ -1235,13 +1317,16 @@ public class OptionPane extends VBox implements InitializingBean {
 			setSavedFilterInputValue(Filter.quality_line_distance_tolerance);
 			setSavedFilterInputValue(Filter.quality_max_altitude);
 			setSavedFilterInputValue(Filter.quality_altitude_tolerance);
-		}
+        }
 
 		if (selectedFile instanceof TraceFile traceFile) {
-			showTab(gprTab);
-			prepareGprTab(gprTab, traceFile);
-		}
-	}
+			// do nothing if selected file is same as previously selected
+			if (!Objects.equals(event.getFile(), selectedFile)) {
+				showTab(gprTab);
+				prepareGprTab(gprTab, traceFile);
+			}
+        }
+    }
 
 	private void setSavedFilterInputValue(Filter filter) {
 		var savedValue = prefSettings.getSetting(filter.name(), ((CsvFile) selectedFile).getParser().getTemplate().getName());
@@ -1255,19 +1340,19 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void showTab(Tab tab) {
-		if (!tabPane.getTabs().contains(tab)) {
+        if (!tabPane.getTabs().contains(tab)) {
 			clear();
-			tabPane.getTabs().add(tab);
-		}
-		tabPane.getSelectionModel().select(tab);
-	}
+            tabPane.getTabs().add(tab);
+        }
+        tabPane.getSelectionModel().select(tab);
+    }
 
 	public ToggleButton getGridding() {
 		return gridding;
 	}
 
 	// quality control
-	record QualityControlParams(
+	record QualityControlParams (
 			Double maxLineDistance,
 			Double lineDistanceTolerance,
 			Double maxAltitude,

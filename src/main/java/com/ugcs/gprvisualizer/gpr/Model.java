@@ -444,7 +444,7 @@ public class Model implements InitializingBean {
 				fileDataContainer.selectFile();
 				return false;
 			}
-			//getChart(null); // clear selection
+			// clear selection
 			getSelectedData().setStyle("-fx-border-width: 2px; -fx-border-color: transparent;");
 		}
 

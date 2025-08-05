@@ -1282,6 +1282,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	@EventListener
     private void handleFileSelectedEvent(FileSelectedEvent event) {
+		SgyFile previouslySelectedFile = selectedFile;
 		selectedFile = event.getFile();
 		if (selectedFile == null) {
 			clear();
@@ -1290,6 +1291,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
         if (selectedFile instanceof CsvFile) {
             showTab(csvTab);
+			prepareCsvTab(csvTab);
 			if (statisticsView != null) {
 				Platform.runLater(() -> {
 					statisticsView.update(event.getFile());
@@ -1321,7 +1323,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		if (selectedFile instanceof TraceFile traceFile) {
 			// do nothing if selected file is same as previously selected
-			if (!Objects.equals(event.getFile(), selectedFile)) {
+			if (!Objects.equals(event.getFile(), previouslySelectedFile)) {
 				showTab(gprTab);
 				prepareGprTab(gprTab, traceFile);
 			}

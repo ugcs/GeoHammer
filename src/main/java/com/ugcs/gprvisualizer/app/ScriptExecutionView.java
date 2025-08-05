@@ -25,6 +25,8 @@ import javafx.stage.Stage;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.FileSystemResourceLoader;
+import org.springframework.core.io.Resource;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,7 +72,9 @@ public class ScriptExecutionView extends VBox {
 		List<ScriptMetadata> loadedScriptsMetadata;
 		try {
 			ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
-			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(Path.of("scripts"));
+			Resource resource = new FileSystemResourceLoader().getResource("file:" + PythonScriptExecutorService.SCRIPTS_DIRECTORY);
+			log.info("Loading Python scripts metadata from: {}", resource.getFile().getAbsolutePath());
+			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(resource.getFile().toPath());
 		} catch (IOException e) {
 			log.warn("Failed to load Python scripts", e);
 			loadedScriptsMetadata = List.of();

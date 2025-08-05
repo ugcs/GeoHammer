@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 public class PythonScriptExecutorService {
 
 	private static final Logger log = LoggerFactory.getLogger(PythonScriptExecutorService.class);
-	private static final String SCRIPTS_DIRECTORY = "scripts/";
+	public static final String SCRIPTS_DIRECTORY = "scripts";
 	private final ExecutorService executor = Executors.newCachedThreadPool();
 
 	@Autowired
@@ -73,7 +73,7 @@ public class PythonScriptExecutorService {
 				}
 			}
 			command.add(pythonPath);
-			command.add(SCRIPTS_DIRECTORY + scriptFilename);
+			command.add(SCRIPTS_DIRECTORY + "/" + scriptFilename);
 
 			File file = selectedFile.getFile();
 			if (file == null || !file.exists()) {

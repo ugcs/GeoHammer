@@ -25,11 +25,10 @@ import javafx.stage.Stage;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.FileSystemResourceLoader;
-import org.springframework.core.io.Resource;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -72,9 +71,16 @@ public class ScriptExecutionView extends VBox {
 		List<ScriptMetadata> loadedScriptsMetadata;
 		try {
 			ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
-			Resource resource = new FileSystemResourceLoader().getResource("file:" + PythonScriptExecutorService.SCRIPTS_DIRECTORY);
-			log.info("Loading Python scripts metadata from: {}", resource.getFile().getAbsolutePath());
-			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(resource.getFile().toPath());
+			Path scriptsPath;
+			try {
+				scriptsPath = scriptExecutorService.getScriptsPath();
+			} catch (URISyntaxException e) {
+				log.error("Failed to get scripts path", e);
+				showExceptionDialog("No scripts directory. Please check that scripts directory exists and is accessible.");
+				scriptsPath = Path.of("");
+			}
+			log.info("Loading Python scripts metadata from: {}", scriptsPath);
+			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
 		} catch (IOException e) {
 			log.warn("Failed to load Python scripts", e);
 			loadedScriptsMetadata = List.of();

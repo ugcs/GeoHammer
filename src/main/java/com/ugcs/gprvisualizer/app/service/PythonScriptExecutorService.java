@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.app.service;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.ScriptExecutionView;
 import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
+import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.utils.PythonLocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +130,11 @@ public class PythonScriptExecutorService {
 			return false;
 		}
 		return executingFiles.containsKey(file.getName());
+	}
+
+	public Path getScriptsPath() throws URISyntaxException {
+		Path currentDir = Paths.get(FileTemplates.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
+		return currentDir.resolve(SCRIPTS_DIRECTORY);
 	}
 
 	@Nullable

@@ -288,14 +288,6 @@ public class Saver implements ToolProducer, InitializingBean {
 				fileChooser.getExtensionFilters().add(
 						new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv")
 				);
-			} else if (FileTypes.isGprFile(initFile)) {
-				fileChooser.getExtensionFilters().add(
-						new FileChooser.ExtensionFilter("GPR Files (*.sgy)", "*.sgy")
-				);
-			} else if (FileTypes.isDztFile(initFile)) {
-				fileChooser.getExtensionFilters().add(
-						new FileChooser.ExtensionFilter("GPR Files (*.dzt)", "*.dzt")
-				);
 			}
 		}
 		return fileChooser.showSaveDialog(AppContext.stage);

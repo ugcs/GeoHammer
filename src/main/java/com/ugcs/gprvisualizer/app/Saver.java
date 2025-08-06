@@ -9,20 +9,16 @@ import java.util.Optional;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
 
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
-import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
-import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
+import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Strings;
-import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.event.ActionEvent;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -288,6 +284,11 @@ public class Saver implements ToolProducer, InitializingBean {
 		if (initFile != null) {
 			fileChooser.setInitialFileName(initFile.getName());
 			fileChooser.setInitialDirectory(initFile.getParentFile());
+			if (FileTypes.isCsvFile(initFile)) {
+				fileChooser.getExtensionFilters().add(
+						new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv")
+				);
+			}
 		}
 		return fileChooser.showSaveDialog(AppContext.stage);
 	}

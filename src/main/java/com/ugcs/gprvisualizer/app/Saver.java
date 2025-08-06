@@ -9,20 +9,16 @@ import java.util.Optional;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
 
-import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
-import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
-import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
+import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Strings;
-import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.event.ActionEvent;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -55,6 +51,7 @@ public class Saver implements ToolProducer, InitializingBean {
 	private final Button buttonOpen = ResourceImageHolder.setButtonImage(ResourceImageHolder.OPEN, new Button());
 	private final Button buttonSave = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE, new Button());
 	private final Button buttonSaveTo = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_TO, new Button());
+	private final Button buttonSaveAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_ALL, new Button());
 
 	@Autowired
 	private Model model;
@@ -82,11 +79,14 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		buttonSaveTo.setTooltip(new Tooltip("Save to.."));
 		buttonSaveTo.setOnAction(this::onSaveTo);
+
+		buttonSaveAll.setTooltip(new Tooltip("Save all"));
+		buttonSaveAll.setOnAction(this::onSaveAll);
 	}
 
 	@Override
 	public List<Node> getToolNodes() {		
-		return List.of(buttonOpen, buttonSave, buttonSaveTo);
+		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll);
 	}
 
 	private void onOpen(ActionEvent event) {
@@ -288,6 +288,11 @@ public class Saver implements ToolProducer, InitializingBean {
 		if (initFile != null) {
 			fileChooser.setInitialFileName(initFile.getName());
 			fileChooser.setInitialDirectory(initFile.getParentFile());
+			if (FileTypes.isCsvFile(initFile)) {
+				fileChooser.getExtensionFilters().add(
+						new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv")
+				);
+			}
 		}
 		return fileChooser.showSaveDialog(AppContext.stage);
 	}
@@ -298,6 +303,25 @@ public class Saver implements ToolProducer, InitializingBean {
 			dirChooser.setInitialDirectory(initFile.getParentFile());
 		}
 		return dirChooser.showDialog(AppContext.stage);
+	}
+
+	private void onSaveAll(ActionEvent event) {
+		List<SgyFile> files = model.getFileManager().getFiles();
+		if (files.isEmpty()) {
+			return;
+		}
+
+		String actionName = "Saving all opened files";
+		runAction(actionName, () -> {
+			for (SgyFile file : files) {
+				if (file instanceof TraceFile traceFile) {
+					saveGpr(traceFile);
+				} else if (file instanceof CsvFile csvFile) {
+					saveCsv(csvFile);
+				}
+			}
+			return null;
+		});
 	}
 
 	private void runAction(String actionName, Callable<Void> action) {

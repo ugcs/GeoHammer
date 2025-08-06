@@ -133,6 +133,14 @@ public class PythonScriptExecutorService {
 	}
 
 	public Path getScriptsPath() throws URISyntaxException {
+		// Try project root first (for IDE/dev)
+		Path projectRoot = Paths.get(System.getProperty("user.dir"));
+		Path scriptsInRoot = projectRoot.resolve(SCRIPTS_DIRECTORY);
+		if (scriptsInRoot.toFile().exists()) {
+			return scriptsInRoot;
+		}
+
+		// Fallback to target/scripts (for packaged app)
 		Path currentDir = Paths.get(FileTemplates.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
 		return currentDir.resolve(SCRIPTS_DIRECTORY);
 	}

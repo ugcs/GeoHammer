@@ -51,6 +51,7 @@ public class Saver implements ToolProducer, InitializingBean {
 	private final Button buttonOpen = ResourceImageHolder.setButtonImage(ResourceImageHolder.OPEN, new Button());
 	private final Button buttonSave = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE, new Button());
 	private final Button buttonSaveTo = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_TO, new Button());
+	private final Button buttonSaveAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_ALL, new Button());
 
 	@Autowired
 	private Model model;
@@ -78,11 +79,14 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		buttonSaveTo.setTooltip(new Tooltip("Save to.."));
 		buttonSaveTo.setOnAction(this::onSaveTo);
+
+		buttonSaveAll.setTooltip(new Tooltip("Save all"));
+		buttonSaveAll.setOnAction(this::onSaveAll);
 	}
 
 	@Override
 	public List<Node> getToolNodes() {		
-		return List.of(buttonOpen, buttonSave, buttonSaveTo);
+		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll);
 	}
 
 	private void onOpen(ActionEvent event) {
@@ -299,6 +303,25 @@ public class Saver implements ToolProducer, InitializingBean {
 			dirChooser.setInitialDirectory(initFile.getParentFile());
 		}
 		return dirChooser.showDialog(AppContext.stage);
+	}
+
+	private void onSaveAll(ActionEvent event) {
+		List<SgyFile> files = model.getFileManager().getFiles();
+		if (files.isEmpty()) {
+			return;
+		}
+
+		String actionName = "Saving all opened files";
+		runAction(actionName, () -> {
+			for (SgyFile file : files) {
+				if (file instanceof TraceFile traceFile) {
+					saveGpr(traceFile);
+				} else if (file instanceof CsvFile csvFile) {
+					saveCsv(csvFile);
+				}
+			}
+			return null;
+		});
 	}
 
 	private void runAction(String actionName, Callable<Void> action) {

@@ -314,6 +314,22 @@ public class Model implements InitializingBean {
 		}
 	}
 
+	public void recreateCsvChart(CsvFile csvFile) {
+		// Remove the old chart if it exists
+		Optional<SensorLineChart> oldChartOpt = getCsvChart(csvFile);
+		oldChartOpt.ifPresent(oldChart -> {
+			Node oldNode = oldChart.getRootNode();
+			chartsContainer.getChildren().remove(oldNode);
+			csvFiles.remove(csvFile);
+		});
+
+		// Create and add the new chart
+		SensorLineChart newChart = createSensorLineChart(csvFile);
+		saveColorSettings(semanticColors);
+
+		Platform.runLater(() -> selectAndScrollToChart(newChart));
+	}
+
 	private SensorLineChart createSensorLineChart(CsvFile csvFile) {
         // if there is a chart for a given file then put new chart
 		// to the same position as it was before

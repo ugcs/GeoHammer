@@ -17,8 +17,13 @@
       		<directory>${project.basedir}/templates</directory>
             <useDefaultExcludes>false</useDefaultExcludes>
             <outputDirectory>/templates</outputDirectory>
-        </fileSet>    
-	</fileSets>
+        </fileSet>
+        <fileSet>
+            <directory>${project.basedir}/scripts</directory>
+            <useDefaultExcludes>false</useDefaultExcludes>
+            <outputDirectory>/scripts</outputDirectory>
+        </fileSet>
+    </fileSets>
     <files>
         <file>
             <source> ${project.build.directory}/${project.artifactId}-jar-with-dependencies.jar</source>

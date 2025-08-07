@@ -47,7 +47,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.PositionFile;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
@@ -1260,6 +1259,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	@EventListener
     private void handleFileSelectedEvent(FileSelectedEvent event) {
+		SgyFile previouslySelectedFile = selectedFile;
 		selectedFile = event.getFile();
 		if (selectedFile == null) {
 			clear();
@@ -1299,7 +1299,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		if (selectedFile instanceof TraceFile traceFile) {
 			// do nothing if selected file is same as previously selected
-			if (!Objects.equals(event.getFile(), selectedFile)) {
+			if (!Objects.equals(event.getFile(), previouslySelectedFile)) {
 				showTab(gprTab);
 				prepareGprTab(gprTab, traceFile);
 			}

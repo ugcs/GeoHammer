@@ -84,7 +84,7 @@ public class LevelFilter implements ToolProducer {
                     updateView(selectedFile);
                 });
 
-        var buttons = List.of(commandRegistry.createButton(new BackgroundNoiseRemover()), buttonSpreadCoord);
+        var buttons = List.of(commandRegistry.createButton(new BackgroundNoiseRemover(undoModel)), buttonSpreadCoord);
 
         HBox hbox = new HBox();
         hbox.setSpacing(8);

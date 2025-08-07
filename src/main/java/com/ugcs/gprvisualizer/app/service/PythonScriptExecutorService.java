@@ -77,7 +77,16 @@ public class PythonScriptExecutorService {
 				}
 			}
 			command.add(pythonPath);
-			command.add(SCRIPTS_DIRECTORY + "/" + scriptFilename);
+			try {
+				Path scriptsPath = getScriptsPath();
+				if (scriptsPath == null) {
+					return new ScriptExecutionResult.Error(-1, "Scripts directory not found");
+				}
+				command.add(scriptsPath.resolve(scriptFilename).toString());
+			} catch (URISyntaxException e) {
+				log.error("Error resolving scripts path", e);
+				return new ScriptExecutionResult.Error(-1, "Failed to resolve scripts path: " + e.getMessage());
+			}
 
 			File file = selectedFile.getFile();
 			if (file == null || !file.exists()) {

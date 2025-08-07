@@ -203,7 +203,8 @@ public class ScriptExecutionView extends VBox {
 	}
 
 	private void executeScript(@Nullable ScriptMetadata scriptMetadata) {
-		if (scriptMetadata == null) return;
+		if (scriptMetadata == null)
+			return;
 		setExecutingProgress(true);
 
 		Map<String, String> parameters = extractScriptParams(scriptMetadata.parameters);

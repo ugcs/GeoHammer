@@ -36,6 +36,8 @@ import java.util.AbstractList;
 import java.util.List;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 public class StatisticsView extends VBox {
 
     private static final String NO_VALUE = "n/a";
@@ -305,6 +307,14 @@ public class StatisticsView extends VBox {
             MetricsContext metricsContext = metricsContextSelector.getSelectedContext();
             Range queryRange = getRange(chart, metricsContext);
 
+            if (queryRange == null) {
+                min.setText(NO_VALUE);
+                max.setText(NO_VALUE);
+                avg.setText(NO_VALUE);
+                range.setText(NO_VALUE);
+                return;
+            }
+
             int l = queryRange.getMin().intValue();
             int r = queryRange.getMax().intValue() + 1;
 
@@ -318,13 +328,20 @@ public class StatisticsView extends VBox {
             range.setText(formatValue(maxValue - minValue));
         }
 
+        @Nullable
         Range getRange(SensorLineChart chart, MetricsContext metricsContext) {
             switch (metricsContext) {
                 case VISIBLE_AREA:
                     return chart.getVisibleXRange();
                 case LINE:
-                    int lineIndex = chart.getViewLineIndex();
-                    return chart.getFile().getLineRanges().get(lineIndex);
+                    TraceKey selectedTrace = model.getSelectedTrace(chart);
+                    if (selectedTrace != null) {
+                        int selectedIndex = selectedTrace.getIndex();
+                        int traceLineIndex = chart.getValueLineIndex(selectedIndex);
+                        return chart.getFile().getLineRanges().get(traceLineIndex);
+                    }
+                    // no range if no trace is selected
+                    return null;
                 case FILE:
                     return new Range(0, chart.getFile().numTraces() - 1);
                 default:

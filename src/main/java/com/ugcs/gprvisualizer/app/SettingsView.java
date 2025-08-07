@@ -43,6 +43,7 @@ public class SettingsView extends VBox {
 	private Node createPythonPathSetting(Stage settingsStage) {
 		Label pythonLabel = new Label("Python Executor Path:");
 		TextField pythonPathField = new TextField();
+		pythonPathField.setEditable(false);
 		pythonPathField.setPrefWidth(200);
 
 		String pythonPath = "";

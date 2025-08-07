@@ -481,6 +481,23 @@
 			<version>4.12.0</version>
 		</dependency>
 
+		<!-- Jackson dependencies for JSON processing -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>2.17.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.17.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
+			<version>2.17.2</version>
+		</dependency>
+
         <!-- Add JUnit 5 dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -672,6 +689,17 @@
                         			</arguments>
                     			</configuration>
                 			</execution>
+							<execution>
+								<id>copy-scripts</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>cp</executable>
+									<arguments>
+										<argument>-r</argument><argument>scripts</argument><argument>${installer.input}</argument>
+									</arguments>
+								</configuration>
+							</execution>
                             <execution>
                                 <id>Build Native Mac App</id>
                                 <phase>install</phase>

@@ -1,13 +1,11 @@
 package com.ugcs.gprvisualizer.app.service;
 
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.analytics.EventSender;
 import com.ugcs.gprvisualizer.analytics.EventsFactory;
-import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
-import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
+import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
-import com.ugcs.gprvisualizer.utils.FileTypes;
+import com.ugcs.gprvisualizer.utils.FileTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -15,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.util.List;
 
 @Service
 public class FileOpenEventsAnalytics {
@@ -55,7 +52,7 @@ public class FileOpenEventsAnalytics {
     }
 
     private void sendFileAnalyticsEvent(File file, @Nullable String errorMessage) {
-        String fileType = getTemplateName(file);
+        String fileType = FileTemplate.getTemplateName(model, file);
         if (fileType == null) {
             log.warn("Unsupported file type: {}", file.getName());
             return;
@@ -66,39 +63,5 @@ public class FileOpenEventsAnalytics {
         } else {
             eventSender.send(eventsFactory.createFileOpenErrorEvent(fileType, errorMessage));
         }
-    }
-
-    @Nullable
-    private String getTemplateName(File file) {
-        if (FileTypes.isGprFile(file)) {
-            return "sgy";
-        } else if (FileTypes.isDztFile(file)) {
-            return "dzt";
-        } else if (FileTypes.isCsvFile(file)) {
-            String csvTemplateName = getCsvTemplateName(file);
-            return csvTemplateName != null ? csvTemplateName : file.getName();
-        }
-        return null;
-    }
-
-    @Nullable
-    private String getCsvTemplateName(File file) {
-        List<CsvFile> csvFiles = model.getFileManager().getCsvFiles();
-        CsvFile csvFile = csvFiles.stream()
-                .filter(f -> f.getFile() != null && f.getFile().equals(file))
-                .findFirst()
-                .orElse(null);
-        if (csvFile == null) {
-            if (FileTypes.isCsvFile(file)) {
-                log.warn("CSV file not found in model: {}", file.getName());
-            }
-            return null;
-        }
-        CsvParser parser = csvFile.getParser();
-        if (parser == null) {
-            log.warn("CSV file parser is not initialized for file: {}", file.getName());
-            return null;
-        }
-        return parser.getTemplate().getName();
     }
 }

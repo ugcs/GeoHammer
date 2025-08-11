@@ -69,11 +69,12 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 			}
 		};
 
-		optionsMenuBtn.getItems().addAll(menuItem1, menuItem2, menuItem3);
+		optionsMenuBtn.getItems().addAll(menuItem1, menuItem2, menuItem3, menuItem4);
 		ToggleGroup toggleGroup = new ToggleGroup();
 		menuItem1.setToggleGroup(toggleGroup);
 		menuItem2.setToggleGroup(toggleGroup);
 		menuItem3.setToggleGroup(toggleGroup);
+		menuItem4.setToggleGroup(toggleGroup);
 
 		menuItem1.setOnAction(e -> {
 			model.getMapField().setMapProvider(new GoogleMapProvider());
@@ -92,7 +93,36 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		menuItem2.setSelected(true);
 		menuItem2.fire();
 
+		// Configure WMS config button action
+		wmsConfigBtn.setOnAction(e -> {
+			// Create callback to refresh WMS map if it's currently active
+			Runnable refreshCallback = () -> {
+				if (model.getMapField().getMapProvider() instanceof WMSMapProvider) {
+					// Refresh WMS with new settings
+					String wmsUrl = prefSettings.getSetting("maps", "wms_url");
+					String wmsLayers = prefSettings.getSetting("maps", "wms_layers");
+					String wmsFormat = prefSettings.getSetting("maps", "wms_format");
+					model.getMapField().setMapProvider(new WMSMapProvider(wmsUrl, wmsLayers, wmsFormat));
+					recalcQueue.clear();
+					model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
+				}
+			};
+			
+			WMSConfigDialog dialog = new WMSConfigDialog(prefSettings, refreshCallback);
+			dialog.showAndWait();
+		});
+
 		menuItem3.setOnAction(e -> {
+			String wmsUrl = prefSettings.getSetting("maps", "wms_url");
+			String wmsLayers = prefSettings.getSetting("maps", "wms_layers");
+			String wmsFormat = prefSettings.getSetting("maps", "wms_format");
+			model.getMapField().setMapProvider(new WMSMapProvider(wmsUrl, wmsLayers, wmsFormat));
+			setActive(model.getMapField().getMapProvider() != null);
+			recalcQueue.clear();
+			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
+		});
+
+		menuItem4.setOnAction(e -> {
 			model.getMapField().setMapProvider(null);
 			setActive(model.getMapField().getMapProvider() != null);
 			recalcQueue.clear();
@@ -117,13 +147,19 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	RadioMenuItem menuItem1 = new RadioMenuItem("google maps");
 	RadioMenuItem menuItem2 = new RadioMenuItem("here.com");
-	RadioMenuItem menuItem3 = new RadioMenuItem("turn off");
+	RadioMenuItem menuItem3 = new RadioMenuItem("WMS Server");
+	RadioMenuItem menuItem4 = new RadioMenuItem("turn off");
 
 	private final MenuButton optionsMenuBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.MAP, new MenuButton());
+	private final Button wmsConfigBtn = new Button("WMS");
 
 	{
-		///optionsMenuBtn.setStyle("padding-left: 2px; padding-right: 2px");
-
+		optionsMenuBtn.setStyle("-fx-padding: 2px;");
+		wmsConfigBtn.setMinHeight(28);
+		wmsConfigBtn.setPrefHeight(28);
+		wmsConfigBtn.setMaxHeight(28);
+		wmsConfigBtn.setStyle("-fx-padding: 2px;");
+		wmsConfigBtn.setTooltip(new javafx.scene.control.Tooltip("Configure WMS Server"));
 	}
 
 //	private ToggleButton showLayerCheckbox = 
@@ -229,7 +265,8 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	@Override
 	public List<Node> getToolNodes() {
-		HBox cnt = new HBox(/*showLayerCheckbox,*/ optionsMenuBtn);
+		HBox cnt = new HBox(/*showLayerCheckbox,*/ optionsMenuBtn, wmsConfigBtn);
+		cnt.setSpacing(5); // Add spacing between buttons
 		return Arrays.asList(cnt);
 	}
 

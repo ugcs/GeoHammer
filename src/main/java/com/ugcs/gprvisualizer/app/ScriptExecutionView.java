@@ -76,13 +76,14 @@ public class ScriptExecutionView extends VBox {
 				scriptsPath = scriptExecutorService.getScriptsPath();
 			} catch (URISyntaxException e) {
 				log.error("Failed to get scripts path", e);
-				showExceptionDialog("No scripts directory. Please check that scripts directory exists and is accessible.");
+				showExceptionDialog("Scripts Directory Error","No scripts directory. Please check that scripts directory exists and is accessible.");
 				scriptsPath = Path.of("");
 			}
 			log.info("Loading Python scripts metadata from: {}", scriptsPath);
 			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
 		} catch (IOException e) {
 			log.warn("Failed to load Python scripts", e);
+			showExceptionDialog("Scripts Directory Error", "Failed to load scripts metadata: " + e.getMessage());
 			loadedScriptsMetadata = List.of();
 		}
 		String currentFileTemplate = FileTemplate.getTemplateName(model, selectedFile.getFile());
@@ -216,7 +217,7 @@ public class ScriptExecutionView extends VBox {
 				PythonScriptExecutorService.ScriptExecutionResult result = future.get();
 				handleScriptResult(result, scriptMetadata);
 			} catch (Exception e) {
-				showExceptionDialog(e.getMessage());
+				showExceptionDialog("Script Execution Error", "Failed to execute script: " + e.getMessage());
 			} finally {
 				setExecutingProgress(false);
 			}
@@ -243,7 +244,7 @@ public class ScriptExecutionView extends VBox {
 		if (currentFile != null && currentFile.exists()) {
             Platform.runLater(() -> loader.load(List.of(currentFile)));
 		} else {
-			showExceptionDialog("Selected file does not exist or is not valid.");
+			showExceptionDialog("Script Execution Error","Selected file does not exist or is not valid.");
 		}
 	}
 
@@ -257,9 +258,11 @@ public class ScriptExecutionView extends VBox {
 				if (paramName == null) continue;
 
 				String value = extractValueFromNode(inputNode);
+				if (value == null) {
+					continue;
+				}
 				boolean isRequired = params.stream()
 						.anyMatch(param -> param.name().equals(paramName) && param.required());
-
 				if (!value.isEmpty() || isRequired) {
 					parameters.put(paramName, value);
 				}
@@ -268,6 +271,7 @@ public class ScriptExecutionView extends VBox {
 		return parameters;
 	}
 
+	@Nullable
 	private String extractValueFromNode(Node node) {
 		return switch (node) {
 			case TextField textField -> textField.getText();
@@ -301,13 +305,13 @@ public class ScriptExecutionView extends VBox {
 
 	}
 
-	private void showExceptionDialog(String errorMessage) {
+	private void showExceptionDialog(String title, String errorMessage) {
 		Platform.runLater(() -> {
 			Dialog<String> dialog = new Dialog<>();
 			dialog.initOwner(primaryStage);
-			dialog.setTitle("Script Execution Error");
+			dialog.setTitle(title);
 			dialog.setHeaderText("Error");
-			dialog.setContentText("Failed to execute script: " + errorMessage);
+			dialog.setContentText(errorMessage);
 			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
 			dialog.showAndWait();
 		});

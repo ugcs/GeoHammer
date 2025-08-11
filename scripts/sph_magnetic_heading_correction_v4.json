@@ -1,0 +1,31 @@
+{
+  "filename": "sph_magnetic_heading_correction_v4.py",
+  "display_name": "SPH data format heading correction V4",
+  "parameters": [
+    {
+      "name": "start_longitude",
+      "type": "DOUBLE",
+      "required": false,
+      "display_name": "Start point longitude"
+    },
+    {
+      "name": "start_latitude",
+      "type": "DOUBLE",
+      "required": false,
+      "display_name": "Start point latitude"
+    },
+    {
+      "name": "end_longitude",
+      "type": "DOUBLE",
+      "required": false,
+      "display_name": "End point longitude"
+    },
+    {
+      "name": "end_latitude",
+      "type": "DOUBLE",
+      "required": false,
+      "display_name": "End point latitude"
+    }
+  ],
+  "templates": ["MagNIMBUS"]
+}

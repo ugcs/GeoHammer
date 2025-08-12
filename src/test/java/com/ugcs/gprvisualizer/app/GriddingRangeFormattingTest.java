@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app;
 
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
+import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.math.LevelFilter;
@@ -17,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.framework.junit5.Start;
 import org.testfx.framework.junit5.utils.FXUtils;
-import org.testfx.util.WaitForAsyncUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -69,7 +69,9 @@ public class GriddingRangeFormattingTest {
             mock(CommandRegistry.class),
             model,
             mock(LevelFilter.class),
-            prefSettings
+            prefSettings,
+            mock(Status.class),
+            mock(Loader.class)
         );
 
         // Create a RangeSlider and set it in the OptionPane instance

@@ -1,20 +1,25 @@
 package com.ugcs.gprvisualizer.app;
 
+import java.awt.Desktop;
+
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.ext.FileManager;
+import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SplitPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-
-import javafx.scene.control.SplitPane;
-import javafx.scene.layout.BorderPane;
 
 @Component
 public class SceneContent extends BorderPane implements InitializingBean {
@@ -37,14 +42,39 @@ public class SceneContent extends BorderPane implements InitializingBean {
 	@Autowired
 	private Model model;
 
-	private Label openHint = createOpenHint();
+	@Autowired
+	private PythonConfig pythonConfig;
+
+	private final Label openHint = createOpenHint();
 	
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		this.setOnDragOver(loader.getDragHandler());
 		this.setOnDragDropped(loader.getDropHandler());
+		setupMenuBar();
 		this.setCenter(createSplitPane());
 		this.setBottom(statusBar);
+	}
+
+	private void setupMenuBar() {
+		String os = System.getProperty("os.name").toLowerCase();
+		if (Desktop.isDesktopSupported() && os.contains("mac")) {
+			Desktop desktop = Desktop.getDesktop();
+			desktop.setPreferencesHandler(event ->
+					Platform.runLater(() ->
+							new SettingsView(pythonConfig)
+					)
+			);
+		} else {
+			MenuBar menuBar = new MenuBar();
+			Menu menu = new Menu("File");
+			MenuItem settingsItem = new MenuItem("Settings");
+			settingsItem.setOnAction(event -> new SettingsView(pythonConfig));
+			menu.getItems().add(settingsItem);
+			menuBar.getMenus().add(menu);
+
+			this.setTop(menuBar);
+		}
 	}
 
 	private SplitPane createSplitPane() {
@@ -79,9 +109,7 @@ public class SceneContent extends BorderPane implements InitializingBean {
 	private void updateOpenHintVisibility() {
 		FileManager fileManager = model.getFileManager();
 		int numOpenFiles = fileManager.getFilesCount();
-		Platform.runLater(() -> {
-			openHint.setVisible(numOpenFiles == 0);
-		});
+		Platform.runLater(() -> openHint.setVisible(numOpenFiles == 0));
 	}
 
 	@EventListener

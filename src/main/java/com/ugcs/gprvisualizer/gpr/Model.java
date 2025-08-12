@@ -22,7 +22,6 @@ import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.scene.layout.*;
@@ -98,10 +97,10 @@ public class Model implements InitializingBean {
 	private final Random rand = new Random();
 
 	@SuppressWarnings("NullAway.Init")
-	@Value( "${trace.lookup.threshold}" )
+	@Value("${trace.lookup.threshold}")
 	private Double traceLookupThreshold;
 
-	private boolean loading = false; 
+	private boolean loading = false;
 
 	private final MapField field = new MapField();
 
@@ -178,15 +177,15 @@ public class Model implements InitializingBean {
 
 		auxElements.clear();
 		getFileManager().getCsvFiles().forEach(sf -> {
-            auxElements.addAll(sf.getAuxElements());
-            getCsvChart(sf).ifPresent(chart ->
+			auxElements.addAll(sf.getAuxElements());
+			getCsvChart(sf).ifPresent(chart ->
 					sf.getAuxElements().forEach(element -> {
-						if (element instanceof FoundPlace foundPlace) {
-							chart.addFlag(foundPlace);
-						}
-		            }
-			));
-        });
+								if (element instanceof FoundPlace foundPlace) {
+									chart.addFlag(foundPlace);
+								}
+							}
+					));
+		});
 	}
 
 	public VBox getChartsContainer() {
@@ -246,7 +245,7 @@ public class Model implements InitializingBean {
 	}
 
 	public boolean stopUnsaved() {
-    	if (getFileManager().isUnsavedExists()) {
+		if (getFileManager().isUnsavedExists()) {
 
 			Alert alert = new Alert(AlertType.CONFIRMATION);
 			alert.setTitle("Warning");
@@ -255,9 +254,9 @@ public class Model implements InitializingBean {
 			Optional<ButtonType> result = alert.showAndWait();
 
 			if (!result.isPresent() || result.get() != ButtonType.OK) {
-				return true;    			
+				return true;
 			}
-    	}
+		}
 		return false;
 	}
 
@@ -284,8 +283,9 @@ public class Model implements InitializingBean {
 		loadColorSettings(semanticColors);
 	}
 
-	/** 
+	/**
 	 * Initialize chart for the given CSV file
+	 *
 	 * @param csvFile CSV file to initialize chart for
 	 */
 	public void initCsvChart(CsvFile csvFile) {
@@ -295,9 +295,7 @@ public class Model implements InitializingBean {
 		var sensorLineChart = createSensorLineChart(csvFile);
 		saveColorSettings(semanticColors);
 
-		Platform.runLater(() -> {
-			selectAndScrollToChart(sensorLineChart);
-		});
+		Platform.runLater(() -> selectAndScrollToChart(sensorLineChart));
 	}
 
 	public void updateCsvChart(CsvFile csvFile) {
@@ -317,8 +315,26 @@ public class Model implements InitializingBean {
 		}
 	}
 
+	public void recreateCsvChart(CsvFile csvFile) {
+		// Remove the old chart if it exists
+		getFileManager().removeFile(csvFile);
+		Optional<SensorLineChart> oldChartOpt = getCsvChart(csvFile);
+		oldChartOpt.ifPresent(oldChart -> {
+			Node oldNode = oldChart.getRootNode();
+			chartsContainer.getChildren().remove(oldNode);
+			csvFiles.remove(csvFile);
+		});
+
+		// Create and add the new chart
+		SensorLineChart newChart = createSensorLineChart(csvFile);
+		saveColorSettings(semanticColors);
+		getFileManager().addFile(csvFile);
+
+		Platform.runLater(() -> selectAndScrollToChart(newChart));
+	}
+
 	private SensorLineChart createSensorLineChart(CsvFile csvFile) {
-        // if there is a chart for a given file then put new chart
+		// if there is a chart for a given file then put new chart
 		// to the same position as it was before
 		int index = -1;
 
@@ -335,8 +351,8 @@ public class Model implements InitializingBean {
 		csvFiles.put(csvFile, chart);
 
 		// create new chart contents
-        var plotData = chart.generatePlotData(csvFile);
-        var newChartBox = chart.createChartWithMultipleYAxes(csvFile, plotData);
+		var plotData = chart.generatePlotData(csvFile);
+		var newChartBox = chart.createChartWithMultipleYAxes(csvFile, plotData);
 
 		// add to container keeping position
 		if (index != -1) {
@@ -346,15 +362,15 @@ public class Model implements InitializingBean {
 		}
 
 		// adjust height
-        newChartBox.getChildren().forEach(node -> {
-            if (node instanceof StackPane) {
-                ((StackPane) node).setPrefHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight()));
-                ((StackPane) node).setMinHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight() / 2));
-            }
-        });
+		newChartBox.getChildren().forEach(node -> {
+			if (node instanceof StackPane) {
+				((StackPane) node).setPrefHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight()));
+				((StackPane) node).setMinHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight() / 2));
+			}
+		});
 
 		return chart;
-    }
+	}
 
 	private void saveColorSettings(Map<String, Color> semanticColors) {
 		String group = "colors";
@@ -363,12 +379,13 @@ public class Model implements InitializingBean {
 
 	/**
 	 * Get chart for the given file if it exists in the model
+	 *
 	 * @param csvFile CSV file to get chart for
 	 * @return Optional of SensorLineChart
 	 */
-    public Optional<SensorLineChart> getCsvChart(CsvFile csvFile) {
+	public Optional<SensorLineChart> getCsvChart(CsvFile csvFile) {
 		return Optional.ofNullable(csvFiles.get(csvFile));
-    }
+	}
 
 	public void chartsZoomOut() {
 		csvFiles.forEach((file, chart) -> {
@@ -401,16 +418,16 @@ public class Model implements InitializingBean {
 			}
 		}
 		if (!chartSelected) {
-			publishEvent(new FileSelectedEvent(this, (SgyFile)null));
+			publishEvent(new FileSelectedEvent(this, (SgyFile) null));
 		}
-    }
+	}
 
 	public void loadColorSettings(Map<String, Color> semanticColors) {
 		var colors = prefSettings.getAllSettings().get("colors");
 		if (colors != null)
 			colors.forEach((key, value) -> {
 				semanticColors.put(key, Color.web(value));
-		});
+			});
 	}
 
 	public Color getColorBySemantic(String semantic) {
@@ -418,16 +435,16 @@ public class Model implements InitializingBean {
 	}
 
 	// Generate random color
-    private Color generateRandomColor() {
-        return BRIGHT_COLORS.get(rand.nextInt(BRIGHT_COLORS.size()));
-    }
+	private Color generateRandomColor() {
+		return BRIGHT_COLORS.get(rand.nextInt(BRIGHT_COLORS.size()));
+	}
 
 	private void setSelectedData(Node node) {
 		this.selectedDataNode = node;
 	}
 
 	@Nullable
-    private Node getSelectedData() {
+	private Node getSelectedData() {
 		return selectedDataNode;
 	}
 
@@ -475,30 +492,30 @@ public class Model implements InitializingBean {
 		boolean selected = selectChart(fileDataContainer);
 		scrollToChart(fileDataContainer);
 		return selected;
-    }
+	}
 
 	@Nullable
 	private ScrollPane findScrollPane(Node node) {
-        Parent parent = node.getParent();
-        while (parent != null) {
-            if (parent instanceof ScrollPane) {
-                return (ScrollPane) parent;
-            }
-            parent = parent.getParent();
-        }
-        return null;
-    }
+		Parent parent = node.getParent();
+		while (parent != null) {
+			if (parent instanceof ScrollPane) {
+				return (ScrollPane) parent;
+			}
+			parent = parent.getParent();
+		}
+		return null;
+	}
 
 	private void scrollToChart(ScrollPane scrollPane, Node chart) {
-        Bounds viewportBounds = scrollPane.getViewportBounds();
-        Bounds chartBounds = chart.getBoundsInParent();
+		Bounds viewportBounds = scrollPane.getViewportBounds();
+		Bounds chartBounds = chart.getBoundsInParent();
 
-        double heightDifference = chartsContainer.getBoundsInParent().getHeight() - viewportBounds.getHeight();
+		double heightDifference = chartsContainer.getBoundsInParent().getHeight() - viewportBounds.getHeight();
 
-        double vValue = chartBounds.getMinY() / heightDifference;
+		double vValue = chartBounds.getMinY() / heightDifference;
 
-        scrollPane.setVvalue(vValue < 0 ? Double.POSITIVE_INFINITY : vValue);
-    }
+		scrollPane.setVvalue(vValue < 0 ? Double.POSITIVE_INFINITY : vValue);
+	}
 
 	public void focusMapOnTrace(TraceKey trace) {
 		if (trace == null) {
@@ -509,9 +526,9 @@ public class Model implements InitializingBean {
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapscroll));
 	}
 
-    public Collection<SensorLineChart> getCharts() {
+	public Collection<SensorLineChart> getCharts() {
 		return csvFiles.values();
-    }
+	}
 
 	public void publishEvent(BaseEvent event) {
 		eventPublisher.publishEvent(event);
@@ -607,7 +624,7 @@ public class Model implements InitializingBean {
 			return;
 		}
 		Optional<TraceKey> nearestTrace = Traces.findNearestTraceInFiles(fileManager.getFiles(), location);
-        nearestTrace.ifPresent(trace -> {
+		nearestTrace.ifPresent(trace -> {
 			selectTrace(trace, true);
 		});
 	}

@@ -7,12 +7,14 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.quality.AltitudeCheck;
 import com.ugcs.gprvisualizer.app.quality.DataCheck;
 import com.ugcs.gprvisualizer.app.quality.LineDistanceCheck;
 import com.ugcs.gprvisualizer.app.quality.QualityCheck;
 import com.ugcs.gprvisualizer.app.quality.QualityControl;
 import com.ugcs.gprvisualizer.app.quality.QualityIssue;
+import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.draw.QualityLayer;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -43,6 +45,7 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -93,13 +96,19 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private PrefSettings prefSettings;
 
-	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings) {
+	private final Status status;
+
+	private final Loader loader;
+
+	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings, Status status, Loader loader) {
 		this.mapView = mapView;
 		this.profileView = profileView;
 		this.commandRegistry = commandRegistry;
 		this.model = model;
 		this.levelFilter = levelFilter;
 		this.prefSettings = prefSettings;
+		this.status = status;
+		this.loader = loader;
 	}
 
 	private ToggleButton showGreenLineBtn = new ToggleButton("",
@@ -126,6 +135,10 @@ public class OptionPane extends VBox implements InitializingBean {
 	private Button showGriddingAllButton;
 	private RangeSlider griddingRangeSlider;
 	private StatisticsView statisticsView;
+	private ScriptExecutionView scriptExecutionView;
+
+	@Autowired
+	private PythonScriptExecutorService pythonScriptExecutorService;
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
@@ -136,14 +149,11 @@ public class OptionPane extends VBox implements InitializingBean {
 		this.setMaxWidth(RIGHT_BOX_WIDTH);
 
 		prepareTabPane();
-        this.getChildren().addAll(tabPane);
+		this.getChildren().addAll(tabPane);
 	}
 
 	private void prepareTabPane() {
-
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-
-		prepareCsvTab(csvTab);
 	}
 
 	private void prepareCsvTab(Tab tab) {
@@ -152,6 +162,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		ToggleButton timeLagButton = new ToggleButton("GNSS time-lag");
 		ToggleButton medianCorrection = new ToggleButton("Running median filter");
 		ToggleButton qualityControl = new ToggleButton("Quality control");
+		ToggleButton scriptsButton = new ToggleButton("Scripts");
 
 		statisticsButton.setMaxWidth(Double.MAX_VALUE);
 		lowPassFilterButton.setMaxWidth(Double.MAX_VALUE);
@@ -159,6 +170,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		timeLagButton.setMaxWidth(Double.MAX_VALUE);
 		medianCorrection.setMaxWidth(Double.MAX_VALUE);
 		qualityControl.setMaxWidth(Double.MAX_VALUE);
+		scriptsButton.setMaxWidth(Double.MAX_VALUE);
 
 		VBox container = new VBox();
 		container.setPadding(new Insets(10, 8, 10, 8));
@@ -217,13 +229,17 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
+		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		StackPane scriptsPane = new StackPane(scriptExecutionView);
+
 		container.getChildren().addAll(List.of(
 				statisticsButton, statisticsPane,
 				lowPassFilterButton, lowPassOptions,
 				gridding, griddingPane,
 				timeLagButton, timeLagOptions,
 				medianCorrection, medianCorrectionOptions,
-				qualityControl, qualityControlView.getRoot()));
+				qualityControl, qualityControlView.getRoot(),
+				scriptsButton, scriptsPane));
 
 		statisticsButton.setOnAction(getChangeVisibleAction(statisticsPane));
 		lowPassFilterButton.setOnAction(getChangeVisibleAction(lowPassOptions));
@@ -231,6 +247,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		timeLagButton.setOnAction(getChangeVisibleAction(timeLagOptions));
 		medianCorrection.setOnAction(getChangeVisibleAction(medianCorrectionOptions));
 		qualityControl.setOnAction(getChangeVisibleAction(qualityControlView.getRoot()));
+		scriptsButton.setOnAction(getChangeVisibleAction(scriptsPane));
 
 		ScrollPane scrollContainer = createVerticalScrollContainer(container);
 		tab.setContent(scrollContainer);
@@ -377,7 +394,6 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		// shrink
 		if ((r - l) > 1e-12 && (r - l) / (max - min) < SLIDER_SHRINK_WIDTH_THRESHOLD) {
-			System.out.println("SHRINK");
 			double center = l + 0.5 * (r - l);
 			double centerRatio = (center - min) / (max - min);
 			double newWidth = (r - l) / SLIDER_SHRINK_WIDTH_THRESHOLD;
@@ -495,7 +511,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	/**
 	 * Shows or hides the warning about grid input data changes.
-	 * 
+	 *
 	 * @param show true to show the warning, false to hide it
 	 */
 	private void showGridInputDataChangedWarning(boolean show) {
@@ -546,11 +562,11 @@ public class OptionPane extends VBox implements InitializingBean {
 			prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), Map.of(templateName, newVal.toString()));
 
 			// Publish GriddingParamsSetted event with current parameters
-			model.publishEvent(new GriddingParamsSetted(this, 
+			model.publishEvent(new GriddingParamsSetted(this,
 				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()),
 				Double.parseDouble(filterInputs.get(Filter.gridding_blankingdistance.name()).getText()),
 				false,
-				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ? 
+				Double.parseDouble(filterInputs.get(Filter.gridding_cellsize.name()).getText()) > GriddingParamsSetted.IDW_CELL_SIZE_THRESHOLD ?
 					GriddingParamsSetted.InterpolationMethod.IDW : GriddingParamsSetted.InterpolationMethod.SPLINES,
 				GriddingParamsSetted.DEFAULT_POWER,
 				GriddingParamsSetted.DEFAULT_MIN_POINTS,
@@ -1104,7 +1120,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		});
 		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
 		showGridInputDataChangedWarning(true);
-	}	
+	}
 
 	private void toggleQualityLayer(boolean active) {
 		QualityLayer qualityLayer = mapView.getQualityLayer();
@@ -1180,6 +1196,12 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
+		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		StackPane scriptsPane = new StackPane(scriptExecutionView);
+		ToggleButton scriptsButton = new ToggleButton("Scripts");
+		scriptsButton.setMaxWidth(Double.MAX_VALUE);
+		scriptsButton.setOnAction(getChangeVisibleAction(scriptsPane));
+
 		VBox container = new VBox();
 		container.setPadding(new Insets(10, 8, 10, 8));
 		container.setSpacing(DEFAULT_SPACING);
@@ -1187,7 +1209,8 @@ public class OptionPane extends VBox implements InitializingBean {
 		container.getChildren().addAll(
 				backgroundToggle, backgroundOptions,
 				griddingToggle, griddingOptions,
-				elevationToggle, elevationOptions);
+				elevationToggle, elevationOptions,
+				scriptsButton, scriptsPane);
 
 		ScrollPane scrollContainer = createVerticalScrollContainer(container);
 		gprTab.setContent(scrollContainer);
@@ -1236,9 +1259,9 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private ToggleButton prepareToggleButton(String title,
-			String imageName, MutableBoolean bool, Consumer<ToggleButton> consumer ) {
+											 String imageName, MutableBoolean bool, Consumer<ToggleButton> consumer) {
 
-		ToggleButton btn = new ToggleButton(title, 
+		ToggleButton btn = new ToggleButton(title,
 				ResourceImageHolder.getImageView(imageName));
 
 		btn.setSelected(bool.booleanValue());
@@ -1268,6 +1291,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
         if (selectedFile instanceof CsvFile) {
             showTab(csvTab);
+			prepareCsvTab(csvTab);
 			if (statisticsView != null) {
 				Platform.runLater(() -> {
 					statisticsView.update(event.getFile());

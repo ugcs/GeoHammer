@@ -65,7 +65,7 @@ public class ScriptExecutionView extends VBox {
 		progressIndicator.setVisible(false);
 
 		scriptsMetadataSelector = new ComboBox<>();
-		scriptsMetadataSelector.setPromptText("Select Python script");
+		scriptsMetadataSelector.setPromptText("Select script");
 		scriptsMetadataSelector.setMaxWidth(Double.MAX_VALUE);
 
 		List<ScriptMetadata> loadedScriptsMetadata;
@@ -79,10 +79,9 @@ public class ScriptExecutionView extends VBox {
 				showExceptionDialog("Scripts Directory Error","No scripts directory. Please check that scripts directory exists and is accessible.");
 				scriptsPath = Path.of("");
 			}
-			log.info("Loading Python scripts metadata from: {}", scriptsPath);
 			loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
 		} catch (IOException e) {
-			log.warn("Failed to load Python scripts", e);
+			log.warn("Failed to load scripts", e);
 			showExceptionDialog("Scripts Directory Error", "Failed to load scripts metadata: " + e.getMessage());
 			loadedScriptsMetadata = List.of();
 		}
@@ -204,8 +203,9 @@ public class ScriptExecutionView extends VBox {
 	}
 
 	private void executeScript(@Nullable ScriptMetadata scriptMetadata) {
-		if (scriptMetadata == null)
+		if (scriptMetadata == null) {
 			return;
+		}
 		setExecutingProgress(true);
 
 		Map<String, String> parameters = extractScriptParams(scriptMetadata.parameters);
@@ -234,12 +234,12 @@ public class ScriptExecutionView extends VBox {
 	}
 
 	private void handleSuccessResult(PythonScriptExecutorService.ScriptExecutionResult result, ScriptMetadata scriptMetadata) {
-		String successMessage = "Python script '" + scriptMetadata.displayName + "' executed successfully.";
+		String successMessage = "Script '" + scriptMetadata.displayName + "' executed successfully.";
 		String output = result.getOutput();
 		if (output != null && !output.isEmpty()) {
 			successMessage += "\nOutput: " + output;
 		}
-		status.showMessage(successMessage, "Python Script");
+		status.showMessage(successMessage, "Script");
 		File currentFile = selectedFile.getFile();
 		if (currentFile != null && currentFile.exists()) {
             Platform.runLater(() -> loader.load(List.of(currentFile)));
@@ -251,11 +251,15 @@ public class ScriptExecutionView extends VBox {
 	private Map<String, String> extractScriptParams(List<PythonScriptParameter> params) {
 		Map<String, String> parameters = new HashMap<>();
 		for (Node paramBox : parametersBox.getChildren()) {
-			if (!(paramBox instanceof VBox)) continue;
+			if (!(paramBox instanceof VBox)) {
+				continue;
+			}
 
 			for (Node inputNode : ((VBox) paramBox).getChildren()) {
 				String paramName = (String) inputNode.getUserData();
-				if (paramName == null) continue;
+				if (paramName == null) {
+					continue;
+				}
 
 				String value = extractValueFromNode(inputNode);
 				if (value == null) {
@@ -294,7 +298,7 @@ public class ScriptExecutionView extends VBox {
 			dialog.initOwner(primaryStage);
 			dialog.setTitle("Script Execution Error");
 			dialog.setHeaderText("Error");
-			String errorMessage = "Python script '" + scriptName + "' failed with exit code " + exitCode + ".";
+			String errorMessage = "Script '" + scriptName + "' failed with exit code " + exitCode + ".";
 			if (output != null && !output.isEmpty()) {
 				errorMessage += "\nOutput: " + output;
 			}

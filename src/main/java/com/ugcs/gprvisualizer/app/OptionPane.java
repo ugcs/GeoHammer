@@ -162,7 +162,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		ToggleButton timeLagButton = new ToggleButton("GNSS time-lag");
 		ToggleButton medianCorrection = new ToggleButton("Running median filter");
 		ToggleButton qualityControl = new ToggleButton("Quality control");
-		ToggleButton pythonScriptButton = new ToggleButton("Scripts");
+		ToggleButton scriptsButton = new ToggleButton("Scripts");
 
 		statisticsButton.setMaxWidth(Double.MAX_VALUE);
 		lowPassFilterButton.setMaxWidth(Double.MAX_VALUE);
@@ -170,7 +170,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		timeLagButton.setMaxWidth(Double.MAX_VALUE);
 		medianCorrection.setMaxWidth(Double.MAX_VALUE);
 		qualityControl.setMaxWidth(Double.MAX_VALUE);
-		pythonScriptButton.setMaxWidth(Double.MAX_VALUE);
+		scriptsButton.setMaxWidth(Double.MAX_VALUE);
 
 		VBox container = new VBox();
 		container.setPadding(new Insets(10, 8, 10, 8));
@@ -230,7 +230,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControlToAll);
 
 		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
-		StackPane pythonScriptPane = new StackPane(scriptExecutionView);
+		StackPane scriptsPane = new StackPane(scriptExecutionView);
 
 		container.getChildren().addAll(List.of(
 				statisticsButton, statisticsPane,
@@ -239,7 +239,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				timeLagButton, timeLagOptions,
 				medianCorrection, medianCorrectionOptions,
 				qualityControl, qualityControlView.getRoot(),
-				pythonScriptButton, pythonScriptPane));
+				scriptsButton, scriptsPane));
 
 		statisticsButton.setOnAction(getChangeVisibleAction(statisticsPane));
 		lowPassFilterButton.setOnAction(getChangeVisibleAction(lowPassOptions));
@@ -247,7 +247,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		timeLagButton.setOnAction(getChangeVisibleAction(timeLagOptions));
 		medianCorrection.setOnAction(getChangeVisibleAction(medianCorrectionOptions));
 		qualityControl.setOnAction(getChangeVisibleAction(qualityControlView.getRoot()));
-		pythonScriptButton.setOnAction(getChangeVisibleAction(pythonScriptPane));
+		scriptsButton.setOnAction(getChangeVisibleAction(scriptsPane));
 
 		ScrollPane scrollContainer = createVerticalScrollContainer(container);
 		tab.setContent(scrollContainer);
@@ -1197,10 +1197,10 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
 		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
-		StackPane pythonScriptsPane = new StackPane(scriptExecutionView);
-		ToggleButton pythonScriptsButton = new ToggleButton("Scripts");
-		pythonScriptsButton.setMaxWidth(Double.MAX_VALUE);
-		pythonScriptsButton.setOnAction(getChangeVisibleAction(pythonScriptsPane));
+		StackPane scriptsPane = new StackPane(scriptExecutionView);
+		ToggleButton scriptsButton = new ToggleButton("Scripts");
+		scriptsButton.setMaxWidth(Double.MAX_VALUE);
+		scriptsButton.setOnAction(getChangeVisibleAction(scriptsPane));
 
 		VBox container = new VBox();
 		container.setPadding(new Insets(10, 8, 10, 8));
@@ -1210,7 +1210,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				backgroundToggle, backgroundOptions,
 				griddingToggle, griddingOptions,
 				elevationToggle, elevationOptions,
-				pythonScriptsButton, pythonScriptsPane);
+				scriptsButton, scriptsPane);
 
 		ScrollPane scrollContainer = createVerticalScrollContainer(container);
 		gprTab.setContent(scrollContainer);

@@ -14,6 +14,10 @@ public final class FileTemplate {
 
     private static final Logger log = LoggerFactory.getLogger(FileTemplate.class);
 
+    private FileTemplate() {
+        // Utility class, no instantiation
+    }
+
     @Nullable
     public static String getTemplateName(Model model, @Nullable File file) {
         if (FileTypes.isGprFile(file)) {

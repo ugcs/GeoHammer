@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.awt.*;
+import java.awt.Desktop;
 
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.ext.FileManager;
@@ -9,18 +9,17 @@ import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuBar;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SplitPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-
-import javafx.scene.control.SplitPane;
-import javafx.scene.layout.BorderPane;
 
 @Component
 public class SceneContent extends BorderPane implements InitializingBean {
@@ -46,7 +45,7 @@ public class SceneContent extends BorderPane implements InitializingBean {
 	@Autowired
 	private PythonConfig pythonConfig;
 
-	private Label openHint = createOpenHint();
+	private final Label openHint = createOpenHint();
 	
 	@Override
 	public void afterPropertiesSet() throws Exception {
@@ -110,9 +109,7 @@ public class SceneContent extends BorderPane implements InitializingBean {
 	private void updateOpenHintVisibility() {
 		FileManager fileManager = model.getFileManager();
 		int numOpenFiles = fileManager.getFilesCount();
-		Platform.runLater(() -> {
-			openHint.setVisible(numOpenFiles == 0);
-		});
+		Platform.runLater(() -> openHint.setVisible(numOpenFiles == 0));
 	}
 
 	@EventListener

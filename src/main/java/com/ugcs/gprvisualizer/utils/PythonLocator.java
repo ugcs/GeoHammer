@@ -27,8 +27,9 @@ public final class PythonLocator {
 		}
 		try {
 			Process process = new ProcessBuilder(command).start();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-			return reader.readLine();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+				return reader.readLine();
+			}
 		} catch (Exception e) {
 			log.error("Error finding Python executable", e);
 			return null;

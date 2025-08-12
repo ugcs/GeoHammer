@@ -252,9 +252,9 @@ public class Loader {
 			model.initCsvChart(csvFile);
 			model.initField();
 		} else if (csvFile.getFile() != null && Objects.equals(file.getAbsolutePath(), csvFile.getFile().getAbsolutePath())) {
-			csvFile.setFile(file);
 			model.recreateCsvChart(csvFile);
-			model.getFileManager().addFile(csvFile);
+			model.updateAuxElements();
+			model.initField();
 		}
 	}
 

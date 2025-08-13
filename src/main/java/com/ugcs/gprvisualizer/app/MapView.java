@@ -24,8 +24,10 @@ import com.ugcs.gprvisualizer.event.WhatChanged;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -54,6 +56,9 @@ public class MapView implements InitializingBean {
 	
 	@Autowired
 	private TraceCutter traceCutter;
+
+	@Autowired
+	private MapRuler mapRuler;
 	
 	@Autowired
 	private Model model;
@@ -127,6 +132,9 @@ public class MapView implements InitializingBean {
 		//TODO: bad style
 		traceCutter.setListener(listener);		
 		getLayers().add(traceCutter);
+
+		mapRuler.setRepaintCallback(() -> listener.repaint());
+		getLayers().add(mapRuler);
 
 		initImageView();
 		
@@ -223,6 +231,7 @@ public class MapView implements InitializingBean {
 		
 		toolBar.setDisable(true);
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
+		toolBar.getItems().addAll(mapRuler.getToolNodes2());
 		toolBar.getItems().add(getSpacer());
 
 
@@ -242,8 +251,32 @@ public class MapView implements InitializingBean {
 		
 		sp1.widthProperty().addListener(sp1SizeListener);
 		sp1.heightProperty().addListener(sp1SizeListener);
+
+		BorderPane root = new BorderPane();
+
+		Label distanceLabel = new Label();
+
+		// Update label visibility and text when measurement changes
+		Runnable updateDistanceLabel = () -> {
+			if (mapRuler.isVisible()) {
+				distanceLabel.setText(mapRuler.getDistanceString());
+				distanceLabel.setVisible(true);
+				root.setBottom(distanceLabel);
+			} else {
+				distanceLabel.setText("");
+				distanceLabel.setVisible(false);
+				root.setBottom(null);
+			}
+		};
+		mapRuler.setRepaintCallback(() -> {
+			updateUI();
+			updateDistanceLabel.run();
+		});
+		updateDistanceLabel.run();
+
+		root.setCenter(sp1);
 		
-		return sp1;
+		return root;
 	}
 
 	public List<Node> getRight(SgyFile dataFile) {

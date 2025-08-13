@@ -54,6 +54,21 @@ public class MapField {
 		
 		return result;		
 	}
+
+	public Double latLonDistance(LatLon ll1, LatLon ll2) {
+		double lat1 = toRad(ll1.getLatDgr());
+		double lon1 = toRad(ll1.getLonDgr());
+		double lat2 = toRad(ll2.getLatDgr());
+		double lon2 = toRad(ll2.getLonDgr());
+
+		double deltaLon = lon2 - lon1;
+		double deltaLat = lat2 - lat1;
+
+		double a = Math.pow(Math.sin(deltaLat / 2), 2)
+				+ Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(deltaLon / 2), 2);
+
+		return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+	}
 	
 	public LatLon screenTolatLon(Point2D point) {
 		if (getSceneCenter() == null) {

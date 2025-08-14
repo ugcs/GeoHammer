@@ -155,16 +155,19 @@ public class ScriptExecutionView extends VBox {
 					.filter(metadata -> metadata.templates().isEmpty() || metadata.templates().contains(currentFileTemplate))
 					.toList();
 
-			scriptsMetadataSelector.getItems().clear();
-			scriptsMetadataSelector.getItems().addAll(
+			@Nullable String prevSelected = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
+			scriptsMetadataSelector.getItems().setAll(
 					scriptsMetadata.stream()
 							.map(ScriptMetadata::filename)
 							.toList()
 			);
-			scriptsMetadataSelector.getSelectionModel().clearSelection();
-
-			parametersBox.getChildren().clear();
-			applyButton.setDisable(true);
+			if (prevSelected != null && scriptsMetadataSelector.getItems().contains(prevSelected)) {
+				scriptsMetadataSelector.getSelectionModel().select(prevSelected);
+			} else {
+				scriptsMetadataSelector.getSelectionModel().clearSelection();
+				parametersBox.getChildren().clear();
+				applyButton.setDisable(true);
+			}
 
 			if (selectedFile != null && scriptExecutorService.isExecuting(selectedFile)) {
 				setExecutingProgress(true);
@@ -177,8 +180,9 @@ public class ScriptExecutionView extends VBox {
 				setVisible(true);
 				setManaged(true);
 			} else {
-				setVisible(false);
-				setManaged(false);
+				setExecutingProgress(false);
+				setVisible(scriptsMetadataSelector.getValue() != null);
+				setManaged(scriptsMetadataSelector.getValue() != null);
 			}
 		});
 	}

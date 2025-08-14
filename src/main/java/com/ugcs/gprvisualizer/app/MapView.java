@@ -24,7 +24,6 @@ import com.ugcs.gprvisualizer.event.WhatChanged;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
-import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -254,26 +253,8 @@ public class MapView implements InitializingBean {
 
 		BorderPane root = new BorderPane();
 
-		Label distanceLabel = new Label();
-
-		// Update label visibility and text when measurement changes
-		Runnable updateDistanceLabel = () -> {
-			if (mapRuler.isVisible()) {
-				distanceLabel.setText(mapRuler.getDistanceString());
-				distanceLabel.setVisible(true);
-				root.setBottom(distanceLabel);
-			} else {
-				distanceLabel.setText("");
-				distanceLabel.setVisible(false);
-				root.setBottom(null);
-			}
-		};
-		mapRuler.setRepaintCallback(() -> {
-			updateUI();
-			updateDistanceLabel.run();
-		});
-		updateDistanceLabel.run();
-
+		DistanceLabelPane distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI);
+		root.setBottom(distanceLabelPane);
 		root.setCenter(sp1);
 		
 		return root;

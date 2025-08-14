@@ -9,6 +9,7 @@ import java.util.List;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
+import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
 import com.ugcs.gprvisualizer.draw.Layer;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.geometry.Point2D;
@@ -29,9 +30,9 @@ public class MapRuler implements Layer {
 	private ArrayList<Boolean> isMiddle = new ArrayList<>();
 	@Nullable
 	private Integer activePointIndex = null;
-
 	@Nullable
 	private Runnable repaintCallback;
+	private DistanceConverterService.Unit distanceUnit = DistanceConverterService.Unit.METERS;
 
 	private final ToggleButton buttonMeasureMode = ResourceImageHolder.setButtonImage(ResourceImageHolder.RULER, new ToggleButton());
 	{
@@ -74,6 +75,13 @@ public class MapRuler implements Layer {
 
 	public void setRepaintCallback(Runnable repaintCallback) {
 		this.repaintCallback = repaintCallback;
+	}
+
+	public void setDistanceUnit(DistanceConverterService.Unit unit) {
+		this.distanceUnit = unit;
+		if (repaintCallback != null) {
+			repaintCallback.run();
+		}
 	}
 
 	private void requestRepaint() {
@@ -205,7 +213,8 @@ public class MapRuler implements Layer {
 		for (int i = 0; i < points.size() - 1; i++) {
 			totalDistance += mapField.latLonDistance(points.get(i), points.get(i + 1));
 		}
-		return String.format("Distance: %.2f m", totalDistance);
+		double value = DistanceConverterService.convert(totalDistance, distanceUnit);
+		return String.format("Distance: %.2f", value);
 	}
 
 	public boolean isVisible() {

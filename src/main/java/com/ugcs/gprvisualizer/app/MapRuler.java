@@ -50,14 +50,29 @@ public class MapRuler implements Layer {
 	}
 
 	public void init() {
-		points = new ArrayList<>(
-				Arrays.asList(
-						mapField.screenTolatLon(new Point2D(100, 100)),
-						mapField.screenTolatLon(new Point2D(200, 200))
-				)
-		);
+		points = new ArrayList<>(calculateInitialRulerPoints());
 		isMiddle = new ArrayList<>(Arrays.asList(false, false));
 		addMiddlePoint(0);
+	}
+
+	private List<LatLon> calculateInitialRulerPoints() {
+		LatLon centerLatLon = mapField.getSceneCenter();
+		if (centerLatLon == null) {
+			// Fallback to a default position if centerLatLon is null
+			return Arrays.asList(
+					mapField.screenTolatLon(new Point2D(100, 100)),
+					mapField.screenTolatLon(new Point2D(200, 200))
+			);
+		} else {
+			Point2D centerScreen = mapField.latLonToScreen(centerLatLon);
+			double offset = 50;
+			Point2D left = new Point2D(centerScreen.getX() - offset, centerScreen.getY());
+			Point2D right = new Point2D(centerScreen.getX() + offset, centerScreen.getY());
+			return Arrays.asList(
+					mapField.screenTolatLon(left),
+					mapField.screenTolatLon(right)
+			);
+		}
 	}
 
 	public void initButtons() {

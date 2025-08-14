@@ -13,7 +13,7 @@ import javafx.scene.layout.HBox;
 public class DistanceLabelPane extends BorderPane {
 	private final Label distanceLabel = new Label();
 
-	public DistanceLabelPane(MapRuler mapRuler, Runnable updateUI) {
+	public DistanceLabelPane(MapRuler mapRuler, Runnable updateUI, Runnable visibilityChanged) {
 		ComboBox<String> unitComboBox = new ComboBox<>(
 				FXCollections.observableArrayList(
 						Arrays.stream(DistanceConverterService.Unit.values())
@@ -21,11 +21,10 @@ public class DistanceLabelPane extends BorderPane {
 								.toList())
 		);
 		unitComboBox.setValue(DistanceConverterService.getUnitLabel(DistanceConverterService.Unit.METERS));
-		unitComboBox.setPrefWidth(70);
+		unitComboBox.setPrefWidth(65);
 
-		double prefHeight = 30;
-		distanceLabel.setPrefHeight(prefHeight);
-		unitComboBox.setPrefHeight(prefHeight);
+		distanceLabel.setPrefHeight(30);
+		unitComboBox.setPrefHeight(20);
 
 		HBox hBox = new HBox(10, distanceLabel, unitComboBox);
 		hBox.setAlignment(Pos.CENTER_LEFT);
@@ -36,10 +35,12 @@ public class DistanceLabelPane extends BorderPane {
 				distanceLabel.setText(mapRuler.getDistanceString());
 				distanceLabel.setVisible(true);
 				hBox.setVisible(true);
+				visibilityChanged.run();
 			} else {
 				distanceLabel.setText("");
 				distanceLabel.setVisible(false);
 				hBox.setVisible(false);
+				visibilityChanged.run();
 			}
 		};
 

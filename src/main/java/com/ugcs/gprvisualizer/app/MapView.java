@@ -50,6 +50,8 @@ import javafx.scene.layout.Region;
 
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 
+import javax.annotation.Nullable;
+
 @Component
 public class MapView implements InitializingBean {
 	
@@ -105,6 +107,9 @@ public class MapView implements InitializingBean {
 
 	private ToolBar toolBar = new ToolBar();
 	private Dimension windowSize = new Dimension();
+
+	private final BorderPane root = new BorderPane();
+	@Nullable private DistanceLabelPane distanceLabelPane;
 
 	protected RepaintListener listener = this::updateUI;
 	
@@ -251,13 +256,19 @@ public class MapView implements InitializingBean {
 		sp1.widthProperty().addListener(sp1SizeListener);
 		sp1.heightProperty().addListener(sp1SizeListener);
 
-		BorderPane root = new BorderPane();
-
-		DistanceLabelPane distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI);
-		root.setBottom(distanceLabelPane);
+		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
+		updateDistanceLabelPaneVisibility();
 		root.setCenter(sp1);
 		
 		return root;
+	}
+
+	private void updateDistanceLabelPaneVisibility() {
+		if (mapRuler.isVisible()) {
+			root.setBottom(distanceLabelPane);
+		} else {
+			root.setBottom(null);
+		}
 	}
 
 	public List<Node> getRight(SgyFile dataFile) {
@@ -440,8 +451,8 @@ public class MapView implements InitializingBean {
 	}
 
 	private Point2D getLocalCoords(double x, double y) {
-		javafx.geometry.Point2D sceneCoords  = new javafx.geometry.Point2D(x, y);
-		javafx.geometry.Point2D imgCoord = imageView.sceneToLocal(sceneCoords);
+		Point2D sceneCoords  = new Point2D(x, y);
+		Point2D imgCoord = imageView.sceneToLocal(sceneCoords);
 		Point2D p = new Point2D(
 				imgCoord.getX() - imageView.getBoundsInLocal().getWidth() / 2,
 				imgCoord.getY() - imageView.getBoundsInLocal().getHeight() / 2);

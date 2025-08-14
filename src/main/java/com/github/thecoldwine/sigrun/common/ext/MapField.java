@@ -47,19 +47,24 @@ public class MapField {
 		
 		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoom());
 		Point2D p2d = GoogleCoordUtils.createInfoWindowContent(latlon, getZoom());
-		
-		Point2D result = new Point2D(
-			(p2d.getX() - psc.getX()), 
+
+		return new Point2D(
+			(p2d.getX() - psc.getX()),
 			(p2d.getY() - psc.getY()));
-		
-		return result;		
 	}
 
-	public Double latLonDistance(LatLon ll1, LatLon ll2) {
-		double lat1 = toRad(ll1.getLatDgr());
-		double lon1 = toRad(ll1.getLonDgr());
-		double lat2 = toRad(ll2.getLatDgr());
-		double lon2 = toRad(ll2.getLonDgr());
+	/**
+	 * Calculate the distance between two LatLon points using the Haversine formula.
+	 *
+	 * @param latLon1 First LatLon point
+	 * @param latLon2 Second LatLon point
+	 * @return Distance in meters
+	 */
+	public Double latLonDistance(LatLon latLon1, LatLon latLon2) {
+		double lat1 = toRad(latLon1.getLatDgr());
+		double lon1 = toRad(latLon1.getLonDgr());
+		double lat2 = toRad(latLon2.getLatDgr());
+		double lon2 = toRad(latLon2.getLonDgr());
 
 		double deltaLon = lon2 - lon1;
 		double deltaLat = lat2 - lat1;
@@ -153,8 +158,8 @@ public class MapField {
 		Point2D scr = latLonToScreen(pathRb);
 		
 		while (zoom > 2
-				&& (Math.abs(scr.getX()) > screenWidth / 2
-				|| Math.abs(scr.getY()) > screenHeight / 2)) {
+				&& (Math.abs(scr.getX()) > screenWidth / 2.0
+				|| Math.abs(scr.getY()) > screenHeight / 2.0)) {
 			zoom--;
 			setZoom(zoom);
 			

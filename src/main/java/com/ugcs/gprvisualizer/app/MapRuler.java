@@ -26,45 +26,45 @@ public class MapRuler implements Layer {
 	private static final int RADIUS = 5;
 
 	private final MapField mapField;
-	private ArrayList<LatLon> points = new ArrayList<>();
-	private ArrayList<Boolean> isMiddle = new ArrayList<>();
+	private List<LatLon> points = new ArrayList<>();
+	private List<Boolean> midpointFlags = new ArrayList<>();
 	@Nullable
 	private Integer activePointIndex = null;
 	@Nullable
 	private Runnable repaintCallback;
-	private DistanceConverterService.Unit distanceUnit = DistanceConverterService.Unit.METERS;
+	@Nullable
+	private DistanceConverterService.Unit distanceUnit;
 
-	private final ToggleButton buttonMeasureMode = ResourceImageHolder.setButtonImage(ResourceImageHolder.RULER, new ToggleButton());
+	private final ToggleButton toggleButton = ResourceImageHolder.setButtonImage(ResourceImageHolder.RULER, new ToggleButton());
 	{
-		buttonMeasureMode.setTooltip(new Tooltip("Measure distance"));
+		toggleButton.setTooltip(new Tooltip("Measure distance"));
 	}
 
 	public MapRuler(Model model) {
 		this.mapField = model.getMapField();
 	}
 
-	public void clear() {
+	private void clearPoints() {
 		points = new ArrayList<>();
-		isMiddle = new ArrayList<>();
+		midpointFlags = new ArrayList<>();
 		activePointIndex = null;
 	}
 
-	public void init() {
+	private void initializePoints() {
 		points = new ArrayList<>(calculateInitialRulerPoints());
-		isMiddle = new ArrayList<>(Arrays.asList(false, false));
 		addMiddlePoint(0);
 	}
 
 	private List<LatLon> calculateInitialRulerPoints() {
-		LatLon centerLatLon = mapField.getSceneCenter();
-		if (centerLatLon == null) {
-			// Fallback to a default position if centerLatLon is null
+		LatLon centerMapContainer = mapField.getSceneCenter();
+		midpointFlags = new ArrayList<>(Arrays.asList(false, false));
+		if (centerMapContainer == null) {
 			return Arrays.asList(
 					mapField.screenTolatLon(new Point2D(100, 100)),
 					mapField.screenTolatLon(new Point2D(200, 200))
 			);
 		} else {
-			Point2D centerScreen = mapField.latLonToScreen(centerLatLon);
+			Point2D centerScreen = mapField.latLonToScreen(centerMapContainer);
 			double offset = 50;
 			Point2D left = new Point2D(centerScreen.getX() - offset, centerScreen.getY());
 			Point2D right = new Point2D(centerScreen.getX() + offset, centerScreen.getY());
@@ -75,15 +75,11 @@ public class MapRuler implements Layer {
 		}
 	}
 
-	public void initButtons() {
-		buttonMeasureMode.setSelected(false);
-	}
-
-	private void updateMeasureMode() {
-		if (buttonMeasureMode.isSelected()) {
-			init();
+	private void handleToggle() {
+		if (toggleButton.isSelected()) {
+			initializePoints();
 		} else {
-			clear();
+			clearPoints();
 		}
 		requestRepaint();
 	}
@@ -105,26 +101,17 @@ public class MapRuler implements Layer {
 		}
 	}
 
-	public List<Node> getToolNodes2() {
-		initButtons();
-		buttonMeasureMode.setOnAction(e -> updateMeasureMode());
-		return List.of(buttonMeasureMode);
+	public List<Node> buildToolNodes() {
+		toggleButton.setSelected(false);
+		toggleButton.setOnAction(e -> handleToggle());
+		return List.of(toggleButton);
 	}
 
 	@Override
 	public boolean mousePressed(Point2D point) {
-		if (points.size() == 1) {
-			// Add second point on first click
-			LatLon latLon = mapField.screenTolatLon(point);
-			points.add(latLon);
-			isMiddle.add(false);
-			requestRepaint();
-			return true;
-		}
-		// Existing logic for selecting points
-		List<Point2D> border = getScreenLine(mapField);
-		for (int i = 0; i < border.size(); i++) {
-			Point2D p = border.get(i);
+		List<Point2D> line = getScreenLine(mapField);
+		for (int i = 0; i < line.size(); i++) {
+			Point2D p = line.get(i);
 			if (point.distance(p) < RADIUS) {
 				activePointIndex = i;
 				requestRepaint();
@@ -141,8 +128,8 @@ public class MapRuler implements Layer {
 			return false;
 		}
 		if (activePointIndex != null) {
-			if (isMiddle.get(activePointIndex)) {
-				isMiddle.set(activePointIndex, false);
+			if (midpointFlags.get(activePointIndex)) {
+				midpointFlags.set(activePointIndex, false);
 				addMiddlePointsAround(activePointIndex);
 			}
 			requestRepaint();
@@ -179,7 +166,7 @@ public class MapRuler implements Layer {
 
 		for (int i = 0; i < points.size(); i++) {
 			Point2D p = line.get(i);
-			if (!isMiddle.get(i)) {
+			if (!midpointFlags.get(i)) {
 				g2.setColor(Color.WHITE);
 			} else {
 				g2.setColor(Color.GRAY);
@@ -194,21 +181,22 @@ public class MapRuler implements Layer {
 		}
 	}
 
-	private List<Point2D> getScreenLine(MapField fld) {
+	private List<Point2D> getScreenLine(MapField mapField) {
 		return points.stream()
-				.map(fld::latLonToScreen)
+				.map(mapField::latLonToScreen)
 				.toList();
 	}
 
-	public void addMiddlePoint(int index) {
-		if (index < 0 || index >= points.size() - 1) return;
+	private void addMiddlePoint(int index) {
+		if (index < 0 || index >= points.size() - 1) {
+			return;
+		}
 		LatLon p1 = points.get(index);
 		LatLon p2 = points.get(index + 1);
-		Point2D midScreen = mapField.latLonToScreen(p1).midpoint(mapField.latLonToScreen(p2));
-		LatLon midLatLon = mapField.screenTolatLon(midScreen);
+		LatLon midLatLon = p1.midpoint(p2);
 		if (!points.contains(midLatLon)) {
 			points.add(index + 1, midLatLon);
-			isMiddle.add(index + 1, true);
+			midpointFlags.add(index + 1, true);
 		}
 	}
 
@@ -220,19 +208,24 @@ public class MapRuler implements Layer {
 		addMiddlePoint(index + 1);
 	}
 
-	public String getDistanceString() {
+	public String getFormattedDistance() {
 		if (points.isEmpty()) {
-			return "";
+			return "n/a";
 		}
-		double totalDistance = 0.0;
+		double totalDistanceMeters = 0.0;
 		for (int i = 0; i < points.size() - 1; i++) {
-			totalDistance += mapField.latLonDistance(points.get(i), points.get(i + 1));
+			totalDistanceMeters += mapField.latLonDistance(points.get(i), points.get(i + 1));
 		}
-		double value = DistanceConverterService.convert(totalDistance, distanceUnit);
+		double value;
+		if (distanceUnit == null) {
+			value = DistanceConverterService.convert(totalDistanceMeters, DistanceConverterService.Unit.getDefault());
+		} else {
+			value = DistanceConverterService.convert(totalDistanceMeters, distanceUnit);
+		}
 		return String.format("Distance: %.2f", value);
 	}
 
 	public boolean isVisible() {
-		return !points.isEmpty();
+		return points.size() > 1;
 	}
 }

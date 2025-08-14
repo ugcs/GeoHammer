@@ -11,16 +11,17 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 
 public class DistanceLabelPane extends BorderPane {
-	private final Label distanceLabel = new Label();
 
 	public DistanceLabelPane(MapRuler mapRuler, Runnable updateUI, Runnable visibilityChanged) {
 		ComboBox<String> unitComboBox = new ComboBox<>(
 				FXCollections.observableArrayList(
 						Arrays.stream(DistanceConverterService.Unit.values())
-								.map(DistanceConverterService::getUnitLabel)
+								.map(DistanceConverterService.Unit::getLabel)
 								.toList())
 		);
-		unitComboBox.setValue(DistanceConverterService.getUnitLabel(DistanceConverterService.Unit.METERS));
+		Label distanceLabel = new Label();
+
+		unitComboBox.setValue(DistanceConverterService.Unit.METERS.getLabel());
 		unitComboBox.setPrefWidth(65);
 
 		distanceLabel.setPrefHeight(30);
@@ -32,7 +33,7 @@ public class DistanceLabelPane extends BorderPane {
 
 		Runnable updateDistanceLabel = () -> {
 			if (mapRuler.isVisible()) {
-				distanceLabel.setText(mapRuler.getDistanceString());
+				distanceLabel.setText(mapRuler.getFormattedDistance());
 				distanceLabel.setVisible(true);
 				hBox.setVisible(true);
 				visibilityChanged.run();
@@ -46,7 +47,7 @@ public class DistanceLabelPane extends BorderPane {
 
 		unitComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
 			DistanceConverterService.Unit unit = Arrays.stream(DistanceConverterService.Unit.values())
-					.filter(u -> DistanceConverterService.getUnitLabel(u).equals(newVal))
+					.filter(u -> u.getLabel().equals(newVal))
 					.findFirst()
 					.orElse(DistanceConverterService.Unit.METERS);
 			mapRuler.setDistanceUnit(unit);

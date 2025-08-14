@@ -235,7 +235,7 @@ public class MapView implements InitializingBean {
 		
 		toolBar.setDisable(true);
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
-		toolBar.getItems().addAll(mapRuler.getToolNodes2());
+		toolBar.getItems().addAll(mapRuler.buildToolNodes());
 		toolBar.getItems().add(getSpacer());
 
 

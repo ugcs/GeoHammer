@@ -199,11 +199,15 @@ public class TraceCutter implements Layer, InitializingBean {
 		points.get(active).from(mapField.screenTolatLon(point));
 		if (active % 2 == 0) {
 			if (!isActive(active + 1)) {
-				points.get(active + 1).from(TraceCutInitializer.getMiddleOf((active + 2) < points.size() ? points.get(active + 2) : points.get(0), mapField.screenTolatLon(point)));
+				LatLon point1 = (active + 2) < points.size() ? points.get(active + 2) : points.getFirst();
+				LatLon point2 = mapField.screenTolatLon(point);
+				points.get(active + 1).from(point1.midpoint(point2));
 			}
 			if (!isActive(active == 0 ? points.size() - 1 : active - 1)) {
-				(active == 0 ? points.get(points.size() - 1) : points.get(active - 1))
-				.from(TraceCutInitializer.getMiddleOf(active == 0 ? points.get(points.size() - 2) : points.get(active - 2), mapField.screenTolatLon(point)));
+				LatLon point1 = (active == 0 ? points.get(points.size() - 2) : points.get(active - 2));
+				LatLon point2 = mapField.screenTolatLon(point);
+				(active == 0 ? points.getLast() : points.get(active - 1))
+						.from(point1.midpoint(point2));
 			}
 		} else {
 			activePoints.put(active, !isInTheMiddle(active));

@@ -65,6 +65,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import javax.annotation.Nullable;
+
 @Component
 public class OptionPane extends VBox implements InitializingBean {
 
@@ -135,7 +137,7 @@ public class OptionPane extends VBox implements InitializingBean {
 	private Button showGriddingAllButton;
 	private RangeSlider griddingRangeSlider;
 	private StatisticsView statisticsView;
-	private ScriptExecutionView scriptExecutionView;
+	@Nullable private ScriptExecutionView scriptExecutionView;
 
 	@Autowired
 	private PythonScriptExecutorService pythonScriptExecutorService;
@@ -154,6 +156,8 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private void prepareTabPane() {
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+
+		prepareCsvTab(csvTab);
 	}
 
 	private void prepareCsvTab(Tab tab) {
@@ -1291,11 +1295,13 @@ public class OptionPane extends VBox implements InitializingBean {
 
         if (selectedFile instanceof CsvFile) {
             showTab(csvTab);
-			prepareCsvTab(csvTab);
 			if (statisticsView != null) {
 				Platform.runLater(() -> {
 					statisticsView.update(event.getFile());
 				});
+			}
+			if (scriptExecutionView != null) {
+				scriptExecutionView.updateView(event.getFile());
 			}
 			//setGriddingMinMax();
 			Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());

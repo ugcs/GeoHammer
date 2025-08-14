@@ -26,6 +26,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -49,11 +50,16 @@ import javafx.scene.layout.Region;
 
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 
+import javax.annotation.Nullable;
+
 @Component
 public class MapView implements InitializingBean {
 	
 	@Autowired
 	private TraceCutter traceCutter;
+
+	@Autowired
+	private MapRuler mapRuler;
 	
 	@Autowired
 	private Model model;
@@ -102,6 +108,9 @@ public class MapView implements InitializingBean {
 	private ToolBar toolBar = new ToolBar();
 	private Dimension windowSize = new Dimension();
 
+	private final BorderPane root = new BorderPane();
+	@Nullable private DistanceLabelPane distanceLabelPane;
+
 	protected RepaintListener listener = this::updateUI;
 	
 	@Override
@@ -127,6 +136,9 @@ public class MapView implements InitializingBean {
 		//TODO: bad style
 		traceCutter.setListener(listener);		
 		getLayers().add(traceCutter);
+
+		mapRuler.setRepaintCallback(() -> listener.repaint());
+		getLayers().add(mapRuler);
 
 		initImageView();
 		
@@ -223,6 +235,7 @@ public class MapView implements InitializingBean {
 		
 		toolBar.setDisable(true);
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
+		toolBar.getItems().addAll(mapRuler.buildToolNodes());
 		toolBar.getItems().add(getSpacer());
 
 
@@ -242,8 +255,20 @@ public class MapView implements InitializingBean {
 		
 		sp1.widthProperty().addListener(sp1SizeListener);
 		sp1.heightProperty().addListener(sp1SizeListener);
+
+		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
+		updateDistanceLabelPaneVisibility();
+		root.setCenter(sp1);
 		
-		return sp1;
+		return root;
+	}
+
+	private void updateDistanceLabelPaneVisibility() {
+		if (mapRuler.isVisible()) {
+			root.setBottom(distanceLabelPane);
+		} else {
+			root.setBottom(null);
+		}
 	}
 
 	public List<Node> getRight(SgyFile dataFile) {
@@ -426,8 +451,8 @@ public class MapView implements InitializingBean {
 	}
 
 	private Point2D getLocalCoords(double x, double y) {
-		javafx.geometry.Point2D sceneCoords  = new javafx.geometry.Point2D(x, y);
-		javafx.geometry.Point2D imgCoord = imageView.sceneToLocal(sceneCoords);
+		Point2D sceneCoords  = new Point2D(x, y);
+		Point2D imgCoord = imageView.sceneToLocal(sceneCoords);
 		Point2D p = new Point2D(
 				imgCoord.getX() - imageView.getBoundsInLocal().getWidth() / 2,
 				imgCoord.getY() - imageView.getBoundsInLocal().getHeight() / 2);

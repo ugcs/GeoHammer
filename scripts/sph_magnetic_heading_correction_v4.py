@@ -10,10 +10,6 @@ from scipy.ndimage import gaussian_filter1d
 def main():
     parser = argparse.ArgumentParser(description="Corrects and filters magnetic and IMU survey data, applies regression models, and exports the processed results to a CSV file.")
     parser.add_argument("file_path", help='File path')
-    parser.add_argument("--start_latitude", type=float, help="Start point latitude", default=None)
-    parser.add_argument("--start_longitude", type=float, help="Start point longitude", default=None)
-    parser.add_argument("--end_latitude", type=float, help="End point latitude", default=None)
-    parser.add_argument("--end_longitude", type=float, help="End point longitude", default=None)
     args = parser.parse_args()
 
     input_file = args.file_path

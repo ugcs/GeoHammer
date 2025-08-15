@@ -23,12 +23,12 @@ def main():
     default_end = [data_cleaned['Longitude'].iloc[-1], data_cleaned['Latitude'].iloc[-1]]
 
     start_point = [
-         args.start_longitude if args.start_longitude is not None else default_start[0],
-         args.start_latitude if args.start_latitude is not None else default_start[1]
+         default_start[0],
+         default_start[1]
     ]
     end_point = [
-         args.end_longitude if args.end_longitude is not None else default_end[0],
-         args.end_latitude if args.end_latitude is not None else default_end[1]
+         default_end[0],
+         default_end[1]
     ]
 
     # List column names

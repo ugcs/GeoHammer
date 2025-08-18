@@ -269,7 +269,12 @@ public class Saver implements ToolProducer, InitializingBean {
 				LAST_OPEN_FOLDER_SETTING_KEY);
 
 		if (lastOpenFolderPath != null) {
-			fileChooser.setInitialDirectory(new File(lastOpenFolderPath));
+			File file = new File(lastOpenFolderPath);
+			if (file.exists() && file.isDirectory()) {
+				fileChooser.setInitialDirectory(file);
+			} else {
+				log.warn("Last open folder does not exist: {}", lastOpenFolderPath);
+			}
 		}
 
 		List<File> selectedFiles = Nulls.toEmpty(fileChooser

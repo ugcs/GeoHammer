@@ -27,7 +27,7 @@ public class MapRuler implements Layer {
 	private static final int RADIUS = 5;
 
 	private final MapField mapField;
-	private List<RulerPoint> points = new ArrayList<>();
+	private List<Point> points = new ArrayList<>();
 	@Nullable
 	private Integer activePointIndex = null;
 	@Nullable
@@ -53,7 +53,7 @@ public class MapRuler implements Layer {
 		List<LatLon> points = calculateInitialRulerPoints();
 		this.points = new ArrayList<>(points.size() + 1);
 		for (LatLon point : points) {
-			this.points.add(new RulerPoint(point, false));
+			this.points.add(new Point(point, false));
 		}
 		addMiddlePoint(0);
 	}
@@ -148,7 +148,7 @@ public class MapRuler implements Layer {
 		if (points.isEmpty() || currentIndex == null) {
 			return false;
 		}
-		points.get(currentIndex).getPoint().from(mapField.screenTolatLon(point));
+		points.get(currentIndex).getLocation().from(mapField.screenTolatLon(point));
 		requestRepaint();
 		return true;
 	}
@@ -186,7 +186,7 @@ public class MapRuler implements Layer {
 
 	private List<Point2D> getScreenLine(MapField mapField) {
 		return points.stream()
-				.map((p) -> mapField.latLonToScreen(p.getPoint()))
+				.map((p) -> mapField.latLonToScreen(p.getLocation()))
 				.toList();
 	}
 
@@ -194,14 +194,14 @@ public class MapRuler implements Layer {
 		if (index < 0 || index >= points.size() - 1) {
 			return;
 		}
-		LatLon p1 = points.get(index).getPoint();
-		LatLon p2 = points.get(index + 1).getPoint();
+		LatLon p1 = points.get(index).getLocation();
+		LatLon p2 = points.get(index + 1).getLocation();
 		LatLon midLatLon = p1.midpoint(p2);
 		List<LatLon> pointsList = points.stream()
-				.map(RulerPoint::getPoint)
+				.map(Point::getLocation)
 				.toList();
 		if (!pointsList.contains(midLatLon)) {
-			points.add(index + 1, new RulerPoint(midLatLon, true));
+			points.add(index + 1, new Point(midLatLon, true));
 		}
 	}
 
@@ -219,7 +219,7 @@ public class MapRuler implements Layer {
 		}
 		double totalDistanceMeters = 0.0;
 		for (int i = 0; i < points.size() - 1; i++) {
-			totalDistanceMeters += mapField.latLonDistance(points.get(i).getPoint(), points.get(i + 1).getPoint());
+			totalDistanceMeters += mapField.latLonDistance(points.get(i).getLocation(), points.get(i + 1).getLocation());
 		}
 		double value;
 		if (distanceUnit == null) {
@@ -234,16 +234,16 @@ public class MapRuler implements Layer {
 		return points.size() > 1;
 	}
 
-	private static final class RulerPoint {
-		private final LatLon point;
+	private static final class Point {
+		private final LatLon location;
 		private boolean midpoint;
 
-		RulerPoint(@Nonnull LatLon point, boolean midpoint) {
-			this.point = point;
+		Point(@Nonnull LatLon location, boolean midpoint) {
+			this.location = location;
 			this.midpoint = midpoint;
 		}
 
-		public LatLon getPoint() { return point; }
+		public LatLon getLocation() { return location; }
 		public boolean isMidpoint() { return midpoint; }
 
 		public void setMidpoint(boolean midpoint) {

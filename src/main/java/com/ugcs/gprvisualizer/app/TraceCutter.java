@@ -38,19 +38,19 @@ import javafx.scene.control.Tooltip;
 public class TraceCutter implements Layer, InitializingBean {
 
 	private static final int RADIUS = 5;
-	
+
 	private MapField mapField;
-	private List<LatLon> points;	
+	private List<LatLon> points;
 	private Integer active = null;
 
 	Map<Integer, Boolean> activePoints = new HashMap<>();
-	
+
 	private final Model model;
 	private final UndoModel undoModel;
 	private final TraceTransform traceTransform;
-	
+
 	private RepaintListener listener;
-	
+
 	private ToggleButton buttonCutMode = ResourceImageHolder.setButtonImage(ResourceImageHolder.SELECT_RECT, new ToggleButton());
 	private Button buttonCrop = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP, new Button());
 	private Button buttonSplit = ResourceImageHolder.setButtonImage(ResourceImageHolder.SPLIT, new Button());
@@ -83,7 +83,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		activePoints.clear();
 	}
 
-	public void init() {		
+	public void init() {
 		points = new TraceCutInitializer().initialRect(model);
 		activePoints.clear();
 	}
@@ -157,7 +157,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		if (points == null) {
 			return false;
 		}
-		
+
 		List<Point2D> border = getScreenPoligon(mapField);
 		for (int i = 0; i < border.size(); i++) {
 			Point2D p = border.get(i);
@@ -165,37 +165,41 @@ public class TraceCutter implements Layer, InitializingBean {
 				active = i;
 				getListener().repaint();
 				return true;
-			}			
+			}
 		}
 		active = null;
 		return false;
 	}
-	
+
 	@Override
 	public boolean mouseRelease(Point2D point) {
 		if (points == null) {
 			return false;
 		}
-		
+
 		if (active != null) {
+			if (activePoints != null && activePoints.getOrDefault(active, false)) {
+				activePoints.put(active, false);
+				addMiddlePointsAround(active);
+			}
 			getListener().repaint();
 			active = null;
-		
+
 			return true;
 		}
 		return false;
 	}
-	
+
 	@Override
 	public boolean mouseMove(Point2D point) {
 		if (points == null) {
 			return false;
 		}
-		
+
 		if (active == null) {
 			return false;
 		}
-		
+
 		points.get(active).from(mapField.screenTolatLon(point));
 		if (active % 2 == 0) {
 			if (!isActive(active + 1)) {
@@ -213,10 +217,10 @@ public class TraceCutter implements Layer, InitializingBean {
 			activePoints.put(active, !isInTheMiddle(active));
 		}
 
-		getListener().repaint();		
+		getListener().repaint();
 		return true;
 	}
-	
+
 	private boolean isActive(int pointIndex) {
 		return activePoints.computeIfAbsent(pointIndex, i -> false);
 	}
@@ -226,29 +230,29 @@ public class TraceCutter implements Layer, InitializingBean {
 		if (points == null) {
 			return;
 		}
-		
+
 		List<Point2D> border = getScreenPoligon(mapField);
-		
+
 		for (int i = 0; i < border.size(); i++) {
-			
+
 			Point2D p1 = border.get(i);
 			Point2D p2 = border.get((i + 1) % border.size());
-			
+
 			g2.setColor(Color.YELLOW);
-			g2.drawLine((int) p1.getX(), (int) p1.getY(), 
+			g2.drawLine((int) p1.getX(), (int) p1.getY(),
 					(int) p2.getX(), (int) p2.getY());
 		}
-		
+
 		for (int i = 0; i < border.size(); i++) {
-			Point2D p1 = border.get(i);			
-			
-			if ((i+1) % 2 == 0 && !isActive(i)) {
+			Point2D p1 = border.get(i);
+
+			if ((i + 1) % 2 == 0) {
 				g2.setColor(Color.GRAY);
 			} else {
 				g2.setColor(Color.WHITE);
 			}
-			 
-			g2.fillOval((int) p1.getX() - RADIUS, 
+
+			g2.fillOval((int) p1.getX() - RADIUS,
 					(int) p1.getY() - RADIUS,
 					2 * RADIUS, 2 * RADIUS);
 			if (active != null && active == i) {
@@ -256,23 +260,57 @@ public class TraceCutter implements Layer, InitializingBean {
 				g2.drawOval((int) p1.getX() - RADIUS,
 						(int) p1.getY() - RADIUS,
 						2 * RADIUS, 2 * RADIUS);
-			}			
-		}		
+			}
+		}
 	}
 
 	private boolean isInTheMiddle(int pointIndex) {
 		List<Point2D> border = getScreenPoligon(mapField);
 		return isInTheMiddle(
-			border.get(pointIndex - 1), 
-			border.get(pointIndex), 
-			(pointIndex + 1 < border.size()) ? border.get(pointIndex + 1) : border.get(0));
+				border.get(pointIndex - 1),
+				border.get(pointIndex),
+				(pointIndex + 1 < border.size()) ? border.get(pointIndex + 1) : border.get(0));
 	}
-	
+
 	private boolean isInTheMiddle(Point2D before, Point2D current, Point2D after) {
 		double dist = before.distance(after);
 		double dist1 = before.distance(current);
 		double dist2 = current.distance(after);
 		return Math.abs(dist1 + dist2 - dist) < 0.05;
+	}
+
+	private void addMiddlePoint(int index) {
+		if (points == null || points.size() < 2) {
+			return;
+		}
+
+		int nextIndex = (index + 1) % points.size();
+
+		LatLon current = points.get(index);
+		LatLon next = points.get(nextIndex);
+		LatLon mid = current.midpoint(next);
+
+		if (points.contains(mid)) {
+			return;
+		}
+
+		int insertPos = index + 1;
+		points.add(insertPos, mid);
+		activePoints.put(insertPos, true);
+	}
+
+	private void addMiddlePointsAround(int index) {
+		if (points == null || points.size() < 2) {
+			return;
+		}
+
+		int sizeBefore = points.size();
+
+		int leftIndex = (index - 1 + sizeBefore) % sizeBefore;
+		addMiddlePoint(leftIndex);
+
+		int rightIndex = (index + 1) % points.size();
+		addMiddlePoint(rightIndex);
 	}
 
 	private List<Point2D> getScreenPoligon(MapField fld) {
@@ -329,7 +367,7 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	public static List<BaseObject> copyAuxObjects(SgyFile file, SgyFile sgyFile, int begin, int end) {
-		List<BaseObject> auxObjects = new ArrayList<>();				
+		List<BaseObject> auxObjects = new ArrayList<>();
 		for (BaseObject au : file.getAuxElements()) {
 			if (au.isFit(begin, end)) {
 				BaseObject copy = au.copy(begin);
@@ -342,12 +380,12 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	@EventListener
-    public void onFileOpened(FileOpenedEvent event) {
+	public void onFileOpened(FileOpenedEvent event) {
 		//TODO: maybe we need other event for this
-        clear();
-        //undoFiles.clear();
-        initButtons();
-    }
+		clear();
+		//undoFiles.clear();
+		initButtons();
+	}
 
 	@EventListener
 	private void fileSelected(FileSelectedEvent event) {

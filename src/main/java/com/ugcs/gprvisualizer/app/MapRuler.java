@@ -18,6 +18,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Component
@@ -26,8 +27,7 @@ public class MapRuler implements Layer {
 	private static final int RADIUS = 5;
 
 	private final MapField mapField;
-	private List<LatLon> points = new ArrayList<>();
-	private List<Boolean> midpointFlags = new ArrayList<>();
+	private List<RulerPoint> points = new ArrayList<>();
 	@Nullable
 	private Integer activePointIndex = null;
 	@Nullable
@@ -46,18 +46,20 @@ public class MapRuler implements Layer {
 
 	private void clearPoints() {
 		points = new ArrayList<>();
-		midpointFlags = new ArrayList<>();
 		activePointIndex = null;
 	}
 
 	private void initializePoints() {
-		points = new ArrayList<>(calculateInitialRulerPoints());
+		List<LatLon> points = calculateInitialRulerPoints();
+		this.points = new ArrayList<>(points.size() + 1);
+		for (LatLon point : points) {
+			this.points.add(new RulerPoint(point, false));
+		}
 		addMiddlePoint(0);
 	}
 
 	private List<LatLon> calculateInitialRulerPoints() {
 		LatLon centerMapContainer = mapField.getSceneCenter();
-		midpointFlags = new ArrayList<>(Arrays.asList(false, false));
 		if (centerMapContainer == null) {
 			return Arrays.asList(
 					mapField.screenTolatLon(new Point2D(100, 100)),
@@ -128,9 +130,10 @@ public class MapRuler implements Layer {
 			return false;
 		}
 		if (activePointIndex != null) {
-			if (midpointFlags.get(activePointIndex)) {
-				midpointFlags.set(activePointIndex, false);
-				addMiddlePointsAround(activePointIndex);
+			int index = activePointIndex;
+			if (points.get(index).isMidpoint()) {
+				points.get(index).setMidpoint(false);
+				addMiddlePointsAround(index);
 			}
 			requestRepaint();
 			activePointIndex = null;
@@ -145,7 +148,7 @@ public class MapRuler implements Layer {
 		if (points.isEmpty() || currentIndex == null) {
 			return false;
 		}
-		points.get(currentIndex).from(mapField.screenTolatLon(point));
+		points.get(currentIndex).getPoint().from(mapField.screenTolatLon(point));
 		requestRepaint();
 		return true;
 	}
@@ -166,7 +169,7 @@ public class MapRuler implements Layer {
 
 		for (int i = 0; i < points.size(); i++) {
 			Point2D p = line.get(i);
-			if (!midpointFlags.get(i)) {
+			if (!points.get(i).isMidpoint()) {
 				g2.setColor(Color.WHITE);
 			} else {
 				g2.setColor(Color.GRAY);
@@ -183,7 +186,7 @@ public class MapRuler implements Layer {
 
 	private List<Point2D> getScreenLine(MapField mapField) {
 		return points.stream()
-				.map(mapField::latLonToScreen)
+				.map((p) -> mapField.latLonToScreen(p.getPoint()))
 				.toList();
 	}
 
@@ -191,12 +194,14 @@ public class MapRuler implements Layer {
 		if (index < 0 || index >= points.size() - 1) {
 			return;
 		}
-		LatLon p1 = points.get(index);
-		LatLon p2 = points.get(index + 1);
+		LatLon p1 = points.get(index).getPoint();
+		LatLon p2 = points.get(index + 1).getPoint();
 		LatLon midLatLon = p1.midpoint(p2);
-		if (!points.contains(midLatLon)) {
-			points.add(index + 1, midLatLon);
-			midpointFlags.add(index + 1, true);
+		List<LatLon> pointsList = points.stream()
+				.map(RulerPoint::getPoint)
+				.toList();
+		if (!pointsList.contains(midLatLon)) {
+			points.add(index + 1, new RulerPoint(midLatLon, true));
 		}
 	}
 
@@ -214,7 +219,7 @@ public class MapRuler implements Layer {
 		}
 		double totalDistanceMeters = 0.0;
 		for (int i = 0; i < points.size() - 1; i++) {
-			totalDistanceMeters += mapField.latLonDistance(points.get(i), points.get(i + 1));
+			totalDistanceMeters += mapField.latLonDistance(points.get(i).getPoint(), points.get(i + 1).getPoint());
 		}
 		double value;
 		if (distanceUnit == null) {
@@ -227,5 +232,22 @@ public class MapRuler implements Layer {
 
 	public boolean isVisible() {
 		return points.size() > 1;
+	}
+
+	private static final class RulerPoint {
+		private final LatLon point;
+		private boolean midpoint;
+
+		RulerPoint(@Nonnull LatLon point, boolean midpoint) {
+			this.point = point;
+			this.midpoint = midpoint;
+		}
+
+		public LatLon getPoint() { return point; }
+		public boolean isMidpoint() { return midpoint; }
+
+		public void setMidpoint(boolean midpoint) {
+			this.midpoint = midpoint;
+		}
 	}
 }

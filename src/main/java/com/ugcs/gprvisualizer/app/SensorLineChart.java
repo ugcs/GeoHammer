@@ -1285,6 +1285,12 @@ public class SensorLineChart extends Chart {
                     } 
                     if (filteredData != null) {
                         addSeriesDataFiltered(series, filteredData, lowerIndex, upperIndex);
+
+                        Node lineNode = series.getNode() != null ? series.getNode().lookup(".chart-series-line") : null;
+                        if (lineNode != null) {
+                            lineNode.setStyle(emphasizeStyle(plotData.getPlotStyle()));
+                        }
+
                         if (!filteredData.rendered) {
                             filteredData = filteredData.render();
                         }
@@ -1729,6 +1735,10 @@ public class SensorLineChart extends Chart {
                 .filter(c -> seriesName.equals(c.plotData.semantic))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private static String emphasizeStyle(String baseStyle) {
+        return baseStyle + "-fx-stroke-width: 8.0px;";
     }
 
     public boolean isSameTemplate(CsvFile selectedFile) {

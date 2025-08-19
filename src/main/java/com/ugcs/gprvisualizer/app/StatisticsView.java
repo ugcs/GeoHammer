@@ -159,14 +159,12 @@ public class StatisticsView extends VBox {
             String valueText = NO_VALUE;
             TraceKey selectedTrace = model.getSelectedTrace(chart);
             if (selectedTrace != null) {
-                GeoData geoData = values.get(selectedTrace.getIndex());
-                if (geoData != null) {
-                    SensorValue sensorValue = geoData.getSensorValue(series);
-                    if (sensorValue != null && sensorValue.data() != null) {
-                        valueText = formatValue(sensorValue.data().doubleValue());
-                        if (!Strings.isNullOrEmpty(sensorValue.units())) {
-                            valueText += " " + sensorValue.units();
-                        }
+                int index = selectedTrace.getIndex();
+                SensorValue sensorValue = findNearestSensorValue(values, series, index);
+                if (hasData(sensorValue)) {
+                    valueText = formatValue(sensorValue.data().doubleValue());
+                    if (!Strings.isNullOrEmpty(sensorValue.units())) {
+                        valueText += " " + sensorValue.units();
                     }
                 }
             }
@@ -176,6 +174,48 @@ public class StatisticsView extends VBox {
         if (metricsView != null) {
             metricsView.update();
         }
+    }
+
+    @Nullable
+    private SensorValue findNearestSensorValue(List<GeoData> values, String semantic, int index) {
+        if (values == null) {
+            return null;
+        }
+        int size = values != null ? values.size() : 0;
+        if (values.isEmpty() || index < 0 || index >= size) {
+            return null;
+        }
+
+        SensorValue sensorValue = values.get(index) != null ? values.get(index).getSensorValue(semantic) : null;
+        if (hasData(sensorValue)) {
+            return sensorValue;
+        }
+
+        int leftIndex = index - 1;
+        int rightIndex = index + 1;
+        while (leftIndex >= 0 || rightIndex < size) {
+            if (leftIndex >= 0) {
+                GeoData geoData = values.get(leftIndex);
+                SensorValue leftSensorValue = geoData != null ? geoData.getSensorValue(semantic) : null;
+                if (hasData(leftSensorValue)) {
+                    return leftSensorValue;
+                }
+                leftIndex--;
+            }
+            if (rightIndex < size) {
+                GeoData geoData = values.get(rightIndex);
+                SensorValue rightSensorValue = geoData != null ? geoData.getSensorValue(semantic) : null;
+                if (hasData(rightSensorValue)) {
+                    return rightSensorValue;
+                }
+                rightIndex++;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasData(@Nullable SensorValue sensorValue) {
+        return sensorValue != null && sensorValue.data() != null;
     }
 
     private String formatValue(double value) {

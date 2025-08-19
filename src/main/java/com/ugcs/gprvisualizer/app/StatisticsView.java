@@ -178,6 +178,9 @@ public class StatisticsView extends VBox {
 
     @Nullable
     private SensorValue findNearestSensorValue(List<GeoData> values, String semantic, int index) {
+        if (values == null) {
+            return null;
+        }
         int size = values != null ? values.size() : 0;
         if (values.isEmpty() || index < 0 || index >= size) {
             return null;

@@ -35,7 +35,8 @@ public class MapRuler implements Layer {
 	@Nullable
 	private DistanceConverterService.Unit distanceUnit;
 
-	private final ToggleButton toggleButton = ResourceImageHolder.setButtonImage(ResourceImageHolder.RULER, new ToggleButton());
+	private final ToggleButton toggleButton =
+			ResourceImageHolder.setButtonImage(ResourceImageHolder.RULER, new ToggleButton());
 	{
 		toggleButton.setTooltip(new Tooltip("Measure distance"));
 	}
@@ -50,30 +51,27 @@ public class MapRuler implements Layer {
 	}
 
 	private void initializePoints() {
-		List<LatLon> points = calculateInitialRulerPoints();
-		this.points = new ArrayList<>(points.size() + 1);
-		for (LatLon point : points) {
-			this.points.add(new Point(point, false));
+		List<LatLon> initialPositions = calculateInitialRulerPoints();
+		this.points = new ArrayList<>(initialPositions.size() + 1);
+		for (LatLon pos : initialPositions) {
+			this.points.add(new Point(pos, false));
 		}
 		addMiddlePoint(0);
 	}
 
 	private List<LatLon> calculateInitialRulerPoints() {
-		LatLon centerMapContainer = mapField.getSceneCenter();
-		if (centerMapContainer == null) {
+		LatLon center = mapField.getSceneCenter();
+		if (center == null) {
 			return Arrays.asList(
 					mapField.screenTolatLon(new Point2D(100, 100)),
 					mapField.screenTolatLon(new Point2D(200, 200))
 			);
 		} else {
-			Point2D centerScreen = mapField.latLonToScreen(centerMapContainer);
-			double offset = 50;
+			Point2D centerScreen = mapField.latLonToScreen(center);
+			double offset = 50.0;
 			Point2D left = new Point2D(centerScreen.getX() - offset, centerScreen.getY());
 			Point2D right = new Point2D(centerScreen.getX() + offset, centerScreen.getY());
-			return Arrays.asList(
-					mapField.screenTolatLon(left),
-					mapField.screenTolatLon(right)
-			);
+			return Arrays.asList(mapField.screenTolatLon(left), mapField.screenTolatLon(right));
 		}
 	}
 
@@ -92,9 +90,7 @@ public class MapRuler implements Layer {
 
 	public void setDistanceUnit(DistanceConverterService.Unit unit) {
 		this.distanceUnit = unit;
-		if (repaintCallback != null) {
-			repaintCallback.run();
-		}
+		requestRepaint();
 	}
 
 	private void requestRepaint() {
@@ -113,8 +109,7 @@ public class MapRuler implements Layer {
 	public boolean mousePressed(Point2D point) {
 		List<Point2D> line = getScreenLine(mapField);
 		for (int i = 0; i < line.size(); i++) {
-			Point2D p = line.get(i);
-			if (point.distance(p) < RADIUS) {
+			if (point.distance(line.get(i)) < RADIUS) {
 				activePointIndex = i;
 				requestRepaint();
 				return true;
@@ -126,31 +121,57 @@ public class MapRuler implements Layer {
 
 	@Override
 	public boolean mouseRelease(Point2D point) {
-		if (points.isEmpty()) {
+		if (points.isEmpty() || activePointIndex == null) {
 			return false;
 		}
-		if (activePointIndex != null) {
-			int index = activePointIndex;
-			if (points.get(index).isMidpoint()) {
-				points.get(index).setMidpoint(false);
-				addMiddlePointsAround(index);
-			}
-			requestRepaint();
-			activePointIndex = null;
-			return true;
+		int index = activePointIndex;
+		if (points.get(index).isMidpoint()) {
+			// Convert grey to white and insert new grey midpoints around it.
+			points.get(index).setMidpoint(false);
+			addMiddlePointsAround(index);
 		}
-		return false;
+		activePointIndex = null;
+		requestRepaint();
+		return true;
 	}
 
 	@Override
 	public boolean mouseMove(Point2D point) {
-		Integer currentIndex = activePointIndex;
-		if (points.isEmpty() || currentIndex == null) {
+		Integer idx = activePointIndex;
+		if (points.isEmpty() || idx == null) {
 			return false;
 		}
-		points.get(currentIndex).getLocation().from(mapField.screenTolatLon(point));
+
+		LatLon newPosition = mapField.screenTolatLon(point);
+		points.get(idx).getLocation().from(newPosition);
+
+		// While dragging a white point, keep adjacent grey midpoints centered.
+		if (!points.get(idx).isMidpoint()) {
+			updateAdjacentMidpoints(idx);
+		}
+
 		requestRepaint();
 		return true;
+	}
+
+	private void updateAdjacentMidpoints(int whiteIdx) {
+		// Left grey midpoint between whiteIdx-2 and whiteIdx
+		int leftMid = whiteIdx - 1;
+		int leftWhite = whiteIdx - 2;
+		if (leftMid >= 0 && leftWhite >= 0 && points.get(leftMid).isMidpoint()) {
+			LatLon a = points.get(leftWhite).getLocation();
+			LatLon b = points.get(whiteIdx).getLocation();
+			points.get(leftMid).getLocation().from(a.midpoint(b));
+		}
+
+		// Right grey midpoint between whiteIdx and whiteIdx+2
+		int rightMid = whiteIdx + 1;
+		int rightWhite = whiteIdx + 2;
+		if (rightMid < points.size() && rightWhite < points.size() && points.get(rightMid).isMidpoint()) {
+			LatLon a = points.get(whiteIdx).getLocation();
+			LatLon b = points.get(rightWhite).getLocation();
+			points.get(rightMid).getLocation().from(a.midpoint(b));
+		}
 	}
 
 	@Override
@@ -158,7 +179,7 @@ public class MapRuler implements Layer {
 		if (points.isEmpty()) {
 			return;
 		}
-		List<Point2D> line = getScreenLine(mapField);
+		List<Point2D> line = getScreenLine(fixedField);
 
 		g2.setColor(Color.GREEN);
 		for (int i = 0; i < line.size() - 1; i++) {
@@ -169,11 +190,7 @@ public class MapRuler implements Layer {
 
 		for (int i = 0; i < points.size(); i++) {
 			Point2D p = line.get(i);
-			if (!points.get(i).isMidpoint()) {
-				g2.setColor(Color.WHITE);
-			} else {
-				g2.setColor(Color.GRAY);
-			}
+			g2.setColor(points.get(i).isMidpoint() ? Color.GRAY : Color.WHITE);
 			g2.fillRect((int) p.getX() - RADIUS, (int) p.getY() - RADIUS, 2 * RADIUS, 2 * RADIUS);
 		}
 
@@ -184,9 +201,9 @@ public class MapRuler implements Layer {
 		}
 	}
 
-	private List<Point2D> getScreenLine(MapField mapField) {
+	private List<Point2D> getScreenLine(MapField field) {
 		return points.stream()
-				.map((p) -> mapField.latLonToScreen(p.getLocation()))
+				.map(p -> field.latLonToScreen(p.getLocation()))
 				.toList();
 	}
 
@@ -197,10 +214,8 @@ public class MapRuler implements Layer {
 		LatLon p1 = points.get(index).getLocation();
 		LatLon p2 = points.get(index + 1).getLocation();
 		LatLon midLatLon = p1.midpoint(p2);
-		List<LatLon> pointsList = points.stream()
-				.map(Point::getLocation)
-				.toList();
-		if (!pointsList.contains(midLatLon)) {
+		List<LatLon> pts = points.stream().map(Point::getLocation).toList();
+		if (!pts.contains(midLatLon)) {
 			points.add(index + 1, new Point(midLatLon, true));
 		}
 	}
@@ -219,14 +234,13 @@ public class MapRuler implements Layer {
 		}
 		double totalDistanceMeters = 0.0;
 		for (int i = 0; i < points.size() - 1; i++) {
-			totalDistanceMeters += mapField.latLonDistance(points.get(i).getLocation(), points.get(i + 1).getLocation());
+			totalDistanceMeters += mapField.latLonDistance(
+					points.get(i).getLocation(), points.get(i + 1).getLocation());
 		}
-		double value;
-		if (distanceUnit == null) {
-			value = DistanceConverterService.convert(totalDistanceMeters, DistanceConverterService.Unit.getDefault());
-		} else {
-			value = DistanceConverterService.convert(totalDistanceMeters, distanceUnit);
-		}
+		double value = DistanceConverterService.convert(
+				totalDistanceMeters,
+				distanceUnit != null ? distanceUnit : DistanceConverterService.Unit.getDefault()
+		);
 		return String.format("Distance: %.2f", value);
 	}
 
@@ -245,9 +259,6 @@ public class MapRuler implements Layer {
 
 		public LatLon getLocation() { return location; }
 		public boolean isMidpoint() { return midpoint; }
-
-		public void setMidpoint(boolean midpoint) {
-			this.midpoint = midpoint;
-		}
+		public void setMidpoint(boolean midpoint) { this.midpoint = midpoint; }
 	}
 }

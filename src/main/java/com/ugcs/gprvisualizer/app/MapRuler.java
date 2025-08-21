@@ -25,6 +25,8 @@ import javax.annotation.Nullable;
 public class MapRuler implements Layer {
 
 	private static final int RADIUS = 5;
+	private static final double STRAIGHTNESS_TOLERANCE_PX = 2.0;
+	private static final double MIDPOINT_TOLERANCE_PX = 2.0;
 
 	private final MapField mapField;
 	private List<Point> points = new ArrayList<>();
@@ -126,9 +128,22 @@ public class MapRuler implements Layer {
 		}
 		int index = activePointIndex;
 		if (points.get(index).isMidpoint()) {
-			// Convert grey to white and insert new grey midpoints around it.
 			points.get(index).setMidpoint(false);
 			addMiddlePointsAround(index);
+		} else {
+			int leftMid = index - 1;
+			int leftAnchorIndex = index - 2;
+			int rightMid = index + 1;
+			int rightAnchorIndex = index + 2;
+			if (canCollapseSegment(index)) {
+				LatLon center = points.get(leftAnchorIndex).getLocation()
+						.midpoint(points.get(rightAnchorIndex).getLocation());
+				points.get(index).getLocation().from(center);
+				points.get(index).setMidpoint(true);
+
+				points.remove(rightMid);
+				points.remove(leftMid);
+			}
 		}
 		activePointIndex = null;
 		requestRepaint();
@@ -137,41 +152,93 @@ public class MapRuler implements Layer {
 
 	@Override
 	public boolean mouseMove(Point2D point) {
-		Integer idx = activePointIndex;
-		if (points.isEmpty() || idx == null) {
+		Integer index = activePointIndex;
+		if (points.isEmpty() || index == null) {
 			return false;
 		}
 
 		LatLon newPosition = mapField.screenTolatLon(point);
-		points.get(idx).getLocation().from(newPosition);
+		points.get(index).getLocation().from(newPosition);
 
-		// While dragging a white point, keep adjacent grey midpoints centered.
-		if (!points.get(idx).isMidpoint()) {
-			updateAdjacentMidpoints(idx);
+		if (!points.get(index).isMidpoint()) {
+			updateAdjacentMidpoints(index);
 		}
 
 		requestRepaint();
 		return true;
 	}
 
-	private void updateAdjacentMidpoints(int whiteIdx) {
-		// Left grey midpoint between whiteIdx-2 and whiteIdx
-		int leftMid = whiteIdx - 1;
-		int leftWhite = whiteIdx - 2;
-		if (leftMid >= 0 && leftWhite >= 0 && points.get(leftMid).isMidpoint()) {
-			LatLon a = points.get(leftWhite).getLocation();
-			LatLon b = points.get(whiteIdx).getLocation();
-			points.get(leftMid).getLocation().from(a.midpoint(b));
+	private void updateAdjacentMidpoints(int anchorIndex) {
+		int leftMid = anchorIndex - 1;
+		int leftAnchorIndex = anchorIndex - 2;
+		if (leftMid >= 0 && leftAnchorIndex >= 0 && points.get(leftMid).isMidpoint()) {
+			LatLon leftAnchorPosition = points.get(leftAnchorIndex).getLocation();
+			LatLon rightAnchorPosition = points.get(anchorIndex).getLocation();
+			points.get(leftMid).getLocation().from(leftAnchorPosition.midpoint(rightAnchorPosition));
 		}
 
-		// Right grey midpoint between whiteIdx and whiteIdx+2
-		int rightMid = whiteIdx + 1;
-		int rightWhite = whiteIdx + 2;
-		if (rightMid < points.size() && rightWhite < points.size() && points.get(rightMid).isMidpoint()) {
-			LatLon a = points.get(whiteIdx).getLocation();
-			LatLon b = points.get(rightWhite).getLocation();
-			points.get(rightMid).getLocation().from(a.midpoint(b));
+		int rightMid = anchorIndex + 1;
+		int rightAnchorIndex = anchorIndex + 2;
+		if (rightMid < points.size() && rightAnchorIndex < points.size() && points.get(rightMid).isMidpoint()) {
+			LatLon leftAnchorPosition = points.get(anchorIndex).getLocation();
+			LatLon rightAnchorPosition = points.get(rightAnchorIndex).getLocation();
+			points.get(rightMid).getLocation().from(leftAnchorPosition.midpoint(rightAnchorPosition));
 		}
+	}
+
+	private boolean canCollapseSegment(int anchorIndex) {
+		int leftMid = anchorIndex - 1;
+		int leftAnchorIndex = anchorIndex - 2;
+		int rightMid = anchorIndex + 1;
+		int rightAnchorIndex = anchorIndex + 2;
+
+		if (leftAnchorIndex < 0 || rightAnchorIndex >= points.size()) {
+			return false;
+		}
+		if (leftMid < 0 || rightMid >= points.size()) {
+			return false;
+		}
+		if (points.get(anchorIndex).isMidpoint()) {
+			return false;
+		}
+		if (!points.get(leftMid).isMidpoint() || !points.get(rightMid).isMidpoint()) {
+			return false;
+		}
+
+		Point2D leftAnchorPoint = mapField.latLonToScreen(points.get(leftAnchorIndex).getLocation());
+		Point2D leftMidPoint = mapField.latLonToScreen(points.get(leftMid).getLocation());
+		Point2D anchorPoint  = mapField.latLonToScreen(points.get(anchorIndex).getLocation());
+		Point2D rightMidPoint = mapField.latLonToScreen(points.get(rightMid).getLocation());
+		Point2D rightAnchorPoint = mapField.latLonToScreen(points.get(rightAnchorIndex).getLocation());
+
+		if (!areCollinear(leftAnchorPoint, anchorPoint, rightAnchorPoint)) {
+			return false;
+		}
+
+		Point2D midLeftAnchorPoint = screenMidpoint(leftAnchorPoint, anchorPoint);
+		Point2D midAnchorRightPoint = screenMidpoint(anchorPoint, rightAnchorPoint);
+		return approxEquals(leftMidPoint, midLeftAnchorPoint) && approxEquals(rightMidPoint, midAnchorRightPoint);
+	}
+
+	private boolean areCollinear(Point2D p, Point2D q, Point2D r) {
+		double vx1 = q.getX() - p.getX();
+		double vy1 = q.getY() - p.getY();
+		double vx2 = r.getX() - q.getX();
+		double vy2 = r.getY() - q.getY();
+		double cross = Math.abs(vx1 * vy2 - vy1 * vx2);
+		double scale = Math.hypot(vx1, vy1) + Math.hypot(vx2, vy2);
+		if (scale == 0) {
+			return true;
+		}
+		return cross / scale < STRAIGHTNESS_TOLERANCE_PX;
+	}
+
+	private Point2D screenMidpoint(Point2D point1, Point2D point2) {
+		return new Point2D((point1.getX() + point2.getX()) / 2.0, (point1.getY() + point2.getY()) / 2.0);
+	}
+
+	private boolean approxEquals(Point2D point1, Point2D point2) {
+		return point1.distance(point2) <= MIDPOINT_TOLERANCE_PX;
 	}
 
 	@Override

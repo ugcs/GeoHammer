@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
 import javafx.collections.FXCollections;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -29,6 +30,7 @@ public class DistanceLabelPane extends BorderPane {
 
 		HBox hBox = new HBox(10, distanceLabel, unitComboBox);
 		hBox.setAlignment(Pos.CENTER_LEFT);
+		hBox.setPadding(new Insets(0, 0, 0, 10));
 		setBottom(hBox);
 
 		Runnable updateDistanceLabel = () -> {

@@ -1738,7 +1738,7 @@ public class SensorLineChart extends Chart {
     }
 
     private static String emphasizeStyle(String baseStyle) {
-        return baseStyle + "-fx-stroke-width: 8.0px;";
+        return baseStyle + "-fx-stroke-width: 2.0px;";
     }
 
     public boolean isSameTemplate(CsvFile selectedFile) {

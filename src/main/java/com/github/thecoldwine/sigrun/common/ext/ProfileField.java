@@ -17,6 +17,7 @@ public class ProfileField {
 	private Rectangle leftRuleRect = new Rectangle();
 	private Rectangle infoRect = new Rectangle();
 	private Rectangle mainRect = new Rectangle();
+	private Rectangle bottomRuleRect = new Rectangle();
 
 	//draw coordinates
 	private Rectangle clipMainRect = new Rectangle();
@@ -83,6 +84,7 @@ public class ProfileField {
 		int leftMargin = 30;
 		int ruleWidth = 90;
 		int infoWidth = 50;
+		int bottomRuleHeight = 30;
 
 		topRuleRect = new Rectangle(
 				leftMargin,
@@ -103,7 +105,15 @@ public class ProfileField {
 				leftMargin,
 				Model.TOP_MARGIN,
 				viewDimension.width - leftMargin - ruleWidth,
-				viewDimension.height - Model.TOP_MARGIN);
+				viewDimension.height - Model.TOP_MARGIN - bottomRuleHeight);
+
+		bottomRuleRect = new Rectangle(
+				leftMargin,
+				viewDimension.height - bottomRuleHeight,
+				viewDimension.width - leftMargin - ruleWidth,
+				bottomRuleHeight
+		);
+
 
 		visibleStart = -mainRect.x - mainRect.width / 2;
 
@@ -140,6 +150,10 @@ public class ProfileField {
 
 	public Rectangle getClipInfoRect() {
 		return clipInfoRect;
+	}
+
+	public Rectangle getBottomRuleRect() {
+		return bottomRuleRect;
 	}
 
 	public void initClipRects() {

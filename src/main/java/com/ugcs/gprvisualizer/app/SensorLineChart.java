@@ -17,7 +17,6 @@ import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nodes;
-import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -66,7 +65,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.Node;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.LineChart;
-import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart.Data;
 import javafx.scene.chart.XYChart.Series;
 
@@ -428,7 +426,7 @@ public class SensorLineChart extends Chart {
         var data = plotData.data();
 
         // X-axis, common for all charts
-        ValueAxis<Number> xAxis = createXAxis(plotData);
+        ValueAxis<Number> xAxis = createXAxis();
 
         // Y-axis
         ValueAxis<Number> yAxis = createYAxis(plotData);
@@ -491,15 +489,20 @@ public class SensorLineChart extends Chart {
         return lineChart;
     }
 
-    private ValueAxis<Number> createXAxis(PlotData plotData) {
-        NumberAxis xAxis = new NumberAxis();
+    private ValueAxis<Number> createXAxis() {
+        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(10, file);
+        xAxis.setLabel(xAxis.getDistanceUnit().getLabel());
+        xAxis.setSide(Side.BOTTOM);
+        xAxis.setPrefHeight(50);
         xAxis.setMinorTickVisible(false);
-        xAxis.setTickMarkVisible(false);
-        xAxis.setTickLabelsVisible(false);
 
-        int numValues = Nulls.toEmpty(plotData.data).size();
-        double tickUnit = numValues > 0 ? numValues / 10.0 : 1.0;
-        xAxis.setTickUnit(tickUnit);
+        double lowerBound = 0;
+        double upperBound = file.getGeoData().size() - 1;
+
+        xAxis.setLowerBound(lowerBound);
+        xAxis.setUpperBound(upperBound);
+
+        log.info("X-Axis bounds set to: [{}, {}]", lowerBound, upperBound);
 
         return xAxis;
     }

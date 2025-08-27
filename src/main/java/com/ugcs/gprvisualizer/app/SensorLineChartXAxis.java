@@ -4,31 +4,52 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
+import javafx.application.Platform;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.chart.ValueAxis;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import javax.annotation.Nonnull;
 
 public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SensorLineChartXAxis.class);
 
+    private DistanceConverterService.Unit distanceUnit = DistanceConverterService.Unit.getDefault();
     private final DecimalFormat formatter = new DecimalFormat();
     private final int numTicks;
-    private DistanceConverterService.Unit distanceUnit = DistanceConverterService.Unit.getDefault();
     private final CsvFile file;
+    @Nonnull
     private List<Double> cumulativeDistances = new ArrayList<>();
+    private Button labelButton = null;
 
     public SensorLineChartXAxis(int numTicks, CsvFile file) {
         this.numTicks = numTicks;
         this.file = file;
+        setLabel(distanceUnit.getLabel());
     }
 
     public void setDistanceUnit(DistanceConverterService.Unit unit) {
+        if (unit == null || unit == this.distanceUnit) {
+            return;
+        }
         this.distanceUnit = unit;
-        requestAxisLayout();
+        setLabel(unit.getLabel());
+
+        if (labelButton != null) {
+            labelButton.setText(unit.getLabel());
+            labelButton.applyCss();
+            labelButton.autosize();
+        }
+
+        invalidateRange();
     }
 
     public DistanceConverterService.Unit getDistanceUnit() {
@@ -43,9 +64,8 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
 
         int traceIndex = value.intValue();
-        double distance = getDistanceAtTrace(traceIndex);
+        double distance = getDistanceAtTrace(traceIndex, distanceUnit);
 
-        // Format distance based on unit
         return formatter.format(distance);
     }
 
@@ -69,8 +89,8 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
     }
 
-    private double getDistanceAtTrace(int traceIndex) {
-        if (cumulativeDistances == null) {
+    private double getDistanceAtTrace(int traceIndex, DistanceConverterService.Unit distanceUnit) {
+        if (cumulativeDistances.isEmpty()) {
             initializeCumulativeDistances();
         }
 
@@ -78,8 +98,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         if (geoData.isEmpty() || traceIndex < 0 || traceIndex >= geoData.size()) {
             return 0.0;
         }
-
-        return cumulativeDistances.get(traceIndex);
+        return DistanceConverterService.convert(cumulativeDistances.get(traceIndex), distanceUnit);
     }
 
     @Override
@@ -111,9 +130,9 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     @Override
     protected void setRange(Object range, boolean animate) {
-        AxisRange r = (AxisRange) range;
-        setLowerBound(r.lowerBound());
-        setUpperBound(r.upperBound());
+        AxisRange axisRange = (AxisRange) range;
+        setLowerBound(axisRange.lowerBound());
+        setUpperBound(axisRange.upperBound());
     }
 
     @Override
@@ -129,5 +148,42 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     @Override
     public Node getStyleableNode() {
         return super.getStyleableNode();
+    }
+
+    @Override
+    protected void layoutChildren() {
+        super.layoutChildren();
+
+        Label axisLabel = (Label) lookup(".axis-label");
+        if (axisLabel != null && !axisLabel.getStyleClass().contains("clickable-label") && labelButton == null) {
+            axisLabel.setVisible(false);
+
+            labelButton = new Button(axisLabel.getText());
+            labelButton.getStyleClass().add("clickable-label");
+            labelButton.setCursor(Cursor.HAND);
+
+            labelButton.setOnAction(event -> handleLabelClick());
+
+            getChildren().add(labelButton);
+        } else if (labelButton != null) {
+            getChildren().remove(labelButton);
+            labelButton.setText(getDistanceUnit().getLabel());
+            labelButton.setPrefWidth(35.0);
+            labelButton.autosize();
+
+            labelButton.setLayoutX((getWidth() - labelButton.getWidth()) / 2);
+            labelButton.setLayoutY(getHeight() - labelButton.getHeight() + 5);
+            getChildren().add(labelButton);
+        }
+    }
+
+    private void handleLabelClick() {
+        DistanceConverterService.Unit currentUnit = getDistanceUnit();
+        DistanceConverterService.Unit[] units = DistanceConverterService.Unit.values();
+
+        int currentIndex = Arrays.asList(units).indexOf(currentUnit);
+        int nextIndex = (currentIndex + 1) % units.length;
+
+        setDistanceUnit(units[nextIndex]);
     }
 }

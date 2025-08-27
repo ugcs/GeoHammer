@@ -235,9 +235,11 @@ public class SensorLineChart extends Chart {
 
         this.seriesList = FXCollections.observableArrayList();
 
+        ValueAxis<Number> xAxis = createXAxis();
+
         for (int i = 0; i < plotDataList.size(); i++) {
             var plotData = plotDataList.get(i);
-            lastLineChart = createLineChart(plotData, i == 0);
+            lastLineChart = createLineChart(plotData, xAxis, i == 0);
         }
 
         initSeriesComboBox();
@@ -422,11 +424,10 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    private LineChartWithMarkers createLineChart(PlotData plotData, boolean primary) {
+    private LineChartWithMarkers createLineChart(PlotData plotData, ValueAxis<Number> xAxis, boolean primary) {
         var data = plotData.data();
 
         // X-axis, common for all charts
-        ValueAxis<Number> xAxis = createXAxis();
 
         // Y-axis
         ValueAxis<Number> yAxis = createYAxis(plotData);
@@ -491,7 +492,6 @@ public class SensorLineChart extends Chart {
 
     private ValueAxis<Number> createXAxis() {
         SensorLineChartXAxis xAxis = new SensorLineChartXAxis(10, file);
-        xAxis.setLabel(xAxis.getDistanceUnit().getLabel());
         xAxis.setSide(Side.BOTTOM);
         xAxis.setPrefHeight(50);
         xAxis.setMinorTickVisible(false);
@@ -1711,7 +1711,8 @@ public class SensorLineChart extends Chart {
                         chart.plotData.color,
                         filtered
                 );
-                createLineChart(filteredData, false);
+                ValueAxis<Number> xAxis = createXAxis();
+                createLineChart(filteredData, xAxis, false);
             } else {
                 filteredChart.plotData = filteredChart.plotData.withData(filtered);
                 filteredChart.filteredData = null;

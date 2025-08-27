@@ -1,6 +1,5 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.util.Arrays;
 
 import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
 import javafx.collections.FXCollections;
@@ -15,7 +14,7 @@ public class DistanceLabelPane extends BorderPane {
 	public DistanceLabelPane(MapRuler mapRuler, Runnable updateUI, Runnable visibilityChanged) {
 		ComboBox<String> unitComboBox = new ComboBox<>(
 				FXCollections.observableArrayList(
-						Arrays.stream(DistanceConverterService.Unit.values())
+						DistanceConverterService.Unit.distanceUnits().stream()
 								.map(DistanceConverterService.Unit::getLabel)
 								.toList())
 		);
@@ -46,7 +45,7 @@ public class DistanceLabelPane extends BorderPane {
 		};
 
 		unitComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
-			DistanceConverterService.Unit unit = Arrays.stream(DistanceConverterService.Unit.values())
+			DistanceConverterService.Unit unit = DistanceConverterService.Unit.distanceUnits().stream()
 					.filter(u -> u.getLabel().equals(newVal))
 					.findFirst()
 					.orElse(DistanceConverterService.Unit.METERS);

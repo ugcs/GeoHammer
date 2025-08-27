@@ -4,7 +4,6 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
-import javafx.application.Platform;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.chart.ValueAxis;
@@ -12,15 +11,20 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 
 import java.text.DecimalFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SensorLineChartXAxis.class);
+
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private DistanceConverterService.Unit distanceUnit = DistanceConverterService.Unit.getDefault();
     private final DecimalFormat formatter = new DecimalFormat();
@@ -28,6 +32,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     private final CsvFile file;
     @Nonnull
     private List<Double> cumulativeDistances = new ArrayList<>();
+    @Nullable
     private Button labelButton = null;
 
     public SensorLineChartXAxis(int numTicks, CsvFile file) {
@@ -64,9 +69,28 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
 
         int traceIndex = value.intValue();
-        double distance = getDistanceAtTrace(traceIndex, distanceUnit);
-
-        return formatter.format(distance);
+        DistanceConverterService.Unit unit = distanceUnit;
+        switch (unit) {
+            case METERS, KILOMETERS, MILES, FEET -> {
+                if (!unit.isDistanceBased()) {
+                    log.warn("Selected unit {} is not distance-based.", unit);
+                    return "";
+                }
+                double distance = getDistanceAtTrace(traceIndex, unit);
+                return formatter.format(distance);
+            }
+            case SECONDS -> {
+                LocalDateTime dt = file.getGeoData().get(traceIndex).getDateTime();
+                if (dt == null) {
+                    log.warn("DateTime is null for trace index {}.", traceIndex);
+                    return "";
+                }
+                return dt.format(TIME_FORMATTER);
+            }
+            default -> {
+                return "";
+            }
+        }
     }
 
     private void initializeCumulativeDistances() {

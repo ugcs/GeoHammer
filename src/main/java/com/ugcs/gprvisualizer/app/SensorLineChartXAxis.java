@@ -192,7 +192,6 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         } else if (labelButton != null) {
             getChildren().remove(labelButton);
             labelButton.setText(getDistanceUnit().getLabel());
-            labelButton.setPrefWidth(35.0);
             labelButton.autosize();
 
             labelButton.setLayoutX((getWidth() - labelButton.getWidth()) / 2);

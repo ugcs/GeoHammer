@@ -58,6 +58,13 @@
 			<snapshots><enabled>false</enabled></snapshots>
 			<releases><enabled>true</enabled></releases>
 		</repository>
+		<repository>
+			<id>scijava</id>
+			<name>SciJava Public</name>
+			<url>https://maven.scijava.org/content/repositories/public/</url>
+			<snapshots><enabled>false</enabled></snapshots>
+			<releases><enabled>true</enabled></releases>
+		</repository>
 	</repositories>
 
 	<build>
@@ -411,6 +418,11 @@
 			<groupId>com.ezylang</groupId>
 			<artifactId>EvalEx</artifactId>
 			<version>3.4.0</version>
+		</dependency>
+		<dependency>
+			<groupId>edu.emory.mathcs</groupId>
+			<artifactId>jtransforms</artifactId>
+			<version>2.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>

@@ -20,9 +20,11 @@ import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.math.AnalyticSignal;
+import com.ugcs.gprvisualizer.math.AnalyticSignalFilter;
+import com.ugcs.gprvisualizer.utils.Range;
 import edu.mines.jtk.interp.SplinesGridder2;
 import javafx.scene.control.Button;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.index.kdtree.KdTree;
@@ -238,25 +240,39 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
 	// Class to store gridding result for a file
 	private record GriddingResult(
-		float[][] gridData, float[][] smoothedGridData,
+		float[][] gridData,
+		float[][] smoothedGridData,
 		LatLon minLatLon, LatLon maxLatLon,
 		double cellSize, double blankingDistance,
 		Float minValue, Float maxValue,
 		String sensor,
+		// Analytic signal
+		boolean analyticSignalEnabled,
 		// Hill-shading parameters
-		boolean hillShadingEnabled, boolean smoothingEnabled,
+		boolean hillShadingEnabled,
+		boolean smoothingEnabled,
 		double hillShadingAzimuth,
 		double hillShadingAltitude,
 		double hillShadingIntensity) {
 
-		public GriddingResult setValues(float minValue, float maxValue, boolean hillShadingEnabled, boolean smoothingEnabled) {
+		public GriddingResult setValues(float minValue,
+										float maxValue,
+										boolean analyticSignalEnabled,
+										boolean hillShadingEnabled,
+										boolean smoothingEnabled) {
 			return new GriddingResult(
-					gridData, smoothedGridData,
-					minLatLon, maxLatLon,
-					cellSize, blankingDistance,
-					minValue, maxValue,
+					gridData,
+					smoothedGridData,
+					minLatLon,
+					maxLatLon,
+					cellSize,
+					blankingDistance,
+					minValue,
+					maxValue,
 					sensor,
-					hillShadingEnabled, smoothingEnabled,
+					analyticSignalEnabled,
+					hillShadingEnabled,
+					smoothingEnabled,
 					hillShadingAzimuth,
 					hillShadingAltitude,
 					hillShadingIntensity
@@ -517,6 +533,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 					minValue,
 					maxValue,
 					sensor,
+					currentParams.isAnalyticSignalEnabled(),
 					currentParams.isHillShadingEnabled(),
 					currentParams.isSmoothingEnabled(),
 					currentParams.getHillShadingAzimuth(),
@@ -528,7 +545,10 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		}
 
 		if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor.equals(sensor)) {
-			griddingResults.put(csvFile.getFile(), gr.setValues(minValue,maxValue,
+			griddingResults.put(csvFile.getFile(), gr.setValues(
+					minValue,
+					maxValue,
+					currentParams.isAnalyticSignalEnabled(),
 					currentParams.isHillShadingEnabled(),
 					currentParams.isSmoothingEnabled()));
 		}
@@ -610,8 +630,8 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
 		for (int x = -kernelRadius; x <= kernelRadius; x++) {
 			for (int y = -kernelRadius; y <= kernelRadius; y++) {
-				double value = Math.exp(-(x*x + y*y) / (2 * sigma * sigma));
-				kernel[x+ kernelRadius][y+ kernelRadius] = (float)value;
+				double value = Math.exp(-(x * x + y * y) / (2 * sigma * sigma));
+				kernel[x + kernelRadius][y + kernelRadius] = (float)value;
 				sum += value;
 			}
 		}
@@ -629,8 +649,8 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		var resultData = cloneGridData(gridData);
 
 		// Apply convolution
-		for (int i = kernelRadius; i < width - kernelRadius; i++) {
-			for (int j = kernelRadius; j < height - kernelRadius; j++) {
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
 				// Skip NaN values
 				if (Float.isNaN(gridData[i][j])) {
 					continue;
@@ -650,7 +670,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 							continue;
 						}
 
-						float weight = kernel[ki+ kernelRadius][kj+ kernelRadius];
+						float weight = kernel[ki + kernelRadius][kj + kernelRadius];
 						sum2 += gridData[ni][nj] * weight;
 						weightSum += weight;
 					}
@@ -752,7 +772,8 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		Float maxValue = gr.maxValue;
 		System.out.println("Printing minValue = " + minValue + " maxValue = " + maxValue);
 
-		var gridData = gr.smoothingEnabled ? gr.smoothedGridData
+		var gridData = gr.smoothingEnabled
+				? gr.smoothedGridData
 				: gr.gridData;
 
 		var minLatLon = gr.minLatLon;
@@ -778,11 +799,28 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 				", altitude=" + gr.hillShadingAltitude + ", intensity=" + gr.hillShadingIntensity);
 		}
 
+		if (gr.analyticSignalEnabled) {
+			double cellWidthMeters = CoordinatesMath.measure(0, 0, 0, lonStep);
+			double cellHeightMeters = CoordinatesMath.measure(0, 0, latStep, 0);
+
+			AnalyticSignalFilter filter = new AnalyticSignalFilter(
+					gridData,
+					cellWidthMeters,
+					cellHeightMeters,
+					new Range(minValue, maxValue));
+			AnalyticSignal signal = filter.evaluate();
+			Range signalRange = signal.getRange(0.02);
+
+			gridData = signal.getMagnitudes();
+			minValue = signalRange.getMin().floatValue();
+			maxValue = signalRange.getMax().floatValue();
+		}
+
 		for (int i = 0; i < gridData.length; i++) {
 			for (int j = 0; j < gridData[0].length; j++) {
 				try {
-					var value = gridData[i][j];
-					if (Double.isNaN(value) || Float.isNaN(value)) {
+					float value = gridData[i][j];
+					if (Float.isNaN(value)) {
 						continue;
 					}
 

@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
@@ -136,6 +137,16 @@ public class HorizontalRulerDrawer {
             LatLon previous = geoData.get(i - 1).getLatLon();
             LatLon current = geoData.get(i).getLatLon();
 
+            Optional<Integer> previousLineIndex = geoData.get(i - 1).getLineIndex();
+            Optional<Integer> currentLineIndex = geoData.get(i).getLineIndex();
+
+            if (previousLineIndex.isPresent() && currentLineIndex.isPresent()) {
+                if (!previousLineIndex.get().equals(currentLineIndex.get())) {
+                    cumulativeDistances.add(0.0);
+                    continue;
+                }
+            }
+
             double previousDistance = cumulativeDistances.get(i - 1);
             double segmentDistance = previous.getDistance(current);
             cumulativeDistances.add(previousDistance + segmentDistance);
@@ -143,11 +154,11 @@ public class HorizontalRulerDrawer {
     }
 
     private double getDistanceAtTrace(int traceIndex, DistanceConverterService.Unit distanceUnit) {
-        if (cumulativeDistances.isEmpty()) {
+        List<GeoData> geoData = field.getFile().getGeoData();
+        if (cumulativeDistances.size() != geoData.size()) {
             initializeCumulativeDistances();
         }
 
-        List<GeoData> geoData = field.getFile().getGeoData();
         if (geoData.isEmpty() || traceIndex < 0 || traceIndex >= geoData.size()) {
             return 0.0;
         }

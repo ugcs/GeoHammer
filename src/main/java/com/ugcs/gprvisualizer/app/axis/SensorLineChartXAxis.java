@@ -33,7 +33,8 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private static final Logger log = LoggerFactory.getLogger(SensorLineChartXAxis.class);
 
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter TIME_FORMATTER_SECONDS = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter TIME_FORMATTER_MILLISECONDS = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
     private DistanceConverterService.Unit unit = DistanceConverterService.Unit.getDefault();
     private final DecimalFormat formatter = new DecimalFormat();
@@ -94,7 +95,13 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
                     log.warn("DateTime is null for trace index {}.", traceIndex);
                     return "";
                 }
-                return dt.format(TIME_FORMATTER);
+
+                double visibleRange = getUpperBound() - getLowerBound();
+                boolean showMilliseconds = visibleRange < (double) (file.numTraces()) / numTicks;
+
+                DateTimeFormatter formatter = showMilliseconds ?
+                        TIME_FORMATTER_MILLISECONDS : TIME_FORMATTER_SECONDS;
+                return dt.format(formatter);
             }
             default -> {
                 return "";

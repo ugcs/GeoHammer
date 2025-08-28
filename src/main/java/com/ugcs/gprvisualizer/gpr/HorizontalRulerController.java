@@ -91,7 +91,7 @@ public class HorizontalRulerController {
         public boolean mousePressHandle(Point2D localPoint, ScrollableData scrollableData) {
             if (isPointInside(localPoint, scrollableData)) {
                 List<DistanceConverterService.Unit> units = Arrays.stream(DistanceConverterService.Unit.values())
-                        .filter(u -> u != DistanceConverterService.Unit.SECONDS).toList();
+                        .filter(u -> u != DistanceConverterService.Unit.TIME).toList();
 
                 int currentIndex = units.indexOf(unit);
                 int nextIndex = (currentIndex + 1) % units.size();

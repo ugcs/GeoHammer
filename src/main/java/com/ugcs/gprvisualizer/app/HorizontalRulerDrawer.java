@@ -105,7 +105,7 @@ public class HorizontalRulerDrawer {
                 double distance = getDistanceAtTrace(traceIndex, unit);
                 return formatter.format(distance);
             }
-            case SECONDS -> {
+            case TIME -> {
                 LocalDateTime dt = field.getFile().getGeoData().get(traceIndex).getDateTime();
                 if (dt == null) {
                     log.warn("DateTime is null for trace index {}.", traceIndex);

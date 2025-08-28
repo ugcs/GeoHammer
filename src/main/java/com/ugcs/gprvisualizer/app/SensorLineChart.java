@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 import com.github.thecoldwine.sigrun.common.ext.*;
 import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
+import com.ugcs.gprvisualizer.app.axis.SensorLineChartXAxis;
+import com.ugcs.gprvisualizer.app.axis.SensorLineChartYAxis;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
 import com.ugcs.gprvisualizer.app.yaml.Template;
@@ -501,8 +503,6 @@ public class SensorLineChart extends Chart {
 
         xAxis.setLowerBound(lowerBound);
         xAxis.setUpperBound(upperBound);
-
-        log.info("X-Axis bounds set to: [{}, {}]", lowerBound, upperBound);
 
         return xAxis;
     }

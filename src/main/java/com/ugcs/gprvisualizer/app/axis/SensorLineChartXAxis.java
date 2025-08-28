@@ -1,9 +1,12 @@
-package com.ugcs.gprvisualizer.app;
+package com.ugcs.gprvisualizer.app.axis;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
+import com.ugcs.gprvisualizer.app.AxisRange;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
+import com.ugcs.gprvisualizer.event.WhatChanged;
+import javafx.application.Platform;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.chart.ValueAxis;
@@ -11,6 +14,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
@@ -18,10 +23,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+@Component
 public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private static final Logger log = LoggerFactory.getLogger(SensorLineChartXAxis.class);
@@ -33,7 +40,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     private final int numTicks;
     private final CsvFile file;
     @Nonnull
-    private List<Double> cumulativeDistances = new ArrayList<>();
+    private final List<Double> cumulativeDistances = new ArrayList<>();
     @Nullable
     private Button labelButton = null;
 
@@ -81,7 +88,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
                 double distance = getDistanceAtTrace(traceIndex, unit);
                 return formatter.format(distance);
             }
-            case SECONDS -> {
+            case TIME -> {
                 LocalDateTime dt = file.getGeoData().get(traceIndex).getDateTime();
                 if (dt == null) {
                     log.warn("DateTime is null for trace index {}.", traceIndex);
@@ -97,7 +104,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private void initializeCumulativeDistances() {
         List<GeoData> geoData = file.getGeoData();
-        cumulativeDistances = new ArrayList<>(geoData.size());
+        cumulativeDistances.clear();
 
         if (geoData.isEmpty()) {
             return;
@@ -106,21 +113,31 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         cumulativeDistances.add(0.0);
 
         for (int i = 1; i < geoData.size(); i++) {
-            LatLon previous = geoData.get(i - 1).getLatLon();
-            LatLon current = geoData.get(i).getLatLon();
+            LatLon previousLocation = geoData.get(i - 1).getLatLon();
+            LatLon currentLocation = geoData.get(i).getLatLon();
+
+            Optional<Integer> previousLineIndex = geoData.get(i - 1).getLineIndex();
+            Optional<Integer> currentLineIndex = geoData.get(i).getLineIndex();
+
+            if (previousLineIndex.isPresent() && currentLineIndex.isPresent()) {
+                if (!previousLineIndex.get().equals(currentLineIndex.get())) {
+                    cumulativeDistances.add(0.0);
+                    continue;
+                }
+            }
 
             double previousDistance = cumulativeDistances.get(i - 1);
-            double segmentDistance = previous.getDistance(current);
+            double segmentDistance = previousLocation.getDistance(currentLocation);
             cumulativeDistances.add(previousDistance + segmentDistance);
         }
     }
 
     private double getDistanceAtTrace(int traceIndex, DistanceConverterService.Unit distanceUnit) {
-        if (cumulativeDistances.isEmpty()) {
+        List<GeoData> geoData = file.getGeoData();
+        if (cumulativeDistances.size() != geoData.size()) {
             initializeCumulativeDistances();
         }
 
-        List<GeoData> geoData = file.getGeoData();
         if (geoData.isEmpty() || traceIndex < 0 || traceIndex >= geoData.size()) {
             return 0.0;
         }
@@ -147,6 +164,14 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
 
         return tickValues;
+    }
+
+    @EventListener
+    public void onGeoDataChanged(WhatChanged event) {
+        if (event.isTraceCut()) {
+            cumulativeDistances.clear();
+            Platform.runLater(this::requestAxisLayout);
+        }
     }
 
     @Override

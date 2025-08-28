@@ -1,5 +1,6 @@
-package com.ugcs.gprvisualizer.app;
+package com.ugcs.gprvisualizer.app.axis;
 
+import com.ugcs.gprvisualizer.app.AxisRange;
 import com.ugcs.gprvisualizer.utils.Ticks;
 import javafx.scene.chart.ValueAxis;
 

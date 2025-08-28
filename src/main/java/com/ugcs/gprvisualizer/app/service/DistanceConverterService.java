@@ -14,7 +14,8 @@ public class DistanceConverterService {
 		KILOMETERS("km", 1000.0, true),
 		MILES("mi", 1609.344, true),
 		FEET("ft", 0.328084, true),
-		SECONDS("sec", Double.NaN, false);
+		SECONDS("sec", Double.NaN, false),
+		TRACES("traces", Double.NaN, false);
 
 		private final String label;
 		private final double metersFactor;

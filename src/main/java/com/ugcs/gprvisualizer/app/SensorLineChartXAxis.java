@@ -9,6 +9,8 @@ import javafx.scene.Node;
 import javafx.scene.chart.ValueAxis;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
@@ -22,11 +24,11 @@ import javax.annotation.Nullable;
 
 public class SensorLineChartXAxis extends ValueAxis<Number> {
 
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SensorLineChartXAxis.class);
+    private static final Logger log = LoggerFactory.getLogger(SensorLineChartXAxis.class);
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-    private DistanceConverterService.Unit distanceUnit = DistanceConverterService.Unit.getDefault();
+    private DistanceConverterService.Unit unit = DistanceConverterService.Unit.getDefault();
     private final DecimalFormat formatter = new DecimalFormat();
     private final int numTicks;
     private final CsvFile file;
@@ -38,14 +40,14 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     public SensorLineChartXAxis(int numTicks, CsvFile file) {
         this.numTicks = numTicks;
         this.file = file;
-        setLabel(distanceUnit.getLabel());
+        setLabel(unit.getLabel());
     }
 
-    public void setDistanceUnit(DistanceConverterService.Unit unit) {
-        if (unit == null || unit == this.distanceUnit) {
+    public void setUnit(DistanceConverterService.Unit unit) {
+        if (unit == null || unit == this.unit) {
             return;
         }
-        this.distanceUnit = unit;
+        this.unit = unit;
         setLabel(unit.getLabel());
 
         if (labelButton != null) {
@@ -57,8 +59,8 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         invalidateRange();
     }
 
-    public DistanceConverterService.Unit getDistanceUnit() {
-        return distanceUnit;
+    public DistanceConverterService.Unit getUnit() {
+        return unit;
     }
 
     @Override
@@ -69,7 +71,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
 
         int traceIndex = value.intValue();
-        DistanceConverterService.Unit unit = distanceUnit;
+        DistanceConverterService.Unit unit = this.unit;
         switch (unit) {
             case METERS, KILOMETERS, MILES, FEET -> {
                 if (!unit.isDistanceBased()) {
@@ -191,7 +193,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
             getChildren().add(labelButton);
         } else if (labelButton != null) {
             getChildren().remove(labelButton);
-            labelButton.setText(getDistanceUnit().getLabel());
+            labelButton.setText(getUnit().getLabel());
             labelButton.autosize();
 
             labelButton.setLayoutX((getWidth() - labelButton.getWidth()) / 2);
@@ -201,12 +203,14 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     }
 
     private void handleLabelClick() {
-        DistanceConverterService.Unit currentUnit = getDistanceUnit();
-        DistanceConverterService.Unit[] units = DistanceConverterService.Unit.values();
+        DistanceConverterService.Unit currentUnit = getUnit();
+        List<DistanceConverterService.Unit> units = Arrays.stream(DistanceConverterService.Unit.values())
+                .filter(u -> u != DistanceConverterService.Unit.TRACES)
+                .toList();
 
-        int currentIndex = Arrays.asList(units).indexOf(currentUnit);
-        int nextIndex = (currentIndex + 1) % units.length;
+        int currentIndex = units.indexOf(currentUnit);
+        int nextIndex = (currentIndex + 1) % units.size();
 
-        setDistanceUnit(units[nextIndex]);
+        setUnit(units.get(nextIndex));
     }
 }

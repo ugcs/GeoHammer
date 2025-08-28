@@ -84,7 +84,7 @@ public class ProfileField {
 		int leftMargin = 30;
 		int ruleWidth = 90;
 		int infoWidth = 50;
-		int bottomRuleHeight = 30;
+		int bottomRuleHeight = 65;
 
 		topRuleRect = new Rectangle(
 				leftMargin,

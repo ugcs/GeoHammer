@@ -17,7 +17,7 @@
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
   # Applied on a quality check to all data values
-  data-validation: '{Valid} == 1'
+  data-validation: '{Data valid} == 1'
   # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
@@ -51,6 +51,15 @@
       - header: "TMI_anomaly"
         semantic: "TMI_anomaly"
         units: "nT"
+      - header: "Bx"
+        semantic: "Bx"
+        units: "nT"
+      - header: "By"
+        semantic: "By"
+        units: "nT"
+      - header: "Bz"
+        semantic: "Bz"
+        units: "nT"
       - header: "Valid"
         semantic: "Data valid"
         units: ""
@@ -66,3 +75,7 @@
       - header: "Valid_S"
         semantic: "Data valid S"
         units: ""
+      - header: "TMI_Fixed"
+        semantic: "TMI_Fixed"
+        units: "nT"
+

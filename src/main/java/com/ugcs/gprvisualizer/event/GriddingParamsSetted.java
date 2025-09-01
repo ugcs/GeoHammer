@@ -39,6 +39,9 @@ public class GriddingParamsSetted extends BaseEvent {
     private final double idwPower;
     private final int idwMinPoints;
 
+    // Analytic signal parameters
+    private final boolean analyticSignalEnabled;
+
     // Hill-shading parameters
     private final boolean hillShadingEnabled;
     private final boolean smoothingEnabled;
@@ -61,6 +64,7 @@ public class GriddingParamsSetted extends BaseEvent {
 
     public GriddingParamsSetted(Object source, double cellSize, double blankingDistance, boolean toAll,
                                InterpolationMethod interpolationMethod, double idwPower, int idwMinPoints,
+                               boolean analyticSignalEnabled,
                                boolean hillShadingEnabled, boolean smoothingEnabled,
                                 double hillShadingAzimuth, double hillShadingAltitude,
                                double hillShadingIntensity) {
@@ -77,6 +81,9 @@ public class GriddingParamsSetted extends BaseEvent {
             Math.min(Math.max(idwPower, DEFAULT_POWER), MAX_POWER) : DEFAULT_POWER;
         this.idwMinPoints = interpolationMethod == InterpolationMethod.IDW ?
             Math.min(Math.max(idwMinPoints, DEFAULT_MIN_POINTS), MAX_MIN_POINTS) : DEFAULT_MIN_POINTS;
+
+        // Set analytic signal parameters
+        this.analyticSignalEnabled = analyticSignalEnabled;
 
         // Set hill-shading parameters
         this.hillShadingEnabled = hillShadingEnabled;
@@ -110,11 +117,17 @@ public class GriddingParamsSetted extends BaseEvent {
         return idwMinPoints;
     }
 
+    public boolean isAnalyticSignalEnabled() {
+        return analyticSignalEnabled;
+    }
+
     public boolean isHillShadingEnabled() {
         return hillShadingEnabled;
     }
 
-    public boolean isSmoothingEnabled() { return smoothingEnabled; }
+    public boolean isSmoothingEnabled() {
+        return smoothingEnabled;
+    }
 
     public double getHillShadingAzimuth() {
         return hillShadingAzimuth;

@@ -14,6 +14,8 @@ import com.ugcs.gprvisualizer.app.axis.SensorLineChartXAxis;
 import com.ugcs.gprvisualizer.app.axis.SensorLineChartYAxis;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
+import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
+import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -80,6 +82,7 @@ public class SensorLineChart extends Chart {
 
     private final ApplicationEventPublisher eventPublisher;
     private final PrefSettings settings;
+    private final TemplateUnitService templateUnitService;
     private Map<SeriesData, BooleanProperty> itemBooleanMap = new HashMap<>();
     @Nullable
     private LineChartWithMarkers lastLineChart = null;
@@ -107,10 +110,11 @@ public class SensorLineChart extends Chart {
                 new Thread(scheduler::shutdownNow));
     }
 
-    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings) {
+    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings, TemplateUnitService templateUnitService) {
         super(model);
         this.eventPublisher = eventPublisher;
         this.settings = settings;
+        this.templateUnitService = templateUnitService;
     }
 
     private EventHandler<MouseEvent> mouseClickHandler = new EventHandler<>() {
@@ -493,7 +497,7 @@ public class SensorLineChart extends Chart {
     }
 
     private ValueAxis<Number> createXAxis() {
-        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(10, file);
+        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(model, templateUnitService, 10, file);
         xAxis.setSide(Side.BOTTOM);
         xAxis.setPrefHeight(50);
         xAxis.setMinorTickVisible(false);
@@ -567,6 +571,16 @@ public class SensorLineChart extends Chart {
     public void updateChartName() {
         String fileName = (file.isUnsaved() ? "*" : "") + file.getFile().getName();
         chartName.setText(fileName);
+    }
+
+    public void updateXAxisUnits(DistanceConverterService.Unit unit) {
+        for (LineChartWithMarkers chart : charts) {
+            if (chart.getXAxis() instanceof SensorLineChartXAxis xAxis) {
+                Platform.runLater(() -> {
+                    xAxis.setUnit(unit);
+                });
+            }
+        }
     }
 
     private Map<FoundPlace, Data<Number, Number>> foundPlaces = new HashMap<>();

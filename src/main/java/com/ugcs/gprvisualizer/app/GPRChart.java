@@ -14,6 +14,7 @@ import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.RemoveLineButton;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
 import com.ugcs.gprvisualizer.draw.PrismDrawer;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -102,13 +103,13 @@ public class GPRChart extends Chart {
     VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
     HorizontalRulerDrawer horizontalRulerDrawer = new HorizontalRulerDrawer(this);
 
-    public GPRChart(Model model, TraceFile traceFile) {
+    public GPRChart(Model model, TraceFile traceFile, TemplateUnitService templateUnitService) {
         super(model);
         this.model = model;
         this.auxEditHandler = model.getAuxEditHandler();
         this.profileField = new ProfileField(traceFile);
         this.leftRulerController = new LeftRulerController(profileField);
-        this.horizontalRulerController = new HorizontalRulerController();
+        this.horizontalRulerController = new HorizontalRulerController(model, traceFile, templateUnitService);
 
         vbox.getChildren().addAll(canvas);
         vbox.setOnMouseClicked(event -> {

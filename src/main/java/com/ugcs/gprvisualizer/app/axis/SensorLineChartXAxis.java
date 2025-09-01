@@ -2,7 +2,6 @@ package com.ugcs.gprvisualizer.app.axis;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
-import com.ugcs.gprvisualizer.app.AxisRange;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
 import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
@@ -12,7 +11,6 @@ import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.FileTemplate;
 import javafx.application.Platform;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
 import javafx.scene.chart.ValueAxis;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -121,11 +119,15 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
                 }
 
                 double visibleRange = getUpperBound() - getLowerBound();
-                boolean showMilliseconds = visibleRange < (double) (file.numTraces()) / numTicks;
+                boolean showMilliseconds = visibleRange < (double) file.numTraces() / numTicks;
 
                 DateTimeFormatter formatter = showMilliseconds ?
                         TIME_FORMATTER_MILLISECONDS : TIME_FORMATTER_SECONDS;
                 return dt.format(formatter);
+            }
+            case TRACES -> {
+                log.warn("TRACES unit is not supported for the CSV files.");
+                return "";
             }
             default -> {
                 return "";
@@ -150,6 +152,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
             Optional<Integer> previousLineIndex = geoData.get(i - 1).getLineIndex();
             Optional<Integer> currentLineIndex = geoData.get(i).getLineIndex();
 
+            // For different lines, reset distance to 0
             if (previousLineIndex.isPresent() && currentLineIndex.isPresent()) {
                 if (!previousLineIndex.get().equals(currentLineIndex.get())) {
                     cumulativeDistances.add(0.0);
@@ -225,11 +228,6 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     @Override
     protected List<Number> calculateMinorTickMarks() {
         return List.of();
-    }
-
-    @Override
-    public Node getStyleableNode() {
-        return super.getStyleableNode();
     }
 
     @Override

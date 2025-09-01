@@ -9,6 +9,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.GPRChart;
@@ -88,6 +89,9 @@ public class HorizontalRulerController {
         @Override
         public void drawOnCut(Graphics2D g2, ScrollableData scrollableData) {
             if (scrollableData instanceof GPRChart gprChart) {
+                if (!(file instanceof GprFile)) {
+                    return;
+                }
                 g2.setClip(null);
                 Rectangle r = getRect(gprChart.getField());
 

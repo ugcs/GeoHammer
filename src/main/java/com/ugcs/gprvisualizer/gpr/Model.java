@@ -600,7 +600,7 @@ public class Model implements InitializingBean {
 			}
 			return;
 		}
-		if (FileTypes.isGprFile(eventFile) || FileTypes.isDztFile(eventFile)) {
+		if (FileTypes.isGprFile(eventFile)) {
 			for (Map.Entry<TraceFile, GPRChart> entry : gprCharts.entrySet()) {
 				TraceFile traceFile = entry.getKey();
 				GPRChart chart = entry.getValue();

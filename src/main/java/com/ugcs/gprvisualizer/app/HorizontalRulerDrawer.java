@@ -6,12 +6,11 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.text.DecimalFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
@@ -28,18 +27,20 @@ import javax.annotation.Nonnull;
 public class HorizontalRulerDrawer {
 
     private static final Logger log = LoggerFactory.getLogger(HorizontalRulerDrawer.class);
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final GPRChart field;
     private final DecimalFormat formatter = new DecimalFormat();
     @Nonnull
-    private List<Double> cumulativeDistances = new ArrayList<>();
+    private final List<Double> cumulativeDistances = new ArrayList<>();
 
     public HorizontalRulerDrawer(GPRChart field) {
         this.field = field;
     }
 
     public void draw(Graphics2D g2) {
+        if (!(field.getFile() instanceof GprFile)) {
+            return;
+        }
         Rectangle originalRect = field.getField().getBottomRuleRect();
         Rectangle rect = new Rectangle(originalRect);
         rect.setSize(originalRect.width, originalRect.height - 30);
@@ -68,16 +69,16 @@ public class HorizontalRulerDrawer {
         }
 
         g2.setFont(new Font("Arial", Font.PLAIN, 11));
-        FontMetrics fm = g2.getFontMetrics();
+        FontMetrics fontMetrics = g2.getFontMetrics();
 
         int sz = 21;
         for (int step : steps) {
-            int s = (int) Math.ceil((double) first / step) * step;
-            int f = last / step * step;
+            int startIndex = (int) Math.ceil((double) first / step) * step;
+            int endIndex = last / step * step;
 
-            for (int i = s; i <= f; i += step) {
+            for (int i = startIndex; i <= endIndex; i += step) {
 
-                int x = rect.x + (int) (i * field.getHScale()) - (int) (firstTrace * field.getHScale());
+                int x = rect.x + (int) Math.round((i - firstTrace) * field.getHScale());
 
                 if (x >= rect.x && x <= rect.x + rect.width) {
                     g2.setColor(Color.lightGray);
@@ -86,9 +87,9 @@ public class HorizontalRulerDrawer {
                     if (step == tick) {
                         DistanceConverterService.Unit unit = getController().getUnit();
                         String label = getLabelByUnit(i, unit);
-                        int w = fm.stringWidth(label);
+                        int labelWidth = fontMetrics.stringWidth(label);
                         g2.setColor(Color.darkGray);
-                        g2.drawString(label, x - w / 2, rect.y + rect.height - 4);
+                        g2.drawString(label, x - labelWidth / 2, rect.y + rect.height - 4);
                     }
                 }
             }
@@ -106,16 +107,12 @@ public class HorizontalRulerDrawer {
                 double distance = getDistanceAtTrace(traceIndex, unit);
                 return formatter.format(distance);
             }
-            case TIME -> {
-                LocalDateTime dt = field.getFile().getGeoData().get(traceIndex).getDateTime();
-                if (dt == null) {
-                    log.warn("DateTime is null for trace index {}.", traceIndex);
-                    return "";
-                }
-                return dt.format(TIME_FORMATTER);
-            }
             case TRACES -> {
                 return String.format("%1$3s", traceIndex);
+            }
+            case TIME -> {
+                log.warn("TIME unit is not supported for the SEG-Y files.");
+                return "";
             }
             default -> {
                 return "";
@@ -125,7 +122,7 @@ public class HorizontalRulerDrawer {
 
     private void initializeCumulativeDistances() {
         List<GeoData> geoData = field.getFile().getGeoData();
-        cumulativeDistances = new ArrayList<>(geoData.size());
+        cumulativeDistances.clear();
 
         if (geoData.isEmpty()) {
             return;
@@ -140,6 +137,7 @@ public class HorizontalRulerDrawer {
             Optional<Integer> previousLineIndex = geoData.get(i - 1).getLineIndex();
             Optional<Integer> currentLineIndex = geoData.get(i).getLineIndex();
 
+            // For different lines, reset distance to 0
             if (previousLineIndex.isPresent() && currentLineIndex.isPresent()) {
                 if (!previousLineIndex.get().equals(currentLineIndex.get())) {
                     cumulativeDistances.add(0.0);

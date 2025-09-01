@@ -433,8 +433,6 @@ public class SensorLineChart extends Chart {
     private LineChartWithMarkers createLineChart(PlotData plotData, ValueAxis<Number> xAxis, boolean primary) {
         var data = plotData.data();
 
-        // X-axis, common for all charts
-
         // Y-axis
         ValueAxis<Number> yAxis = createYAxis(plotData);
         if (!primary) {

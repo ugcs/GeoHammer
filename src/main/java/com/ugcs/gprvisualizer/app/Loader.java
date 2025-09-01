@@ -213,6 +213,10 @@ public class Loader {
 		Check.notNull(file);
 
 		TraceFile gprFile = new GprFile();
+		if (gprFile.getGeoData().isEmpty()) {
+			throw new IOException("File has no data.");
+		}
+
 		gprFile.open(file);
 
 		model.getFileManager().addFile(gprFile);
@@ -233,6 +237,10 @@ public class Loader {
 		Check.notNull(file);
 
 		DztFile dztFile = new DztFile();
+		if (dztFile.getGeoData().isEmpty()) {
+			throw new IOException("File has no data.");
+		}
+
 		dztFile.open(file);
 
 		model.getFileManager().addFile(dztFile);
@@ -244,6 +252,10 @@ public class Loader {
 		Check.notNull(file);
 
 		CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
+		if (csvFile.getGeoData().isEmpty()) {
+			throw new IOException("File has no data.");
+		}
+
 		csvFile.open(file);
 
 		if (model.getCsvChart(csvFile).isEmpty()) {

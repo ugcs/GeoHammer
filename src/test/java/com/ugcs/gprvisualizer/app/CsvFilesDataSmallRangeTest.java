@@ -3,7 +3,7 @@ package com.ugcs.gprvisualizer.app;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
 import com.ugcs.gprvisualizer.app.intf.Status;
-import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.math.LevelFilter;
@@ -49,7 +49,7 @@ public class CsvFilesDataSmallRangeTest {
     private PrefSettings settings;
 
     @Mock
-    private TemplateUnitService templateUnitService;
+    private TemplateSettingsModel templateSettingsModel;
 
     @Mock
     private SensorLineChart lineChart;
@@ -94,7 +94,7 @@ public class CsvFilesDataSmallRangeTest {
         // Since it's private, we need to use reflection to access it
 
         // Create an instance of SensorLineChart
-        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, templateUnitService);
+        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, templateSettingsModel);
 
         // Get the getScaleFactor method using reflection
         Method getScaleFactorMethod =
@@ -117,7 +117,7 @@ public class CsvFilesDataSmallRangeTest {
         // Since it's private, we need to use reflection to access it
 
         // Create an instance of SensorLineChart
-        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, templateUnitService);
+        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, templateSettingsModel);
 
         // Get the getValueRange method using reflection
         Method getValueRangeMethod =

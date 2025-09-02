@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
-import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import javafx.scene.Scene;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -31,7 +31,7 @@ public class SensorLineChartTest {
     private PrefSettings settings;
 
     @Mock
-    private TemplateUnitService templateUnitService;
+    private TemplateSettingsModel templateSettingsModel;
 
     @Mock
     private AuxElementEditHandler auxEditHandler;
@@ -42,7 +42,7 @@ public class SensorLineChartTest {
     @Start
     private void start(Stage stage) {
         this.stage = stage;
-        sensorLineChart = new SensorLineChart(model, eventPublisher, settings, templateUnitService);
+        sensorLineChart = new SensorLineChart(model, eventPublisher, settings, templateSettingsModel);
 
         // Set up the initial scene
         VBox root = new VBox();

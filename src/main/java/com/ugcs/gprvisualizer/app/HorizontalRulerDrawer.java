@@ -13,21 +13,15 @@ import java.util.Optional;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.ugcs.gprvisualizer.gpr.HorizontalRulerController;
 import com.ugcs.gprvisualizer.utils.Ticks;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
 public class HorizontalRulerDrawer {
-
-    private static final Logger log = LoggerFactory.getLogger(HorizontalRulerDrawer.class);
-
     private final GPRChart field;
     private final DecimalFormat formatter = new DecimalFormat();
     @Nonnull
@@ -85,8 +79,8 @@ public class HorizontalRulerDrawer {
                     g2.drawLine(x, rect.y, x, rect.y + sz);
 
                     if (step == tick) {
-                        DistanceConverterService.Unit unit = getController().getUnit();
-                        String label = getLabelByUnit(i, unit);
+                        TraceUnit traceUnit = getController().getUnit();
+                        String label = getLabelByUnit(i, traceUnit);
                         int labelWidth = fontMetrics.stringWidth(label);
                         g2.setColor(Color.darkGray);
                         g2.drawString(label, x - labelWidth / 2, rect.y + rect.height - 4);
@@ -97,22 +91,14 @@ public class HorizontalRulerDrawer {
         }
     }
 
-    private String getLabelByUnit(int traceIndex, DistanceConverterService.Unit unit) {
-        switch (unit) {
+    private String getLabelByUnit(int traceIndex, TraceUnit traceUnit) {
+        switch (traceUnit) {
             case METERS, KILOMETERS, MILES, FEET -> {
-                if (!unit.isDistanceBased()) {
-                    log.warn("Selected unit {} is not distance-based.", unit);
-                    return "";
-                }
-                double distance = getDistanceAtTrace(traceIndex, unit);
+                double distance = getDistanceAtTrace(traceIndex, traceUnit);
                 return formatter.format(distance);
             }
             case TRACES -> {
                 return String.format("%1$3s", traceIndex);
-            }
-            case TIME -> {
-                log.warn("TIME unit is not supported for the SEG-Y files.");
-                return "";
             }
             default -> {
                 return "";
@@ -151,7 +137,7 @@ public class HorizontalRulerDrawer {
         }
     }
 
-    private double getDistanceAtTrace(int traceIndex, DistanceConverterService.Unit distanceUnit) {
+    private double getDistanceAtTrace(int traceIndex, TraceUnit distanceTraceUnit) {
         List<GeoData> geoData = field.getFile().getGeoData();
         if (cumulativeDistances.size() != geoData.size()) {
             initializeCumulativeDistances();
@@ -160,7 +146,7 @@ public class HorizontalRulerDrawer {
         if (geoData.isEmpty() || traceIndex < 0 || traceIndex >= geoData.size()) {
             return 0.0;
         }
-        return DistanceConverterService.convert(cumulativeDistances.get(traceIndex), distanceUnit);
+        return TraceUnit.convert(cumulativeDistances.get(traceIndex), distanceTraceUnit);
     }
 
     private HorizontalRulerController getController() {

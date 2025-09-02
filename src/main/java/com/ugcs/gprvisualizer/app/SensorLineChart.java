@@ -14,8 +14,7 @@ import com.ugcs.gprvisualizer.app.axis.SensorLineChartXAxis;
 import com.ugcs.gprvisualizer.app.axis.SensorLineChartYAxis;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
-import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
-import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -82,7 +81,7 @@ public class SensorLineChart extends Chart {
 
     private final ApplicationEventPublisher eventPublisher;
     private final PrefSettings settings;
-    private final TemplateUnitService templateUnitService;
+    private final TemplateSettingsModel templateSettingsModel;
     private Map<SeriesData, BooleanProperty> itemBooleanMap = new HashMap<>();
     @Nullable
     private LineChartWithMarkers lastLineChart = null;
@@ -110,11 +109,11 @@ public class SensorLineChart extends Chart {
                 new Thread(scheduler::shutdownNow));
     }
 
-    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings, TemplateUnitService templateUnitService) {
+    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings, TemplateSettingsModel templateSettingsModel) {
         super(model);
         this.eventPublisher = eventPublisher;
         this.settings = settings;
-        this.templateUnitService = templateUnitService;
+        this.templateSettingsModel = templateSettingsModel;
     }
 
     private EventHandler<MouseEvent> mouseClickHandler = new EventHandler<>() {
@@ -245,7 +244,8 @@ public class SensorLineChart extends Chart {
 
         for (int i = 0; i < plotDataList.size(); i++) {
             var plotData = plotDataList.get(i);
-            lastLineChart = createLineChart(plotData, xAxis, i == 0);
+            ValueAxis<Number> yAxis = createYAxis(plotData);
+            lastLineChart = createLineChart(plotData, xAxis, yAxis,i == 0);
         }
 
         initSeriesComboBox();
@@ -430,11 +430,9 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    private LineChartWithMarkers createLineChart(PlotData plotData, ValueAxis<Number> xAxis, boolean primary) {
+    private LineChartWithMarkers createLineChart(PlotData plotData, ValueAxis<Number> xAxis, ValueAxis<Number> yAxis, boolean primary) {
         var data = plotData.data();
 
-        // Y-axis
-        ValueAxis<Number> yAxis = createYAxis(plotData);
         if (!primary) {
             yAxis.setOpacity(0);
         }
@@ -495,7 +493,7 @@ public class SensorLineChart extends Chart {
     }
 
     private ValueAxis<Number> createXAxis() {
-        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(model, templateUnitService, 10, file);
+        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(model, templateSettingsModel, file, 10);
         xAxis.setSide(Side.BOTTOM);
         xAxis.setPrefHeight(50);
         xAxis.setMinorTickVisible(false);
@@ -571,11 +569,11 @@ public class SensorLineChart extends Chart {
         chartName.setText(fileName);
     }
 
-    public void updateXAxisUnits(DistanceConverterService.Unit unit) {
+    public void updateXAxisUnits(TraceUnit traceUnit) {
         for (LineChartWithMarkers chart : charts) {
             if (chart.getXAxis() instanceof SensorLineChartXAxis xAxis) {
                 Platform.runLater(() -> {
-                    xAxis.setUnit(unit);
+                    xAxis.setUnit(traceUnit);
                 });
             }
         }
@@ -1724,7 +1722,8 @@ public class SensorLineChart extends Chart {
                         filtered
                 );
                 ValueAxis<Number> xAxis = createXAxis();
-                createLineChart(filteredData, xAxis, false);
+                ValueAxis<Number> yAxis = createYAxis(filteredData);
+                createLineChart(filteredData, xAxis, yAxis, false);
             } else {
                 filteredChart.plotData = filteredChart.plotData.withData(filtered);
                 filteredChart.filteredData = null;

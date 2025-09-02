@@ -14,10 +14,10 @@ import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
+import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectImpl;
-import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
-import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
@@ -35,12 +35,12 @@ public class HorizontalRulerController {
 
     private final Model model;
     private final TraceFile file;
-    private final TemplateUnitService templateUnitService;
+    private final TemplateSettingsModel templateSettingsModel;
 
-    public HorizontalRulerController(Model model, TraceFile file, TemplateUnitService templateUnitService) {
+    public HorizontalRulerController(Model model, TraceFile file, TemplateSettingsModel templateSettingsModel) {
         this.model = model;
         this.file = file;
-        this.templateUnitService = templateUnitService;
+        this.templateSettingsModel = templateSettingsModel;
 
         initializeUnitFromTemplate();
     }
@@ -49,8 +49,8 @@ public class HorizontalRulerController {
         File currentFile = file.getFile();
         if (currentFile != null) {
             String extension = getFileExtension(currentFile);
-            if (templateUnitService.hasUnitForTemplate(extension)) {
-                this.unit = templateUnitService.getUnitForTemplate(extension);
+            if (templateSettingsModel.hasUnitForTemplate(extension)) {
+                this.traceUnit = templateSettingsModel.getUnitForTemplate(extension);
             }
         }
     }
@@ -60,27 +60,27 @@ public class HorizontalRulerController {
     }
 
     @Nullable
-    private DistanceConverterService.Unit unit;
+    private TraceUnit traceUnit;
 
-    public DistanceConverterService.Unit getUnit() {
+    public TraceUnit getUnit() {
         File currentFile = file.getFile();
         if (currentFile != null) {
             String extension = getFileExtension(currentFile);
-            DistanceConverterService.Unit templateUnit = templateUnitService.getUnitForTemplate(extension);
-            if (templateUnit != null) {
-                return templateUnit;
+            TraceUnit templateTraceUnit = templateSettingsModel.getUnitForTemplate(extension);
+            if (templateTraceUnit != null) {
+                return templateTraceUnit;
             }
         }
-        return unit != null ? unit : DistanceConverterService.Unit.getDefault();
+        return traceUnit != null ? traceUnit : TraceUnit.getDefault();
     }
 
-    public void setUnit(DistanceConverterService.Unit unit) {
-        this.unit = unit;
+    public void setUnit(TraceUnit traceUnit) {
+        this.traceUnit = traceUnit;
 
         File currentFile = file.getFile();
         if (currentFile != null) {
             String extension = getFileExtension(currentFile);
-            templateUnitService.setUnitForTemplate(extension, unit);
+            templateSettingsModel.setUnitForTemplate(extension, traceUnit);
         }
     }
 
@@ -142,28 +142,28 @@ public class HorizontalRulerController {
         @Override
         public boolean mousePressHandle(Point2D localPoint, ScrollableData scrollableData) {
             if (isPointInside(localPoint, scrollableData)) {
-                List<DistanceConverterService.Unit> units = Arrays.stream(DistanceConverterService.Unit.values())
-                        .filter(u -> u != DistanceConverterService.Unit.TIME).toList();
+                TraceUnit[] allUnits = TraceUnit.values();
+                List<TraceUnit> traceUnits = Arrays.stream(allUnits)
+                        .filter(u -> u != TraceUnit.TIME).toList();
 
-                int currentIndex = units.indexOf(getUnit());
-                int nextIndex = (currentIndex + 1) % units.size();
-                DistanceConverterService.Unit nextUnit = units.get(nextIndex);
+                int nextIndex = (getUnit().ordinal() + 1) % allUnits.length;
+                TraceUnit nextTraceUnit = traceUnits.get(nextIndex);
                 File currentFile = file.getFile();
                 if (currentFile == null) {
                     return false;
                 }
                 String extension = getFileExtension(currentFile);
-                templateUnitService.setUnitForTemplate(extension, nextUnit);
-                unit = nextUnit;
-                notifyTemplateUnitChange(extension, nextUnit);
+                templateSettingsModel.setUnitForTemplate(extension, nextTraceUnit);
+                traceUnit = nextTraceUnit;
+                notifyTemplateUnitChange(extension, nextTraceUnit);
                 return true;
             }
             return false;
         }
 
-        private void notifyTemplateUnitChange(String templateName, DistanceConverterService.Unit newUnit) {
+        private void notifyTemplateUnitChange(String templateName, TraceUnit newTraceUnit) {
             Platform.runLater(() ->
-                    model.publishEvent(new TemplateUnitChangedEvent(this, file, templateName, newUnit))
+                    model.publishEvent(new TemplateUnitChangedEvent(this, file, templateName, newTraceUnit))
             );
         }
     };

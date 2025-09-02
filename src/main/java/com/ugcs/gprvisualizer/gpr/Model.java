@@ -19,7 +19,7 @@ import com.ugcs.gprvisualizer.app.*;
 import com.ugcs.gprvisualizer.app.auxcontrol.*;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
@@ -132,7 +132,7 @@ public class Model implements InitializingBean {
 
 	private final ApplicationEventPublisher eventPublisher;
 
-	private final TemplateUnitService templateUnitService;
+	private final TemplateSettingsModel templateSettingsModel;
 
 	@Nullable
 	private Node selectedDataNode;
@@ -140,12 +140,12 @@ public class Model implements InitializingBean {
 	@Nullable
 	private SgyFile currentFile;
 
-	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateUnitService templateUnitService) {
+	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateSettingsModel templateSettingsModel) {
 		this.prefSettings = prefSettings;
 		this.fileManager = fileManager;
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
-		this.templateUnitService = templateUnitService;
+		this.templateSettingsModel = templateSettingsModel;
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {
@@ -353,7 +353,7 @@ public class Model implements InitializingBean {
 			}
 		}
 
-		chart = new SensorLineChart(this, eventPublisher, prefSettings, templateUnitService);
+		chart = new SensorLineChart(this, eventPublisher, prefSettings, templateSettingsModel);
 		csvFiles.remove(csvFile);
 		csvFiles.put(csvFile, chart);
 
@@ -551,7 +551,7 @@ public class Model implements InitializingBean {
 		if (chart != null) {
 			return chart;
 		}
-		chart = new GPRChart(this, file, templateUnitService);
+		chart = new GPRChart(this, file, templateSettingsModel);
 		gprCharts.put(file, chart);
 		return chart;
 	}

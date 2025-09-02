@@ -2,9 +2,9 @@ package com.ugcs.gprvisualizer.app.axis;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
+import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
-import com.ugcs.gprvisualizer.app.service.TemplateUnitService;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -23,7 +23,6 @@ import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,36 +38,35 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     private static final DateTimeFormatter TIME_FORMATTER_MILLISECONDS = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
     private final Model model;
-    private final TemplateUnitService templateUnitService;
+    private final TemplateSettingsModel templateSettingsModel;
     private final DecimalFormat formatter = new DecimalFormat();
-    private final int numTicks;
     private final CsvFile file;
+    private final int numTicks;
     @Nonnull
     private final List<Double> cumulativeDistances = new ArrayList<>();
     @Nullable
     private Button labelButton = null;
 
-    public SensorLineChartXAxis(Model model, TemplateUnitService templateUnitService, int numTicks, CsvFile file) {
+    public SensorLineChartXAxis(Model model, TemplateSettingsModel templateSettingsModel, CsvFile file, int numTicks) {
         this.model = model;
-        this.numTicks = numTicks;
+        this.templateSettingsModel = templateSettingsModel;
         this.file = file;
-        this.templateUnitService = templateUnitService;
-
+        this.numTicks = numTicks;
         setLabel(getUnit().getLabel());
     }
 
-    public void setUnit(DistanceConverterService.Unit unit) {
-        if (unit == null ) {
+    public void setUnit(TraceUnit traceUnit) {
+        if (traceUnit == null ) {
             return;
         }
 
         String templateName = FileTemplate.getTemplateName(model, file.getFile());
-        templateUnitService.setUnitForTemplate(templateName, unit);
+        templateSettingsModel.setUnitForTemplate(templateName, traceUnit);
 
-        setLabel(unit.getLabel());
+        setLabel(traceUnit.getLabel());
 
         if (labelButton != null) {
-            labelButton.setText(unit.getLabel());
+            labelButton.setText(traceUnit.getLabel());
             labelButton.applyCss();
             labelButton.autosize();
         }
@@ -76,20 +74,20 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         invalidateRange();
     }
 
-    public DistanceConverterService.Unit getUnit() {
+    public TraceUnit getUnit() {
         if (file == null || file.getFile() == null) {
-            return DistanceConverterService.Unit.getDefault();
+            return TraceUnit.getDefault();
         }
 
         String templateName = FileTemplate.getTemplateName(model, file.getFile());
         if (templateName == null) {
-            return DistanceConverterService.Unit.getDefault();
+            return TraceUnit.getDefault();
         }
 
-        if (!templateUnitService.hasUnitForTemplate(templateName)) {
-            return DistanceConverterService.Unit.getDefault();
+        if (!templateSettingsModel.hasUnitForTemplate(templateName)) {
+            return TraceUnit.getDefault();
         } else {
-            return templateUnitService.getUnitForTemplate(templateName);
+            return templateSettingsModel.getUnitForTemplate(templateName);
         }
     }
 
@@ -101,20 +99,15 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
 
         int traceIndex = value.intValue();
-        DistanceConverterService.Unit unit = getUnit();
-        switch (unit) {
+        TraceUnit traceUnit = getUnit();
+        switch (traceUnit) {
             case METERS, KILOMETERS, MILES, FEET -> {
-                if (!unit.isDistanceBased()) {
-                    log.warn("Selected unit {} is not distance-based.", unit);
-                    return "";
-                }
-                double distance = getDistanceAtTrace(traceIndex, unit);
+                double distance = getDistanceAtTrace(traceIndex, traceUnit);
                 return formatter.format(distance);
             }
             case TIME -> {
                 LocalDateTime dt = file.getGeoData().get(traceIndex).getDateTime();
                 if (dt == null) {
-                    log.warn("DateTime is null for trace index {}.", traceIndex);
                     return "";
                 }
 
@@ -126,8 +119,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
                 return dt.format(formatter);
             }
             case TRACES -> {
-                log.warn("TRACES unit is not supported for the CSV files.");
-                return "";
+                return String.format("%1$3s", traceIndex);
             }
             default -> {
                 return "";
@@ -166,7 +158,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
     }
 
-    private double getDistanceAtTrace(int traceIndex, DistanceConverterService.Unit distanceUnit) {
+    private double getDistanceAtTrace(int traceIndex, TraceUnit distanceTraceUnit) {
         List<GeoData> geoData = file.getGeoData();
         if (cumulativeDistances.size() != geoData.size()) {
             initializeCumulativeDistances();
@@ -175,7 +167,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         if (geoData.isEmpty() || traceIndex < 0 || traceIndex >= geoData.size()) {
             return 0.0;
         }
-        return DistanceConverterService.convert(cumulativeDistances.get(traceIndex), distanceUnit);
+        return TraceUnit.convert(cumulativeDistances.get(traceIndex), distanceTraceUnit);
     }
 
     @Override
@@ -257,25 +249,20 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     }
 
     private void handleLabelClick() {
-        DistanceConverterService.Unit currentUnit = getUnit();
-        List<DistanceConverterService.Unit> units = Arrays.stream(DistanceConverterService.Unit.values())
-                .filter(u -> u != DistanceConverterService.Unit.TRACES)
-                .toList();
+        TraceUnit currentTraceUnit = getUnit();
+        TraceUnit[] traceUnits = TraceUnit.values();
 
-        int currentIndex = units.indexOf(currentUnit);
-        int nextIndex = (currentIndex + 1) % units.size();
-
-        DistanceConverterService.Unit nextUnit = units.get(nextIndex);
-        setUnit(units.get(nextIndex));
+        int nextIndex = (currentTraceUnit.ordinal() + 1) % traceUnits.length;
+        TraceUnit nextTraceUnit = traceUnits[nextIndex];
+        setUnit(nextTraceUnit);
 
         String templateName = FileTemplate.getTemplateName(model, file.getFile());
-        notifyTemplateUnitChange(templateName, nextUnit);
-
+        notifyTemplateUnitChange(templateName, nextTraceUnit);
     }
 
-    private void notifyTemplateUnitChange(String templateName, DistanceConverterService.Unit newUnit) {
+    private void notifyTemplateUnitChange(String templateName, TraceUnit newTraceUnit) {
         Platform.runLater(() ->
-                model.publishEvent(new TemplateUnitChangedEvent(this, file, templateName, newUnit))
+                model.publishEvent(new TemplateUnitChangedEvent(this, file, templateName, newTraceUnit))
         );
     }
 }

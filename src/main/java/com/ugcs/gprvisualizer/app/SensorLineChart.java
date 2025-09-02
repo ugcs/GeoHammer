@@ -10,14 +10,16 @@ import java.util.stream.Collectors;
 import com.github.thecoldwine.sigrun.common.ext.*;
 import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
+import com.ugcs.gprvisualizer.app.axis.SensorLineChartXAxis;
+import com.ugcs.gprvisualizer.app.axis.SensorLineChartYAxis;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nodes;
-import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -66,7 +68,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.Node;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.LineChart;
-import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart.Data;
 import javafx.scene.chart.XYChart.Series;
 
@@ -80,6 +81,7 @@ public class SensorLineChart extends Chart {
 
     private final ApplicationEventPublisher eventPublisher;
     private final PrefSettings settings;
+    private final TemplateSettingsModel templateSettingsModel;
     private Map<SeriesData, BooleanProperty> itemBooleanMap = new HashMap<>();
     @Nullable
     private LineChartWithMarkers lastLineChart = null;
@@ -107,10 +109,11 @@ public class SensorLineChart extends Chart {
                 new Thread(scheduler::shutdownNow));
     }
 
-    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings) {
+    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, PrefSettings settings, TemplateSettingsModel templateSettingsModel) {
         super(model);
         this.eventPublisher = eventPublisher;
         this.settings = settings;
+        this.templateSettingsModel = templateSettingsModel;
     }
 
     private EventHandler<MouseEvent> mouseClickHandler = new EventHandler<>() {
@@ -237,9 +240,12 @@ public class SensorLineChart extends Chart {
 
         this.seriesList = FXCollections.observableArrayList();
 
+        ValueAxis<Number> xAxis = createXAxis();
+
         for (int i = 0; i < plotDataList.size(); i++) {
             var plotData = plotDataList.get(i);
-            lastLineChart = createLineChart(plotData, i == 0);
+            ValueAxis<Number> yAxis = createYAxis(plotData);
+            lastLineChart = createLineChart(plotData, xAxis, yAxis,i == 0);
         }
 
         initSeriesComboBox();
@@ -424,14 +430,9 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    private LineChartWithMarkers createLineChart(PlotData plotData, boolean primary) {
+    private LineChartWithMarkers createLineChart(PlotData plotData, ValueAxis<Number> xAxis, ValueAxis<Number> yAxis, boolean primary) {
         var data = plotData.data();
 
-        // X-axis, common for all charts
-        ValueAxis<Number> xAxis = createXAxis(plotData);
-
-        // Y-axis
-        ValueAxis<Number> yAxis = createYAxis(plotData);
         if (!primary) {
             yAxis.setOpacity(0);
         }
@@ -491,15 +492,17 @@ public class SensorLineChart extends Chart {
         return lineChart;
     }
 
-    private ValueAxis<Number> createXAxis(PlotData plotData) {
-        NumberAxis xAxis = new NumberAxis();
+    private ValueAxis<Number> createXAxis() {
+        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(model, templateSettingsModel, file, 10);
+        xAxis.setSide(Side.BOTTOM);
+        xAxis.setPrefHeight(50);
         xAxis.setMinorTickVisible(false);
-        xAxis.setTickMarkVisible(false);
-        xAxis.setTickLabelsVisible(false);
 
-        int numValues = Nulls.toEmpty(plotData.data).size();
-        double tickUnit = numValues > 0 ? numValues / 10.0 : 1.0;
-        xAxis.setTickUnit(tickUnit);
+        double lowerBound = 0;
+        double upperBound = file.getGeoData().size() - 1;
+
+        xAxis.setLowerBound(lowerBound);
+        xAxis.setUpperBound(upperBound);
 
         return xAxis;
     }
@@ -564,6 +567,16 @@ public class SensorLineChart extends Chart {
     public void updateChartName() {
         String fileName = (file.isUnsaved() ? "*" : "") + file.getFile().getName();
         chartName.setText(fileName);
+    }
+
+    public void updateXAxisUnits(TraceUnit traceUnit) {
+        for (LineChartWithMarkers chart : charts) {
+            if (chart.getXAxis() instanceof SensorLineChartXAxis xAxis) {
+                Platform.runLater(() -> {
+                    xAxis.setUnit(traceUnit);
+                });
+            }
+        }
     }
 
     private Map<FoundPlace, Data<Number, Number>> foundPlaces = new HashMap<>();
@@ -1708,7 +1721,9 @@ public class SensorLineChart extends Chart {
                         chart.plotData.color,
                         filtered
                 );
-                createLineChart(filteredData, false);
+                ValueAxis<Number> xAxis = createXAxis();
+                ValueAxis<Number> yAxis = createYAxis(filteredData);
+                createLineChart(filteredData, xAxis, yAxis, false);
             } else {
                 filteredChart.plotData = filteredChart.plotData.withData(filtered);
                 filteredChart.filteredData = null;

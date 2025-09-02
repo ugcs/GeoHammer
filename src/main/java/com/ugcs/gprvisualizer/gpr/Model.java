@@ -19,9 +19,13 @@ import com.ugcs.gprvisualizer.app.*;
 import com.ugcs.gprvisualizer.app.auxcontrol.*;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
+import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.utils.FileTemplate;
+import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.scene.layout.*;
@@ -128,17 +132,20 @@ public class Model implements InitializingBean {
 
 	private final ApplicationEventPublisher eventPublisher;
 
+	private final TemplateSettingsModel templateSettingsModel;
+
 	@Nullable
 	private Node selectedDataNode;
 
 	@Nullable
 	private SgyFile currentFile;
 
-	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher) {
+	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateSettingsModel templateSettingsModel) {
 		this.prefSettings = prefSettings;
 		this.fileManager = fileManager;
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
+		this.templateSettingsModel = templateSettingsModel;
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {
@@ -346,7 +353,7 @@ public class Model implements InitializingBean {
 			}
 		}
 
-		chart = new SensorLineChart(this, eventPublisher, prefSettings);
+		chart = new SensorLineChart(this, eventPublisher, prefSettings, templateSettingsModel);
 		csvFiles.remove(csvFile);
 		csvFiles.put(csvFile, chart);
 
@@ -544,7 +551,7 @@ public class Model implements InitializingBean {
 		if (chart != null) {
 			return chart;
 		}
-		chart = new GPRChart(this, file);
+		chart = new GPRChart(this, file, templateSettingsModel);
 		gprCharts.put(file, chart);
 		return chart;
 	}
@@ -570,6 +577,44 @@ public class Model implements InitializingBean {
 	private void fileClosed(FileClosedEvent event) {
 		Chart chart = getFileChart(event.getSgyFile());
 		clearSelectedTrace(chart);
+	}
+
+	@EventListener
+	public void onTemplateUnitChanged(TemplateUnitChangedEvent event) {
+		if (event.getUnit() == null || event.getTemplateName() == null || event.getFile() == null) {
+			return;
+		}
+		File eventFile = event.getFile().getFile();
+		if (FileTypes.isCsvFile(eventFile)) {
+			for (Map.Entry<CsvFile, SensorLineChart> entry : csvFiles.entrySet()) {
+				CsvFile csvFile = entry.getKey();
+				SensorLineChart chart = entry.getValue();
+				File file = csvFile.getFile();
+				if (file == null || Objects.equals(csvFile, event.getFile())) {
+					continue;
+				}
+				if (Objects.equals(FileTemplate.getTemplateName(this, file), event.getTemplateName())) {
+					chart.updateXAxisUnits(event.getUnit());
+					Platform.runLater(chart::reload);
+				}
+			}
+			return;
+		}
+		if (FileTypes.isGprFile(eventFile)) {
+			for (Map.Entry<TraceFile, GPRChart> entry : gprCharts.entrySet()) {
+				TraceFile traceFile = entry.getKey();
+				GPRChart chart = entry.getValue();
+				File file = traceFile.getFile();
+				if (file == null || Objects.equals(traceFile, event.getFile())) {
+					continue;
+				}
+				if (Objects.equals(FileTemplate.getTemplateName(this, file), event.getTemplateName())) {
+					HorizontalRulerController controller = chart.getHorizontalRulerController();
+					controller.setUnit(event.getUnit());
+					Platform.runLater(chart::repaint);
+				}
+			}
+		}
 	}
 
 	// charts

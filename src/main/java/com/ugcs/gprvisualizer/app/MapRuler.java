@@ -9,7 +9,6 @@ import java.util.List;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
 import com.ugcs.gprvisualizer.draw.Layer;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.geometry.Point2D;
@@ -35,7 +34,7 @@ public class MapRuler implements Layer {
 	@Nullable
 	private Runnable repaintCallback;
 	@Nullable
-	private DistanceConverterService.Unit distanceUnit;
+	private TraceUnit distanceTraceUnit;
 
 	private final ToggleButton toggleButton =
 			ResourceImageHolder.setButtonImage(ResourceImageHolder.RULER, new ToggleButton());
@@ -90,8 +89,8 @@ public class MapRuler implements Layer {
 		this.repaintCallback = repaintCallback;
 	}
 
-	public void setDistanceUnit(DistanceConverterService.Unit unit) {
-		this.distanceUnit = unit;
+	public void setDistanceUnit(TraceUnit traceUnit) {
+		this.distanceTraceUnit = traceUnit;
 		requestRepaint();
 	}
 
@@ -304,9 +303,9 @@ public class MapRuler implements Layer {
 			totalDistanceMeters += mapField.latLonDistance(
 					points.get(i).getLocation(), points.get(i + 1).getLocation());
 		}
-		double value = DistanceConverterService.convert(
+		double value = TraceUnit.convert(
 				totalDistanceMeters,
-				distanceUnit != null ? distanceUnit : DistanceConverterService.Unit.getDefault()
+				distanceTraceUnit != null ? distanceTraceUnit : TraceUnit.getDefault()
 		);
 		return String.format("Distance: %.2f", value);
 	}

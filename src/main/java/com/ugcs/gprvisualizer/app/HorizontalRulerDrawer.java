@@ -18,6 +18,8 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import com.ugcs.gprvisualizer.gpr.HorizontalRulerController;
 import com.ugcs.gprvisualizer.utils.Ticks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -26,6 +28,8 @@ public class HorizontalRulerDrawer {
     private final DecimalFormat formatter = new DecimalFormat();
     @Nonnull
     private final List<Double> cumulativeDistances = new ArrayList<>();
+
+    private static final Logger log = LoggerFactory.getLogger(HorizontalRulerDrawer.class);
 
     public HorizontalRulerDrawer(GPRChart field) {
         this.field = field;
@@ -41,6 +45,10 @@ public class HorizontalRulerDrawer {
 
         int firstTrace = field.getFirstVisibleTrace();
         int lastTrace = field.getLastVisibleTrace();
+        int traceCount = field.getTracesCount();
+        int totalTraces = field.getVisibleNumberOfTrace();
+
+        log.info("First trace: {}, Last trace: {}, Trace count: {}, Total traces: {}, zoom: {}", firstTrace, lastTrace, traceCount, totalTraces, field.getZoom());
 
         Pair<Integer, Integer> pair;
         if (firstTrace <= lastTrace) {
@@ -51,7 +59,17 @@ public class HorizontalRulerDrawer {
         int first = pair.getLeft();
         int last = pair.getRight();
 
-        int tick = Math.max(1, (int) Ticks.getPrettyTick(first, last, 10));
+        FontMetrics fontMetrics = g2.getFontMetrics();
+        TraceUnit traceUnit = getController().getUnit();
+        String sampleLabel = getLabelByUnit(first, traceUnit);
+        int labelWidth = fontMetrics.stringWidth(sampleLabel);
+        int minPixelSpacing = labelWidth + 20;
+
+        double minTraceSpacing = minPixelSpacing / field.getHScale();
+        int minTick = Math.max(1, (int) Math.ceil(minTraceSpacing));
+
+        int baseTick = Math.max(1, (int) Ticks.getPrettyTick(first, last, 10));
+        int tick = Math.max(minTick, baseTick);
 
         List<Integer> steps = new ArrayList<>();
         steps.add(tick);
@@ -63,7 +81,6 @@ public class HorizontalRulerDrawer {
         }
 
         g2.setFont(new Font("Arial", Font.PLAIN, 11));
-        FontMetrics fontMetrics = g2.getFontMetrics();
 
         int sz = 21;
         for (int step : steps) {
@@ -71,19 +88,23 @@ public class HorizontalRulerDrawer {
             int endIndex = last / step * step;
 
             for (int i = startIndex; i <= endIndex; i += step) {
-
-                int x = rect.x + (int) Math.round((i - firstTrace) * field.getHScale());
+                int x;
+                if (firstTrace == 0 && totalTraces - lastTrace > 0) {
+                    x = rect.x + (int) Math.round((i - firstTrace + totalTraces - lastTrace) * field.getHScale());
+                } else {
+                    x = rect.x + (int) Math.round((i - firstTrace) * field.getHScale());
+                }
 
                 if (x >= rect.x && x <= rect.x + rect.width) {
                     g2.setColor(Color.lightGray);
                     g2.drawLine(x, rect.y, x, rect.y + sz);
 
                     if (step == tick) {
-                        TraceUnit traceUnit = getController().getUnit();
-                        String label = getLabelByUnit(i, traceUnit);
-                        int labelWidth = fontMetrics.stringWidth(label);
+                        TraceUnit unit = getController().getUnit();
+                        String label = getLabelByUnit(i, unit);
+                        int width = fontMetrics.stringWidth(label);
                         g2.setColor(Color.darkGray);
-                        g2.drawString(label, x - labelWidth / 2, rect.y + rect.height - 4);
+                        g2.drawString(label, x - width / 2, rect.y + rect.height - 4);
                     }
                 }
             }

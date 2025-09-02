@@ -233,11 +233,13 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
             labelButton = new Button(axisLabel.getText());
             labelButton.getStyleClass().add("clickable-label");
             labelButton.setCursor(Cursor.HAND);
+            labelButton.setVisible(this.isVisible() && this.isTickLabelsVisible());
 
             labelButton.setOnAction(event -> handleLabelClick());
 
             getChildren().add(labelButton);
         } else if (labelButton != null) {
+            labelButton.setVisible(this.isVisible() && this.isTickLabelsVisible());
             getChildren().remove(labelButton);
             labelButton.setText(getUnit().getLabel());
             labelButton.autosize();

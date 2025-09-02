@@ -245,7 +245,7 @@ public class SensorLineChart extends Chart {
             ValueAxis<Number> xAxis = createXAxis();
             ValueAxis<Number> yAxis = createYAxis(plotData);
 
-            boolean showXAxis = (i == plotDataList.size() - 1);
+            boolean showXAxis = i == plotDataList.size() - 1;
             if (!showXAxis) {
                 xAxis.setVisible(false);
                 xAxis.setTickLabelsVisible(false);

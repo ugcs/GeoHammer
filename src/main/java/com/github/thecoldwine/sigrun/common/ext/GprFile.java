@@ -27,8 +27,12 @@ import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Traces;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GprFile extends TraceFile {
+
+	private static final Logger log = LoggerFactory.getLogger(GprFile.class);
 	
 	private static final int MARK_BYTE_POS = 238;
 
@@ -89,11 +93,9 @@ public class GprFile extends TraceFile {
 		binHdr = binFile.getBinHdr();
 		
 		binaryHeader = binaryHeaderReader.read(binFile.getBinHdr());
-		
-		System.out.println("binaryHeader.getSampleInterval() " 
-				+ binaryHeader.getSampleInterval());
-		System.out.println("SamplesPerDataTrace " 
-				+ binaryHeader.getSamplesPerDataTrace());
+
+		log.debug("Sample interval: {}", binaryHeader.getSampleInterval());
+		log.debug("Samples per data trace {}", binaryHeader.getSamplesPerDataTrace());
 
 		List<Trace> traces = readTraces(binFile);
 		// fill latlon where null
@@ -109,10 +111,8 @@ public class GprFile extends TraceFile {
 		updateTraceDistances();
 		
 		setUnsaved(false);
-		
-		System.out.println("opened  '" + file.getName() 
-			+ "'   load size: " + getTraces().size() 
-			+ "  actual size: " + binFile.getTraces().size());
+
+		log.debug("opened '{}', load size: {}, actual size: {}", file.getName(), getTraces().size(), binFile.getTraces().size());
 	}
 
 	private List<Trace> readTraces(BinFile binFile) {

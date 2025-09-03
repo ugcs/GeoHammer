@@ -1,8 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.util.Arrays;
 
-import com.ugcs.gprvisualizer.app.service.DistanceConverterService;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -16,13 +14,13 @@ public class DistanceLabelPane extends BorderPane {
 	public DistanceLabelPane(MapRuler mapRuler, Runnable updateUI, Runnable visibilityChanged) {
 		ComboBox<String> unitComboBox = new ComboBox<>(
 				FXCollections.observableArrayList(
-						Arrays.stream(DistanceConverterService.Unit.values())
-								.map(DistanceConverterService.Unit::getLabel)
+						TraceUnit.distanceUnits().stream()
+								.map(TraceUnit::getLabel)
 								.toList())
 		);
 		Label distanceLabel = new Label();
 
-		unitComboBox.setValue(DistanceConverterService.Unit.METERS.getLabel());
+		unitComboBox.setValue(TraceUnit.METERS.getLabel());
 		unitComboBox.setPrefWidth(65);
 
 		distanceLabel.setPrefHeight(30);
@@ -48,11 +46,11 @@ public class DistanceLabelPane extends BorderPane {
 		};
 
 		unitComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
-			DistanceConverterService.Unit unit = Arrays.stream(DistanceConverterService.Unit.values())
+			TraceUnit traceUnit = TraceUnit.distanceUnits().stream()
 					.filter(u -> u.getLabel().equals(newVal))
 					.findFirst()
-					.orElse(DistanceConverterService.Unit.METERS);
-			mapRuler.setDistanceUnit(unit);
+					.orElse(TraceUnit.METERS);
+			mapRuler.setDistanceUnit(traceUnit);
 			updateDistanceLabel.run();
 		});
 

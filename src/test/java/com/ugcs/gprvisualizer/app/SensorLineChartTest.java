@@ -1,5 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import javafx.scene.Scene;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -15,7 +16,6 @@ import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @Disabled
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -31,6 +31,9 @@ public class SensorLineChartTest {
     private PrefSettings settings;
 
     @Mock
+    private TemplateSettingsModel templateSettingsModel;
+
+    @Mock
     private AuxElementEditHandler auxEditHandler;
 
     private SensorLineChart sensorLineChart;
@@ -39,7 +42,7 @@ public class SensorLineChartTest {
     @Start
     private void start(Stage stage) {
         this.stage = stage;
-        sensorLineChart = new SensorLineChart(model, eventPublisher, settings);
+        sensorLineChart = new SensorLineChart(model, eventPublisher, settings, templateSettingsModel);
 
         // Set up the initial scene
         VBox root = new VBox();

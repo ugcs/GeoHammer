@@ -14,10 +14,12 @@ import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.RemoveLineButton;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.draw.PrismDrawer;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.gpr.HorizontalRulerController;
 import com.ugcs.gprvisualizer.gpr.LeftRulerController;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.Settings;
@@ -86,6 +88,8 @@ public class GPRChart extends Chart {
 
     private final LeftRulerController leftRulerController;
 
+    private final HorizontalRulerController horizontalRulerController;
+
     private final ChangeListener<Number> sliderListener
             = (observable, oldValue, newValue) -> {
                 //if (Math.abs(newValue.intValue() - oldValue.intValue()) > 3) {
@@ -97,13 +101,15 @@ public class GPRChart extends Chart {
     private final List<BaseObject> auxElements = new ArrayList<>();
 
     VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
+    HorizontalRulerDrawer horizontalRulerDrawer = new HorizontalRulerDrawer(this);
 
-    public GPRChart(Model model, TraceFile traceFile) {
+    public GPRChart(Model model, TraceFile traceFile, TemplateSettingsModel templateSettingsModel) {
         super(model);
         this.model = model;
         this.auxEditHandler = model.getAuxEditHandler();
         this.profileField = new ProfileField(traceFile);
         this.leftRulerController = new LeftRulerController(profileField);
+        this.horizontalRulerController = new HorizontalRulerController(model, traceFile, templateSettingsModel);
 
         vbox.getChildren().addAll(canvas);
         vbox.setOnMouseClicked(event -> {
@@ -318,6 +324,7 @@ public class GPRChart extends Chart {
         drawAxis(g2);
 
         verticalRulerDrawer.draw(g2);
+        horizontalRulerDrawer.draw(g2);
 
         var mainRect = profileField.getMainRect();
         g2.setClip(mainRect.x, mainRect.y, mainRect.width, mainRect.height);
@@ -418,6 +425,7 @@ public class GPRChart extends Chart {
         auxElements.add(new DepthStart(ShapeHolder.topSelection));
         auxElements.add(new DepthHeight(ShapeHolder.botSelection));
         auxElements.add(leftRulerController.getTB());
+        auxElements.add(horizontalRulerController.getTB());
 
         // close button
         auxElements.add(new CloseGprChartButton(
@@ -428,12 +436,17 @@ public class GPRChart extends Chart {
         return leftRulerController;
     }
 
+    public HorizontalRulerController getHorizontalRulerController() {
+        return horizontalRulerController;
+    }
+
     private void drawAxis(Graphics2D g2) {
         var field = getField();
 
         Rectangle mainRectRect = field.getMainRect();
         Rectangle topRuleRect = field.getTopRuleRect();
         Rectangle leftRuleRect = field.getLeftRuleRect();
+        Rectangle bottomRuleRect = field.getBottomRuleRect();
 
         g2.setPaint(Color.lightGray);
         g2.setStroke(new BasicStroke(0.8f));
@@ -442,19 +455,20 @@ public class GPRChart extends Chart {
                 topRuleRect.x + topRuleRect.width,
                 topRuleRect.y + topRuleRect.height + 1);
 
-        g2.setPaint(Color.lightGray);
-        g2.setStroke(new BasicStroke(0.8f));
         g2.drawLine(topRuleRect.x,
                 topRuleRect.y + topRuleRect.height + 1,
                 topRuleRect.x,
                 mainRectRect.height);
 
-        g2.setPaint(Color.lightGray);
-        g2.setStroke(new BasicStroke(0.8f));
         g2.drawLine(leftRuleRect.x + 1,
                 leftRuleRect.y,
                 leftRuleRect.x + 1,
                 leftRuleRect.y + leftRuleRect.height);
+
+        g2.drawLine(bottomRuleRect.x,
+                bottomRuleRect.y + 1,
+                bottomRuleRect.x + bottomRuleRect.width,
+                bottomRuleRect.y + 1);
     }
 
     private void drawHorizontalProfile(Graphics2D g2,

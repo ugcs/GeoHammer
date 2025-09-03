@@ -240,12 +240,19 @@ public class SensorLineChart extends Chart {
 
         this.seriesList = FXCollections.observableArrayList();
 
-        ValueAxis<Number> xAxis = createXAxis();
-
         for (int i = 0; i < plotDataList.size(); i++) {
             var plotData = plotDataList.get(i);
+            ValueAxis<Number> xAxis = createXAxis();
             ValueAxis<Number> yAxis = createYAxis(plotData);
-            lastLineChart = createLineChart(plotData, xAxis, yAxis,i == 0);
+
+            boolean showXAxis = i == plotDataList.size() - 1;
+            if (!showXAxis) {
+                xAxis.setVisible(false);
+                xAxis.setTickLabelsVisible(false);
+                xAxis.setTickMarkVisible(false);
+            }
+
+            lastLineChart = createLineChart(plotData, xAxis, yAxis, i == 0);
         }
 
         initSeriesComboBox();

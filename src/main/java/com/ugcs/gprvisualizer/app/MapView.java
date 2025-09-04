@@ -82,7 +82,6 @@ public class MapView implements InitializingBean {
 	//@Autowired
 	private Dimension wndSize = new Dimension();
 
-	@Autowired
 	private GridLayer gridLayer;
 
 	@Autowired
@@ -165,6 +164,11 @@ public class MapView implements InitializingBean {
 	private void fileClosed(FileClosedEvent event) {
 		toolBar.setDisable(!model.isActive() || !isGpsPresent());
 		updateUI();
+	}
+
+	@Autowired
+	public void setGridLayer(GridLayer gridLayer) {
+		this.gridLayer = gridLayer;
 	}
 	
 	private boolean isGpsPresent() {

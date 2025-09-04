@@ -241,13 +241,21 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         } else if (labelButton != null) {
             labelButton.setVisible(this.isVisible() && this.isTickLabelsVisible());
             getChildren().remove(labelButton);
-            labelButton.setText(getUnit().getLabel());
+            labelButton.setText(getUnitLabel(getUnit()));
             labelButton.autosize();
 
             labelButton.setLayoutX((getWidth() - labelButton.getWidth()) / 2);
             labelButton.setLayoutY(getHeight() - labelButton.getHeight() + 5);
             getChildren().add(labelButton);
         }
+    }
+
+    // Change "traces" to "measurements" for better clarity
+    private String getUnitLabel(TraceUnit unit) {
+        if (unit == TraceUnit.TRACES) {
+            return "measurements";
+        }
+        return unit.getLabel();
     }
 
     private void handleLabelClick() {

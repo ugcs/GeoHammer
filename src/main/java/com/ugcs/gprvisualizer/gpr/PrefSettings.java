@@ -77,4 +77,19 @@ public class PrefSettings {
             e.printStackTrace();
         }
     }
+
+    public void saveSetting(String group, String name, String value) {
+        Properties properties = new Properties();
+        try (InputStream input = resource.getInputStream()) {
+            properties.load(input);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try (OutputStream output = new FileOutputStream(resource.getFile())) {
+            properties.setProperty(prefix + group + "." + name, value);
+            properties.store(output, null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

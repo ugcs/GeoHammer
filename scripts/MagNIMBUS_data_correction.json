@@ -1,0 +1,56 @@
+{
+  "filename": "MagNIMBUS_data_correction.py",
+  "display_name": "MagNIMBUS data correction",
+  "parameters": [
+    {
+      "name": "include-position",
+      "display_name": "Include position (latitude/longitude)",
+      "type": "BOOLEAN",
+      "default_value": "true",
+      "required": false
+    },
+    {
+      "name": "include-magnetic",
+      "display_name": "Include magnetic (Bx/By/Bz)",
+      "type": "BOOLEAN",
+      "default_value": "true",
+      "required": false
+    },
+    {
+      "name": "include-heading",
+      "display_name": "Include heading",
+      "type": "BOOLEAN",
+      "default_value": "true",
+      "required": false
+    },
+    {
+      "name": "include-altitude-agl",
+      "display_name": "Include altitude AGL",
+      "type": "BOOLEAN",
+      "default_value": "false",
+      "required": false
+    },
+    {
+      "name": "include-altitude-amsl",
+      "display_name": "Include altitude AMSL",
+      "type": "BOOLEAN",
+      "default_value": "false",
+      "required": false
+    },
+    {
+      "name": "include-accelerometer",
+      "display_name": "Include accelerometer",
+      "type": "BOOLEAN",
+      "default_value": "false",
+      "required": false
+    },
+    {
+      "name": "quantile-regression",
+      "display_name": "Use quantile regression",
+      "type": "BOOLEAN",
+      "default_value": "false",
+      "required": false
+    }
+  ],
+  "templates": ["MagNIMBUS"]
+}

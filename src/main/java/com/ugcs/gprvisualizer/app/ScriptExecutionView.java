@@ -128,6 +128,9 @@ public class ScriptExecutionView extends VBox {
 		getChildren().add(stackPane);
 
 		updateView(selectedFile);
+
+		setVisible(false);
+		setManaged(false);
 	}
 
 	public void updateView(@Nullable SgyFile newSelectedFile) {
@@ -177,12 +180,8 @@ public class ScriptExecutionView extends VBox {
 				} else {
 					scriptsMetadataSelector.getSelectionModel().clearSelection();
 				}
-				setVisible(true);
-				setManaged(true);
 			} else {
 				setExecutingProgress(false);
-				setVisible(scriptsMetadataSelector.getValue() != null);
-				setManaged(scriptsMetadataSelector.getValue() != null);
 			}
 		});
 	}
@@ -190,7 +189,8 @@ public class ScriptExecutionView extends VBox {
 	private VBox createParameterInput(PythonScriptParameter param) {
 		VBox paramBox = new VBox(5);
 
-		Label label = new Label(param.displayName() + (param.required() ? " *" : ""));
+		String labelText = param.displayName() + (param.required() ? " *" : "");
+		Label label = new Label(labelText);
 
 		Node inputNode = switch (param.type()) {
 			case STRING, FILE_PATH -> {
@@ -211,12 +211,16 @@ public class ScriptExecutionView extends VBox {
 			case BOOLEAN -> {
 				CheckBox checkBox = new CheckBox();
 				checkBox.setSelected(Boolean.parseBoolean(param.defaultValue()));
+				checkBox.setText(labelText);
 				yield checkBox;
 			}
 		};
 
 		inputNode.setUserData(param.name());
-		paramBox.getChildren().addAll(label, inputNode);
+		if (param.type() != PythonScriptParameter.ParameterType.BOOLEAN) {
+			paramBox.getChildren().add(label);
+		}
+		paramBox.getChildren().add(inputNode);
 
 		return paramBox;
 	}

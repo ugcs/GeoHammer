@@ -78,4 +78,7 @@
       - header: "TMI_Fixed"
         semantic: "TMI_Fixed"
         units: "nT"
+      - header: "TMI_Fixed_Filtered"
+        semantic: "TMI_Fixed_Filtered"
+        units: "nT"
 

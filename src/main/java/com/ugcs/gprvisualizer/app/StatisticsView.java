@@ -49,8 +49,6 @@ public class StatisticsView extends VBox {
 
     private Label value;
 
-    private Label total;
-
     private MetricsView metricsView;
 
     private MetricsContextSelector metricsContextSelector;
@@ -79,9 +77,6 @@ public class StatisticsView extends VBox {
         HBox valueGroup = new HBox(seriesName, spacer, value);
         valueGroup.setSpacing(OptionPane.DEFAULT_SPACING);
 
-        // total
-        total = new Label(Strings.empty());
-
         // metrics
         metricsView = new MetricsView();
         metricsContextSelector = new MetricsContextSelector();
@@ -91,7 +86,6 @@ public class StatisticsView extends VBox {
 
         getChildren().addAll(
                 valueGroup,
-                total,
                 metricsGroup);
 
         setVisible(false);
@@ -143,23 +137,15 @@ public class StatisticsView extends VBox {
         if (chart == null) {
             seriesName.setText(NO_SERIES);
             value.setText(NO_VALUE);
-            total.setText(Strings.empty());
         } else {
             String series = chart.getSelectedSeriesName();
             this.seriesName.setText(series);
-
-            List<GeoData> values = chart.getFile().getGeoData();
-            int numValues = values.size();
-            String totalText = numValues + " total value";
-            if (numValues % 10 != 1 || numValues % 100 == 11) {
-                totalText += "s";
-            }
-            this.total.setText(totalText);
 
             String valueText = NO_VALUE;
             TraceKey selectedTrace = model.getSelectedTrace(chart);
             if (selectedTrace != null) {
                 int index = selectedTrace.getIndex();
+                List<GeoData> values = chart.getFile().getGeoData();
                 SensorValue sensorValue = findNearestSensorValue(values, series, index);
                 if (hasData(sensorValue)) {
                     valueText = formatValue(sensorValue.data().doubleValue());
@@ -219,6 +205,9 @@ public class StatisticsView extends VBox {
     }
 
     private String formatValue(double value) {
+        if (Double.isNaN(value)) {
+            return NO_VALUE;
+        }
         return String.format("%." + chartDecimals + "f", value);
     }
 
@@ -253,6 +242,7 @@ public class StatisticsView extends VBox {
     }
 
     class MetricsView extends GridPane {
+        Label count;
         Label min;
         Label max;
         Label avg;
@@ -265,29 +255,33 @@ public class StatisticsView extends VBox {
         PrefixSum avgIndex;
 
         public MetricsView() {
+            Label countHeader = createHeaderLabel("count");
             Label minHeader = createHeaderLabel("min");
             Label maxHeader = createHeaderLabel("max");
             Label avgHeader = createHeaderLabel("average");
             Label rangeHeader = createHeaderLabel("range");
 
+            count = createValueLabel(NO_VALUE);
             min = createValueLabel(NO_VALUE);
             max = createValueLabel(NO_VALUE);
             avg = createValueLabel(NO_VALUE);
             range = createValueLabel(NO_VALUE);
 
-            add(minHeader, 0, 0);
-            add(maxHeader, 1, 0);
-            add(avgHeader, 2, 0);
-            add(rangeHeader, 3, 0);
+            add(countHeader, 0, 0);
+            add(minHeader, 1, 0);
+            add(maxHeader, 2, 0);
+            add(avgHeader, 3, 0);
+            add(rangeHeader, 4, 0);
 
-            add(min, 0, 1);
-            add(max, 1, 1);
-            add(avg, 2, 1);
-            add(range, 3, 1);
+            add(count, 0, 1);
+            add(min, 1, 1);
+            add(max, 2, 1);
+            add(avg, 3, 1);
+            add(range, 4, 1);
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 5; i++) {
                 ColumnConstraints columnConstraints = new ColumnConstraints();
-                columnConstraints.setPercentWidth(25);
+                columnConstraints.setPercentWidth(20);
                 columnConstraints.setHalignment(HPos.CENTER);
                 columnConstraints.setHgrow(Priority.ALWAYS);
                 getColumnConstraints().add(columnConstraints);
@@ -337,6 +331,7 @@ public class StatisticsView extends VBox {
             updateIndex();
 
             if (chart == null) {
+                count.setText(NO_VALUE);
                 min.setText(NO_VALUE);
                 max.setText(NO_VALUE);
                 avg.setText(NO_VALUE);
@@ -348,6 +343,7 @@ public class StatisticsView extends VBox {
             Range queryRange = getRange(chart, metricsContext);
 
             if (queryRange == null) {
+                count.setText(NO_VALUE);
                 min.setText(NO_VALUE);
                 max.setText(NO_VALUE);
                 avg.setText(NO_VALUE);
@@ -358,10 +354,12 @@ public class StatisticsView extends VBox {
             int l = queryRange.getMin().intValue();
             int r = queryRange.getMax().intValue() + 1;
 
+            int countValue = avgIndex.queryCount(l, r);
             double minValue = minMaxIndex.queryMin(l, r);
             double maxValue = minMaxIndex.queryMax(l, r);
             double avgValue = avgIndex.queryAvg(l, r);
 
+            count.setText(Integer.toString(countValue));
             min.setText(formatValue(minValue));
             max.setText(formatValue(maxValue));
             avg.setText(formatValue(avgValue));
@@ -481,8 +479,8 @@ public class StatisticsView extends VBox {
         public Double get(int index) {
             GeoData value = values.get(index);
             return value != null
-                    ? value.getDouble(semantic).orElse(0.0)
-                    : 0.0;
+                    ? value.getDouble(semantic).orElse(Double.NaN)
+                    : Double.NaN;
         }
 
         @Override

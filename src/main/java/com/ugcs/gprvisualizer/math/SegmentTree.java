@@ -20,8 +20,10 @@ public class SegmentTree {
         // copy values to the second halfs
         for (int i = 0; i < n; i++) {
             Double value = values.get(i);
-            minTree[n + i] = value;
-            maxTree[n + i] = value;
+            boolean isValid = value != null && !Double.isNaN(value);
+
+            minTree[n + i] = isValid ? value : Double.POSITIVE_INFINITY;
+            maxTree[n + i] = isValid ? value : Double.NEGATIVE_INFINITY;
         }
 
         // build trees bottom-up
@@ -33,7 +35,7 @@ public class SegmentTree {
 
     // [left, right)
     public double queryMin(int left, int right) {
-        double min = Double.MAX_VALUE;
+        double min = Double.POSITIVE_INFINITY;
         for (left += n, right += n; left < right; left /= 2, right /= 2) {
             if (left % 2 == 1) {
                 min = Math.min(min, minTree[left++]);
@@ -42,12 +44,14 @@ public class SegmentTree {
                 min = Math.min(min, minTree[--right]);
             }
         }
-        return min;
+        return min == Double.POSITIVE_INFINITY
+                ? Double.NaN
+                : min;
     }
 
     // [left, right)
     public double queryMax(int left, int right) {
-        double max = -Double.MAX_VALUE;
+        double max = Double.NEGATIVE_INFINITY;
         for (left += n, right += n; left < right; left /= 2, right /= 2) {
             if (left % 2 == 1) {
                 max = Math.max(max, maxTree[left++]);
@@ -56,6 +60,8 @@ public class SegmentTree {
                 max = Math.max(max, maxTree[--right]);
             }
         }
-        return max;
+        return max == Double.NEGATIVE_INFINITY
+                ? Double.NaN
+                : max;
     }
 }

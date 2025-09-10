@@ -22,6 +22,7 @@ import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.AnalyticSignal;
 import com.ugcs.gprvisualizer.math.AnalyticSignalFilter;
+import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
 import edu.mines.jtk.interp.SplinesGridder2;
 import javafx.scene.control.Button;
@@ -238,13 +239,24 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 	// Map to store gridding results for each file
 	private final Map<File, GriddingResult> griddingResults = new ConcurrentHashMap<>();
 
+	public record Grid(
+			float[][] values,
+			float minValue,
+			float maxValue,
+			LatLon minLatLon,
+			LatLon maxLatLon
+	) {}
+
 	// Class to store gridding result for a file
 	private record GriddingResult(
 		float[][] gridData,
 		float[][] smoothedGridData,
-		LatLon minLatLon, LatLon maxLatLon,
-		double cellSize, double blankingDistance,
-		Float minValue, Float maxValue,
+		LatLon minLatLon,
+		LatLon maxLatLon,
+		double cellSize,
+		double blankingDistance,
+		float minValue,
+		float maxValue,
 		String sensor,
 		// Analytic signal
 		boolean analyticSignalEnabled,
@@ -766,24 +778,70 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		return result;
 	}
 
+	public Grid getCurrentGrid() {
+		if (currentFile == null) {
+			return null;
+		}
+
+		GriddingResult griddingResult = griddingResults.get(currentFile.getFile());
+		if (griddingResult == null) {
+			return null;
+		}
+
+		return getFilteredGrid(griddingResult);
+	}
+
+	private Grid getFilteredGrid(GriddingResult griddingResult) {
+		Check.notNull(griddingResult);
+
+		float[][] grid = griddingResult.smoothingEnabled
+				? griddingResult.smoothedGridData
+				: griddingResult.gridData;
+
+		float minValue = griddingResult.minValue;
+		float maxValue = griddingResult.maxValue;
+
+		if (griddingResult.analyticSignalEnabled) {
+			int gridWidth = grid.length;
+			int gridHeight = grid[0].length;
+
+			LatLon minLatLon = griddingResult.minLatLon;
+			LatLon maxLatLon = griddingResult.maxLatLon;
+
+			double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
+			double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
+
+			double cellWidthMeters = CoordinatesMath.measure(0, 0, 0, lonStep);
+			double cellHeightMeters = CoordinatesMath.measure(0, 0, latStep, 0);
+
+			AnalyticSignalFilter filter = new AnalyticSignalFilter(
+					grid,
+					cellWidthMeters,
+					cellHeightMeters,
+					new Range(minValue, maxValue));
+			AnalyticSignal signal = filter.evaluate();
+			Range signalRange = signal.getRange(0.02);
+
+			grid = signal.getMagnitudes();
+			minValue = signalRange.getMin().floatValue();
+			maxValue = signalRange.getMax().floatValue();
+		}
+
+		return new Grid(grid, minValue, maxValue,
+				griddingResult.minLatLon, griddingResult.maxLatLon);
+	}
+
 	private void print(Graphics2D g2, MapField field, GriddingResult gr) {
+		Grid grid = getFilteredGrid(gr);
 
-		Float minValue = gr.minValue;
-		Float maxValue = gr.maxValue;
-		System.out.println("Printing minValue = " + minValue + " maxValue = " + maxValue);
+		var minLatLon = grid.minLatLon;
+		var maxLatLon = grid.maxLatLon;
 
-		var gridData = gr.smoothingEnabled
-				? gr.smoothedGridData
-				: gr.gridData;
+		int gridWidth = grid.values.length;
+		int gridHeight = grid.values[0].length;
 
-		var minLatLon = gr.minLatLon;
-		var maxLatLon = gr.maxLatLon;
-
-		int gridSizeX = gridData.length;
-		int gridSizeY = gridData[0].length;
-
-		double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridSizeX;
-		double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridSizeY;
+		double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
+		double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
 
 		var minLatLonPoint = field.latLonToScreen(minLatLon);
 		var nextLatLonPoint = field.latLonToScreen(new LatLon(minLatLon.getLatDgr() + latStep, minLatLon.getLonDgr() + lonStep));
@@ -799,41 +857,26 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 				", altitude=" + gr.hillShadingAltitude + ", intensity=" + gr.hillShadingIntensity);
 		}
 
-		if (gr.analyticSignalEnabled) {
-			double cellWidthMeters = CoordinatesMath.measure(0, 0, 0, lonStep);
-			double cellHeightMeters = CoordinatesMath.measure(0, 0, latStep, 0);
-
-			AnalyticSignalFilter filter = new AnalyticSignalFilter(
-					gridData,
-					cellWidthMeters,
-					cellHeightMeters,
-					new Range(minValue, maxValue));
-			AnalyticSignal signal = filter.evaluate();
-			Range signalRange = signal.getRange(0.02);
-
-			gridData = signal.getMagnitudes();
-			minValue = signalRange.getMin().floatValue();
-			maxValue = signalRange.getMax().floatValue();
-		}
-
-		for (int i = 0; i < gridData.length; i++) {
-			for (int j = 0; j < gridData[0].length; j++) {
+		for (int i = 0; i < gridWidth; i++) {
+			for (int j = 0; j < gridHeight; j++) {
 				try {
-					float value = gridData[i][j];
+					float value = grid.values[i][j];
 					if (Float.isNaN(value)) {
 						continue;
 					}
 
 					// Get base color for the value
-					Color color = getColorForValue(value, minValue, maxValue);
+					Color color = getColorForValue(value, grid.minValue, grid.maxValue);
 
 					// Apply hill-shading if enabled
 					if (gr.hillShadingEnabled) {
 						// Calculate illumination for this cell
 						double illumination = calculateHillShading(
-							gridData, i, j, 
-							gr.hillShadingAzimuth, 
-							gr.hillShadingAltitude
+								grid.values,
+								i,
+								j,
+								gr.hillShadingAzimuth,
+								gr.hillShadingAltitude
 						);
 
 						// Apply hill-shading to the color

@@ -113,9 +113,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		this.loader = loader;
 	}
 
-	private ToggleButton showGreenLineBtn = new ToggleButton("",
-			ResourceImageHolder.getImageView("level.png"));
-
 	private final TabPane tabPane = new TabPane();
 
 	private final Tab gprTab = new Tab("GPR");

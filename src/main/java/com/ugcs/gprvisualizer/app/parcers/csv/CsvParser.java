@@ -171,7 +171,7 @@ public class CsvParser extends Parser {
                 coordinates.add(new GeoData(marked, lineNumber, sensorValues, new GeoCoordinates(date, lat, lon, alt, traceNumber)));
             }
         } catch (Exception e) {
-            log.warn("Error parsing CSV file: {}, used template: {}", e.getMessage(), template.getName(), e);
+            log.error("Error parsing CSV file: {}, used template: {}", e.getMessage(), template.getName(), e);
             throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
         }
 

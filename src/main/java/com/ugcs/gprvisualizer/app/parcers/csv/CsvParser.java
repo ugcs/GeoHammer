@@ -73,9 +73,8 @@ public class CsvParser extends Parser {
         try (var reader = new BufferedReader(new FileReader(logPath))) {
             String line = skipLines(reader);
 
-            var markSensorData = new SensorData() {{
-                setHeader(GeoData.Semantic.MARK.getName());
-            }};
+            var markSensorData = new SensorData();
+			markSensorData.setHeader(GeoData.Semantic.MARK.getName());
 
             if (template.getFileFormat().isHasHeader()) {
                 // Handle empty lines and comments before header
@@ -96,10 +95,14 @@ public class CsvParser extends Parser {
             // Collect all data rows
             String dataLine;
             while ((dataLine = reader.readLine()) != null) {
-                if (isBlankOrCommented(dataLine)) continue;
+                if (isBlankOrCommented(dataLine)) {
+					continue;
+				}
 
                 var data = dataLine.split(template.getFileFormat().getSeparator());
-                if (data.length < 2) continue;
+                if (data.length < 2) {
+					continue;
+				}
 
                 allDataRows.add(data);
             }
@@ -172,7 +175,7 @@ public class CsvParser extends Parser {
             }
         } catch (Exception e) {
             log.error("Error parsing CSV file: {}, used template: {}", e.getMessage(), template.getName(), e);
-            throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
+			throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
         }
 
         // timestamps could be in wrong order in the file
@@ -187,9 +190,15 @@ public class CsvParser extends Parser {
         Set<String> mappedHeaderSet = new java.util.HashSet<>();
         if (template.getDataMapping().getDataValues() != null) {
             for (SensorData sd : template.getDataMapping().getDataValues()) {
-                if (sd == null) continue;
-                if (sd.getHeader() != null) mappedHeaderSet.add(sd.getHeader());
-                if (sd.getSemantic() != null) mappedHeaderSet.add(sd.getSemantic());
+                if (sd == null) {
+					continue;
+				}
+                if (sd.getHeader() != null) {
+					mappedHeaderSet.add(sd.getHeader());
+				}
+                if (sd.getSemantic() != null) {
+					mappedHeaderSet.add(sd.getSemantic());
+				}
             }
         }
         if (template.getDataMapping().getLatitude() != null && template.getDataMapping().getLatitude().getHeader() != null) {
@@ -204,20 +213,26 @@ public class CsvParser extends Parser {
     private Set<String> identifyDynamicNumericHeaders(List<String[]> allDataRows, List<String> headers, Set<String> mappedHeaderSet) {
         Set<String> dynamicNumericHeaders = new java.util.HashSet<>();
         String decimalSep = template.getFileFormat().getDecimalSeparator();
-        boolean needsDecimalReplace = decimalSep != null && !decimalSep.equals(".");
+        boolean needsDecimalReplace = decimalSep != null && !".".equals(decimalSep);
 
         for (int i = 0; i < headers.size(); i++) {
             String headerName = headers.get(i);
 
-            if (mappedHeaderSet.contains(headerName)) continue;
+            if (mappedHeaderSet.contains(headerName)) {
+				continue;
+			}
 
             // Check if this column contains numeric values in any row
             boolean hasNumericValue = false;
             for (String[] data : allDataRows) {
-                if (i >= data.length || data[i] == null || data[i].isEmpty()) continue;
+                if (i >= data.length || data[i] == null || data[i].isEmpty()) {
+					continue;
+				}
 
                 String normalized = preprocessCellValue(data[i], needsDecimalReplace, decimalSep);
-                if (normalized == null) continue;
+                if (normalized == null) {
+					continue;
+				}
 
                 try {
                     Double.parseDouble(normalized);
@@ -238,7 +253,9 @@ public class CsvParser extends Parser {
     }
 
     private String preprocessCellValue(String value, boolean needsDecimalReplace, String decimalSep) {
-        if (value == null) return null;
+        if (value == null) {
+			return null;
+		}
         String normalized = value.trim();
         if (needsDecimalReplace) {
             normalized = normalized.replace(decimalSep, ".");
@@ -251,7 +268,7 @@ public class CsvParser extends Parser {
 										List<SensorValue> sensorValues,
 										Set<String> dynamicNumericHeaders) {
         String decimalSep = template.getFileFormat().getDecimalSeparator();
-        boolean needsDecimalReplace = decimalSep != null && !decimalSep.equals(".");
+        boolean needsDecimalReplace = decimalSep != null && !".".equals(decimalSep);
 
         for (int i = 0; i < Math.min(headers.size(), data.length); i++) {
             String headerName = headers.get(i);
@@ -261,7 +278,9 @@ public class CsvParser extends Parser {
             }
 
             String normalized = preprocessCellValue(data[i], needsDecimalReplace, decimalSep);
-            if (normalized == null) continue;
+            if (normalized == null) {
+				continue;
+			}
 
             try {
                 double value = Double.parseDouble(normalized);

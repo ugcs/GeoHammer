@@ -1,6 +1,0 @@
-{
-  "filename": "sph_magnetic_heading_correction_v4.py",
-  "display_name": "SPH data format heading correction V4",
-  "parameters": [],
-  "templates": ["MagNIMBUS"]
-}

@@ -14,20 +14,12 @@ import javafx.scene.shape.SVGPath;
 
 public class ResourceImageHolder {
 
-	public static Image IMG_LEVEL;
-	public static Image IMG_SHOVEL;
-	public static Image IMG_HOR_SLIDER;
 	public static Image IMG_VER_SLIDER;
-	public static Image IMG_WIDTH;
-	
-	public static Image IMG_LOCK;
-	public static Image IMG_UNLOCK;
-	
-	public static Image IMG_CHOOSE;
 	public static Image IMG_GPS;
-
 	public static Image IMG_CLOSE_FILE;
 	public static Image IMG_CLOSE;
+
+	public static javafx.scene.image.Image IMG_LOGO24;
 
 	public static final String SAVE = """
 		m 12,2.1 c -0.3,0 -0.5,0.2 -0.5,0.5 v 2.3 c 0,0.3 0.2,0.5 0.5,0.5 0.3,0 0.5,-0.2 0.5,-0.5 V 2.6 C 12.5,2.4 12.3,2.1 12,2.1 Z
@@ -82,8 +74,7 @@ public class ResourceImageHolder {
 		m -4.1,6.9 c -0.3,0 -0.5,0.2 -0.5,0.5 v 1.6 h -7 V 14 C 6.7,13.7 6.5,13.5 6.2,13.5 H 4.6 V 6.6 H 6.1 C 6.4,6.6 6.6,6.4 6.6,6.1 V 4.4 h 7 V 6 c 0,0.3 0.2,0.5 0.5,0.5 h 1.5 v 6.9 h -1.4 z""";
 
 	public static final String RULER = """
-		M16.2929 27.6066C15.904 27.9955 15.4326 28.19 14.8787 28.19C14.3248 28.19 13.8534 27.9955 13.4645 27.6066L7.80762 21.9497C7.41871 21.5608 7.22425 21.0894 7.22425 20.5355C7.22425 19.9816 7.41871 19.5102 7.80762 19.1213L19.1213 7.80761C19.5102 7.4187 19.9816 7.22424 20.5355 7.22424C21.0894 7.22424 21.5608 7.4187 21.9498 7.80761L27.6066 13.4645C27.9955 13.8534 28.19 14.3248 28.19 14.8787C28.19 15.4326 27.9955 15.904 27.6066 16.2929L16.2929 27.6066ZM15.5858 26.8995L26.8995 15.5858C26.8995 15.5858 27.6066 14.8787 26.8995 14.1716C26.1924 13.4645 21.9498 9.22182 21.2426 8.51472C20.5355 7.80761 19.8284 8.51472 19.8284 8.51472L18.4142 9.92893L21.9498 13.4645L21.2426 14.1716L17.7071 10.636L16.2929 12.0502L18.4142 14.1716L17.7071 14.8787L15.5858 12.7574L14.8787 13.4645L14.1716 14.1716L17.7071 17.7071L17 18.4142L13.4645 14.8787L12.0503 16.2929L14.1716 18.4142L13.4645 19.1213L11.3431 17L10.636 17.7071L9.92894 18.4142L13.4645 21.9497L12.7574 22.6569L9.22183 19.1213L8.51472 19.8284C8.51472 19.8284 7.80762 20.5355 8.51472 21.2426C9.22183 21.9497 11.3431 24.0711 11.3431 24.0711C11.3431 24.0711 13.4645 26.1924 14.1716 26.8995C14.8787 27.6066 15.5858 26.8995 15.5858 26.8995Z
-	""";
+		M16.2929 27.6066C15.904 27.9955 15.4326 28.19 14.8787 28.19C14.3248 28.19 13.8534 27.9955 13.4645 27.6066L7.80762 21.9497C7.41871 21.5608 7.22425 21.0894 7.22425 20.5355C7.22425 19.9816 7.41871 19.5102 7.80762 19.1213L19.1213 7.80761C19.5102 7.4187 19.9816 7.22424 20.5355 7.22424C21.0894 7.22424 21.5608 7.4187 21.9498 7.80761L27.6066 13.4645C27.9955 13.8534 28.19 14.3248 28.19 14.8787C28.19 15.4326 27.9955 15.904 27.6066 16.2929L16.2929 27.6066ZM15.5858 26.8995L26.8995 15.5858C26.8995 15.5858 27.6066 14.8787 26.8995 14.1716C26.1924 13.4645 21.9498 9.22182 21.2426 8.51472C20.5355 7.80761 19.8284 8.51472 19.8284 8.51472L18.4142 9.92893L21.9498 13.4645L21.2426 14.1716L17.7071 10.636L16.2929 12.0502L18.4142 14.1716L17.7071 14.8787L15.5858 12.7574L14.8787 13.4645L14.1716 14.1716L17.7071 17.7071L17 18.4142L13.4645 14.8787L12.0503 16.2929L14.1716 18.4142L13.4645 19.1213L11.3431 17L10.636 17.7071L9.92894 18.4142L13.4645 21.9497L12.7574 22.6569L9.22183 19.1213L8.51472 19.8284C8.51472 19.8284 7.80762 20.5355 8.51472 21.2426C9.22183 21.9497 11.3431 24.0711 11.3431 24.0711C11.3431 24.0711 13.4645 26.1924 14.1716 26.8995C14.8787 27.6066 15.5858 26.8995 15.5858 26.8995Z""";
 
 	public static final String MAP = """
 		M 18.9,17 14.4,10.7 C 14.3,10.6 14.1,10.5 14,10.5 h -0.7 l 0.9,-2 C 14.8,7.2 14.7,5.6 14,4.3 13.2,3.1 12,2.3 10.5,2.2 10.3,2.2 10.2,2.2 10,2.2 8.7,2.3 7.4,3 6.7,4.3 5.9,5.5 5.8,7.1 6.4,8.5 l 0.9,2 H 6.5 c -0.2,0 -0.3,0.1 -0.4,0.2 L 1.4,17 c -0.1,0.2 -0.1,0.4 0,0.6 0.1,0.2 0.3,0.3 0.5,0.3 h 16.6 c 0.2,0 0.4,-0.1 0.5,-0.3 0.1,-0.2 0.1,-0.5 -0.1,-0.6 z		
@@ -101,7 +92,11 @@ public class ResourceImageHolder {
 		M 6.5,8.6 h 7.3 V 8.9 H 6.5 Z		
 		M 16.4,3.7 C 16.2,3.5 15.8,3.5 15.7,3.7 L 14,5.4 c -0.1,0.1 -0.2,0.2 -0.2,0.4 0,0.2 0.1,0.3 0.2,0.4 0.1,0.1 0.2,0.2 0.4,0.2 0.1,0 0.3,-0.1 0.4,-0.2 L 16.5,4.5 C 16.6,4.2 16.6,3.9 16.4,3.7 Z		
 		M 4.5,3.8 C 4.3,3.6 4,3.6 3.8,3.8 3.7,3.9 3.6,4 3.6,4.2 c 0,0.2 0.1,0.3 0.2,0.4 l 1.7,1.7 v 0 C 5.6,6.4 5.7,6.5 5.9,6.5 6,6.5 6.2,6.4 6.3,6.3 6.3,6.1 6.4,6 6.4,5.9 6.4,5.8 6.3,5.6 6.2,5.5 Z		
-		M 10.1,1.5 C 9.8,1.5 9.6,1.7 9.6,2 V 5.5 C 9.6,5.8 9.8,6 10.1,6 10.4,6 10.6,5.8 10.6,5.5 V 2 c 0,-0.3 -0.2,-0.5 -0.5,-0.5 z""";	
+		M 10.1,1.5 C 9.8,1.5 9.6,1.7 9.6,2 V 5.5 C 9.6,5.8 9.8,6 10.1,6 10.4,6 10.6,5.8 10.6,5.5 V 2 c 0,-0.3 -0.2,-0.5 -0.5,-0.5 z""";
+
+	public static final String EXPORT = """
+		M 19.75,9.42 H 8.33 V 7.92 H 18.5 L 17.32,6.75 18.38,5.69 21.38,8.69 18.38,11.69 17.32,10.62 18.5,9.42 Z
+		M 15.00,6.25 V 3.08 H 4.50 V 14.08 H 15.00 V 10.92 H 16.50 V 14.08 Q 16.50,14.73 16.05,15.18 15.60,15.62 15.00,15.62 H 4.50 Q 3.90,15.62 3.45,15.18 3.00,14.73 3.00,14.08 V 3.08 Q 3.00,2.43 3.45,1.98 3.90,1.54 4.50,1.54 H 15.00 Q 15.60,1.54 16.05,1.98 16.50,2.43 16.50,3.08 V 6.25 H 15.00 Z""";
 
 	public static final String DELETE = """
 		M 15.4,4.3 H 14.5 12.3 V 3.5 C 12.3,3 11.9,2.7 11.5,2.7 h -3 C 8,2.7 7.7,3.1 7.7,3.5 v 0.8 h -2.1 -1 c -0.3,0 -0.5,0.2 -0.5,0.5 0,0.3 0.2,0.5 0.5,0.5 h 0.5 l 1,11.9 c 0,0.2 0.2,0.4 0.5,0.4 h 6.9 c 0.2,0 0.4,-0.2 0.5,-0.4 L 15,5.3 h 0.4 c 0.3,0 0.5,-0.2 0.5,-0.5 0,-0.3 -0.2,-0.5 -0.5,-0.5 z		
@@ -144,13 +139,11 @@ public class ResourceImageHolder {
 		M0 0v3h17v-3h-17zM16 2h-15v-1h15v1zM0 13h17v-9h-17v9zM1 5h15v7h-15v-7zM0 17h17v-3h-17v3zM1 15h15v1h-15v-1z""";
 
 	private static final double BUTTON_HEIGHT = 28;	
-	
-	public static javafx.scene.image.Image IMG_LOGO24;
-	
-	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, B button) {
+
+	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, Color svgColor, B button) {
 		SVGPath svgPath = new SVGPath();
         svgPath.setContent(svgPathContent);
-        svgPath.setFill(Color.valueOf("#272525"));
+        svgPath.setFill(svgColor);
 
 		var scaleFactor = Math.min(1.2, (BUTTON_HEIGHT - 8) / svgPath.prefHeight(-1));	
 		svgPath.setScaleX(scaleFactor);
@@ -162,6 +155,11 @@ public class ResourceImageHolder {
         button.setMaxHeight(BUTTON_HEIGHT);
 
 		return button;
+	}
+
+	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, B button) {
+		Color defaultColor = Color.valueOf("#272525");
+		return setButtonImage(svgPathContent, defaultColor, button);
 	}
 
 	public static ImageView getImageView(javafx.scene.image.Image image) {
@@ -186,41 +184,20 @@ public class ResourceImageHolder {
 	
 	static {
 		try {
-			
-			IMG_LEVEL = ImageIO.read(getClassLoader()
-					.getResourceAsStream("level.png"));			
-			IMG_WIDTH = ImageIO.read(getClassLoader()
-					.getResourceAsStream("width16.png"));
-			IMG_SHOVEL = ImageIO.read(getClassLoader()
-					.getResourceAsStream("shovel-48.png"));
-			IMG_HOR_SLIDER = ImageIO.read(getClassLoader()
-					.getResourceAsStream("horSlid16.png"));
 			IMG_VER_SLIDER = ImageIO.read(getClassLoader()
 					.getResourceAsStream("vertSlid16.png"));
-			IMG_LOCK = ImageIO.read(getClassLoader()
-					.getResourceAsStream("lock16.png"));
-			IMG_UNLOCK = ImageIO.read(getClassLoader()
-					.getResourceAsStream("unlock16.png"));
-			IMG_CHOOSE = ImageIO.read(getClassLoader()
-					.getResourceAsStream("choose16.png"));
-
-			IMG_CLOSE_FILE = ImageIO.read(getClassLoader()
-					.getResourceAsStream("closeFile.png"));
-
-			IMG_CLOSE = ImageIO.read(getClassLoader()
-					.getResourceAsStream("close.png"));
-					
 			IMG_GPS = ImageIO.read(getClassLoader()
 					.getResourceAsStream("gps32.png"));
+			IMG_CLOSE_FILE = ImageIO.read(getClassLoader()
+					.getResourceAsStream("closeFile.png"));
+			IMG_CLOSE = ImageIO.read(getClassLoader()
+					.getResourceAsStream("close.png"));
 
 			IMG_LOGO24 = new javafx.scene.image.Image(getClassLoader()
 					.getResourceAsStream("logo24.png"));
-			
-			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
 	}
 
 	public static ClassLoader getClassLoader() {

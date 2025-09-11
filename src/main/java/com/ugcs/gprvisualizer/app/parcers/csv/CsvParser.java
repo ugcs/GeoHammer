@@ -110,8 +110,8 @@ public class CsvParser extends Parser {
 
             // Third pass: process all rows with known dynamic headers
             var lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length;
-            var traceCount = 0;
 
+            var traceCount = 0;
             for (String[] data : allDataRows) {
                 lineNumber++;
 
@@ -157,7 +157,7 @@ public class CsvParser extends Parser {
                 }
 
                 // Add dynamic sensors efficiently using pre-identified headers
-                addDynamicSensorValuesOptimized(data, headers, sensorValues, dynamicNumericHeaders);
+                addDynamicSensorValues(data, headers, sensorValues, dynamicNumericHeaders);
 
                 traceCount++;
 
@@ -247,9 +247,9 @@ public class CsvParser extends Parser {
     }
 
 
-    private void addDynamicSensorValuesOptimized(String[] data, List<String> headers,
-                                                 List<SensorValue> sensorValues,
-                                                 Set<String> dynamicNumericHeaders) {
+    private void addDynamicSensorValues(String[] data, List<String> headers,
+										List<SensorValue> sensorValues,
+										Set<String> dynamicNumericHeaders) {
         String decimalSep = template.getFileFormat().getDecimalSeparator();
         boolean needsDecimalReplace = decimalSep != null && !decimalSep.equals(".");
 

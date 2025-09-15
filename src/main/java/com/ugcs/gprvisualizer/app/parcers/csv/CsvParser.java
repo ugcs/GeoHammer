@@ -239,7 +239,8 @@ public class CsvParser extends Parser {
                     hasNumericValue = true;
                     break;
                 } catch (NumberFormatException e) {
-                    // Not a number, continue checking other rows
+					// Not a number, stop checking this column
+					break;
                 }
             }
 

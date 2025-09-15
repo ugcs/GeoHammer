@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 
 public class HereMapProvider implements MapProvider {
 
-	private static final String DEFAULT_API_KEY = "rE86EaZdU1Dz85CegYxNt0cNJXcFB-xFGUuvbn22Gds";
+	private static final String DEFAULT_API_KEY = "";
 	private final String apiKey;
 
 	HereMapProvider(String apiKey) {

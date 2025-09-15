@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.prefs.Preferences;
 
 import javax.annotation.Nullable;
 
@@ -54,6 +55,8 @@ public class ScriptExecutionView extends VBox {
 	private final ComboBox<String> scriptsMetadataSelector;
 	private final Button applyButton;
 	private List<ScriptMetadata> scriptsMetadata = List.of();
+	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionView.class);
+	@Nullable private ScriptMetadata currentScriptMetadata = null;
 
 	public ScriptExecutionView(Model model, Loader loader, Status status, @Nullable SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
@@ -88,6 +91,7 @@ public class ScriptExecutionView extends VBox {
 					.findFirst()
 					.orElse(null);
 
+			currentScriptMetadata = selected;
 			parametersBox.getChildren().clear();
 
 			if (selected != null) {
@@ -188,41 +192,58 @@ public class ScriptExecutionView extends VBox {
 
 	private VBox createParameterInput(PythonScriptParameter param) {
 		VBox paramBox = new VBox(5);
-
 		String labelText = param.displayName() + (param.required() ? " *" : "");
 		Label label = new Label(labelText);
 
+		String scriptFilename = currentScriptMetadata != null ? currentScriptMetadata.filename() : null;
+		String initialValue = loadStoredParamValue(scriptFilename, param.name(), param.defaultValue());
+
+		Node inputNode = getInputNode(param, initialValue, labelText);
+		if (param.type() != PythonScriptParameter.ParameterType.BOOLEAN) {
+			paramBox.getChildren().add(label);
+		}
+		paramBox.getChildren().add(inputNode);
+		return paramBox;
+	}
+
+	private static Node getInputNode(PythonScriptParameter param, String initialValue, String labelText) {
 		Node inputNode = switch (param.type()) {
 			case STRING, FILE_PATH -> {
-				TextField textField = new TextField(param.defaultValue());
+				TextField textField = new TextField(initialValue);
 				textField.setPromptText(param.displayName());
 				yield textField;
 			}
 			case INTEGER -> {
-				TextField textField = new TextField(param.defaultValue());
+				TextField textField = new TextField(initialValue);
 				textField.setPromptText("Enter integer value");
 				yield textField;
 			}
 			case DOUBLE -> {
-				TextField textField = new TextField(param.defaultValue());
+				TextField textField = new TextField(initialValue);
 				textField.setPromptText("Enter decimal value");
 				yield textField;
 			}
 			case BOOLEAN -> {
 				CheckBox checkBox = new CheckBox();
-				checkBox.setSelected(Boolean.parseBoolean(param.defaultValue()));
+				checkBox.setSelected(Boolean.parseBoolean(initialValue));
 				checkBox.setText(labelText);
 				yield checkBox;
 			}
 		};
 
 		inputNode.setUserData(param.name());
-		if (param.type() != PythonScriptParameter.ParameterType.BOOLEAN) {
-			paramBox.getChildren().add(label);
-		}
-		paramBox.getChildren().add(inputNode);
+		return inputNode;
+	}
 
-		return paramBox;
+	private String loadStoredParamValue(@Nullable String scriptFilename, String paramName, String defaultValue) {
+		if (scriptFilename == null) {
+			return defaultValue;
+		}
+		return prefs.get("script." + scriptFilename + "." + paramName, defaultValue);
+	}
+
+	private void storeParamValues(String scriptFilename, Map<String, String> params) {
+		params.forEach((k, v) -> prefs.put("script." + scriptFilename + "." + k, v));
 	}
 
 	private void executeScript(@Nullable ScriptMetadata scriptMetadata) {
@@ -234,6 +255,7 @@ public class ScriptExecutionView extends VBox {
 		setExecutingProgress(true);
 
 		Map<String, String> parameters = extractScriptParams(scriptMetadata.parameters);
+		storeParamValues(scriptMetadata.filename(), parameters);
 		Future<PythonScriptExecutorService.ScriptExecutionResult> future =
 				scriptExecutorService.executeScriptAsync(selectedFile, scriptMetadata, parameters);
 

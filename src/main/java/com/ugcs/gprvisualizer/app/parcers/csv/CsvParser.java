@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,6 +73,8 @@ public class CsvParser extends Parser {
 
         try (var reader = new BufferedReader(new FileReader(logPath))) {
             String line = skipLines(reader);
+			// tells if current line value is already in a skipped list
+			boolean lineSkipped = line != null;
 
             var markSensorData = new SensorData();
 			markSensorData.setHeader(GeoData.Semantic.MARK.getName());
@@ -81,11 +84,15 @@ public class CsvParser extends Parser {
                 boolean eof = template.getSkipLinesTo() != null && line == null;
                 while (!eof && isBlankOrCommented(line)) {
                     line = reader.readLine();
+					lineSkipped = false;
                     eof = line == null;
                 }
                 Check.notNull(line, "No header found");
                 findIndexesByHeaders(line);
                 setIndexByHeaderForSensorData(line, markSensorData);
+				if (!lineSkipped) {
+					skippedLines.append(line).append(System.lineSeparator());
+				}
 
                 headers = Arrays.stream(line.split(template.getFileFormat().getSeparator()))
                         .map(String::trim)
@@ -107,28 +114,30 @@ public class CsvParser extends Parser {
                 allDataRows.add(data);
             }
 
-            // Second pass: identify dynamic numeric headers once
-            Set<String> mappedHeaderSet = buildMappedHeaderSet();
-            Set<String> dynamicNumericHeaders = identifyDynamicNumericHeaders(allDataRows, headers, mappedHeaderSet);
+            // Second pass: identify undeclared numeric headers
+            Set<String> declaredHeader = getDeclaredHeaders();
+            Set<String> undeclaredNumericHeaders = findUndeclaredNumericHeaders(allDataRows, headers, declaredHeader);
 
-            // Third pass: process all rows with known dynamic headers
+            // Third pass: process all rows with known undeclared headers
             var lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length;
 
             var traceCount = 0;
-            for (String[] data : allDataRows) {
+            for (String[] row : allDataRows) {
                 lineNumber++;
 
-                if (data.length <= template.getDataMapping().getLatitude().getIndex()) {
+				BaseData templateLatitude = template.getDataMapping().getLatitude();
+                if (row.length <= templateLatitude.getIndex()) {
                     log.warn("Row #{} is not correct: insufficient columns", lineNumber);
                     continue;
                 }
-                var lat = parseDouble(template.getDataMapping().getLatitude(), data[template.getDataMapping().getLatitude().getIndex()]);
+                var lat = parseDouble(templateLatitude, row[templateLatitude.getIndex()]);
 
-                if (data.length <= template.getDataMapping().getLongitude().getIndex()) {
+				BaseData templateLongitude = template.getDataMapping().getLongitude();
+                if (row.length <= templateLongitude.getIndex()) {
                     log.warn("Row #{} is not correct: insufficient columns", lineNumber);
                     continue;
                 }
-                var lon = parseDouble(template.getDataMapping().getLongitude(), data[template.getDataMapping().getLongitude().getIndex()]);
+                var lon = parseDouble(templateLongitude, row[templateLongitude.getIndex()]);
 
                 if (lat == null || lon == null) {
                     log.warn("Row #{} is not correct, lat or lon was not parsed", lineNumber);
@@ -138,43 +147,42 @@ public class CsvParser extends Parser {
                 var alt = template.getDataMapping().getAltitude() != null
                         && template.getDataMapping().getAltitude().getIndex() != null
                         && template.getDataMapping().getAltitude().getIndex() != -1
-                        && template.getDataMapping().getAltitude().getIndex() < data.length
-                        && StringUtils.hasText(data[template.getDataMapping().getAltitude().getIndex()])
-                        ? parseDouble(template.getDataMapping().getAltitude(), data[template.getDataMapping().getAltitude().getIndex()])
+                        && template.getDataMapping().getAltitude().getIndex() < row.length
+                        && StringUtils.hasText(row[template.getDataMapping().getAltitude().getIndex()])
+                        ? parseDouble(template.getDataMapping().getAltitude(), row[template.getDataMapping().getAltitude().getIndex()])
                         : null;
 
                 Integer traceNumber = null;
                 if (template.getDataMapping().getTraceNumber() != null
                         && template.getDataMapping().getTraceNumber().getIndex() != -1
-                        && template.getDataMapping().getTraceNumber().getIndex() < data.length) {
-                    traceNumber = parseInt(template.getDataMapping().getTraceNumber(), data[template.getDataMapping().getTraceNumber().getIndex()]);
+                        && template.getDataMapping().getTraceNumber().getIndex() < row.length) {
+                    traceNumber = parseInt(template.getDataMapping().getTraceNumber(), row[template.getDataMapping().getTraceNumber().getIndex()]);
                 }
                 traceNumber = traceNumber != null ? traceNumber : traceCount;
 
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
                     for (SensorData sensor : filterSensors(template.getDataMapping().getDataValues())) {
-                        String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < data.length) ? data[sensor.getIndex()] : null;
+                        String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < row.length) ? row[sensor.getIndex()] : null;
                         sensorValues.add(new SensorValue(sensor.getSemantic(), sensor.getUnits(), parseNumber(sensor, sensorData)));
                     }
                 }
 
                 // Add dynamic sensors efficiently using pre-identified headers
-                addDynamicSensorValues(data, headers, sensorValues, dynamicNumericHeaders);
+                addNumericValuesForUndeclaredHeaders(row, headers, sensorValues, undeclaredNumericHeaders);
 
                 traceCount++;
 
-                var date = parseDateTime(data);
+                var dateTime = parseDateTime(row);
 
                 boolean marked = false;
-                if (markSensorData.getIndex() != null && markSensorData.getIndex() != -1 && markSensorData.getIndex() < data.length) {
-                    marked = parseInt(markSensorData, data[markSensorData.getIndex()]) instanceof Integer i && i == 1;
+                if (markSensorData.getIndex() != null && markSensorData.getIndex() != -1 && markSensorData.getIndex() < row.length) {
+                    marked = parseInt(markSensorData, row[markSensorData.getIndex()]) instanceof Integer i && i == 1;
                 }
 
-                coordinates.add(new GeoData(marked, lineNumber, sensorValues, new GeoCoordinates(date, lat, lon, alt, traceNumber)));
+                coordinates.add(new GeoData(marked, lineNumber, sensorValues, new GeoCoordinates(dateTime, lat, lon, alt, traceNumber)));
             }
         } catch (Exception e) {
-            log.error("Error parsing CSV file: {}, used template: {}", e.getMessage(), template.getName(), e);
 			throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
         }
 
@@ -186,109 +194,103 @@ public class CsvParser extends Parser {
         return coordinates;
     }
 
-    private Set<String> buildMappedHeaderSet() {
-        Set<String> mappedHeaderSet = new java.util.HashSet<>();
+    private Set<String> getDeclaredHeaders() {
+        Set<String> declaredHeaders = new HashSet<>();
         if (template.getDataMapping().getDataValues() != null) {
-            for (SensorData sd : template.getDataMapping().getDataValues()) {
-                if (sd == null) {
+            for (SensorData sensorData : template.getDataMapping().getDataValues()) {
+                if (sensorData == null) {
 					continue;
 				}
-                if (sd.getHeader() != null) {
-					mappedHeaderSet.add(sd.getHeader());
-				}
-                if (sd.getSemantic() != null) {
-					mappedHeaderSet.add(sd.getSemantic());
+                if (sensorData.getHeader() != null) {
+					declaredHeaders.add(sensorData.getHeader());
 				}
             }
         }
-        if (template.getDataMapping().getLatitude() != null && template.getDataMapping().getLatitude().getHeader() != null) {
-            mappedHeaderSet.add(template.getDataMapping().getLatitude().getHeader());
+		BaseData latitude = template.getDataMapping().getLatitude();
+        if (latitude != null && latitude.getHeader() != null) {
+            declaredHeaders.add(latitude.getHeader());
         }
-        if (template.getDataMapping().getLongitude() != null && template.getDataMapping().getLongitude().getHeader() != null) {
-            mappedHeaderSet.add(template.getDataMapping().getLongitude().getHeader());
+		BaseData longitude = template.getDataMapping().getLongitude();
+        if (longitude != null && longitude.getHeader() != null) {
+            declaredHeaders.add(longitude.getHeader());
         }
-        return mappedHeaderSet;
+		BaseData altitude = template.getDataMapping().getAltitude();
+		if (altitude != null && altitude.getHeader() != null) {
+			declaredHeaders.add(altitude.getHeader());
+		}
+		BaseData date = template.getDataMapping().getDate();
+		if (date != null && date.getHeader() != null) {
+			declaredHeaders.add(date.getHeader());
+		}
+		BaseData time = template.getDataMapping().getTime();
+		if (time != null && time.getHeader() != null) {
+			declaredHeaders.add(time.getHeader());
+		}
+		BaseData dateTime = template.getDataMapping().getDateTime();
+		if (dateTime != null && dateTime.getHeader() != null) {
+			declaredHeaders.add(dateTime.getHeader());
+		}
+		BaseData timestamp = template.getDataMapping().getTimestamp();
+		if (timestamp != null && timestamp.getHeader() != null) {
+			declaredHeaders.add(timestamp.getHeader());
+		}
+		BaseData traceNumber = template.getDataMapping().getTraceNumber();
+		if (traceNumber != null && traceNumber.getHeader() != null) {
+			declaredHeaders.add(traceNumber.getHeader());
+		}
+		
+        return declaredHeaders;
     }
 
-    private Set<String> identifyDynamicNumericHeaders(List<String[]> allDataRows, List<String> headers, Set<String> mappedHeaderSet) {
-        Set<String> dynamicNumericHeaders = new java.util.HashSet<>();
-        String decimalSep = template.getFileFormat().getDecimalSeparator();
-        boolean needsDecimalReplace = decimalSep != null && !".".equals(decimalSep);
+    private Set<String> findUndeclaredNumericHeaders(List<String[]> allDataRows, List<String> allHeaders, Set<String> declaredHeaderSet) {
+        Set<String> undeclaredNumericHeaders = new HashSet<>();
+        for (int i = 0; i < allHeaders.size(); i++) {
+            String headerName = allHeaders.get(i);
 
-        for (int i = 0; i < headers.size(); i++) {
-            String headerName = headers.get(i);
-
-            if (mappedHeaderSet.contains(headerName)) {
+            if (declaredHeaderSet.contains(headerName)) {
 				continue;
 			}
 
             // Check if this column contains numeric values in any row
             boolean hasNumericValue = false;
-            for (String[] data : allDataRows) {
-                if (i >= data.length || data[i] == null || data[i].isEmpty()) {
+            for (String[] row : allDataRows) {
+                if (i >= row.length || row[i] == null || row[i].isEmpty()) {
 					continue;
 				}
 
-                String normalized = preprocessCellValue(data[i], needsDecimalReplace, decimalSep);
-                if (normalized == null) {
-					continue;
-				}
+				Number value = parseNumber(new SensorData(), row[i]);
 
-                try {
-                    Double.parseDouble(normalized);
-                    hasNumericValue = true;
-                    break;
-                } catch (NumberFormatException e) {
-					// Not a number, stop checking this column
-					break;
-                }
-            }
+				if (value != null) {
+					hasNumericValue = true;
+				}
+				break;
+			}
 
             if (hasNumericValue) {
-                dynamicNumericHeaders.add(headerName);
+                undeclaredNumericHeaders.add(headerName);
             }
         }
 
-        log.debug("Identified {} dynamic numeric headers: {}", dynamicNumericHeaders.size(), dynamicNumericHeaders);
-        return dynamicNumericHeaders;
+        log.debug("Identified {} dynamic numeric headers: {}", undeclaredNumericHeaders.size(), undeclaredNumericHeaders);
+        return undeclaredNumericHeaders;
     }
 
-    private String preprocessCellValue(String value, boolean needsDecimalReplace, String decimalSep) {
-        if (value == null) {
-			return null;
-		}
-        String normalized = value.trim();
-        if (needsDecimalReplace) {
-            normalized = normalized.replace(decimalSep, ".");
-        }
-        return normalized;
-    }
-
-
-    private void addDynamicSensorValues(String[] data, List<String> headers,
-										List<SensorValue> sensorValues,
-										Set<String> dynamicNumericHeaders) {
-        String decimalSep = template.getFileFormat().getDecimalSeparator();
-        boolean needsDecimalReplace = decimalSep != null && !".".equals(decimalSep);
-
-        for (int i = 0; i < Math.min(headers.size(), data.length); i++) {
+    private void addNumericValuesForUndeclaredHeaders(String[] row, List<String> headers,
+													  List<SensorValue> sensorValues,
+													  Set<String> undeclaredNumericHeaders) {
+        for (int i = 0; i < Math.min(headers.size(), row.length); i++) {
             String headerName = headers.get(i);
 
-            if (!dynamicNumericHeaders.contains(headerName) || data[i] == null || data[i].isEmpty()) {
+            if (!undeclaredNumericHeaders.contains(headerName) || row[i] == null || row[i].isEmpty()) {
                 continue;
             }
 
-            String normalized = preprocessCellValue(data[i], needsDecimalReplace, decimalSep);
-            if (normalized == null) {
-				continue;
+            Number value = parseNumber(new SensorData(), row[i]);
+			if (value != null) {
+				sensorValues.add(new SensorValue(headerName, null, value));
+			} else {
+				log.warn("Failed to parse dynamic numeric value for header '{}': {}", headerName, row[i]);
 			}
-
-            try {
-                double value = Double.parseDouble(normalized);
-                sensorValues.add(new SensorValue(headerName, null, value));
-            } catch (NumberFormatException nfe) {
-                // Skip this specific value (shouldn't happen since we pre-identified numeric headers)
-            }
         }
     }
 
@@ -483,11 +485,11 @@ public class CsvParser extends Parser {
         }
     }
 
-    public void setIndexByHeaderForSensorData(String header, SensorData sd) {
+    public void setIndexByHeaderForSensorData(String header, SensorData sensorData) {
         List<String> headers = Arrays.stream(header.split(template.getFileFormat().getSeparator()))
                 .map(String::trim)
                 .collect(Collectors.toList());
-        setIndexIfHeaderNotNull(sd, headers);
+        setIndexIfHeaderNotNull(sensorData, headers);
     }
 
     protected void findIndexesByHeaders(String line) {

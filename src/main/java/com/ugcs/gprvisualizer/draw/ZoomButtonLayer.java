@@ -55,8 +55,8 @@ public class ZoomButtonLayer implements Layer {
 		container.setSpacing(3);
 		container.getChildren().addAll(zoomInButton, zoomOutButton);
 
-		zoomInButton.setOnAction(e -> changeZoom(1.2));
-		zoomOutButton.setOnAction(e -> changeZoom(1.0 / 1.2));
+		zoomInButton.setOnAction(e -> changeZoom(1.1));
+		zoomOutButton.setOnAction(e -> changeZoom(1.0 / 1.1));
 
 		zoomInButton.setText("+");
 		zoomOutButton.setText("-");

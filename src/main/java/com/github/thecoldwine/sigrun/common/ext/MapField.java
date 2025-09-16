@@ -50,8 +50,8 @@ public class MapField {
 		Point2D p2d = GoogleCoordUtils.createInfoWindowContent(latlon, getZoomInt());
 
 		return new Point2D(
-			(p2d.getX() - psc.getX()),
-			(p2d.getY() - psc.getY()));
+			p2d.getX() - psc.getX(),
+			p2d.getY() - psc.getY());
 	}
 
 	/**
@@ -99,7 +99,7 @@ public class MapField {
 	}
 
 	double resolution(double zoom) { 
-		return getInitialResolution() / (Math.pow(2, zoom));
+		return getInitialResolution() / Math.pow(2, zoom);
 	}
 	
 	private static double toRad(double degree) {

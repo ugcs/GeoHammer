@@ -201,8 +201,12 @@ public class MapView implements InitializingBean {
 			
 	    	double increment = event.getDeltaY() > 0 ? 0.1 : -0.1;
 			double zoom = model.getMapField().getZoom() + increment;
-			if (zoom < ZoomButtonLayer.MIN_ZOOM) zoom = ZoomButtonLayer.MIN_ZOOM;
-			if (zoom > ZoomButtonLayer.MAX_ZOOM) zoom = ZoomButtonLayer.MAX_ZOOM;
+			if (zoom < ZoomButtonLayer.MIN_ZOOM) {
+				zoom = ZoomButtonLayer.MIN_ZOOM;
+			}
+			if (zoom > ZoomButtonLayer.MAX_ZOOM) {
+				zoom = ZoomButtonLayer.MAX_ZOOM;
+			}
 			model.getMapField().setZoom(zoom);
 	    	
 	    	Point2D p2 = model.getMapField().latLonToScreen(ll);

@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app;
 
 
+import com.ugcs.gprvisualizer.draw.MapRuler;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

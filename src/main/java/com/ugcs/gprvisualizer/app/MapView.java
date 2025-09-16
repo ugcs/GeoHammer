@@ -20,6 +20,8 @@ import com.ugcs.gprvisualizer.draw.QualityLayer;
 import com.ugcs.gprvisualizer.draw.RadarMap;
 import com.ugcs.gprvisualizer.draw.RepaintListener;
 import com.ugcs.gprvisualizer.draw.SatelliteMap;
+import com.ugcs.gprvisualizer.draw.MapRuler;
+import com.ugcs.gprvisualizer.draw.ZoomButtonLayer;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
 import javafx.embed.swing.SwingFXUtils;
@@ -27,6 +29,8 @@ import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -54,7 +58,8 @@ import javax.annotation.Nullable;
 
 @Component
 public class MapView implements InitializingBean {
-	
+
+	private static final Logger log = LoggerFactory.getLogger(MapView.class);
 	@Autowired
 	private TraceCutter traceCutter;
 
@@ -78,6 +83,9 @@ public class MapView implements InitializingBean {
 
 	@Autowired
 	private GpsTrack gpsTrackMap;
+
+	@Autowired
+	private ZoomButtonLayer zoomButtonLayer;
 	
 	//@Autowired
 	private Dimension wndSize = new Dimension();
@@ -139,16 +147,14 @@ public class MapView implements InitializingBean {
 		mapRuler.setRepaintCallback(() -> listener.repaint());
 		getLayers().add(mapRuler);
 
+		getLayers().add(zoomButtonLayer);
+
 		initImageView();
 		
 	}
 	
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (!isGpsPresent()) {
-			return;
-		}
-
 		if (changed.isJustdraw()) {
 			updateUI();
 		}
@@ -174,7 +180,7 @@ public class MapView implements InitializingBean {
 	private boolean isGpsPresent() {
 		return model.getMapField().isActive();
 	}
-		
+
 	private void initImageView() {
 		//ZOOM
 		imageView.setOnScroll(event -> {
@@ -186,7 +192,8 @@ public class MapView implements InitializingBean {
 			Point2D p = getLocalCoords(event.getSceneX(), event.getSceneY());
 			LatLon ll = model.getMapField().screenTolatLon(p);
 			
-	    	int zoom = model.getMapField().getZoom() + (event.getDeltaY() > 0 ? 1 : -1);
+	    	double increment = event.getDeltaY() > 0 ? 0.1 : -0.1;
+			double zoom = model.getMapField().getZoom() + increment;
 			model.getMapField().setZoom(zoom);
 	    	
 	    	Point2D p2 = model.getMapField().latLonToScreen(ll);
@@ -262,6 +269,22 @@ public class MapView implements InitializingBean {
 
 		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
 		updateDistanceLabelPaneVisibility();
+
+		sp1.getChildren().add(zoomButtonLayer.getNode());
+		zoomButtonLayer.getNode().setManaged(false);
+		zoomButtonLayer.getNode().setLayoutX(
+				sp1.getWidth() - zoomButtonLayer.getNode().prefWidth(-1) - 5
+		);
+		zoomButtonLayer.getNode().setLayoutY(
+				sp1.getHeight() - zoomButtonLayer.getNode().prefHeight(-1 + 5)
+		);
+
+		sp1.widthProperty().addListener((obs, oldVal, newVal) -> {
+			zoomButtonLayer.getNode().setLayoutX(newVal.doubleValue() - zoomButtonLayer.getNode().prefWidth(-1) - 5);
+		});
+		sp1.heightProperty().addListener((obs, oldVal, newVal) -> {
+			zoomButtonLayer.getNode().setLayoutY(newVal.doubleValue() - zoomButtonLayer.getNode().prefHeight(-1) + 5);
+		});
 		root.setCenter(sp1);
 		
 		return root;
@@ -282,7 +305,7 @@ public class MapView implements InitializingBean {
 	public List<Node> getToolNodes() {
 		
 		List<Node> lst = new ArrayList<>();
-		
+
 		for (Layer layer : getLayers()) {
 			List<Node> l = layer.getToolNodes();
 			if (!l.isEmpty()) {				
@@ -317,7 +340,7 @@ public class MapView implements InitializingBean {
 			try {
 				l.draw(g2, fixedField);
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.error("Error drawing layer {}", l, e);
 			}
 		}
 		

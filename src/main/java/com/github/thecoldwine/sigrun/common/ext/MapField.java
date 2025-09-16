@@ -6,6 +6,9 @@ import org.jspecify.annotations.Nullable;
 
 public class MapField {
 
+	public static final Double MIN_ZOOM = 0.5;
+	public static final Double MAX_ZOOM = 30.0;
+
 	private static final double R = 6378137;
 
 	@Nullable
@@ -17,12 +20,13 @@ public class MapField {
 	@Nullable
 	private LatLon sceneCenter;
 
-	private int zoom;
+	private double zoom;
 
 	@Nullable
 	private MapProvider mapProvider;
 
-	public MapField() {		
+	public MapField() {
+		this.zoom = 1.0;
 	}
 	
 	public MapField(MapField field) {
@@ -45,12 +49,12 @@ public class MapField {
 			return new Point2D(0, 0);
 		}
 		
-		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoom());
-		Point2D p2d = GoogleCoordUtils.createInfoWindowContent(latlon, getZoom());
+		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoomInt());
+		Point2D p2d = GoogleCoordUtils.createInfoWindowContent(latlon, getZoomInt());
 
 		return new Point2D(
-			(p2d.getX() - psc.getX()),
-			(p2d.getY() - psc.getY()));
+			p2d.getX() - psc.getX(),
+			p2d.getY() - psc.getY());
 	}
 
 	/**
@@ -77,15 +81,15 @@ public class MapField {
 	
 	public LatLon screenTolatLon(Point2D point) {
 		if (getSceneCenter() == null) {
-			return GoogleCoordUtils.llFromP(new Point2D(0, 0), getZoom());
+			return GoogleCoordUtils.llFromP(new Point2D(0, 0), getZoomInt());
 		}
 
-		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoom());
+		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoomInt());
 		Point2D p = new Point2D(
 			psc.getX() + point.getX(), 
 			psc.getY() + point.getY());
 		
-		return GoogleCoordUtils.llFromP(p, getZoom());
+		return GoogleCoordUtils.llFromP(p, getZoomInt());
 	}
 	
 	//public static final int MAP_SCALE = 1;
@@ -98,20 +102,24 @@ public class MapField {
 	}
 
 	double resolution(double zoom) { 
-		return getInitialResolution() / (Math.pow(2, zoom));
+		return getInitialResolution() / Math.pow(2, zoom);
 	}
 	
 	private static double toRad(double degree) {
 		return degree * Math.PI / 180;
 	}
 	
-	public int getZoom() {
+	public double getZoom() {
 		return zoom;
 	}
+
+	public int getZoomInt() {
+		return (int) Math.round(zoom);
+	}
 	
-	public void setZoom(int zoom) {
-		this.zoom = Math.max(0, Math.min(30, zoom));
-		//this.zoom = Math.max(0, zoom);
+	public void setZoom(double zoom) {
+		zoom = Math.clamp(zoom, MIN_ZOOM, MAX_ZOOM);
+		this.zoom = zoom;
 	}
 
 	@Nullable

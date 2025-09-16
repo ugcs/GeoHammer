@@ -262,8 +262,8 @@ public class CsvParser extends Parser {
 
 				if (value != null) {
 					hasNumericValue = true;
+					break;
 				}
-				break;
 			}
 
             if (hasNumericValue) {
@@ -288,8 +288,6 @@ public class CsvParser extends Parser {
             Number value = parseNumber(new SensorData(), row[i]);
 			if (value != null) {
 				sensorValues.add(new SensorValue(headerName, null, value));
-			} else {
-				log.warn("Failed to parse dynamic numeric value for header '{}': {}", headerName, row[i]);
 			}
         }
     }

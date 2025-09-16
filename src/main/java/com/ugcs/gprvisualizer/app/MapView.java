@@ -201,8 +201,8 @@ public class MapView implements InitializingBean {
 			
 	    	double increment = event.getDeltaY() > 0 ? 0.1 : -0.1;
 			double zoom = model.getMapField().getZoom() + increment;
-			if (zoom < 0.5) zoom = 0.5;
-			if (zoom > 30.0) zoom = 30.0;
+			if (zoom < ZoomButtonLayer.MIN_ZOOM) zoom = ZoomButtonLayer.MIN_ZOOM;
+			if (zoom > ZoomButtonLayer.MAX_ZOOM) zoom = ZoomButtonLayer.MAX_ZOOM;
 			model.getMapField().setZoom(zoom);
 	    	
 	    	Point2D p2 = model.getMapField().latLonToScreen(ll);
@@ -283,17 +283,17 @@ public class MapView implements InitializingBean {
 		sp1.getChildren().add(zoomButtonLayer.getNode());
 		zoomButtonLayer.getNode().setManaged(false);
 		zoomButtonLayer.getNode().setLayoutX(
-				sp1.getWidth() - zoomButtonLayer.getNode().prefWidth(-1) - 10
+				sp1.getWidth() - zoomButtonLayer.getNode().prefWidth(-1) - 5
 		);
 		zoomButtonLayer.getNode().setLayoutY(
-				sp1.getHeight() - zoomButtonLayer.getNode().prefHeight(-1) - 10
+				sp1.getHeight() - zoomButtonLayer.getNode().prefHeight(-1 + 5)
 		);
 
 		sp1.widthProperty().addListener((obs, oldVal, newVal) -> {
-			zoomButtonLayer.getNode().setLayoutX(newVal.doubleValue() - zoomButtonLayer.getNode().prefWidth(-1) - 10);
+			zoomButtonLayer.getNode().setLayoutX(newVal.doubleValue() - zoomButtonLayer.getNode().prefWidth(-1) - 5);
 		});
 		sp1.heightProperty().addListener((obs, oldVal, newVal) -> {
-			zoomButtonLayer.getNode().setLayoutY(newVal.doubleValue() - zoomButtonLayer.getNode().prefHeight(-1) - 10);
+			zoomButtonLayer.getNode().setLayoutY(newVal.doubleValue() - zoomButtonLayer.getNode().prefHeight(-1) + 5);
 		});
 		root.setCenter(sp1);
 		

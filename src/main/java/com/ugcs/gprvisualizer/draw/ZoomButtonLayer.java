@@ -31,6 +31,9 @@ public class ZoomButtonLayer implements Layer {
 	@Autowired
 	private ApplicationEventPublisher publisher;
 
+	public static final Double MIN_ZOOM = 0.5;
+	public static final Double MAX_ZOOM = 30.0;
+
 	private final Button zoomInButton = new Button();
 	private final Button zoomOutButton = new Button();
 
@@ -62,7 +65,7 @@ public class ZoomButtonLayer implements Layer {
 	private void changeZoom(double factor) {
 		if (!isMapActive()) return;
 		MapField mf = model.getMapField();
-		double newZoom = Math.max(0.5, Math.min(30.0, mf.getZoom() * factor));
+		double newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, mf.getZoom() * factor));
 		mf.setZoom(newZoom);
 		publisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 	}
@@ -74,8 +77,8 @@ public class ZoomButtonLayer implements Layer {
 	public void syncFromModel(MapField mf) {
 		if (mf == null) return;
 		Platform.runLater(() -> {
-			zoomOutButton.setDisable(mf.getZoom() <= 0.5);
-			zoomInButton.setDisable(mf.getZoom() >= 30.0);
+			zoomOutButton.setDisable(mf.getZoom() <= MIN_ZOOM);
+			zoomInButton.setDisable(mf.getZoom() >= MAX_ZOOM);
 		});
 	}
 

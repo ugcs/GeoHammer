@@ -6,6 +6,9 @@ import org.jspecify.annotations.Nullable;
 
 public class MapField {
 
+	public static final Double MIN_ZOOM = 0.5;
+	public static final Double MAX_ZOOM = 30.0;
+
 	private static final double R = 6378137;
 
 	@Nullable
@@ -115,11 +118,8 @@ public class MapField {
 	}
 	
 	public void setZoom(double zoom) {
-		if (zoom < 0.1) {
-			zoom = 0.1;
-		}
+		zoom = Math.clamp(zoom, MIN_ZOOM, MAX_ZOOM);
 		this.zoom = zoom;
-		//this.zoom = Math.max(0, zoom);
 	}
 
 	@Nullable

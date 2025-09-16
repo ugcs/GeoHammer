@@ -155,11 +155,6 @@ public class MapView implements InitializingBean {
 	
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (!isGpsPresent()) {
-			zoomButtonLayer.getNode().setVisible(false);
-			return;
-		}
-		zoomButtonLayer.getNode().setVisible(true);
 		if (changed.isJustdraw()) {
 			updateUI();
 		}
@@ -169,14 +164,12 @@ public class MapView implements InitializingBean {
 	private void fileOpened(FileOpenedEvent event) {
 		toolBar.setDisable(!model.isActive() || !isGpsPresent());
 		updateUI();
-		zoomButtonLayer.getNode().setVisible(isGpsPresent());
 	}
 
 	@EventListener
 	private void fileClosed(FileClosedEvent event) {
 		toolBar.setDisable(!model.isActive() || !isGpsPresent());
 		updateUI();
-		zoomButtonLayer.getNode().setVisible(isGpsPresent());
 	}
 
 	@Autowired
@@ -201,12 +194,6 @@ public class MapView implements InitializingBean {
 			
 	    	double increment = event.getDeltaY() > 0 ? 0.1 : -0.1;
 			double zoom = model.getMapField().getZoom() + increment;
-			if (zoom < ZoomButtonLayer.MIN_ZOOM) {
-				zoom = ZoomButtonLayer.MIN_ZOOM;
-			}
-			if (zoom > ZoomButtonLayer.MAX_ZOOM) {
-				zoom = ZoomButtonLayer.MAX_ZOOM;
-			}
 			model.getMapField().setZoom(zoom);
 	    	
 	    	Point2D p2 = model.getMapField().latLonToScreen(ll);
@@ -215,7 +202,6 @@ public class MapView implements InitializingBean {
 	    	LatLon sceneCenter = model.getMapField().screenTolatLon(pdist);			
 			model.getMapField().setSceneCenter(sceneCenter);
 
-			zoomButtonLayer.syncFromModel(model.getMapField());
 			eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 	    });		
 	
@@ -374,7 +360,6 @@ public class MapView implements InitializingBean {
 				System.err.println("entercount: " + currentCount);
 			}
 			if (isGpsPresent()) {
-				zoomButtonLayer.syncFromModel(model.getMapField());
 				img = draw(windowSize.width, windowSize.height);
 			} else {
 				img = drawStub();

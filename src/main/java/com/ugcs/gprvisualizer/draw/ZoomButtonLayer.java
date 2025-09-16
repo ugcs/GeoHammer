@@ -14,6 +14,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,9 +31,6 @@ public class ZoomButtonLayer implements Layer {
 
 	@Autowired
 	private ApplicationEventPublisher publisher;
-
-	public static final Double MIN_ZOOM = 0.5;
-	public static final Double MAX_ZOOM = 30.0;
 
 	private final Button zoomInButton = new Button();
 	private final Button zoomOutButton = new Button();
@@ -67,22 +65,23 @@ public class ZoomButtonLayer implements Layer {
 			return;
 		}
 		MapField mf = model.getMapField();
-		double newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, mf.getZoom() * factor));
+		double newZoom = Math.max(MapField.MIN_ZOOM, Math.min(MapField.MAX_ZOOM, mf.getZoom() * factor));
 		mf.setZoom(newZoom);
 		publisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 	}
 
 	private boolean isMapActive() {
-		return model != null && model.getMapField() != null && model.getMapField().isActive();
+		return model != null && model.getMapField() != null;
 	}
 
-	public void syncFromModel(MapField mapField) {
+	private void refreshZoomButtons() {
+		MapField mapField = model.getMapField();
 		if (mapField == null) {
 			return;
 		}
 		Platform.runLater(() -> {
-			zoomOutButton.setDisable(mapField.getZoom() <= MIN_ZOOM);
-			zoomInButton.setDisable(mapField.getZoom() >= MAX_ZOOM);
+			zoomOutButton.setDisable(mapField.getZoom() <= MapField.MIN_ZOOM);
+			zoomInButton.setDisable(mapField.getZoom() >= MapField.MAX_ZOOM);
 		});
 	}
 
@@ -102,5 +101,12 @@ public class ZoomButtonLayer implements Layer {
 	public List<Node> getToolNodes() {
 		// Not shown in the toolbar.
 		return Collections.emptyList();
+	}
+
+	@EventListener
+	private void listenZoomChange(WhatChanged changed) {
+		if (changed.isZoom() && isMapActive()) {
+			refreshZoomButtons();
+		}
 	}
 }

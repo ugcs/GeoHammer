@@ -12,10 +12,13 @@ import javax.imageio.ImageIO;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GoogleMapProvider implements MapProvider {
 
 	private static final int MAP_IMAGE_SIZE = 1280;
+	private static final Logger log = LoggerFactory.getLogger(GoogleMapProvider.class);
 
 	@Nullable
 	@Override
@@ -36,9 +39,9 @@ public class GoogleMapProvider implements MapProvider {
 		System.setProperty("java.net.useSystemProxies", "true");
 
 		try {
-			img = createCenteredMapImage(midlPoint, field.getZoom());
+			img = createCenteredMapImage(midlPoint, field.getZoomInt());
 		} catch (IOException | URISyntaxException e) {
-			e.printStackTrace();
+			log.error("Failed to load map image", e);
 		}
 
 		return img;

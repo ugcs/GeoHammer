@@ -71,7 +71,7 @@ public class QualityLayer extends BaseLayer {
 
     private void drawPointIssue(Graphics2D g2, MapField field, PointQualityIssue pointIssue) {
         LatLon center = Spatial.toLatLon(pointIssue.getCenter());
-        double pixelSize = GoogleCoordUtils.getPixelSize(center, field.getZoom());
+        double pixelSize = GoogleCoordUtils.getPixelSize(center, field.getZoomInt());
         double r = Math.max(1.5, pointIssue.getRadius() / pixelSize);
 
         Point2D centerScreen = field.latLonToScreen(center);

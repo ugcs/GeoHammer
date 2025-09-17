@@ -163,9 +163,9 @@ public class CsvParser extends Parser {
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
                     for (SensorData sensor : filterSensors(template.getDataMapping().getDataValues())) {
-						// check if TMI_anomaly, TMI_S_anomaly and Mark is not empty
+						// check if ends with _anomaly and Mark is not empty
 						String semantic = Strings.nullToEmpty(sensor.getSemantic());
-						if ((semantic.startsWith(GeoData.Semantic.TMI.getName()) && semantic.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX)) ||
+						if (semantic.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX) ||
 								semantic.equals(GeoData.Semantic.MARK.getName())) {
 							boolean hasData = columnHasData(headers, allDataRows, sensor.getHeader());
 							if (!hasData) {

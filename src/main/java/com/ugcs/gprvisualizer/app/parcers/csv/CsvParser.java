@@ -293,7 +293,6 @@ public class CsvParser extends Parser {
             }
         }
 
-        log.debug("Identified {} dynamic numeric headers: {}", undeclaredNumericHeaders.size(), undeclaredNumericHeaders);
         return undeclaredNumericHeaders;
     }
 

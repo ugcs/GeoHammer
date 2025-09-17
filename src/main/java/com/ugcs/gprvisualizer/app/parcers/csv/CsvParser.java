@@ -205,7 +205,9 @@ public class CsvParser extends Parser {
 
 	private boolean columnHasData(List<String> headers, List<String[]> rows, String headerName) {
 		int index = headers.indexOf(headerName);
-		if (index < 0) return false;
+		if (index < 0) {
+			return false;
+		}
 		for (String[] row : rows) {
 			if (index < row.length && StringUtils.hasText(row[index])) {
 				return true;

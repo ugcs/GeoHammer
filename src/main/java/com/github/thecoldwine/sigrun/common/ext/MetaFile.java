@@ -28,11 +28,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.annotation.Nullable;
+
 public class MetaFile {
 
     private static final String META_FILE_EXTENSION = ".geohammer";
 
     private SampleRange sampleRange;
+
+	private @Nullable Double contrast;
+
+	private @Nullable Range gridingSliderRange;
 
     // mark position indices in a local values list
     private Set<Integer> marks = new HashSet<>();
@@ -55,7 +61,19 @@ public class MetaFile {
         this.marks = marks;
     }
 
-    public List<? extends GeoData> getValues() {
+	public @Nullable Double getContrast() { return contrast; }
+
+	public void setContrast(Double contrast) { this.contrast = contrast; }
+
+	public @Nullable Range getGridingSliderRange() {
+		return gridingSliderRange;
+	}
+
+	public void setGridingSliderRange(Range griddingSliderRange) {
+		this.gridingSliderRange = griddingSliderRange;
+	}
+
+	public List<? extends GeoData> getValues() {
         return values;
     }
 
@@ -193,6 +211,9 @@ public class MetaFile {
         }
         meta.setMarks(traceMarks);
 
+		meta.setContrast(contrast);
+		meta.setGridingSliderRange(gridingSliderRange);
+
         return meta;
     }
 
@@ -239,6 +260,8 @@ public class MetaFile {
             }
         }
         this.marks = marks;
+		this.contrast = meta.getContrast();
+		this.gridingSliderRange = meta.getGridingSliderRange();
     }
 
     private TraceMeta readMeta(Path path) throws IOException {

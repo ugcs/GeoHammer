@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app.meta;
 
 import com.google.gson.annotations.Expose;
+import com.ugcs.gprvisualizer.utils.Range;
 
 import java.util.List;
 
@@ -14,6 +15,12 @@ public class TraceMeta {
 
     @Expose
     private List<TraceMark> marks;
+
+	@Expose
+	private Double contrast;
+
+	@Expose
+	private Range gridingSliderRange;
 
     public SampleRange getSampleRange() {
         return sampleRange;
@@ -38,4 +45,20 @@ public class TraceMeta {
     public void setMarks(List<TraceMark> marks) {
         this.marks = marks;
     }
+
+	public Double getContrast() {
+		return contrast;
+	}
+
+	public void setContrast(Double contrast) {
+		this.contrast = contrast;
+	}
+
+	public Range getGridingSliderRange() {
+		return gridingSliderRange;
+	}
+
+	public void setGridingSliderRange(Range gridingSliderRange) {
+		this.gridingSliderRange = gridingSliderRange;
+	}
 }

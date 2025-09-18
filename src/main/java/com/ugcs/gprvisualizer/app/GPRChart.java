@@ -1,5 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
+import com.github.thecoldwine.sigrun.common.ext.MetaFile;
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
@@ -39,6 +40,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.jfree.fx.FXGraphics2D;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -65,8 +68,12 @@ public class GPRChart extends Chart {
             new BasicStroke(1.0f,
                     BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
                     10.0f, dash1, 0.0f);
+	private static final Logger log = LoggerFactory.getLogger(GPRChart.class);
 
-    private BaseObject selectedMouseHandler;
+	private static final int MIN_CONTRAST = 0;
+	private static final int MAX_CONTRAST = 100;
+
+	private BaseObject selectedMouseHandler;
     private final BaseObject scrollHandler;
 
     private final Model model;
@@ -94,7 +101,8 @@ public class GPRChart extends Chart {
             = (observable, oldValue, newValue) -> {
                 //if (Math.abs(newValue.intValue() - oldValue.intValue()) > 3) {
                     repaintEvent();
-                //}
+					saveContrastToMeta();
+		//}
             };
 
     private final ProfileField profileField;
@@ -119,6 +127,9 @@ public class GPRChart extends Chart {
         initCanvas();
 
         contrastSlider = new ContrastSlider(profileField.getProfileSettings(), sliderListener);
+
+		restoreContrastFromMeta(contrastSlider, traceFile);
+		restoreGridingRangeFromMeta(traceFile);
 
         getProfileScroll().setChangeListener(new ChangeListener<Number>() {
             //TODO: fix with change listener
@@ -171,6 +182,70 @@ public class GPRChart extends Chart {
         return auxElements;
     }
 
+	private void saveContrastToMeta() {
+		try {
+			TraceFile traceFile = profileField.getFile();
+			MetaFile meta = traceFile.getMetaFile();
+			if (meta != null) {
+				meta.setContrast(contrast);
+				traceFile.saveMeta();
+			}
+		} catch (Exception e) {
+			log.error("Cannot save contrast to meta file", e);
+		}
+	}
+
+	private void saveGridingRangeToMeta() {
+		try {
+			TraceFile traceFile = profileField.getFile();
+			MetaFile meta = traceFile.getMetaFile();
+			if (meta != null) {
+				var profileSettings = profileField.getProfileSettings();
+				int min = profileSettings.getLayer();
+				int max = min + profileSettings.hpage;
+				Range savedRange = meta.getGridingSliderRange();
+				Range currentRange = new Range(min, max);
+				if (Objects.equals(savedRange, currentRange)) {
+					return; // no change
+				}
+				meta.setGridingSliderRange(currentRange);
+				traceFile.saveMeta();
+			}
+		} catch (Exception e) {
+			log.error("Cannot save griding range to meta file", e);
+		}
+	}
+
+	private void restoreContrastFromMeta(ContrastSlider slider, TraceFile traceFile) {
+		MetaFile meta = traceFile.getMetaFile();
+		Double contrastFromMeta = meta != null ? meta.getContrast() : null;
+		if (slider != null && contrastFromMeta != null) {
+			this.contrast = Math.clamp(contrastFromMeta, MIN_CONTRAST, MAX_CONTRAST);
+			slider.updateUI();
+			repaintEvent();
+		}
+	}
+
+	private void restoreGridingRangeFromMeta(TraceFile traceFile) {
+		MetaFile meta = traceFile.getMetaFile();
+		Range savedRange = meta != null ? meta.getGridingSliderRange() : null;
+		if (savedRange != null) {
+			Number min = savedRange.getMin();
+			Number max = savedRange.getMax();
+			if (min == null || max == null) {
+				return;
+			}
+			var profileSettings = profileField.getProfileSettings();
+			Range currentRange = new Range(profileSettings.getLayer(), profileSettings.getLayer() + profileSettings.hpage);
+			if (Objects.equals(currentRange, savedRange)) {
+				return; // no change
+			}
+			profileSettings.hpage = max.intValue() - min.intValue();
+			profileSettings.setLayer(min.intValue());
+			repaintEvent();
+		}
+	}
+
     private class ContrastSlider extends BaseSlider {
         public ContrastSlider(Settings settings, ChangeListener<Number> listenerExt) {
             super(settings, listenerExt);
@@ -180,13 +255,17 @@ public class GPRChart extends Chart {
         }
 
         public void updateUI() {
-            slider.setMax(100);
-            slider.setMin(0);
+			if (slider == null) {
+				return;
+			}
+            slider.setMax(MAX_CONTRAST);
+            slider.setMin(MIN_CONTRAST);
             slider.setValue(contrast);
         }
 
         public int updateModel() {
             contrast = (int) slider.getValue();
+			saveContrastToMeta();
             return (int) contrast;
         }
     }
@@ -619,6 +698,8 @@ public class GPRChart extends Chart {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
+
+					saveGridingRangeToMeta();
                 }
             };
 

@@ -163,6 +163,15 @@ public class CsvParser extends Parser {
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
                     for (SensorData sensor : filterSensors(template.getDataMapping().getDataValues())) {
+						// check if ends with _anomaly and Mark is not empty
+						String semantic = Strings.nullToEmpty(sensor.getSemantic());
+						if (semantic.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX) ||
+								semantic.equals(GeoData.Semantic.MARK.getName())) {
+							boolean hasData = columnHasData(headers, allDataRows, sensor.getHeader());
+							if (!hasData) {
+								continue;
+							}
+						}
                         String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < row.length) ? row[sensor.getIndex()] : null;
                         sensorValues.add(new SensorValue(sensor.getSemantic(), sensor.getUnits(), parseNumber(sensor, sensorData)));
                     }
@@ -193,6 +202,19 @@ public class CsvParser extends Parser {
 
         return coordinates;
     }
+
+	private boolean columnHasData(List<String> headers, List<String[]> rows, String headerName) {
+		int index = headers.indexOf(headerName);
+		if (index < 0) {
+			return false;
+		}
+		for (String[] row : rows) {
+			if (index < row.length && StringUtils.hasText(row[index])) {
+				return true;
+			}
+		}
+		return false;
+	}
 
     private Set<String> getDeclaredHeaders() {
         Set<String> declaredHeaders = new HashSet<>();
@@ -271,7 +293,6 @@ public class CsvParser extends Parser {
             }
         }
 
-        log.debug("Identified {} dynamic numeric headers: {}", undeclaredNumericHeaders.size(), undeclaredNumericHeaders);
         return undeclaredNumericHeaders;
     }
 

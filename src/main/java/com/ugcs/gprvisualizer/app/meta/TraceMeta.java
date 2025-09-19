@@ -20,7 +20,7 @@ public class TraceMeta {
 	private Double contrast;
 
 	@Expose
-	private Range gridingSliderRange;
+	private Range amplitudeMapLevels;
 
     public SampleRange getSampleRange() {
         return sampleRange;
@@ -54,11 +54,11 @@ public class TraceMeta {
 		this.contrast = contrast;
 	}
 
-	public Range getGridingSliderRange() {
-		return gridingSliderRange;
+	public Range getAmplitudeMapLevels() {
+		return amplitudeMapLevels;
 	}
 
-	public void setGridingSliderRange(Range gridingSliderRange) {
-		this.gridingSliderRange = gridingSliderRange;
+	public void setAmplitudeMapLevels(Range amplitudeMapLevels) {
+		this.amplitudeMapLevels = amplitudeMapLevels;
 	}
 }

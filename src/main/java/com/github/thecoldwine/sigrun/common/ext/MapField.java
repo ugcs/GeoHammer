@@ -1,6 +1,6 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
-import com.ugcs.gprvisualizer.draw.MapProvider;
+import com.ugcs.gprvisualizer.draw.map.MapProvider;
 import javafx.geometry.Point2D;
 import org.jspecify.annotations.Nullable;
 

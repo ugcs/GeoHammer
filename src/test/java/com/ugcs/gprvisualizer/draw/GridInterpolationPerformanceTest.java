@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.draw;
 
-import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
+import com.ugcs.gprvisualizer.draw.map.GridLayer;
 import com.ugcs.gprvisualizer.math.IDWInterpolator;
 import edu.mines.jtk.interp.SplinesGridder2;
 import org.junit.jupiter.api.AfterAll;

@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.draw.map.provider;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
+import com.ugcs.gprvisualizer.draw.map.MapProvider;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +21,19 @@ public class GoogleMapProvider implements MapProvider {
 	private static final int MAP_IMAGE_SIZE = 1280;
 	private static final Logger log = LoggerFactory.getLogger(GoogleMapProvider.class);
 
+	@Override
+	public String id() {
+		return "google";
+	}
+
+	@Override
+	public String name() {
+		return "google maps";
+	}
+
 	@Nullable
 	@Override
-	public BufferedImage loadimg(MapField field) {
+	public BufferedImage loading(MapField field) {
 
 		if (field.getZoom() > getMaxZoom()) {
 			field.setZoom(getMaxZoom());

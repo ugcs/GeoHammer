@@ -1,7 +1,6 @@
 package com.ugcs.gprvisualizer.math;
 
-import com.ugcs.gprvisualizer.draw.GridLayer;
-import org.junit.experimental.theories.DataPoint;
+import com.ugcs.gprvisualizer.draw.map.GridLayer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.kdtree.KdNode;

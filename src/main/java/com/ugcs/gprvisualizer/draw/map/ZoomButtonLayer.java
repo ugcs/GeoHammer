@@ -1,9 +1,10 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.draw.map;
 
 import java.util.Collections;
 import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.MapField;
+import com.ugcs.gprvisualizer.draw.Layer;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Platform;

@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.draw.map;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -17,6 +17,7 @@ import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.ugcs.gprvisualizer.app.MapView;
 import com.ugcs.gprvisualizer.app.OptionPane;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.draw.BaseLayer;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;

@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.draw.map;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -6,6 +6,10 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.ugcs.gprvisualizer.app.MapView;
+import com.ugcs.gprvisualizer.draw.BaseLayer;
+import com.ugcs.gprvisualizer.draw.map.provider.GoogleMapProvider;
+import com.ugcs.gprvisualizer.draw.map.provider.HereMapProvider;
+import com.ugcs.gprvisualizer.draw.map.provider.OffMapProvider;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
@@ -14,8 +18,6 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.RadioMenuItem;
 
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -26,10 +28,7 @@ import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 
 @Component
@@ -38,25 +37,29 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	private final Model model;
 	private final Status status;
 	private final MapView mapView;
-    private final PrefSettings prefSettings;
+	private final List<MapProvider> providers;
+	private final MenuButton optionsMenuBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.MAP, new MenuButton());
+
+	private LatLon click;
+	private ThrQueue recalcQueue;
 
     public SatelliteMap(Model model, Status status, MapView mapView, PrefSettings prefSettings) {
 		this.model = model;
 		this.status = status;
 		this.mapView = mapView;
-        this.prefSettings = prefSettings;
+		this.providers = Arrays.asList(
+				new GoogleMapProvider(),
+				new HereMapProvider(prefSettings),
+				new OffMapProvider()
+		);
     }
-
-	private LatLon click;
-
-	private ThrQueue recalcQueue;
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		recalcQueue = new ThrQueue(model, mapView) {
 			protected void draw(BufferedImage backImg, MapField field) {
 				if (field.getMapProvider() != null) {
-					this.backImg = field.getMapProvider().loadimg(field);
+					this.backImg = field.getMapProvider().loading(field);
 				}
 			}
 
@@ -69,74 +72,37 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 			}
 		};
 
-		optionsMenuBtn.getItems().addAll(menuItem1, menuItem2, menuItem3);
-		ToggleGroup toggleGroup = new ToggleGroup();
-		menuItem1.setToggleGroup(toggleGroup);
-		menuItem2.setToggleGroup(toggleGroup);
-		menuItem3.setToggleGroup(toggleGroup);
-
-		menuItem1.setOnAction(e -> {
-			model.getMapField().setMapProvider(new GoogleMapProvider());
-			setActive(model.getMapField().getMapProvider() != null);
-			recalcQueue.clear();
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
-		});
-
-		menuItem2.setOnAction(e -> {
-			model.getMapField().setMapProvider(new HereMapProvider(prefSettings.getSetting("maps", "here_api_key")));
-			setActive(model.getMapField().getMapProvider() != null);
-			recalcQueue.clear();
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
-		});
-
-		menuItem2.setSelected(true);
-		menuItem2.fire();
-
-		menuItem3.setOnAction(e -> {
-			model.getMapField().setMapProvider(null);
-			setActive(model.getMapField().getMapProvider() != null);
-			recalcQueue.clear();
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
-		});
-	}	
-
-//	private EventHandler<ActionEvent> showMapListener = new EventHandler<ActionEvent>() {
-//		@Override
-//		public void handle(ActionEvent event) {
-//			setActive(showLayerCheckbox.isSelected());
-//			if (isActive()) {
-//				q.add();
-//			} else {
-//				getRepaintListener().repaint();
-//			}
-//				
-//		}
-//	};
-
-
-
-	RadioMenuItem menuItem1 = new RadioMenuItem("google maps");
-	RadioMenuItem menuItem2 = new RadioMenuItem("here.com");
-	RadioMenuItem menuItem3 = new RadioMenuItem("turn off");
-
-	private final MenuButton optionsMenuBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.MAP, new MenuButton());
-
-	{
-		///optionsMenuBtn.setStyle("padding-left: 2px; padding-right: 2px");
+		buildProvidersMenu();
 
 	}
 
-//	private ToggleButton showLayerCheckbox = 
-//			new ToggleButton("", ResourceImageHolder.getImageView("gmap-20.png"));
-//	
-//	{
-//		//boolean apiExists = StringUtils.isNotBlank(GOOGLE_API_KEY);
-//		
-//		showLayerCheckbox.setTooltip(new Tooltip("Toggle satellite map layer"));
-//		//showLayerCheckbox.setDisable(!apiExists);
-//		//showLayerCheckbox.setSelected(apiExists);
-//		showLayerCheckbox.setOnAction(showMapListener);
-//	}
+	private void buildProvidersMenu() {
+		optionsMenuBtn.getItems().clear();
+		ToggleGroup group = new ToggleGroup();
+		RadioMenuItem toSelect = null;
+
+		for (MapProvider p : providers) {
+			RadioMenuItem item = new RadioMenuItem(p.name());
+			item.setToggleGroup(group);
+			item.setOnAction(e -> applyProvider(p));
+			optionsMenuBtn.getItems().add(item);
+			if (toSelect == null && p.isDefault()) toSelect = item;
+		}
+		if (toSelect == null && !optionsMenuBtn.getItems().isEmpty()) {
+			toSelect = (RadioMenuItem) optionsMenuBtn.getItems().getFirst();
+		}
+		if (toSelect != null) {
+			toSelect.setSelected(true);
+			toSelect.fire();
+		}
+	}
+
+	private void applyProvider(MapProvider provider) {
+		provider.onSelect(model);
+		setActive(model.getMapField().getMapProvider() != null);
+		recalcQueue.clear();
+		model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
+	}
 
 	@Override
 	public void draw(Graphics2D g2, MapField currentField) {
@@ -229,8 +195,8 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	@Override
 	public List<Node> getToolNodes() {
-		HBox cnt = new HBox(/*showLayerCheckbox,*/ optionsMenuBtn);
-		return Arrays.asList(cnt);
+		HBox cnt = new HBox(optionsMenuBtn);
+		return List.of(cnt);
 	}
 
 }

@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.draw.map;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;

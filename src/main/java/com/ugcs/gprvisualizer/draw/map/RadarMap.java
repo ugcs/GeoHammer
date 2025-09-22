@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.draw.map;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.MapView;
+import com.ugcs.gprvisualizer.draw.BaseLayer;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import javafx.geometry.Point2D;

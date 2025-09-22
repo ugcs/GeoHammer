@@ -5,14 +5,14 @@ import org.junit.jupiter.api.Test;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
-import com.ugcs.gprvisualizer.draw.GoogleMapProvider;
+import com.ugcs.gprvisualizer.draw.map.provider.GoogleMapProvider;
 
 import java.awt.image.BufferedImage;
 
 public class GoogleMapProviderTest {
 
     @Test
-    public void testLoadimg() {
+    public void testLoading() {
         // Create a mock MapField object
         MapField field = new MapField() {
             @Override
@@ -28,7 +28,7 @@ public class GoogleMapProviderTest {
         GoogleMapProvider mapProvider = new GoogleMapProvider();
 
         // Call the loadimg method
-        BufferedImage image = mapProvider.loadimg(field);
+        BufferedImage image = mapProvider.loading(field);
 
         // Assert that the returned image is not null
         Assertions.assertNotNull(image);

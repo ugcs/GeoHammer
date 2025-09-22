@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
-import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
 import com.ugcs.gprvisualizer.gpr.Model;
+import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -34,19 +34,23 @@ public class CsvFile extends SgyFile {
 
 	private static final Logger log = LoggerFactory.getLogger(CsvFile.class.getName());
 
-    private List<GeoData> geoData = new ArrayList<>();
+	private final PrefSettings prefSettings;
 
-    @Nullable
+	private List<GeoData> geoData = new ArrayList<>();
+
+	@Nullable
 	private CsvParser parser;
 
-    private FileTemplates fileTemplates;
+	private FileTemplates fileTemplates;
 
-	public CsvFile(FileTemplates fileTemplates) {
+
+	public CsvFile(FileTemplates fileTemplates, PrefSettings prefSettings) {
 		this.fileTemplates = fileTemplates;
+		this.prefSettings = prefSettings;
 	}
 
     private CsvFile(CsvFile file) {
-        this(file.fileTemplates);
+        this(file.fileTemplates, file.prefSettings);
         this.setFile(file.getFile());
         this.parser = file.parser;
     }
@@ -68,7 +72,7 @@ public class CsvFile extends SgyFile {
 
         log.debug("template: {}", fileTemplate.getName());
 
-        parser = new CSVParsersFactory().createCSVParser(fileTemplate);
+        parser = new CSVParsersFactory().createCSVParser(fileTemplate, prefSettings);
 
         List<GeoCoordinates> coordinates = parser.parse(csvFileAbsolutePath);
 

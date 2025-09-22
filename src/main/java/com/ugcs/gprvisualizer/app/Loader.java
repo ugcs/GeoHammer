@@ -19,6 +19,7 @@ import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
@@ -52,11 +53,14 @@ public class Loader {
 
 	private final ApplicationEventPublisher eventPublisher;
 
+	private final PrefSettings prefSettings;
+
 	@Autowired
-	public Loader(Model model, Status status, ApplicationEventPublisher eventPublisher) {
+	public Loader(Model model, Status status, ApplicationEventPublisher eventPublisher, PrefSettings prefSettings) {
 		this.model = model;
 		this.status = status;
 		this.eventPublisher = eventPublisher;
+		this.prefSettings = prefSettings;
 	}
 
 	public EventHandler<DragEvent> getDragHandler() {
@@ -221,7 +225,7 @@ public class Loader {
 		// positions
 		FileTemplates templates = model.getFileManager().getFileTemplates();
 		try {
-			new PositionFile(templates).load(gprFile);
+			new PositionFile(templates, prefSettings).load(gprFile);
 		} catch (Exception e) {
 			log.warn("Error loading positions file", e);
 		}
@@ -245,7 +249,7 @@ public class Loader {
 	private void openCsvFile(File file) throws IOException {
 		Check.notNull(file);
 
-		CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
+		CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates(), prefSettings);
 
 		csvFile.open(file);
 		if (csvFile.getGeoData().isEmpty()) {

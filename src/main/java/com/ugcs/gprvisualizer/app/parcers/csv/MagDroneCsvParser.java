@@ -17,13 +17,14 @@ import com.ugcs.gprvisualizer.app.parcers.SensorValue;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
+import com.ugcs.gprvisualizer.gpr.PrefSettings;
 
 public class MagDroneCsvParser extends CsvParser {
 
     private DecimalFormat format;
 
-    public MagDroneCsvParser(Template template) {
-        super(template);
+    public MagDroneCsvParser(Template template, PrefSettings prefSettings) {
+        super(template, prefSettings);
     }
 
     @Override

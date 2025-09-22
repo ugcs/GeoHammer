@@ -15,6 +15,7 @@ import java.util.Map;
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.NMEACoordinates;
 import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.gpr.PrefSettings;
 
 public class NmeaCsvParser extends CsvParser {
 
@@ -22,8 +23,8 @@ public class NmeaCsvParser extends CsvParser {
 
     private Map<Integer, GeoCoordinates> coordinatesMap;
 
-    public NmeaCsvParser(Template template) {
-        super(template);
+    public NmeaCsvParser(Template template, PrefSettings prefSettings) {
+        super(template, prefSettings);
     }
 
     @Override

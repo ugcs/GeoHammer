@@ -129,7 +129,7 @@ public class GPRChart extends Chart {
         contrastSlider = new ContrastSlider(profileField.getProfileSettings(), sliderListener);
 
 		restoreContrastFromMeta(contrastSlider, traceFile);
-		restoreAmplitudeMapLevelsFromMeta(traceFile);
+		restoreAmplitudeMapBoundsFromMeta(traceFile);
 
         getProfileScroll().setChangeListener(new ChangeListener<Number>() {
             //TODO: fix with change listener
@@ -195,7 +195,7 @@ public class GPRChart extends Chart {
 		}
 	}
 
-	private void saveAmplitudeMapLevelsToMeta() {
+	private void saveAmplitudeMapBoundsToMeta() {
 		try {
 			TraceFile traceFile = profileField.getFile();
 			MetaFile meta = traceFile.getMetaFile();
@@ -203,12 +203,12 @@ public class GPRChart extends Chart {
 				var profileSettings = profileField.getProfileSettings();
 				int min = profileSettings.getLayer();
 				int max = min + profileSettings.hpage;
-				Range savedRange = meta.getAmplitudeMapLevels();
+				Range savedRange = meta.getAmplitudeMapBounds();
 				Range currentRange = new Range(min, max);
 				if (Objects.equals(savedRange, currentRange)) {
 					return; // no change
 				}
-				meta.setAmplitudeMapLevels(currentRange);
+				meta.setAmplitudeMapBounds(currentRange);
 				traceFile.saveMeta();
 			}
 		} catch (Exception e) {
@@ -226,9 +226,9 @@ public class GPRChart extends Chart {
 		}
 	}
 
-	private void restoreAmplitudeMapLevelsFromMeta(TraceFile traceFile) {
+	private void restoreAmplitudeMapBoundsFromMeta(TraceFile traceFile) {
 		MetaFile meta = traceFile.getMetaFile();
-		Range savedRange = meta != null ? meta.getAmplitudeMapLevels() : null;
+		Range savedRange = meta != null ? meta.getAmplitudeMapBounds() : null;
 		if (savedRange != null) {
 			Number min = savedRange.getMin();
 			Number max = savedRange.getMax();
@@ -699,7 +699,7 @@ public class GPRChart extends Chart {
                         selectedMouseHandler = null;
                     }
 
-					saveAmplitudeMapLevelsToMeta();
+					saveAmplitudeMapBoundsToMeta();
                 }
             };
 

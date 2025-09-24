@@ -53,10 +53,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
     private final TemplateSettings templateSettings;
 
     @Nullable
-    private CsvFile selectedFile;
-
-    @Nullable
-    private volatile Template selectedTemplate;
+    private Template selectedTemplate;
 
     private Label title;
 

@@ -1,9 +1,11 @@
 package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
+import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.TemplateSettings;
@@ -33,6 +35,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -51,6 +54,9 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
     @Nullable
     private CsvFile selectedFile;
+
+    @Nullable
+    private volatile Template selectedTemplate;
 
     private Label title;
 
@@ -153,11 +159,6 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             title.setText(template.getName());
             series.setAll(getSeriesMetas(template));
 
-            // update charts visibility
-            for (SeriesMeta series : series) {
-                showChart(template, series.name, series.visible.get());
-            }
-
             // get selected series from settings
             String selectedSeriesName = templateSettings.getSelectedSeriesName(template);
             SeriesMeta selectedSeries = getSeriesByName(selectedSeriesName);
@@ -168,12 +169,23 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
             if (selectedSeries != null) {
                 seriesSelector.setValue(selectedSeries);
-                selectChart(template, selectedSeries.name);
             }
+
+            updateCharts(template);
 
             // init series selection listener
             setSeriesChangeListener(template);
         }
+    }
+
+    private void updateCharts(Template template) {
+        // update charts visibility
+        for (SeriesMeta series : series) {
+            showChart(template, series.name, series.visible.get());
+        }
+        // set selected chart
+        SeriesMeta selectedSeries = seriesSelector.getValue();
+        selectChart(template, selectedSeries != null ? selectedSeries.name : null);
     }
 
     private @Nullable SeriesMeta getSeriesByName(@Nullable String seriesName) {
@@ -351,23 +363,50 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
-        CsvFile file = null;
-        if (event.getFile() instanceof CsvFile csvFile) {
-            file = csvFile;
-        }
-
-        if (Objects.equals(file, selectedFile)) {
-            return; // skip update
-        }
-        selectedFile = file;
-
         Template template = null;
-        if (selectedFile != null) {
-            template = selectedFile.getTemplate();
+        if (event.getFile() instanceof CsvFile csvFile) {
+            template = csvFile.getTemplate();
             if (!hasOpenFiles(template)) {
                 template = null;
             }
         }
-        selectTemplate(template);
+        if (!templateEquals(template, selectedTemplate)) {
+            selectedTemplate = template;
+            selectTemplate(template);
+        }
+    }
+
+    @EventListener
+    private void onFileOpened(FileOpenedEvent event) {
+        if (selectedTemplate == null) {
+            return;
+        }
+
+        Set<File> openedFiles = new HashSet<>(event.getFiles());
+        for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
+            if (openedFiles.contains(csvFile.getFile())) {
+                Template template = csvFile.getTemplate();
+                if (templateEquals(template, selectedTemplate)) {
+                    // reload template
+                    selectTemplate(template);
+                    break;
+                }
+            }
+        }
+    }
+
+    @EventListener
+    private void onFileClosed(FileClosedEvent event) {
+        if (selectedTemplate == null) {
+            return;
+        }
+
+        if (event.getSgyFile() instanceof CsvFile csvFile) {
+            Template template = csvFile.getTemplate();
+            if (templateEquals(template, selectedTemplate)) {
+                // reload template
+                selectTemplate(template);
+            }
+        }
     }
 }

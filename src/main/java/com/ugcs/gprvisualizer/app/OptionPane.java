@@ -26,6 +26,7 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.event.Event;
 import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -38,6 +39,7 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -258,6 +260,12 @@ public class OptionPane extends VBox implements InitializingBean {
 		scriptsButton.setOnAction(getChangeVisibleAction(scriptsPane));
 
 		ScrollPane scrollContainer = createVerticalScrollContainer(container);
+		scrollContainer.focusedProperty().addListener((observable, oldValue, newValue) -> {
+			if (newValue) {
+				// redirect focus to a tab pane
+				Platform.runLater(() -> tab.getTabPane().requestFocus());
+			}
+		});
 
 		StackPane seriesPane = new StackPane(seriesSelectorView);
 		seriesPane.setPadding(new Insets(16, 16, 16, 16));

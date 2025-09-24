@@ -18,8 +18,6 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import com.ugcs.gprvisualizer.gpr.HorizontalRulerController;
 import com.ugcs.gprvisualizer.utils.Ticks;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -28,8 +26,6 @@ public class HorizontalRulerDrawer {
     private final DecimalFormat formatter = new DecimalFormat();
     @Nonnull
     private final List<Double> cumulativeDistances = new ArrayList<>();
-
-    private static final Logger log = LoggerFactory.getLogger(HorizontalRulerDrawer.class);
 
     public HorizontalRulerDrawer(GPRChart field) {
         this.field = field;
@@ -45,10 +41,7 @@ public class HorizontalRulerDrawer {
 
         int firstTrace = field.getFirstVisibleTrace();
         int lastTrace = field.getLastVisibleTrace();
-        int traceCount = field.getTracesCount();
         int totalTraces = field.getVisibleNumberOfTrace();
-
-        log.info("First trace: {}, Last trace: {}, Trace count: {}, Total traces: {}, zoom: {}", firstTrace, lastTrace, traceCount, totalTraces, field.getZoom());
 
         Pair<Integer, Integer> pair;
         if (firstTrace <= lastTrace) {

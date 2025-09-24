@@ -29,6 +29,8 @@ public class HorizontalRulerDrawer {
     @Nonnull
     private final List<Double> cumulativeDistances = new ArrayList<>();
 
+    private static final Logger log = LoggerFactory.getLogger(HorizontalRulerDrawer.class);
+
     public HorizontalRulerDrawer(GPRChart field) {
         this.field = field;
     }
@@ -43,7 +45,10 @@ public class HorizontalRulerDrawer {
 
         int firstTrace = field.getFirstVisibleTrace();
         int lastTrace = field.getLastVisibleTrace();
+        int traceCount = field.getTracesCount();
         int totalTraces = field.getVisibleNumberOfTrace();
+
+        log.info("First trace: {}, Last trace: {}, Trace count: {}, Total traces: {}, zoom: {}", firstTrace, lastTrace, traceCount, totalTraces, field.getZoom());
 
         Pair<Integer, Integer> pair;
         if (firstTrace <= lastTrace) {

@@ -1,8 +1,9 @@
 package com.ugcs.gprvisualizer.math;
 
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Range;
 import edu.emory.mathcs.jtransforms.fft.FloatFFT_2D;
+
+import java.util.Arrays;
 
 public class AnalyticSignalFilter {
 
@@ -14,13 +15,13 @@ public class AnalyticSignalFilter {
     private final double cellWidth;
     private final double cellHeight;
 
-    public AnalyticSignalFilter(float[][] grid, double cellWidth, double cellHeight, Range range) {
+    public AnalyticSignalFilter(float[][] grid, double cellWidth, double cellHeight) {
         Check.notNull(grid);
 
         this.m = grid.length;
         this.n = grid[0].length;
         // copy within given range
-        this.grid = clamp(grid, range);
+        this.grid = copy(grid);
         this.gridOrigin = grid;
 
         this.cellWidth = cellWidth;
@@ -30,22 +31,12 @@ public class AnalyticSignalFilter {
         GridInterpolator.interpolate(this.grid, cellWidth, cellHeight);
     }
 
-    private static float[][] clamp(float[][] grid, Range range) {
-        Check.notNull(grid);
-
-        int m = grid.length;
-        int n = grid[0].length;
-
-        float min = range.getMin().floatValue();
-        float max = range.getMax().floatValue();
-
-        float[][] clamped = new float[m][n];
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                clamped[i][j] = Math.clamp(grid[i][j], min, max);
-            }
+    private static float[][] copy(float[][] grid) {
+        float[][] copy = new float[grid.length][];
+        for (int i = 0; i < grid.length; i++) {
+            copy[i] = Arrays.copyOf(grid[i], grid[i].length);
         }
-        return clamped;
+        return copy;
     }
 
     public AnalyticSignal evaluate() {

@@ -1,14 +1,15 @@
 package com.ugcs.gprvisualizer.gpr;
 
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Strings;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.FileSystemResourceLoader;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -19,22 +20,57 @@ public class PrefSettings {
     @Value("${settings.prefix:geohammer.settings.}")
     private String prefix = "geohammer.settings.";
 
-    //private final Resource resource = new ClassPathResource("dynamic-settings.properties");
+    private final Path path;
 
-    private final Resource resource;
+    private final Properties properties;
 
     public PrefSettings(FileTemplates templates) {
-        resource = new FileSystemResourceLoader().getResource("file:" + templates.getTemplatesPath().toString() + "/templates-settings.properties");
+        path = templates.getTemplatesPath().resolve("templates-settings.properties");
+        properties = loadProperties(path);
+    }
+
+    private Properties loadProperties(Path path) {
+        Check.notNull(path);
+
+        Properties properties = new Properties();
+        if (Files.exists(path)) {
+            try (Reader r = Files.newBufferedReader(path)) {
+                properties.load(r);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return properties;
+    }
+
+    private void saveProperties(Properties properties, Path path) {
+        Check.notNull(properties);
+        Check.notNull(path);
+
+        try (Writer w = Files.newBufferedWriter(path)) {
+            properties.store(w, null);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String getPropertyKey(String group, String name) {
+        Check.notEmpty(name);
+
+        String key = prefix;
+        if (!Strings.isNullOrEmpty(group)) {
+            key += group + ".";
+        }
+        key += name;
+        return key;
+    }
+
+    public String getSetting(String group, String name) {
+        String propertyKey = getPropertyKey(group, name);
+        return properties.getProperty(propertyKey);
     }
 
     public Map<String, Map<String, String>> getAllSettings() {
-
-        Properties properties = new Properties();
-        try (InputStream input = resource.getInputStream()) {
-            properties.load(input);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         Map<String, Map<String, String>> groupedSettings = new HashMap<>();
         for (String key : properties.stringPropertyNames()) {
             if (key.startsWith(prefix)) {
@@ -43,38 +79,36 @@ public class PrefSettings {
                     String group = parts[0];
                     String setting = parts[1];
                     groupedSettings
-                        .computeIfAbsent(group, k -> new HashMap<>())
-                        .put(setting, properties.getProperty(key));
+                            .computeIfAbsent(group, k -> new HashMap<>())
+                            .put(setting, properties.getProperty(key));
                 }
             }
         }
         return groupedSettings;
     }
 
-    public String getSetting(String group, String name) {
-        Properties properties = new Properties();
-        try (InputStream input = resource.getInputStream()) {
-            properties.load(input);
-        } catch (IOException e) {
-            e.printStackTrace();
+    private void setSetting(String group, String name, @Nullable Object value) {
+        String propertyKey = getPropertyKey(group, name);
+        String propertyValue = value != null
+                ? value.toString()
+                : null;
+
+        if (Strings.isNullOrEmpty(propertyValue)) {
+            properties.remove(propertyKey);
+        } else {
+            properties.setProperty(propertyKey, propertyValue);
         }
-        return properties.getProperty(prefix + group + "." + name);
+    }
+
+    public void saveSetting(String group, String name, @Nullable Object value) {
+        setSetting(group, name, value);
+        saveProperties(properties, path);
     }
 
     public void saveSetting(String group, Map<String, ?> values) {
-        Properties properties = new Properties();
-        try (InputStream input = resource.getInputStream()) {
-            properties.load(input);
-        } catch (IOException e) {
-            e.printStackTrace();
+        for (Map.Entry<String, ?> entry : values.entrySet()) {
+            setSetting(group, entry.getKey(), entry.getValue());
         }
-        try (OutputStream output = new FileOutputStream(resource.getFile())) {
-            for (Map.Entry<String, ?> entry : values.entrySet()) {
-                properties.setProperty(prefix + group + "." + entry.getKey(), entry.getValue().toString());
-            }
-            properties.store(output, null);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        saveProperties(properties, path);
     }
 }

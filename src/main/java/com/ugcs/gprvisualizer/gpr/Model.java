@@ -353,7 +353,7 @@ public class Model implements InitializingBean {
 			}
 		}
 
-		chart = new SensorLineChart(this, eventPublisher, prefSettings, templateSettingsModel);
+		chart = new SensorLineChart(this, eventPublisher, templateSettingsModel);
 		csvFiles.remove(csvFile);
 		csvFiles.put(csvFile, chart);
 

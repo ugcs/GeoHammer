@@ -817,8 +817,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 			AnalyticSignalFilter filter = new AnalyticSignalFilter(
 					grid,
 					cellWidthMeters,
-					cellHeightMeters,
-					new Range(minValue, maxValue));
+					cellHeightMeters);
 			AnalyticSignal signal = filter.evaluate();
 			Range signalRange = signal.getRange(0.02);
 

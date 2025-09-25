@@ -38,7 +38,7 @@ public class MetaFile {
 
 	private @Nullable Double contrast;
 
-	private @Nullable Range amplitudeMapBounds;
+	private @Nullable Range amplitudeRange;
 
     // mark position indices in a local values list
     private Set<Integer> marks = new HashSet<>();
@@ -65,12 +65,12 @@ public class MetaFile {
 
 	public void setContrast(Double contrast) { this.contrast = contrast; }
 
-	public @Nullable Range getAmplitudeMapBounds() {
-		return amplitudeMapBounds;
+	public @Nullable Range getAmplitudeRange() {
+		return amplitudeRange;
 	}
 
-	public void setAmplitudeMapBounds(Range amplitudeMapBounds) {
-		this.amplitudeMapBounds = amplitudeMapBounds;
+	public void setAmplitudeRange(Range amplitudeRange) {
+		this.amplitudeRange = amplitudeRange;
 	}
 
 	public List<? extends GeoData> getValues() {
@@ -212,7 +212,7 @@ public class MetaFile {
         meta.setMarks(traceMarks);
 
 		meta.setContrast(contrast);
-		meta.setAmplitudeMapBounds(amplitudeMapBounds);
+		meta.setAmplitudeRange(amplitudeRange);
 
         return meta;
     }
@@ -261,7 +261,7 @@ public class MetaFile {
         }
         this.marks = marks;
 		this.contrast = meta.getContrast();
-		this.amplitudeMapBounds = meta.getAmplitudeMapBounds();
+		this.amplitudeRange = meta.getAmplitudeRange();
     }
 
     private TraceMeta readMeta(Path path) throws IOException {

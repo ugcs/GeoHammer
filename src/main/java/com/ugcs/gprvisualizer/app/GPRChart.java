@@ -101,7 +101,7 @@ public class GPRChart extends Chart {
             = (observable, oldValue, newValue) -> {
                 //if (Math.abs(newValue.intValue() - oldValue.intValue()) > 3) {
                     repaintEvent();
-					saveContrastToMeta();
+					setContrastToMeta();
 		//}
             };
 
@@ -128,8 +128,8 @@ public class GPRChart extends Chart {
 
         contrastSlider = new ContrastSlider(profileField.getProfileSettings(), sliderListener);
 
-		restoreContrastFromMeta(contrastSlider, traceFile);
-		restoreAmplitudeMapBoundsFromMeta(traceFile);
+		setContrastFromMeta(contrastSlider, traceFile);
+		setAmplitudeRangeFromMeta(traceFile);
 
         getProfileScroll().setChangeListener(new ChangeListener<Number>() {
             //TODO: fix with change listener
@@ -182,53 +182,37 @@ public class GPRChart extends Chart {
         return auxElements;
     }
 
-	private void saveContrastToMeta() {
-		try {
-			TraceFile traceFile = profileField.getFile();
-			MetaFile meta = traceFile.getMetaFile();
-			if (meta != null) {
-				meta.setContrast(contrast);
-				traceFile.saveMeta();
-			}
-		} catch (Exception e) {
-			log.error("Cannot save contrast to meta file", e);
+	private void setContrastToMeta() {
+		TraceFile traceFile = profileField.getFile();
+		MetaFile meta = traceFile.getMetaFile();
+		if (meta != null) {
+			meta.setContrast(contrast);
 		}
 	}
 
-	private void saveAmplitudeMapBoundsToMeta() {
-		try {
-			TraceFile traceFile = profileField.getFile();
-			MetaFile meta = traceFile.getMetaFile();
-			if (meta != null) {
-				var profileSettings = profileField.getProfileSettings();
-				int min = profileSettings.getLayer();
-				int max = min + profileSettings.hpage;
-				Range savedRange = meta.getAmplitudeMapBounds();
-				Range currentRange = new Range(min, max);
-				if (Objects.equals(savedRange, currentRange)) {
-					return; // no change
-				}
-				meta.setAmplitudeMapBounds(currentRange);
-				traceFile.saveMeta();
-			}
-		} catch (Exception e) {
-			log.error("Cannot save griding range to meta file", e);
+	private void setAmplitudeRangeToMeta() {
+		TraceFile traceFile = profileField.getFile();
+		MetaFile meta = traceFile.getMetaFile();
+		if (meta != null) {
+			var profileSettings = profileField.getProfileSettings();
+			int min = profileSettings.getLayer();
+			int max = min + profileSettings.hpage;
+			meta.setAmplitudeRange(new Range(min, max));
 		}
 	}
 
-	private void restoreContrastFromMeta(ContrastSlider slider, TraceFile traceFile) {
+	private void setContrastFromMeta(ContrastSlider slider, TraceFile traceFile) {
 		MetaFile meta = traceFile.getMetaFile();
 		Double contrastFromMeta = meta != null ? meta.getContrast() : null;
 		if (slider != null && contrastFromMeta != null) {
 			this.contrast = Math.clamp(contrastFromMeta, MIN_CONTRAST, MAX_CONTRAST);
 			slider.updateUI();
-			repaintEvent();
 		}
 	}
 
-	private void restoreAmplitudeMapBoundsFromMeta(TraceFile traceFile) {
+	private void setAmplitudeRangeFromMeta(TraceFile traceFile) {
 		MetaFile meta = traceFile.getMetaFile();
-		Range savedRange = meta != null ? meta.getAmplitudeMapBounds() : null;
+		Range savedRange = meta != null ? meta.getAmplitudeRange() : null;
 		if (savedRange != null) {
 			Number min = savedRange.getMin();
 			Number max = savedRange.getMax();
@@ -236,13 +220,8 @@ public class GPRChart extends Chart {
 				return;
 			}
 			var profileSettings = profileField.getProfileSettings();
-			Range currentRange = new Range(profileSettings.getLayer(), profileSettings.getLayer() + profileSettings.hpage);
-			if (Objects.equals(currentRange, savedRange)) {
-				return; // no change
-			}
 			profileSettings.hpage = max.intValue() - min.intValue();
 			profileSettings.setLayer(min.intValue());
-			repaintEvent();
 		}
 	}
 
@@ -265,7 +244,7 @@ public class GPRChart extends Chart {
 
         public int updateModel() {
             contrast = (int) slider.getValue();
-			saveContrastToMeta();
+			setContrastToMeta();
             return (int) contrast;
         }
     }
@@ -699,7 +678,7 @@ public class GPRChart extends Chart {
                         selectedMouseHandler = null;
                     }
 
-					saveAmplitudeMapBoundsToMeta();
+					setAmplitudeRangeToMeta();
                 }
             };
 

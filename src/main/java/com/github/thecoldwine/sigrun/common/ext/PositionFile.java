@@ -13,7 +13,6 @@ import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
-import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 
@@ -33,8 +32,6 @@ public class PositionFile {
 
 	private static final Logger log = LoggerFactory.getLogger(PositionFile.class);
 
-	private final PrefSettings prefSettings;
-
 	private FileTemplates templates;
 
 	@Nullable
@@ -44,9 +41,8 @@ public class PositionFile {
 
 	private List<GeoCoordinates> coordinates;
 
-	public PositionFile(FileTemplates templates, PrefSettings prefSettings) {
+	public PositionFile(FileTemplates templates) {
 		this.templates = templates;
-		this.prefSettings = prefSettings;
 	}
 
 	@Nullable
@@ -117,7 +113,7 @@ public class PositionFile {
 		}
 
 		log.info("Using position file template: {}", template.getName());
-		CsvParser parser = new CSVParsersFactory().createCSVParser(template, prefSettings);
+		CsvParser parser = new CSVParsersFactory().createCSVParser(template);
         return parser.parse(path);
 	}
 

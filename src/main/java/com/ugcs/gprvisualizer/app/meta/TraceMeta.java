@@ -20,7 +20,7 @@ public class TraceMeta {
 	private Double contrast;
 
 	@Expose
-	private Range amplitudeMapBounds;
+	private Range amplitudeRange;
 
     public SampleRange getSampleRange() {
         return sampleRange;
@@ -54,11 +54,11 @@ public class TraceMeta {
 		this.contrast = contrast;
 	}
 
-	public Range getAmplitudeMapBounds() {
-		return amplitudeMapBounds;
+	public Range getAmplitudeRange() {
+		return amplitudeRange;
 	}
 
-	public void setAmplitudeMapBounds(Range amplitudeMapBounds) {
-		this.amplitudeMapBounds = amplitudeMapBounds;
+	public void setAmplitudeRange(Range amplitudeRange) {
+		this.amplitudeRange = amplitudeRange;
 	}
 }

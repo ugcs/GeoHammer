@@ -1,7 +1,6 @@
 package com.ugcs.gprvisualizer.app.parcers;
 
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
-import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,17 +11,12 @@ import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatExceptio
 import com.ugcs.gprvisualizer.app.yaml.Template;
 
 import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
-@ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class CsvParserTest extends BaseParsersTest {
 
     private CsvParser csvParser;
@@ -30,12 +24,9 @@ class CsvParserTest extends BaseParsersTest {
     private String newFile;
     private Iterable<GeoCoordinates> coordinates;
 
-	@Mock
-	private PrefSettings prefSettings;
-
     @BeforeEach
     void setUp() {
-        csvParser = new CsvParser(null, prefSettings);
+        csvParser = new CsvParser(null);
         oldFile = "path/to/oldFile";
         newFile = "path/to/newFile";
         coordinates = new ArrayList<>();
@@ -49,7 +40,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        CsvParser parser = new CsvParser(template, prefSettings);
+        CsvParser parser = new CsvParser(template);
 
         try {
             parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position.csv").toAbsolutePath().toString());
@@ -65,7 +56,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        CsvParser parser = new CsvParser(template, prefSettings);
+        CsvParser parser = new CsvParser(template);
 
         assertThrows(CSVParsingException.class, () -> {
             parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-missed-headers.csv")
@@ -79,7 +70,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        CsvParser parser = new CsvParser(template, prefSettings);
+        CsvParser parser = new CsvParser(template);
 
         assertThrows(IncorrectDateFormatException.class, () -> {
             parser.parse(Paths.get(CSVTestDataFolder + "Missed-date-position.csv").toAbsolutePath().toString());
@@ -92,7 +83,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        CsvParser parser = new CsvParser(template, prefSettings);
+        CsvParser parser = new CsvParser(template);
 
         try {
             parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-no-headers.csv").toAbsolutePath()
@@ -108,7 +99,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        CsvParser parser = new CsvParser(template, prefSettings);
+        CsvParser parser = new CsvParser(template);
 
         // invalid csv also parcing if possible
         try {
@@ -125,7 +116,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        Parser parser = new MagDroneCsvParser(template, prefSettings);
+        Parser parser = new MagDroneCsvParser(template);
 
         try {
             parser.parse(
@@ -141,7 +132,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        var parser = new MagDroneCsvParser(template, prefSettings);
+        var parser = new MagDroneCsvParser(template);
 
         try {
             parser.parse(
@@ -157,7 +148,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        CsvParser parser = new CsvParser(template, prefSettings);
+        CsvParser parser = new CsvParser(template);
 
         try {
             parser.parse(
@@ -173,7 +164,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        var parser = new NmeaCsvParser(template, prefSettings);
+        var parser = new NmeaCsvParser(template);
 
         try {
             parser.parse(Paths.get(CSVTestDataFolder + YamlNmeaFolder + "2020-10-23-09-16-13-pergam-falcon.log")

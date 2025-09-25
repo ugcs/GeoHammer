@@ -24,7 +24,6 @@ import java.util.stream.StreamSupport;
 import com.ugcs.gprvisualizer.app.parcers.*;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
-import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
@@ -49,11 +48,8 @@ public class CsvParser extends Parser {
 
     private static final Logger log = LoggerFactory.getLogger(CsvParser.class);
 
-	private final PrefSettings prefSettings;
-
-    public CsvParser(Template template, PrefSettings prefSettings) {
+    public CsvParser(Template template) {
         super(template);
-		this.prefSettings = prefSettings;
     }
 
     @Override
@@ -124,13 +120,6 @@ public class CsvParser extends Parser {
 
             // Filter sensors to load
             List<SensorData> sensors = filterSensors(template.getDataMapping().getDataValues());
-
-			// save the undeclared headers to pref settings
-			if (!undeclaredNumericHeaders.isEmpty()) {
-				for (String header : undeclaredNumericHeaders) {
-					prefSettings.saveSetting(template.getName() + "." + header, Map.of("visible", "false"));
-				}
-			}
 
             // Third pass: process all rows with known undeclared headers
             var lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length;

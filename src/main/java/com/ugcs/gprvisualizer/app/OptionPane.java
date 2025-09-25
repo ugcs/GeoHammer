@@ -266,7 +266,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		});
 
 		StackPane seriesPane = new StackPane(seriesSelectorView);
-		seriesPane.setPadding(new Insets(16, 16, 16, 16));
+		seriesPane.setPadding(new Insets(10, 16, 10, 16));
 		seriesPane.setStyle("-fx-background-color: #666666;");
 
 		VBox tabContainer = new VBox(seriesPane, scrollContainer);

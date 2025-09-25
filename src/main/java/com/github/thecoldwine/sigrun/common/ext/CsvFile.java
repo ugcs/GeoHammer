@@ -34,12 +34,12 @@ public class CsvFile extends SgyFile {
 
 	private static final Logger log = LoggerFactory.getLogger(CsvFile.class.getName());
 
-    private List<GeoData> geoData = new ArrayList<>();
+	private List<GeoData> geoData = new ArrayList<>();
 
-    @Nullable
+	@Nullable
 	private CsvParser parser;
 
-    private FileTemplates fileTemplates;
+	private FileTemplates fileTemplates;
 
 	public CsvFile(FileTemplates fileTemplates) {
 		this.fileTemplates = fileTemplates;

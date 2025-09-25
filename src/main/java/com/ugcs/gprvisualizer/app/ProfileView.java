@@ -188,20 +188,22 @@ public class ProfileView implements InitializingBean {
 		SgyFile closedFile = event.getSgyFile();
 
 		if (closedFile instanceof TraceFile traceFile) {
+			model.getFileManager().removeFile(traceFile);
 			GPRChart gprChart = model.getGprChart(traceFile);
 			if (gprChart != null) {
-				model.getFileManager().removeFile(closedFile);
 				gprChart.getProfileScroll().setVisible(false);
 
 				VBox vbox = (VBox)gprChart.getRootNode();
 				model.getChartsContainer().getChildren().remove(vbox);
 
-				currentFile = null;
-				model.publishEvent(new FileSelectedEvent(this, currentFile));
+				if (traceFile.equals(currentFile)) {
+					currentFile = null;
+				}
 			}
 		}
 
 		if (closedFile instanceof CsvFile csvFile) {
+			model.getFileManager().removeFile(csvFile);
 			if (csvFile.equals(currentFile)) {
 				currentFile = null;
 			}

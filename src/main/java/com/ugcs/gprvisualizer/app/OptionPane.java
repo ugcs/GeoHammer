@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app;
 
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -102,7 +103,12 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private final Loader loader;
 
-	public OptionPane(MapView mapView, ProfileView profileView, CommandRegistry commandRegistry, Model model, LevelFilter levelFilter, PrefSettings prefSettings, Status status, Loader loader) {
+	private final SeriesSelectorView seriesSelectorView;
+
+	public OptionPane(MapView mapView, ProfileView profileView,
+					  CommandRegistry commandRegistry, Model model,
+					  LevelFilter levelFilter, PrefSettings prefSettings,
+					  Status status, Loader loader, SeriesSelectorView seriesSelectorView) {
 		this.mapView = mapView;
 		this.profileView = profileView;
 		this.commandRegistry = commandRegistry;
@@ -111,6 +117,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		this.prefSettings = prefSettings;
 		this.status = status;
 		this.loader = loader;
+		this.seriesSelectorView = seriesSelectorView;
 	}
 
 	private final TabPane tabPane = new TabPane();
@@ -251,7 +258,19 @@ public class OptionPane extends VBox implements InitializingBean {
 		scriptsButton.setOnAction(getChangeVisibleAction(scriptsPane));
 
 		ScrollPane scrollContainer = createVerticalScrollContainer(container);
-		tab.setContent(scrollContainer);
+		scrollContainer.focusedProperty().addListener((observable, oldValue, newValue) -> {
+			if (newValue) {
+				// redirect focus to a tab pane
+				Platform.runLater(() -> tab.getTabPane().requestFocus());
+			}
+		});
+
+		StackPane seriesPane = new StackPane(seriesSelectorView);
+		seriesPane.setPadding(new Insets(16, 16, 16, 16));
+		seriesPane.setStyle("-fx-background-color: #666666;");
+
+		VBox tabContainer = new VBox(seriesPane, scrollContainer);
+		tab.setContent(tabContainer);
 	}
 
 	private static ScrollPane createVerticalScrollContainer(Node content) {
@@ -557,7 +576,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		analyticSignalEnabled.selectedProperty().addListener((obs, oldVal, newVal) -> {
 			filterInputs.get(Filter.gridding_analytic_signal_enabled.name()).setText(newVal.toString());
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_analytic_signal_enabled.name(), Map.of(templateName, newVal.toString()));
+			prefSettings.saveSetting(Filter.gridding_analytic_signal_enabled.name(), templateName, newVal.toString());
 
 			// Publish GriddingParamsSetted event with current parameters
 			publishGriddingParameters(this, false);
@@ -580,7 +599,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		hillShadingEnabled.selectedProperty().addListener((obs, oldVal, newVal) -> {
 			filterInputs.get(Filter.gridding_hillshading_enabled.name()).setText(newVal.toString());
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), Map.of(templateName, newVal.toString()));
+			prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), templateName, newVal.toString());
 
 			// Publish GriddingParamsSetted event with current parameters
 			publishGriddingParameters(this, false);
@@ -599,7 +618,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		smoothingEnabled.selectedProperty().addListener((obs, oldVal, newVal) -> {
 			filterInputs.get(Filter.gridding_smoothing_enabled.name()).setText(newVal.toString());
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_smoothing_enabled.name(), Map.of(templateName, newVal.toString()));
+			prefSettings.saveSetting(Filter.gridding_smoothing_enabled.name(), templateName, newVal.toString());
 
 			// Publish GriddingParamsSetted event with current parameters
 			publishGriddingParameters(this, false);
@@ -618,7 +637,7 @@ public class OptionPane extends VBox implements InitializingBean {
 			azimuthLabel.setText(String.format("Light direction (azimuth): %.0f°", newVal.doubleValue()));
 			filterInputs.get(Filter.gridding_hillshading_azimuth.name()).setText(newVal.toString());
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), Map.of(templateName, newVal.toString()));
+			prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), templateName, newVal.toString());
 
 			// Publish GriddingParamsSetted event with current parameters
 			publishGriddingParameters(this, false);
@@ -637,7 +656,7 @@ public class OptionPane extends VBox implements InitializingBean {
 			altitudeLabel.setText(String.format("Light height (altitude): %.0f°", newVal.doubleValue()));
 			filterInputs.get(Filter.gridding_hillshading_altitude.name()).setText(newVal.toString());
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), Map.of(templateName, newVal.toString()));
+			prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), templateName, newVal.toString());
 
 			// Publish GriddingParamsSetted event with current parameters
 			publishGriddingParameters(this, false);
@@ -656,7 +675,7 @@ public class OptionPane extends VBox implements InitializingBean {
 			intensityLabel.setText(String.format("Effect intensity: %.2f", newVal.doubleValue()));
 			filterInputs.get(Filter.gridding_hillshading_intensity.name()).setText(newVal.toString());
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, newVal.toString()));
+			prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), templateName, newVal.toString());
 
 			// Publish GriddingParamsSetted event with current parameters
 			publishGriddingParameters(this, false);
@@ -678,12 +697,12 @@ public class OptionPane extends VBox implements InitializingBean {
 		showGriddingButton = new Button("Apply");
 		showGriddingButton.setOnAction(e -> {
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_cellsize.name(), Map.of(templateName, gridCellSize.getText()));
-			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), Map.of(templateName, gridBlankingDistance.getText()));
-			//prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()));
-			//prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()));
-			//prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()));
-			//prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText()));
+			prefSettings.saveSetting(Filter.gridding_cellsize.name(), templateName, gridCellSize.getText());
+			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), templateName, gridBlankingDistance.getText());
+//			prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), templateName, filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText());
+//			prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), templateName, filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText());
+//			prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), templateName, filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText());
+//			prefSettings.saveSetting(Filter.gridding_hillshading_intensity.name(), templateName, filterInputs.get(Filter.gridding_hillshading_intensity.name()).getText());
 
 			publishGriddingParameters(showGriddingButton, false);
 			showGridInputDataChangedWarning(false);
@@ -693,8 +712,8 @@ public class OptionPane extends VBox implements InitializingBean {
 		showGriddingAllButton = new Button("Apply to all");
 		showGriddingAllButton.setOnAction(e -> {
 			String templateName = ((CsvFile) selectedFile).getParser().getTemplate().getName();
-			prefSettings.saveSetting(Filter.gridding_cellsize.name(), Map.of(templateName, gridCellSize.getText()));
-			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), Map.of(templateName, gridBlankingDistance.getText()));
+			prefSettings.saveSetting(Filter.gridding_cellsize.name(), templateName, gridCellSize.getText());
+			prefSettings.saveSetting(Filter.gridding_blankingdistance.name(), templateName, gridBlankingDistance.getText());
 			//prefSettings.saveSetting(Filter.gridding_hillshading_enabled.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_enabled.name()).getText()));
 			//prefSettings.saveSetting(Filter.gridding_hillshading_azimuth.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_azimuth.name()).getText()));
 			//prefSettings.saveSetting(Filter.gridding_hillshading_altitude.name(), Map.of(templateName, filterInputs.get(Filter.gridding_hillshading_altitude.name()).getText()));
@@ -935,9 +954,9 @@ public class OptionPane extends VBox implements InitializingBean {
 			applyButton.setOnAction(event -> {
 				disableAndShowIndicator.run();
 				executor.submit(() -> {
-					prefSettings.saveSetting(filter.name(), Map.of(
+					prefSettings.saveSetting(filter.name(),
 							((CsvFile) selectedFile).getParser().getTemplate().getName(),
-							filterInput.getText()));
+							filterInput.getText());
 					try {
 						actions.apply.accept(filterInput.getText());
 					} catch (Exception e) {
@@ -953,9 +972,9 @@ public class OptionPane extends VBox implements InitializingBean {
 			applyAllButton.setOnAction(event -> {
 				disableAndShowIndicator.run();
 				executor.submit(() -> {
-					prefSettings.saveSetting(filter.name(), Map.of(
+					prefSettings.saveSetting(filter.name(),
 							((CsvFile) selectedFile).getParser().getTemplate().getName(),
-							filterInput.getText()));
+							filterInput.getText());
 					try {
 						actions.applyAll.accept(filterInput.getText());
 					} catch (Exception e) {
@@ -1494,16 +1513,20 @@ public class OptionPane extends VBox implements InitializingBean {
 
 				prefSettings.saveSetting(
 						Filter.quality_max_line_distance.name(),
-						Map.of(templateName, maxLineDistance.getText()));
+						templateName,
+						maxLineDistance.getText());
 				prefSettings.saveSetting(
 						Filter.quality_line_distance_tolerance.name(),
-						Map.of(templateName, lineDistanceTolerance.getText()));
+						templateName,
+						lineDistanceTolerance.getText());
 				prefSettings.saveSetting(
 						Filter.quality_max_altitude.name(),
-						Map.of(templateName, maxAltitude.getText()));
+						templateName,
+						maxAltitude.getText());
 				prefSettings.saveSetting(
 						Filter.quality_altitude_tolerance.name(),
-						Map.of(templateName, altitudeTolerance.getText()));
+						templateName,
+						altitudeTolerance.getText());
 			}
 		}
 	}

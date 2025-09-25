@@ -28,21 +28,16 @@ public class SensorLineChartTest {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
-    private PrefSettings settings;
-
-    @Mock
     private TemplateSettingsModel templateSettingsModel;
 
-    @Mock
-    private AuxElementEditHandler auxEditHandler;
-
     private SensorLineChart sensorLineChart;
+
     private Stage stage;
 
     @Start
     private void start(Stage stage) {
         this.stage = stage;
-        sensorLineChart = new SensorLineChart(model, eventPublisher, settings, templateSettingsModel);
+        sensorLineChart = new SensorLineChart(model, eventPublisher, templateSettingsModel);
 
         // Set up the initial scene
         VBox root = new VBox();

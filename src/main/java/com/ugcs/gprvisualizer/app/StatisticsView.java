@@ -330,7 +330,7 @@ public class StatisticsView extends VBox {
         void update() {
             updateIndex();
 
-            if (chart == null) {
+            if (chart == null || chart.getSelectedSeriesName() == null) {
                 count.setText(NO_VALUE);
                 min.setText(NO_VALUE);
                 max.setText(NO_VALUE);

@@ -71,7 +71,8 @@ public class CsvFilesDataSmallRangeTest {
             mock(LevelFilter.class),
             settings,
             mock(Status.class),
-            mock(Loader.class)
+            mock(Loader.class),
+            mock(SeriesSelectorView.class)
         );
 
         // Create the RangeSlider
@@ -94,7 +95,7 @@ public class CsvFilesDataSmallRangeTest {
         // Since it's private, we need to use reflection to access it
 
         // Create an instance of SensorLineChart
-        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, templateSettingsModel);
+        SensorLineChart chart = new SensorLineChart(model, eventPublisher, templateSettingsModel);
 
         // Get the getScaleFactor method using reflection
         Method getScaleFactorMethod =
@@ -117,7 +118,7 @@ public class CsvFilesDataSmallRangeTest {
         // Since it's private, we need to use reflection to access it
 
         // Create an instance of SensorLineChart
-        SensorLineChart chart = new SensorLineChart(model, eventPublisher, settings, templateSettingsModel);
+        SensorLineChart chart = new SensorLineChart(model, eventPublisher, templateSettingsModel);
 
         // Get the getValueRange method using reflection
         Method getValueRangeMethod =

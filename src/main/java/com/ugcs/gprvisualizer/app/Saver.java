@@ -283,7 +283,8 @@ public class Saver implements ToolProducer, InitializingBean {
 			lastOpenFolderPath = selectedFiles.getFirst().getParentFile().getAbsolutePath();
 			prefSettings.saveSetting(
 					SAVER_SETTINGS_GROUP_KEY,
-					Map.of(LAST_OPEN_FOLDER_SETTING_KEY, lastOpenFolderPath));
+					LAST_OPEN_FOLDER_SETTING_KEY,
+					lastOpenFolderPath);
 		}
 		return selectedFiles;
 	}

@@ -29,6 +29,13 @@
       "type": "DOUBLE",
       "default_value": 0.0,
       "required": true
+    },
+    {
+      "name": "clear-marks",
+      "display_name": "Clear existing 'Mark' values before marking",
+      "type": "BOOLEAN",
+      "default_value": false,
+      "required": false
     }
   ],
   "templates": ["MagNIMBUS"]

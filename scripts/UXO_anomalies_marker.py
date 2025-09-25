@@ -12,7 +12,7 @@ def markExtremes(
     column: str,
     threshold: float,
     window_width: int,
-    include_partial: bool = False,
+    include_partial: bool = True,
     equality_tolerance: float = 0.0,
 ) -> Dict[int, float]:
     """
@@ -41,7 +41,6 @@ def markExtremes(
     length_chunks = n // W
     length = length_chunks * W  # number of elements covered by full chunks
 
-    # Full chunks
     if length_chunks:
         chunks = column_data[:length].reshape(length_chunks, W)
         mins = np.nanmin(chunks, axis=1)
@@ -49,12 +48,25 @@ def markExtremes(
         ranges = maxs - mins
         keep = ranges > threshold
 
+        # Extremum masks considering tolerance
         if equality_tolerance == 0.0:
-            is_extreme = (chunks == mins[:, None]) | (chunks == maxs[:, None])
+            mask_min = (chunks == mins[:, None])
+            mask_max = (chunks == maxs[:, None])
         else:
-            is_extreme = (np.abs(chunks - mins[:, None]) <= equality_tolerance) | (np.abs(chunks - maxs[:, None]) <= equality_tolerance)
+            mask_min = (np.abs(chunks - mins[:, None]) <= equality_tolerance)
+            mask_max = (np.abs(chunks - maxs[:, None]) <= equality_tolerance)
 
-        mask = is_extreme & keep[:, None]
+        is_extreme = mask_min | mask_max
+
+        # Robust z-score: |x - median| / (1.4826 * MAD) >= 2.5
+        med = np.nanmedian(chunks, axis=1)
+        mad = np.nanmedian(np.abs(chunks - med[:, None]), axis=1)
+        sigma = np.where(1.4826 * mad > 0, 1.4826 * mad, np.finfo(float).tiny)
+        dev = np.abs(chunks - med[:, None])
+        z = dev / sigma[:, None]
+        gate = (z >= 2.5)
+
+        mask = is_extreme & keep[:, None] & gate
         flat_mask = mask.ravel()
         if flat_mask.any():
             idx = np.nonzero(flat_mask)[0]  # positional indices within [:length]
@@ -71,9 +83,23 @@ def markExtremes(
                 win_range = max_tail - min_tail
                 if win_range > threshold:
                     if equality_tolerance == 0.0:
-                        mask_tail = (tail == min_tail) | (tail == max_tail)
+                        mask_tail_min = (tail == min_tail)
+                        mask_tail_max = (tail == max_tail)
                     else:
-                        mask_tail = (np.abs(tail - min_tail) <= equality_tolerance) | (np.abs(tail - max_tail) <= equality_tolerance)
+                        mask_tail_min = (np.abs(tail - min_tail) <= equality_tolerance)
+                        mask_tail_max = (np.abs(tail - max_tail) <= equality_tolerance)
+
+                    # Dominant side in the tail
+                    med_t = np.nanmedian(tail)
+                    mask_tail = mask_tail_min | mask_tail_max
+
+                    # Robust z-score in the tail
+                    mad_t = np.nanmedian(np.abs(tail - med_t))
+                    sigma_t = 1.4826 * mad_t if (1.4826 * mad_t) > 0 else np.finfo(float).tiny
+                    z_t = np.abs(tail - med_t) / sigma_t
+                    gate_t = (z_t >= 2.5)
+
+                    mask_tail &= gate_t
                     tail_idx = np.nonzero(mask_tail)[0]
                     for j in tail_idx:
                         mapping[int(length + j)] = float(win_range)
@@ -131,6 +157,11 @@ def cluster_by_radius_2d(
     pts = _latlon_to_webmercator(lat, lon)
     tree = cKDTree(pts)
 
+    # Adjust radius for Mercator scale at mean latitude
+    mean_lat = float(np.nanmedian(lat))
+    scale = 1.0 / np.cos(np.deg2rad(mean_lat))  # sec(phi)
+    radius_eff = radius * scale
+
     n = pts.shape[0]
     visited = np.zeros(n, dtype=bool)
     result: Dict[int, float] = {}
@@ -145,7 +176,7 @@ def cluster_by_radius_2d(
 
         while queue:
             u = queue.pop()
-            for v in tree.query_ball_point(pts[u], r=radius):
+            for v in tree.query_ball_point(pts[u], r=radius_eff):
                 if not visited[v]:
                     visited[v] = True
                     queue.append(v)
@@ -167,6 +198,7 @@ def main():
     parser.add_argument("-t", "--threshold", required=True, type=float, help="Threshold (range)")
     parser.add_argument("-w", "--window", required=True, type=int, help="Window (samples)")
     parser.add_argument("-r", "--radius", required=True, type=float, help="Clustering radius (meters)")
+    parser.add_argument("--clear-marks", action="store_true", default=False, help="Clear all previous Mark values before writing new marks")
     parser.add_argument("-e", "--tolerance", type=float, default=0.0, help="Equality tolerance for min/max")
     parser.add_argument("--lat-col", default="Latitude", help="Latitude column name")
     parser.add_argument("--lon-col", default="Longitude", help="Longitude column name")
@@ -197,8 +229,17 @@ def main():
     amp_series = pd.Series(clustered_map, dtype=float)
     df["Marked_Anomaly_Amplitude"] = amp_series.reindex(range(len(df)), fill_value=np.nan).to_numpy()
 
-    # Prepare / reset Mark column each run (nullable Int8)
-    df["Mark"] = pd.Series(pd.NA, index=df.index, dtype="Int8")
+    # Prepare Mark column according to --clear-marks
+    if "Mark" not in df.columns or args.clear_marks:
+        # create/reset to NA (nullable Int8) so blanks stay empty
+        df["Mark"] = pd.Series(pd.NA, index=df.index, dtype="Int8")
+    else:
+        # preserve existing; just ensure nullable Int8 if possible
+        try:
+            df["Mark"] = df["Mark"].astype("Int8")
+        except Exception:
+            df["Mark"] = pd.to_numeric(df["Mark"], errors="coerce").astype("Int8")
+
     if clustered_map:
         marked_positions = np.fromiter(clustered_map.keys(), dtype=int)
         df.iloc[marked_positions, df.columns.get_loc("Mark")] = 1

@@ -1,0 +1,35 @@
+{
+  "filename": "UXO_anomalies_marker.py",
+  "display_name": "UXO Anomalies Marker",
+  "parameters": [
+    {
+      "name": "column",
+      "display_name": "Column to analyze",
+      "type": "STRING",
+      "default_value": "TMI_anomaly",
+      "required": true
+    },
+    {
+      "name": "threshold",
+      "display_name": "Threshold (nT)",
+      "type": "DOUBLE",
+      "default_value": 5.0,
+      "required": true
+    },
+    {
+      "name": "window",
+      "display_name": "Window size (number of points)",
+      "type": "INTEGER",
+      "default_value": 100,
+      "required": true
+    },
+    {
+      "name": "radius",
+      "display_name": "Clustering radius (meters)",
+      "type": "DOUBLE",
+      "default_value": 0.0,
+      "required": true
+    }
+  ],
+  "templates": ["MagNIMBUS"]
+}

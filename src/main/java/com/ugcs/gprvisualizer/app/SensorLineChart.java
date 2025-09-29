@@ -919,11 +919,11 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    public Double getSemanticMinValue() {
+    public double getSemanticMinValue() {
         return semanticMinValues.getOrDefault(getSelectedSeriesName(), 0.0);
     }
 
-    public Double getSemanticMaxValue() {
+    public double getSemanticMaxValue() {
         return semanticMaxValues.getOrDefault(getSelectedSeriesName(), 0.0);
     }
 

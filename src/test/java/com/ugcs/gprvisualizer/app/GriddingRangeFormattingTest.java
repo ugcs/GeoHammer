@@ -66,7 +66,6 @@ public class GriddingRangeFormattingTest {
         optionPane = new OptionPane(
             mock(MapView.class),
             mock(ProfileView.class),
-            mock(CommandRegistry.class),
             model,
             mock(LevelFilter.class),
             prefSettings,

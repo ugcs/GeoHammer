@@ -78,12 +78,7 @@ public class CsvFile extends SgyFile {
 
         for (GeoCoordinates coord : coordinates) {
             // Added points if lat and lon are not 0 and point is close to the first point
-            if (coord.getLatitude().intValue() != 0
-                    && (geoData.isEmpty()
-                        || (Math.abs(coord.getLatitude().intValue() 
-                            - geoData.getFirst().getLatitude().intValue()) <= 1
-                        && Math.abs(coord.getLongitude().intValue() 
-                            - geoData.getFirst().getLongitude().intValue()) <= 1))) {
+            if (coord.getLatitude().intValue() != 0) {
                 if (coord instanceof GeoData value) {
                     int traceIndex = geoData.size();
                     geoData.add(value);

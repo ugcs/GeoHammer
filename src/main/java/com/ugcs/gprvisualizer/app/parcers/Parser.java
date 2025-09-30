@@ -212,7 +212,6 @@ public abstract class Parser implements IGeoCoordinateParser {
         if (template.getDataMapping().getTimestamp() != null
                 && template.getDataMapping().getTimestamp().getIndex() != -1) {
             long timestamp = parseLong(getTemplate().getDataMapping().getTimestamp(), data[getTemplate().getDataMapping().getTimestamp().getIndex()]);
-            System.out.println("timestamp: " + timestamp);
             return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
         }
 

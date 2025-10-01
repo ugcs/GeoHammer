@@ -24,6 +24,7 @@ import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.LevelFilter;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.Views;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -783,7 +784,7 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		HBox labelAndReset = new HBox(10);
 		Label label = new Label("Range");
-		Button resetButton = createGlyphButton("↺", 16, 16);
+		Button resetButton = Views.createGlyphButton("↺", 16, 16);
 		resetButton.setOnAction(this::onResetGriddingRange);
 
 		Region spacer = new Region();
@@ -842,29 +843,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		griddingOptions.setManaged(false);
 
 		return griddingOptions;
-	}
-
-	private Button createGlyphButton(String text, int width, int height) {
-		Label iconLabel = new Label(text);
-		iconLabel.setStyle("-fx-font-family: 'System', 'Arial', sans-serif;"
-				+ "-fx-text-fill: white;"
-				+ "-fx-alignment: center;"
-				+ "-fx-text-alignment: center;"
-		);
-
-		Button button = new Button();
-		button.setGraphic(iconLabel);
-		button.setStyle("-fx-background-color: #a0a0a0;" +
-				"-fx-background-radius: 50%;" +
-				"-fx-alignment: center;" +
-				"-fx-content-display: graphic-only;"
-		);
-		button.setPadding(new Insets(2));
-		button.setPrefSize(width, height);
-		button.setMinSize(width, height);
-		button.setMaxSize(width, height);
-		button.setCursor(Cursor.HAND);
-		return button;
 	}
 
 	private void setFormattedValue(Number newVal, String prefix, Label label) {

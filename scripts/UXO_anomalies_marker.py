@@ -16,9 +16,9 @@ def markExtremes(
     equality_tolerance: float = 0.0,
 ) -> Dict[int, float]:
     """
-    Return a dict mapping *positional row index* -> range for samples that are
-    equal to the min or max within their non-overlapping window of size W,
-    and whose window range exceeds 'threshold'.
+    Return a dict mapping positional row index -> amplitude (signed deviation from window - window_mean)
+    for samples that are equal to the min or max within their non-overlapping
+    window of size W and whose |value - window_mean| exceeds 'threshold'.
 
     - Windows are non-overlapping chunks of length W (not centered).
     - If include_partial is True, process the final shorter chunk as well.
@@ -43,35 +43,29 @@ def markExtremes(
 
     if length_chunks:
         chunks = column_data[:length].reshape(length_chunks, W)
-        mins = np.nanmin(chunks, axis=1)
-        maxs = np.nanmax(chunks, axis=1)
-        ranges = maxs - mins
-        keep = ranges > threshold
 
         # Extremum masks considering tolerance
+        mins = np.nanmin(chunks, axis=1)
+        maxs = np.nanmax(chunks, axis=1)
         if equality_tolerance == 0.0:
             mask_min = (chunks == mins[:, None])
             mask_max = (chunks == maxs[:, None])
         else:
             mask_min = (np.abs(chunks - mins[:, None]) <= equality_tolerance)
             mask_max = (np.abs(chunks - maxs[:, None]) <= equality_tolerance)
-
         is_extreme = mask_min | mask_max
 
-        # Robust z-score: |x - median| / (1.4826 * MAD) >= 2.5
-        med = np.nanmedian(chunks, axis=1)
-        mad = np.nanmedian(np.abs(chunks - med[:, None]), axis=1)
-        sigma = np.where(1.4826 * mad > 0, 1.4826 * mad, np.finfo(float).tiny)
-        dev = np.abs(chunks - med[:, None])
-        z = dev / sigma[:, None]
-        gate = (z >= 2.5)
+        # Deviation from window mean (signed)
+        means = np.nanmean(chunks, axis=1)
+        dev = chunks - means[:, None]
 
-        mask = is_extreme & keep[:, None] & gate
+        # Flag if |dev| > threshold
+        mask = is_extreme & (np.abs(dev) > threshold)
         flat_mask = mask.ravel()
         if flat_mask.any():
-            idx = np.nonzero(flat_mask)[0]  # positional indices within [:length]
-            rvals = np.repeat(ranges, W)[flat_mask]
-            mapping.update({int(i): float(rv) for i, rv in zip(idx, rvals)})
+            idx = np.nonzero(flat_mask)[0]
+            dvals = dev.ravel()[flat_mask]
+            mapping.update({int(i): float(v) for i, v in zip(idx, dvals)})
 
     # Optional tail chunk (use positional indices length..n-1)
     if include_partial and length < n:
@@ -80,31 +74,23 @@ def markExtremes(
             min_tail = np.nanmin(tail)
             max_tail = np.nanmax(tail)
             if not (np.isnan(min_tail) or np.isnan(max_tail)):
-                win_range = max_tail - min_tail
-                if win_range > threshold:
-                    if equality_tolerance == 0.0:
-                        mask_tail_min = (tail == min_tail)
-                        mask_tail_max = (tail == max_tail)
-                    else:
-                        mask_tail_min = (np.abs(tail - min_tail) <= equality_tolerance)
-                        mask_tail_max = (np.abs(tail - max_tail) <= equality_tolerance)
+                if equality_tolerance == 0.0:
+                    mask_tail_min = (tail == min_tail)
+                    mask_tail_max = (tail == max_tail)
+                else:
+                    mask_tail_min = (np.abs(tail - min_tail) <= equality_tolerance)
+                    mask_tail_max = (np.abs(tail - max_tail) <= equality_tolerance)
 
-                    # Dominant side in the tail
-                    med_t = np.nanmedian(tail)
-                    mask_tail = mask_tail_min | mask_tail_max
+                mask_tail = mask_tail_min | mask_tail_max
 
-                    # Robust z-score in the tail
-                    mad_t = np.nanmedian(np.abs(tail - med_t))
-                    sigma_t = 1.4826 * mad_t if (1.4826 * mad_t) > 0 else np.finfo(float).tiny
-                    z_t = np.abs(tail - med_t) / sigma_t
-                    gate_t = (z_t >= 2.5)
+                tail_mean = np.nanmean(tail)
+                dev_tail = tail - tail_mean
+                mask_tail &= (np.abs(dev_tail) > threshold)
 
-                    mask_tail &= gate_t
-                    tail_idx = np.nonzero(mask_tail)[0]
-                    for j in tail_idx:
-                        mapping[int(length + j)] = float(win_range)
+                tail_idx = np.nonzero(mask_tail)[0]
+                for j in tail_idx:
+                    mapping[int(length + j)] = float(dev_tail[j])
     return mapping
-
 
 def _latlon_to_webmercator(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     """Convert WGS84 lat/lon (degrees) to Web Mercator X,Y (meters)."""
@@ -232,7 +218,7 @@ def main():
     #1 Read Mark column if exists
     current_marks = None
     if "Mark" in df.columns:
-        current_marks = df["Mark"].astype("Int8").to_numpy()
+        current_marks = pd.to_numeric(df["Mark"], errors="coerce").fillna(0).astype(np.int8).to_numpy()
     else:
         current_marks = np.zeros(len(df), dtype=np.int8)
 
@@ -255,7 +241,7 @@ def main():
         auto_marked = np.zeros(len(df), dtype=np.int8)
 
     #4 Write auto-marked = mark xor new-mark xor auto-marked
-    auto_marked = (current_marks ^ new_marks ^ auto_marked).astype(np.int8)
+    auto_marked = current_marks ^ new_marks ^ auto_marked
     df["Auto-Marked"] = pd.Series(auto_marked, index=df.index, dtype="Int8")
 
     #5 Write Mark = new-mark

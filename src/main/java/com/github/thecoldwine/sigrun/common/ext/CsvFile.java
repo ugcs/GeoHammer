@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
-import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
+import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import org.jspecify.annotations.Nullable;
@@ -34,12 +34,12 @@ public class CsvFile extends SgyFile {
 
 	private static final Logger log = LoggerFactory.getLogger(CsvFile.class.getName());
 
-    private List<GeoData> geoData = new ArrayList<>();
+	private List<GeoData> geoData = new ArrayList<>();
 
-    @Nullable
+	@Nullable
 	private CsvParser parser;
 
-    private FileTemplates fileTemplates;
+	private FileTemplates fileTemplates;
 
 	public CsvFile(FileTemplates fileTemplates) {
 		this.fileTemplates = fileTemplates;
@@ -221,6 +221,12 @@ public class CsvFile extends SgyFile {
 		return parser;
 	}
 
+    @Nullable
+    public Template getTemplate() {
+        CsvParser parser = this.parser;
+        return parser != null ? parser.getTemplate() : null;
+    }
+
     @Override
     public CsvFile copy() {
         return new CsvFile(this);
@@ -232,7 +238,7 @@ public class CsvFile extends SgyFile {
     }
 
     public boolean isSameTemplate(CsvFile file) {
-        return file.getParser().getTemplate().equals(getParser().getTemplate());
+        return Objects.equals(file.getTemplate(), getTemplate());
     }
 
     public static class Snapshot extends FileSnapshot<CsvFile> {

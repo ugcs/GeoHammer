@@ -1,9 +1,13 @@
 package com.ugcs.gprvisualizer.utils;
 
+import com.google.gson.annotations.Expose;
+
 public class Range {
 
+	@Expose
     private final Number min;
 
+	@Expose
     private final Number max;
 
     public Range(Number min, Number max) {

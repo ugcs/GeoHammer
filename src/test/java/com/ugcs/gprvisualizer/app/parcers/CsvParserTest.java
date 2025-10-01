@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.parcers.csv.MagDroneCsvParser;
 import com.ugcs.gprvisualizer.app.parcers.csv.NmeaCsvParser;
-import com.ugcs.gprvisualizer.app.parcers.exceptions.ColumnsMatchingException;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 

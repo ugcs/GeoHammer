@@ -1,6 +1,6 @@
 import argparse
 import json
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ def markExtremes(
     equality_tolerance: float = 0.0,
 ) -> Dict[int, float]:
     """
-    Return a dict mapping *positional row index* -> (maxW - minW) for samples that are
+    Return a dict mapping *positional row index* -> range for samples that are
     equal to the min or max within their non-overlapping window of size W,
     and whose window range exceeds 'threshold'.
 
@@ -116,19 +116,20 @@ def _latlon_to_webmercator(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     y = R * np.log(np.tan(np.pi / 4.0 + lat_rad / 2.0))
     return np.column_stack((x, y))
 
-
 def cluster_by_radius_2d(
-    df: pd.DataFrame,
-    indices: Dict[int, float],
-    radius: float,
-    latitude_column_name: str = "Latitude",
-    longitude_column_name: str = "Longitude",
+        df: pd.DataFrame,
+        indices: Dict[int, float],
+        radius: float,
+        latitude_column_name: str = "Latitude",
+        longitude_column_name: str = "Longitude",
 ) -> Dict[int, float]:
     """
     Cluster points in 2D (meters) using KD-tree + BFS.
     - df: source DataFrame with lat/lon columns
     - indices: mapping {positional_row_index -> range_value}
     - radius: clustering radius in meters (Web Mercator)
+    - latitude_column_name: name of latitude column in df
+    - longitude_column_name: name of longitude column in df
     Returns: {positional_row_index -> range_value} with one winner per group (max abs(range)).
     """
     if not indices:
@@ -159,7 +160,7 @@ def cluster_by_radius_2d(
 
     # Adjust radius for Mercator scale at mean latitude
     mean_lat = float(np.nanmedian(lat))
-    scale = 1.0 / np.cos(np.deg2rad(mean_lat))  # sec(phi)
+    scale = 1.0 / np.cos(np.deg2rad(mean_lat))
     radius_eff = radius * scale
 
     n = pts.shape[0]
@@ -190,7 +191,6 @@ def cluster_by_radius_2d(
 
     return result
 
-
 def main():
     parser = argparse.ArgumentParser(description="Find extrema and return index->range mapping.")
     parser.add_argument("file_path", help="Input CSV path")
@@ -214,7 +214,6 @@ def main():
         window_width=args.window,
         equality_tolerance=args.tolerance,
     )
-    print(f"Mapping extremes finished: {len(index_to_range)} candidates")
 
     clustered_map = cluster_by_radius_2d(
         df,
@@ -228,21 +227,39 @@ def main():
     # Add amplitude column aligned by positional index
     amp_series = pd.Series(clustered_map, dtype=float)
     df["Marked_Anomaly_Amplitude"] = amp_series.reindex(range(len(df)), fill_value=np.nan).to_numpy()
+   
 
-    # Prepare Mark column according to --clear-marks
-    if "Mark" not in df.columns or args.clear_marks:
-        # create/reset to NA (nullable Int8) so blanks stay empty
-        df["Mark"] = pd.Series(pd.NA, index=df.index, dtype="Int8")
+    #1 Read Mark column if exists
+    current_marks = None
+    if "Mark" in df.columns:
+        current_marks = df["Mark"].astype("Int8").to_numpy()
     else:
-        # preserve existing; just ensure nullable Int8 if possible
-        try:
-            df["Mark"] = df["Mark"].astype("Int8")
-        except Exception:
-            df["Mark"] = pd.to_numeric(df["Mark"], errors="coerce").astype("Int8")
+        current_marks = np.zeros(len(df), dtype=np.int8)
+
+    #2 Compute new-mark value (0 or 1)
+    new_marks = None
+    if args.clear_marks:
+        new_marks = np.zeros(len(df), dtype=np.int8)
+    else:
+        new_marks = current_marks.copy()
 
     if clustered_map:
-        marked_positions = np.fromiter(clustered_map.keys(), dtype=int)
-        df.iloc[marked_positions, df.columns.get_loc("Mark")] = 1
+        for pos in clustered_map.keys():
+            new_marks[pos] = 1
+    
+    #3 Read auto-marked value (if no such column, use 0 for auto-marked)
+    auto_marked = None
+    if "Auto-Marked" in df.columns:
+        auto_marked = df["Auto-Marked"].astype("Int8").to_numpy()
+    else:
+        auto_marked = np.zeros(len(df), dtype=np.int8)
+
+    #4 Write auto-marked = mark xor new-mark xor auto-marked
+    auto_marked = (current_marks ^ new_marks ^ auto_marked).astype(np.int8)
+    df["Auto-Marked"] = pd.Series(auto_marked, index=df.index, dtype="Int8")
+
+    #5 Write Mark = new-mark
+    df["Mark"] = pd.Series(new_marks, index=df.index, dtype="Int8")
 
     # Save to same file
     df.to_csv(args.file_path, index=False)

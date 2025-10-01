@@ -4,7 +4,7 @@
   "parameters": [
     {
       "name": "column",
-      "display_name": "Column to analyze",
+      "display_name": "Column name",
       "type": "STRING",
       "default_value": "TMI_anomaly",
       "required": true
@@ -18,21 +18,21 @@
     },
     {
       "name": "window",
-      "display_name": "Window size (number of points)",
+      "display_name": "Window size (number of measurements)",
       "type": "INTEGER",
       "default_value": 100,
       "required": true
     },
     {
       "name": "radius",
-      "display_name": "Clustering radius (meters)",
+      "display_name": "Min distance between anomalies (m)",
       "type": "DOUBLE",
       "default_value": 0.0,
       "required": true
     },
     {
       "name": "clear-marks",
-      "display_name": "Clear existing 'Mark' values before marking",
+      "display_name": "Override existing marks",
       "type": "BOOLEAN",
       "default_value": false,
       "required": false

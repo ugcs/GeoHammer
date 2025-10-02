@@ -1,6 +1,6 @@
 {
-  "filename": "UXO_anomalies_marker.py",
-  "display_name": "UXO Anomalies Marker",
+  "filename": "uxo_anomaly_marker.py",
+  "display_name": "UXO Anomaly Marker",
   "parameters": [
     {
       "name": "column",

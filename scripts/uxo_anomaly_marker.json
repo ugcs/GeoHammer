@@ -1,0 +1,42 @@
+{
+  "filename": "uxo_anomaly_marker.py",
+  "display_name": "UXO Anomaly Marker",
+  "parameters": [
+    {
+      "name": "column",
+      "display_name": "Column name",
+      "type": "STRING",
+      "default_value": "TMI_anomaly",
+      "required": true
+    },
+    {
+      "name": "threshold",
+      "display_name": "Threshold (nT)",
+      "type": "DOUBLE",
+      "default_value": 5.0,
+      "required": true
+    },
+    {
+      "name": "window",
+      "display_name": "Window size (number of measurements)",
+      "type": "INTEGER",
+      "default_value": 1000,
+      "required": true
+    },
+    {
+      "name": "radius",
+      "display_name": "Min distance between anomalies (m)",
+      "type": "DOUBLE",
+      "default_value": 2.0,
+      "required": true
+    },
+    {
+      "name": "clear-marks",
+      "display_name": "Override existing marks",
+      "type": "BOOLEAN",
+      "default_value": false,
+      "required": false
+    }
+  ],
+  "templates": ["MagNIMBUS"]
+}

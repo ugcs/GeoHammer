@@ -20,14 +20,14 @@
       "name": "window",
       "display_name": "Window size (number of measurements)",
       "type": "INTEGER",
-      "default_value": 100,
+      "default_value": 1000,
       "required": true
     },
     {
       "name": "radius",
       "display_name": "Min distance between anomalies (m)",
       "type": "DOUBLE",
-      "default_value": 0.0,
+      "default_value": 2.0,
       "required": true
     },
     {

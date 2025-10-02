@@ -16,7 +16,7 @@ def markExtremes(
     equality_tolerance: float = 0.0,
 ) -> Dict[int, float]:
     """
-    Return a dict mapping positional row index -> amplitude (signed deviation from window - window_mean)
+    Return a dict mapping positional row index -> amplitude (signed deviation from window mean)
     for samples that are equal to the min or max within their non-overlapping
     window of size W and whose |value - window_mean| exceeds 'threshold'.
 
@@ -44,7 +44,7 @@ def markExtremes(
     if length_chunks:
         chunks = column_data[:length].reshape(length_chunks, W)
 
-        # Extremum masks considering tolerance
+        # Extreme masks considering tolerance
         mins = np.nanmin(chunks, axis=1)
         maxs = np.nanmax(chunks, axis=1)
         if equality_tolerance == 0.0:
@@ -57,15 +57,15 @@ def markExtremes(
 
         # Deviation from window mean (signed)
         means = np.nanmean(chunks, axis=1)
-        dev = chunks - means[:, None]
+        deviation = chunks - means[:, None]
 
-        # Flag if |dev| > threshold
-        mask = is_extreme & (np.abs(dev) > threshold)
+        # Flag if |deviation| > threshold
+        mask = is_extreme & (np.abs(deviation) > threshold)
         flat_mask = mask.ravel()
         if flat_mask.any():
-            idx = np.nonzero(flat_mask)[0]
-            dvals = dev.ravel()[flat_mask]
-            mapping.update({int(i): float(v) for i, v in zip(idx, dvals)})
+            index = np.nonzero(flat_mask)[0]
+            deviation_values = deviation.ravel()[flat_mask]
+            mapping.update({int(i): float(v) for i, v in zip(index, deviation_values)})
 
     # Optional tail chunk (use positional indices length..n-1)
     if include_partial and length < n:
@@ -84,12 +84,12 @@ def markExtremes(
                 mask_tail = mask_tail_min | mask_tail_max
 
                 tail_mean = np.nanmean(tail)
-                dev_tail = tail - tail_mean
-                mask_tail &= (np.abs(dev_tail) > threshold)
+                deviation_tail = tail - tail_mean
+                mask_tail &= (np.abs(deviation_tail) > threshold)
 
-                tail_idx = np.nonzero(mask_tail)[0]
-                for j in tail_idx:
-                    mapping[int(length + j)] = float(dev_tail[j])
+                tail_index = np.nonzero(mask_tail)[0]
+                for j in tail_index:
+                    mapping[int(length + j)] = float(deviation_tail[j])
     return mapping
 
 def _latlon_to_webmercator(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
@@ -112,11 +112,11 @@ def cluster_by_radius_2d(
     """
     Cluster points in 2D (meters) using KD-tree + BFS.
     - df: source DataFrame with lat/lon columns
-    - indices: mapping {positional_row_index -> range_value}
+    - indices: mapping {positional_row_index -> amplitude (signed deviation from window mean)}
     - radius: clustering radius in meters (Web Mercator)
     - latitude_column_name: name of latitude column in df
     - longitude_column_name: name of longitude column in df
-    Returns: {positional_row_index -> range_value} with one winner per group (max abs(range)).
+    Returns: {positional_row_index -> amplitude (signed deviation from window mean)} with one winner per group (max abs(amplitude)).
     """
     if not indices:
         return {}
@@ -126,19 +126,19 @@ def cluster_by_radius_2d(
         raise ValueError("lat/lon columns not found in DataFrame")
 
     # Work on a stable order of candidate positional indices
-    idx_list = np.array(sorted(indices.keys()), dtype=int)
+    index_list = np.array(sorted(indices.keys()), dtype=int)
 
-    # Extract lat/lon using iloc because idx_list are positions
-    lat = pd.to_numeric(df.iloc[idx_list][latitude_column_name], errors="coerce").to_numpy()
-    lon = pd.to_numeric(df.iloc[idx_list][longitude_column_name], errors="coerce").to_numpy()
+    # Extract lat/lon using iloc because index_list are positions
+    lat = pd.to_numeric(df.iloc[index_list][latitude_column_name], errors="coerce").to_numpy()
+    lon = pd.to_numeric(df.iloc[index_list][longitude_column_name], errors="coerce").to_numpy()
     valid = np.isfinite(lat) & np.isfinite(lon)
     if not np.any(valid):
         return {}
 
-    idx_list = idx_list[valid]
+    index_list = index_list[valid]
     lat = lat[valid]
     lon = lon[valid]
-    vals = np.array([indices[i] for i in idx_list], dtype=float)
+    vals = np.array([indices[i] for i in index_list], dtype=float)
 
     # Project to meters and build KD-tree
     pts = _latlon_to_webmercator(lat, lon)
@@ -172,7 +172,7 @@ def cluster_by_radius_2d(
         # pick the index with maximum absolute range
         comp_vals = vals[component]
         winner_local = component[int(np.argmax(np.abs(comp_vals)))]
-        winner_df_pos = int(idx_list[winner_local])  # positional index
+        winner_df_pos = int(index_list[winner_local])  # positional index
         result[winner_df_pos] = float(vals[winner_local])
 
     return result

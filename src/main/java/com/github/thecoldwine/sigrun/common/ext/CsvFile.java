@@ -288,14 +288,14 @@ public class CsvFile extends SgyFile {
         return String.join(separator, parts);
     }
 
-	private static String removeColumnData(String row, String separator, int position) {
+	private static String removeColumnData(String row, String separator, int columnIndex) {
 		String[] parts = row.split(separator, -1);
-		if (position < 0 || position >= parts.length) {
+		if (columnIndex < 0 || columnIndex >= parts.length) {
 			return row;
 		}
 		StringBuilder stringBuilder = new StringBuilder();
 		for (int i = 0; i < parts.length; i++) {
-			if (i == position) {
+			if (i == columnIndex) {
 				continue;
 			}
 			if (!stringBuilder.isEmpty()) {

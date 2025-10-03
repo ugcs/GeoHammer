@@ -1,6 +1,5 @@
 import argparse
-import json
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -12,17 +11,14 @@ def markExtremes(
     column: str,
     threshold: float,
     window_width: int,
-    include_partial: bool = True,
     equality_tolerance: float = 0.0,
 ) -> Dict[int, float]:
     """
-    Return a dict mapping positional row index -> amplitude (signed deviation from window mean)
-    for samples that are equal to the min or max within their non-overlapping
-    window of size W and whose |value - window_mean| exceeds 'threshold'.
+    Return a dict mapping positional row index -> amplitude (signed deviation from window median)
+    for samples that are equal to the min or max within their centered sliding window
+    of size W and whose |value - window_median| exceeds 'threshold'.
 
-    - Windows are non-overlapping chunks of length W (not centered).
-    - If include_partial is True, process the final shorter chunk as well.
-    - equality_tolerance can be used to treat values within +/- equality_tolerance as equal to min/max.
+    For each index i, the window is [i - W/2, i + W/2], with proper boundary handling.
     """
     if column not in df.columns:
         raise ValueError(f"column '{column}' not found")
@@ -38,58 +34,32 @@ def markExtremes(
     if n == 0:
         return mapping
 
-    length_chunks = n // W
-    length = length_chunks * W  # number of elements covered by full chunks
+    half_w = W // 2
 
-    if length_chunks:
-        chunks = column_data[:length].reshape(length_chunks, W)
-
-        # Extreme masks considering tolerance
-        mins = np.nanmin(chunks, axis=1)
-        maxs = np.nanmax(chunks, axis=1)
-        if equality_tolerance == 0.0:
-            mask_min = (chunks == mins[:, None])
-            mask_max = (chunks == maxs[:, None])
-        else:
-            mask_min = (np.abs(chunks - mins[:, None]) <= equality_tolerance)
-            mask_max = (np.abs(chunks - maxs[:, None]) <= equality_tolerance)
-        is_extreme = mask_min | mask_max
-
-        # Deviation from window mean (signed)
-        means = np.nanmean(chunks, axis=1)
-        deviation = chunks - means[:, None]
-
-        # Flag if |deviation| > threshold
-        mask = is_extreme & (np.abs(deviation) > threshold)
-        flat_mask = mask.ravel()
-        if flat_mask.any():
-            index = np.nonzero(flat_mask)[0]
-            deviation_values = deviation.ravel()[flat_mask]
-            mapping.update({int(i): float(v) for i, v in zip(index, deviation_values)})
-
-    # Optional tail chunk (use positional indices length..n-1)
-    if include_partial and length < n:
-        tail = column_data[length:]
-        if tail.size:
-            min_tail = np.nanmin(tail)
-            max_tail = np.nanmax(tail)
-            if not (np.isnan(min_tail) or np.isnan(max_tail)):
-                if equality_tolerance == 0.0:
-                    mask_tail_min = (tail == min_tail)
-                    mask_tail_max = (tail == max_tail)
-                else:
-                    mask_tail_min = (np.abs(tail - min_tail) <= equality_tolerance)
-                    mask_tail_max = (np.abs(tail - max_tail) <= equality_tolerance)
-
-                mask_tail = mask_tail_min | mask_tail_max
-
-                tail_mean = np.nanmean(tail)
-                deviation_tail = tail - tail_mean
-                mask_tail &= (np.abs(deviation_tail) > threshold)
-
-                tail_index = np.nonzero(mask_tail)[0]
-                for j in tail_index:
-                    mapping[int(length + j)] = float(deviation_tail[j])
+    for i in range(n):
+        start = max(0, i - half_w)
+        end = min(n, i + half_w + 1)
+        
+        window = column_data[start:end]
+        window_min = np.nanmin(window)
+        window_max = np.nanmax(window)
+        window_median = np.nanmedian(window)
+        
+        if np.isnan(window_min) or np.isnan(window_max) or np.isnan(window_median):
+            continue
+            
+        value = column_data[i]
+        if np.isnan(value):
+            continue
+        
+        is_min = (np.abs(value - window_min) <= equality_tolerance)
+        is_max = (np.abs(value - window_max) <= equality_tolerance)
+        
+        if is_min or is_max:
+            deviation = value - window_median
+            if np.abs(deviation) > threshold:
+                mapping[i] = float(deviation)
+    
     return mapping
 
 def _latlon_to_webmercator(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
@@ -110,13 +80,13 @@ def cluster_by_radius_2d(
         longitude_column_name: str = "Longitude",
 ) -> Dict[int, float]:
     """
-    Cluster points in 2D (meters) using KD-tree + BFS.
+    Cluster points in 2D (meters) using KD-tree + DFS.
     - df: source DataFrame with lat/lon columns
-    - indices: mapping {positional_row_index -> amplitude (signed deviation from window mean)}
+    - indices: mapping {positional_row_index -> amplitude (signed deviation from window median)}
     - radius: clustering radius in meters (Web Mercator)
     - latitude_column_name: name of latitude column in df
     - longitude_column_name: name of longitude column in df
-    Returns: {positional_row_index -> amplitude (signed deviation from window mean)} with one winner per group (max abs(amplitude)).
+    Returns: {positional_row_index -> amplitude (signed deviation from window median)} with one winner per group (max abs(amplitude)).
     """
     if not indices:
         return {}
@@ -153,7 +123,7 @@ def cluster_by_radius_2d(
     visited = np.zeros(n, dtype=bool)
     result: Dict[int, float] = {}
 
-    # BFS over neighbor graph defined by radius
+    # DFS over neighbor graph defined by radius
     for i in range(n):
         if visited[i]:
             continue

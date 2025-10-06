@@ -74,7 +74,7 @@ public class PythonScriptExecutorService {
 			return executor.submit(() -> executeScript(fileKey, tempSgyFile, scriptMetadata, parameters));
 		} catch (IOException e) {
 			return CompletableFuture.completedFuture(
-					new ScriptExecutionResult.Error(-1, "Failed to create temporary file: " + e.getMessage())
+					new ScriptExecutionResult.Error(-1, "Script is already running for this file")
 			);
 		}
 	}

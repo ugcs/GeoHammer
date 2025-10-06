@@ -298,7 +298,7 @@ public class ScriptExecutionView extends VBox {
 			File fileToOpen = resultPath.toFile();
 			loadResultsToSelectedFile(fileToOpen);
 		} else {
-			showExceptionDialog("Script Execution Error", "Result file was not produced by the script.");
+			showExceptionDialog("Script Execution Error","Selected file does not exist or is not valid.");
 		}
 	}
 
@@ -329,7 +329,7 @@ public class ScriptExecutionView extends VBox {
 		return parameters;
 	}
 
-	private void loadResultsToSelectedFile(File resultsFile) {
+	private void loadResultsToSelectedFile(File modifiedFile) {
 		SgyFile selectedFile = this.selectedFile;
 		if (selectedFile == null) {
 			log.error("No file selected to load results into");
@@ -338,26 +338,26 @@ public class ScriptExecutionView extends VBox {
 
 		try {
 			switch (selectedFile) {
-				case CsvFile originalCsvFile -> {
-					CsvFile resultCsvFile = new CsvFile(model.getFileManager().getFileTemplates());
-					resultCsvFile.open(resultsFile);
-					originalCsvFile.loadFrom(resultCsvFile);
+				case CsvFile openedCsvFile -> {
+					CsvFile modifiedCsvFile = new CsvFile(model.getFileManager().getFileTemplates());
+					modifiedCsvFile.open(modifiedFile);
+					openedCsvFile.loadFrom(modifiedCsvFile);
 
-					Platform.runLater(() -> notifyFileChanged(originalCsvFile));
+					Platform.runLater(() -> notifyFileChanged(openedCsvFile));
 				}
-				case GprFile originalGprFile -> {
-					GprFile resultGprFile = new GprFile();
-					resultGprFile.open(resultsFile);
-					originalGprFile.loadFrom(resultGprFile);
+				case GprFile openedGprFile -> {
+					GprFile modifiedGprFile = new GprFile();
+					modifiedGprFile.open(modifiedFile);
+					openedGprFile.loadFrom(modifiedGprFile);
 
-					Platform.runLater(() -> notifyFileChanged(originalGprFile));
+					Platform.runLater(() -> notifyFileChanged(openedGprFile));
 				}
-				case DztFile originalDztFile -> {
-					DztFile resultTraceFile = new DztFile();
-					resultTraceFile.open(resultsFile);
-					originalDztFile.loadFrom(resultTraceFile);
+				case DztFile openedDztFile -> {
+					DztFile modifiedTraceFile = new DztFile();
+					modifiedTraceFile.open(modifiedFile);
+					openedDztFile.loadFrom(modifiedTraceFile);
 
-					Platform.runLater(() -> notifyFileChanged(originalDztFile));
+					Platform.runLater(() -> notifyFileChanged(openedDztFile));
 				}
 				default -> showExceptionDialog("File Load Error",
 						"Unsupported file type for loading results: " + selectedFile.getClass().getSimpleName());
@@ -365,8 +365,8 @@ public class ScriptExecutionView extends VBox {
 		} catch (Exception e) {
 			showExceptionDialog("File Load Error", "Failed to load result file: " + e.getMessage());
 		} finally {
-			if (!resultsFile.delete()) {
-				log.warn("Failed to delete temporary results file: {}", resultsFile.getAbsolutePath());
+			if (!modifiedFile.delete()) {
+				log.warn("Failed to delete temporary results file: {}", modifiedFile.getAbsolutePath());
 			}
 		}
 	}

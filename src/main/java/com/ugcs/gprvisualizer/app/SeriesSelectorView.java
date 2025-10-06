@@ -7,6 +7,7 @@ import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
+import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.TemplateSettings;
 import com.ugcs.gprvisualizer.utils.Check;
@@ -391,6 +392,25 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             }
         }
     }
+
+	@EventListener
+	private void onFileUpdated(FileUpdatedEvent event) {
+		if (selectedTemplate == null) {
+			return;
+		}
+
+		Set<File> updatedFiles = new HashSet<>(event.getFiles());
+		for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
+			if (updatedFiles.contains(csvFile.getFile())) {
+				Template template = csvFile.getTemplate();
+				if (templateEquals(template, selectedTemplate)) {
+					// reload template
+					selectTemplate(template);
+					break;
+				}
+			}
+		}
+	}
 
     @EventListener
     private void onFileClosed(FileClosedEvent event) {

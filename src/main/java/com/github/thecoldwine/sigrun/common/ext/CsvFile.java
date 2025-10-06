@@ -253,7 +253,13 @@ public class CsvFile extends SgyFile {
         return new Snapshot(this);
     }
 
-    public boolean isSameTemplate(CsvFile file) {
+	public void loadFrom(CsvFile other) {
+		this.setGeoData(other.getGeoData());
+		this.setAuxElements(other.getAuxElements());
+		this.setUnsaved(true);
+	}
+
+	public boolean isSameTemplate(CsvFile file) {
         return Objects.equals(file.getTemplate(), getTemplate());
     }
 

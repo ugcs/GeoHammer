@@ -232,7 +232,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, pythonScriptExecutorService);
 		StackPane scriptsPane = new StackPane(scriptExecutionView);
 
 		container.getChildren().addAll(List.of(
@@ -1189,7 +1189,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
-		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, pythonScriptExecutorService);
 		StackPane scriptsPane = new StackPane(scriptExecutionView);
 		ToggleButton scriptsButton = new ToggleButton("Scripts");
 		scriptsButton.setMaxWidth(Double.MAX_VALUE);

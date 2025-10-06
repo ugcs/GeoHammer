@@ -241,6 +241,7 @@ public abstract class TraceFile extends SgyFile {
 	public void loadFrom(TraceFile other) {
 		this.setTraces(other.getTraces());
 		this.setGroundProfile(other.getGroundProfile());
+		this.setUnsaved(true);
 
 		TraceMeta meta = other.metaFile != null
 				? other.metaFile.getMetaFromState()
@@ -255,7 +256,6 @@ public abstract class TraceFile extends SgyFile {
 
 		metaFile.setMetaToState(meta);
 		this.updateTracesFromMeta();
-		this.setUnsaved(true);
 	}
 
     public class TraceList extends AbstractList<Trace> {

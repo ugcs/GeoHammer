@@ -14,6 +14,7 @@ import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
 import com.ugcs.gprvisualizer.utils.Views;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
@@ -370,7 +371,10 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         }
         if (!templateEquals(template, selectedTemplate)) {
             selectedTemplate = template;
-            selectTemplate(template);
+            Template templateRef = template; // final reference
+            Platform.runLater(() -> {
+                selectTemplate(templateRef);
+            });
         }
     }
 
@@ -386,7 +390,9 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
                 Template template = csvFile.getTemplate();
                 if (templateEquals(template, selectedTemplate)) {
                     // reload template
-                    selectTemplate(template);
+                    Platform.runLater(() -> {
+                        selectTemplate(template);
+                    });
                     break;
                 }
             }
@@ -405,7 +411,9 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 				Template template = csvFile.getTemplate();
 				if (templateEquals(template, selectedTemplate)) {
 					// reload template
-					selectTemplate(template);
+                    Platform.runLater(() -> {
+                        selectTemplate(template);
+                    });
 					break;
 				}
 			}
@@ -422,7 +430,9 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             Template template = csvFile.getTemplate();
             if (templateEquals(template, selectedTemplate)) {
                 // reload template
-                selectTemplate(template);
+                Platform.runLater(() -> {
+                    selectTemplate(template);
+                });
             }
         }
     }

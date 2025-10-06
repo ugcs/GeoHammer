@@ -14,6 +14,7 @@ import java.util.*;
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
 import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
@@ -70,13 +71,21 @@ public class MagDroneCsvParser extends CsvParser {
                 }
 
                 String[] data = line.split(getTemplate().getFileFormat().getSeparator());
-                double lat = parseDouble(getTemplate().getDataMapping().getLatitude(), data[getTemplate().getDataMapping().getLatitude().getIndex()]);
-                double lon = parseDouble(getTemplate().getDataMapping().getLongitude(), data[getTemplate().getDataMapping().getLongitude().getIndex()]);
-                double alt = getTemplate().getDataMapping().getAltitude().getIndex() != null &&
-                        getTemplate().getDataMapping().getAltitude().getIndex() != -1 ? parseDouble(getTemplate().getDataMapping().getAltitude(), data[getTemplate().getDataMapping().getAltitude().getIndex()]) : 0.00;
-                long timestamp = parseLong(getTemplate().getDataMapping().getTimestamp(), data[getTemplate().getDataMapping().getTimestamp().getIndex()]);
-                int traceNumber = getTemplate().getDataMapping().getTraceNumber() != null && getTemplate().getDataMapping().getTraceNumber().getIndex() != -1 ?
-                        parseInt(getTemplate().getDataMapping().getTraceNumber(), data[getTemplate().getDataMapping().getTraceNumber().getIndex()]) : traceCount;
+                DataMapping mapping = getTemplate().getDataMapping();
+
+                double lat = parseDouble(mapping.getLatitude(), data[mapping.getLatitude().getIndex()]);
+                double lon = parseDouble(mapping.getLongitude(), data[mapping.getLongitude().getIndex()]);
+                double alt = mapping.getAltitude() != null
+                        && mapping.getAltitude().getIndex() != null
+                        && mapping.getAltitude().getIndex() != -1
+                        ? parseDouble(mapping.getAltitude(), data[mapping.getAltitude().getIndex()])
+                        : 0.00;
+                long timestamp = parseLong(mapping.getTimestamp(), data[mapping.getTimestamp().getIndex()]);
+                int traceNumber = mapping.getTraceNumber() != null
+                        && mapping.getTraceNumber().getIndex() != null
+                        && mapping.getTraceNumber().getIndex() != -1
+                        ? parseInt(mapping.getTraceNumber(), data[mapping.getTraceNumber().getIndex()])
+                        : traceCount;
             
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
@@ -86,7 +95,7 @@ public class MagDroneCsvParser extends CsvParser {
                     }    
                 }
 
-                if (getTemplate().getDataMapping().getTime() == null) {
+                if (mapping.getTime() == null) {
                     Instant instant = Instant.ofEpochMilli(timestamp);
                     LocalDateTime date = LocalDateTime.ofInstant(instant, ZoneId.of("UTC"));
                     coordinates.add(new GeoData(false, lineNumber, sensorValues, new GeoCoordinates(date, lat, lon, alt, traceNumber)));
@@ -95,8 +104,8 @@ public class MagDroneCsvParser extends CsvParser {
                 SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
                 boolean isRowHasTime = false;
                 try {
-                    if (getTemplate().getDataMapping().getTime() != null && getTemplate().getDataMapping().getTime().getIndex() != -1) {
-                        sdf.parse(data[getTemplate().getDataMapping().getTime().getIndex()]);
+                    if (mapping.getTime() != null && mapping.getTime().getIndex() != -1) {
+                        sdf.parse(data[mapping.getTime().getIndex()]);
                         isRowHasTime = true;
                     }
                 } catch (ParseException e) {

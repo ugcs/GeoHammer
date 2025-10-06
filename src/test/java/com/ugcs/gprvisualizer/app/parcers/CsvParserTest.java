@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app.parcers;
 
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -134,12 +135,10 @@ class CsvParserTest extends BaseParsersTest {
         Template template = deserializer.load(file);
         var parser = new MagDroneCsvParser(template);
 
-        try {
+        Assertions.assertThrows(Exception.class, () -> {
             parser.parse(
                     Paths.get(CSVTestDataFolder + YamlMagdroneFolder + "Magdrone.csv").toAbsolutePath().toString());
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        });
     }
 
     @Test

@@ -17,6 +17,7 @@ import com.ugcs.gprvisualizer.app.parcers.SensorValue;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
+import com.ugcs.gprvisualizer.utils.Check;
 
 public class MagDroneCsvParser extends CsvParser {
 
@@ -48,12 +49,9 @@ public class MagDroneCsvParser extends CsvParser {
             String line = skipLines(reader);
 
             if (template.getFileFormat().isHasHeader()) {
-                if (line == null) {
-                    line = reader.readLine();
-                    findIndexesByHeaders(line);
-                    skippedLines.append(line + System.lineSeparator());
-                } else
-                    findIndexesByHeaders(line);
+                line = skipBlankAndComments(reader, line);
+                Check.notNull(line, "No header found");
+                findIndexesByHeaders(line);
             }
 
             format = new DecimalFormat("0.#", new DecimalFormatSymbols(Locale.US));
@@ -62,10 +60,9 @@ public class MagDroneCsvParser extends CsvParser {
             LocalDateTime firstDateTime = null;
             long timestampOfTheFirstDatetime = 0;
 
-            int lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length + 1;
+            int lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length;
 
             while ((line = reader.readLine()) != null) {
-                
                 lineNumber++;
 
                 if (line.startsWith(getTemplate().getFileFormat().getCommentPrefix())) {

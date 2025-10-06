@@ -71,7 +71,7 @@ public class PythonScriptExecutorService {
 						new ScriptExecutionResult.Error(-1, "Script is already running for this file")
 				);
 			}
-			return executor.submit(() -> executeScript(fileKey, tempSgyFile, scriptMetadata, parameters));
+			return executor.submit(() -> executeScript(fileKey, selectedFile, tempSgyFile, scriptMetadata, parameters));
 		} catch (IOException e) {
 			return CompletableFuture.completedFuture(
 					new ScriptExecutionResult.Error(-1, "Script is already running for this file")
@@ -79,11 +79,11 @@ public class PythonScriptExecutorService {
 		}
 	}
 
-	private ScriptExecutionResult executeScript(String fileKey, SgyFile selectedFile, ScriptExecutionView.ScriptMetadata scriptMetadata, Map<String, String> parameters) throws IOException, InterruptedException {
-		executingFiles.put(fileKey, new ScriptBinding(scriptMetadata.filename(), selectedFile));
+	private ScriptExecutionResult executeScript(String fileKey, SgyFile originalSelectedFile, SgyFile tempSgyFile, ScriptExecutionView.ScriptMetadata scriptMetadata, Map<String, String> parameters) throws IOException, InterruptedException {
+		executingFiles.put(fileKey, new ScriptBinding(scriptMetadata.filename(), tempSgyFile));
 		try {
 			String scriptFilename = scriptMetadata.filename();
-			File file = selectedFile.getFile();
+			File file = tempSgyFile.getFile();
 			if (file == null || !file.exists()) {
 				return new ScriptExecutionResult.Error(-1, "Selected file does not exist: " + file);
 			}
@@ -110,7 +110,7 @@ public class PythonScriptExecutorService {
 				log.error("Script {} execution failed with exit code {}: {}", scriptFilename, exitCode, output);
 				return new ScriptExecutionResult.Error(exitCode, output.toString());
 			}
-			return new ScriptExecutionResult.Success(output.toString(), path);
+			return new ScriptExecutionResult.Success(output.toString(), originalSelectedFile, path);
 		} catch (URISyntaxException e) {
 			return new ScriptExecutionResult.Error(-1, "Invalid script path: " + e.getMessage());
 		} finally {
@@ -217,11 +217,17 @@ public class PythonScriptExecutorService {
 		}
 
 		public static final class Success extends ScriptExecutionResult {
+			private final SgyFile originalSelectedFile;
 			private final Path modifiedFilePath;
 
-			public Success(String output, Path modifiedFilePath) {
+			public Success(String output, SgyFile originalSelectedFile, Path modifiedFilePath) {
 				super(output);
+				this.originalSelectedFile = originalSelectedFile;
 				this.modifiedFilePath = modifiedFilePath;
+			}
+
+			public SgyFile getOriginalSelectedFile() {
+				return originalSelectedFile;
 			}
 
 			public Path getModifiedFilePath() {

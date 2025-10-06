@@ -22,7 +22,7 @@ import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.ScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
 import com.ugcs.gprvisualizer.dzt.DztFile;
-import com.ugcs.gprvisualizer.event.FileOpenedEvent;
+import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.FileTemplate;
@@ -296,7 +296,7 @@ public class ScriptExecutionView extends VBox {
 		Path resultPath = result.getModifiedFilePath();
 		if (resultPath != null && Files.exists(resultPath)) {
 			File fileToOpen = resultPath.toFile();
-			loadResultsToSelectedFile(fileToOpen);
+			loadResultsToFile(fileToOpen, result.getOriginalSelectedFile());
 		} else {
 			showExceptionDialog("Script Execution Error","Selected file does not exist or is not valid.");
 		}
@@ -329,44 +329,43 @@ public class ScriptExecutionView extends VBox {
 		return parameters;
 	}
 
-	private void loadResultsToSelectedFile(File modifiedFile) {
-		SgyFile selectedFile = this.selectedFile;
-		if (selectedFile == null) {
+	private void loadResultsToFile(File resultsFile, SgyFile originalSelectedFile) {
+		if (originalSelectedFile == null) {
 			log.error("No file selected to load results into");
 			return;
 		}
 
 		try {
-			switch (selectedFile) {
+			switch (originalSelectedFile) {
 				case CsvFile openedCsvFile -> {
 					CsvFile modifiedCsvFile = new CsvFile(model.getFileManager().getFileTemplates());
-					modifiedCsvFile.open(modifiedFile);
+					modifiedCsvFile.open(resultsFile);
 					openedCsvFile.loadFrom(modifiedCsvFile);
 
 					Platform.runLater(() -> notifyFileChanged(openedCsvFile));
 				}
 				case GprFile openedGprFile -> {
 					GprFile modifiedGprFile = new GprFile();
-					modifiedGprFile.open(modifiedFile);
+					modifiedGprFile.open(resultsFile);
 					openedGprFile.loadFrom(modifiedGprFile);
 
 					Platform.runLater(() -> notifyFileChanged(openedGprFile));
 				}
 				case DztFile openedDztFile -> {
 					DztFile modifiedTraceFile = new DztFile();
-					modifiedTraceFile.open(modifiedFile);
+					modifiedTraceFile.open(resultsFile);
 					openedDztFile.loadFrom(modifiedTraceFile);
 
 					Platform.runLater(() -> notifyFileChanged(openedDztFile));
 				}
 				default -> showExceptionDialog("File Load Error",
-						"Unsupported file type for loading results: " + selectedFile.getClass().getSimpleName());
+						"Unsupported file type for loading results: " + originalSelectedFile.getClass().getSimpleName());
 			}
 		} catch (Exception e) {
 			showExceptionDialog("File Load Error", "Failed to load result file: " + e.getMessage());
 		} finally {
-			if (!modifiedFile.delete()) {
-				log.warn("Failed to delete temporary results file: {}", modifiedFile.getAbsolutePath());
+			if (!resultsFile.delete()) {
+				log.warn("Failed to delete temporary results file: {}", resultsFile.getAbsolutePath());
 			}
 		}
 	}
@@ -387,7 +386,7 @@ public class ScriptExecutionView extends VBox {
 
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		model.publishEvent(new FileOpenedEvent(this, List.of(file)));
+		model.publishEvent(new FileUpdatedEvent(this, List.of(file)));
 	}
 
 	@Nullable

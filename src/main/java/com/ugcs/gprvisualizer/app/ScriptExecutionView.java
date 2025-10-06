@@ -1,11 +1,29 @@
 package com.ugcs.gprvisualizer.app;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.prefs.Preferences;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.ScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
+import com.ugcs.gprvisualizer.dzt.DztFile;
+import com.ugcs.gprvisualizer.event.FileOpenedEvent;
+import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.FileTemplate;
 import javafx.application.Platform;
@@ -25,18 +43,6 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.prefs.Preferences;
-
 import javax.annotation.Nullable;
 
 public class ScriptExecutionView extends VBox {
@@ -44,8 +50,8 @@ public class ScriptExecutionView extends VBox {
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutionView.class);
 
 	private final Model model;
-	private final Loader loader;
-	@Nullable private SgyFile selectedFile;
+	@Nullable
+	private SgyFile selectedFile;
 	private final PythonScriptExecutorService scriptExecutorService;
 	private final Status status;
 	private final Stage primaryStage = AppContext.stage;
@@ -56,11 +62,11 @@ public class ScriptExecutionView extends VBox {
 	private final Button applyButton;
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionView.class);
-	@Nullable private ScriptMetadata currentScriptMetadata = null;
+	@Nullable
+	private ScriptMetadata currentScriptMetadata = null;
 
-	public ScriptExecutionView(Model model, Loader loader, Status status, @Nullable SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
+	public ScriptExecutionView(Model model, Status status, @Nullable SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
 		this.model = model;
-		this.loader = loader;
 		this.status = status;
 		this.scriptExecutorService = scriptExecutorService;
 
@@ -148,7 +154,7 @@ public class ScriptExecutionView extends VBox {
 					scriptsPath = scriptExecutorService.getScriptsPath();
 				} catch (URISyntaxException e) {
 					log.error("Failed to get scripts path", e);
-					showExceptionDialog("Scripts Directory Error","No scripts directory. Please check that scripts directory exists and is accessible.");
+					showExceptionDialog("Scripts Directory Error", "No scripts directory. Please check that scripts directory exists and is accessible.");
 					scriptsPath = Path.of("");
 				}
 				loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
@@ -273,25 +279,26 @@ public class ScriptExecutionView extends VBox {
 
 	private void handleScriptResult(PythonScriptExecutorService.ScriptExecutionResult result, ScriptMetadata scriptMetadata) {
 		if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
-			handleSuccessResult(result, scriptMetadata);
+			handleSuccessResult((PythonScriptExecutorService.ScriptExecutionResult.Success) result, scriptMetadata);
 		} else {
 			PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
 			showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
 		}
 	}
 
-	private void handleSuccessResult(PythonScriptExecutorService.ScriptExecutionResult result, ScriptMetadata scriptMetadata) {
+	private void handleSuccessResult(PythonScriptExecutorService.ScriptExecutionResult.Success result, ScriptMetadata scriptMetadata) {
 		String successMessage = "Script '" + scriptMetadata.displayName + "' executed successfully.";
 		String output = result.getOutput();
 		if (output != null && !output.isEmpty()) {
 			successMessage += "\nOutput: " + output;
 		}
 		status.showMessage(successMessage, "Script");
-		File currentFile = selectedFile != null ? selectedFile.getFile() : null;
-		if (currentFile != null && currentFile.exists()) {
-            Platform.runLater(() -> loader.load(List.of(currentFile)));
+		Path resultPath = result.getModifiedFilePath();
+		if (resultPath != null && Files.exists(resultPath)) {
+			File fileToOpen = resultPath.toFile();
+			loadResultsToSelectedFile(fileToOpen);
 		} else {
-			showExceptionDialog("Script Execution Error","Selected file does not exist or is not valid.");
+			showExceptionDialog("Script Execution Error", "Result file was not produced by the script.");
 		}
 	}
 
@@ -320,6 +327,67 @@ public class ScriptExecutionView extends VBox {
 			}
 		}
 		return parameters;
+	}
+
+	private void loadResultsToSelectedFile(File resultsFile) {
+		SgyFile selectedFile = this.selectedFile;
+		if (selectedFile == null) {
+			log.error("No file selected to load results into");
+			return;
+		}
+
+		try {
+			switch (selectedFile) {
+				case CsvFile originalCsvFile -> {
+					CsvFile resultCsvFile = new CsvFile(model.getFileManager().getFileTemplates());
+					resultCsvFile.open(resultsFile);
+					originalCsvFile.loadFrom(resultCsvFile);
+
+					Platform.runLater(() -> notifyFileChanged(originalCsvFile));
+				}
+				case GprFile originalGprFile -> {
+					GprFile resultGprFile = new GprFile();
+					resultGprFile.open(resultsFile);
+					originalGprFile.loadFrom(resultGprFile);
+
+					Platform.runLater(() -> notifyFileChanged(originalGprFile));
+				}
+				case DztFile originalDztFile -> {
+					DztFile resultTraceFile = new DztFile();
+					resultTraceFile.open(resultsFile);
+					originalDztFile.loadFrom(resultTraceFile);
+
+					Platform.runLater(() -> notifyFileChanged(originalDztFile));
+				}
+				default -> showExceptionDialog("File Load Error",
+						"Unsupported file type for loading results: " + selectedFile.getClass().getSimpleName());
+			}
+		} catch (Exception e) {
+			showExceptionDialog("File Load Error", "Failed to load result file: " + e.getMessage());
+		} finally {
+			if (!resultsFile.delete()) {
+				log.warn("Failed to delete temporary results file: {}", resultsFile.getAbsolutePath());
+			}
+		}
+	}
+
+	private void notifyFileChanged(SgyFile sgyFile) {
+		File file = sgyFile.getFile();
+		if (file == null) {
+			return;
+		}
+		sgyFile.rebuildLineRanges();
+
+		Chart chart = model.getFileChart(sgyFile);
+		if (chart != null) {
+			chart.reload();
+		}
+
+		model.updateAuxElements();
+
+		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+		model.publishEvent(new FileOpenedEvent(this, List.of(file)));
 	}
 
 	@Nullable

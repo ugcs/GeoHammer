@@ -1,7 +1,6 @@
 package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.ugcs.gprvisualizer.app.commands.CommandRegistry;
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -19,13 +18,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.framework.junit5.Start;
-import org.testfx.util.WaitForAsyncUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -40,9 +37,6 @@ public class CsvFilesDataSmallRangeTest {
     private Model model;
 
     @Mock
-    private CsvFile csvFile;
-
-    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -51,11 +45,10 @@ public class CsvFilesDataSmallRangeTest {
     @Mock
     private TemplateSettingsModel templateSettingsModel;
 
-    @Mock
-    private SensorLineChart lineChart;
-
     private OptionPane optionPane;
+
     private RangeSlider rangeSlider;
+
     private Stage stage;
 
     @Start
@@ -66,7 +59,6 @@ public class CsvFilesDataSmallRangeTest {
         optionPane = new OptionPane(
             mock(MapView.class),
             mock(ProfileView.class),
-            mock(CommandRegistry.class),
             model,
             mock(LevelFilter.class),
             settings,
@@ -145,41 +137,5 @@ public class CsvFilesDataSmallRangeTest {
 
         assertEquals(0.1, semanticMinValues.get("test"), "Semantic min value should be 0.1");
         assertEquals(0.9, semanticMaxValues.get("test"), "Semantic max value should be 0.9");
-    }
-
-    /**
-     * Test that demonstrates the issue with the gridding range slider when values are between 0 and 1.
-     * This test simulates the behavior of the updateGriddingMinMaxPreserveUserRange method in OptionPane.
-     */
-    @Test
-    public void testGriddingRangeSliderWithSmallRange() throws Exception {
-        // Mock the behavior of SensorLineChart.getSemanticMinValue() and getSemanticMaxValue()
-        when(lineChart.getSemanticMinValue()).thenReturn(0.1);
-        when(lineChart.getSemanticMaxValue()).thenReturn(0.9);
-
-        // Set the selected file using reflection
-        Field selectedFileField = OptionPane.class.getDeclaredField("selectedFile");
-        selectedFileField.setAccessible(true);
-        selectedFileField.set(optionPane, csvFile);
-
-        // Set the RangeSlider in the OptionPane using reflection
-        Field griddingRangeSliderField = OptionPane.class.getDeclaredField("griddingRangeSlider");
-        griddingRangeSliderField.setAccessible(true);
-        griddingRangeSliderField.set(optionPane, rangeSlider);
-
-        // Mock the model.getChart() method to return our mocked lineChart
-        when(model.getCsvChart(any(CsvFile.class))).thenReturn(Optional.of(lineChart));
-
-        // Call the updateGriddingMinMaxPreserveUserRange method using reflection
-        Method updateMethod = OptionPane.class.getDeclaredMethod("updateGriddingMinMaxPreserveUserRange");
-        updateMethod.setAccessible(true);
-        updateMethod.invoke(optionPane);
-
-        // Wait for JavaFX events to be processed
-        WaitForAsyncUtils.waitForFxEvents();
-
-        // Verify that the range slider's min and max values are set correctly
-        assertTrue(rangeSlider.getMin() <= 0.1, "Min value should be less or equal to 0.1");
-        assertTrue(rangeSlider.getMax() >= 0.9, "Max value should be greater or equal to 0.9");
     }
 }

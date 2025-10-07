@@ -5,6 +5,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.github.thecoldwine.sigrun.common.ext.*;
 import com.google.common.base.Strings;
@@ -442,7 +443,14 @@ public class SensorLineChart extends Chart {
         for (PlotData plotData : plotDataList) {
             LineChartWithMarkers lineChart = charts.get(plotData.semantic());
             if (lineChart == null) {
-                continue;
+				ValueAxis<Number> xAxis = createXAxis();
+				ValueAxis<Number> yAxis = createYAxis(plotData);
+
+				lineChart = createLineChart(plotData, xAxis, yAxis);
+
+				if (lineChart == null) {
+					continue;
+				}
             }
 
             Range valueRange = getValueRange(plotData.data, plotData.semantic);
@@ -455,6 +463,20 @@ public class SensorLineChart extends Chart {
             // update zoom
             lineChart.setZoomRect(lineChart.zoomRect);
         }
+
+		// remove charts for semantics that are no longer present
+		Set<String> currentSemantics = plotDataList.stream()
+				.map(PlotData::semantic)
+				.collect(Collectors.toSet());
+
+		for (Iterator<Map.Entry<String, LineChartWithMarkers>> it = charts.entrySet().iterator(); it.hasNext(); ) {
+			Map.Entry<String, LineChartWithMarkers> entry = it.next();
+			if (!currentSemantics.contains(entry.getKey())) {
+				LineChartWithMarkers chart = entry.getValue();
+				it.remove();
+				chartsContainer.getChildren().remove(chart);
+			}
+		}
 
         // put new line markers and reposition flags
         initLineMarkers();
@@ -919,11 +941,11 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    public Double getSemanticMinValue() {
+    public double getSemanticMinValue() {
         return semanticMinValues.getOrDefault(getSelectedSeriesName(), 0.0);
     }
 
-    public Double getSemanticMaxValue() {
+    public double getSemanticMaxValue() {
         return semanticMaxValues.getOrDefault(getSelectedSeriesName(), 0.0);
     }
 

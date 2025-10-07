@@ -90,6 +90,20 @@ public abstract class Parser implements IGeoCoordinateParser {
         return line;
     }
 
+    protected String skipBlankAndComments(BufferedReader reader, String line) throws IOException {
+        // Handle empty lines and comments before header
+        boolean eof = template.getSkipLinesTo() != null && line == null;
+        while (!eof && isBlankOrCommented(line)) {
+            line = reader.readLine();
+            if (line != null) {
+                skippedLines.append(line).append(System.lineSeparator());
+            } else {
+                eof = true;
+            }
+        }
+        return line;
+    }
+
     protected Number parseNumber(BaseData data, String column) {
         if (StringUtils.hasText(column) && column.indexOf(getTemplate().getFileFormat().getDecimalSeparator()) > 0) {
             return parseDouble(data, column);
@@ -212,7 +226,6 @@ public abstract class Parser implements IGeoCoordinateParser {
         if (template.getDataMapping().getTimestamp() != null
                 && template.getDataMapping().getTimestamp().getIndex() != -1) {
             long timestamp = parseLong(getTemplate().getDataMapping().getTimestamp(), data[getTemplate().getDataMapping().getTimestamp().getIndex()]);
-            System.out.println("timestamp: " + timestamp);
             return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
         }
 
@@ -337,4 +350,6 @@ public abstract class Parser implements IGeoCoordinateParser {
         String commentPrefix = template.getFileFormat().getCommentPrefix();
         return StringUtils.hasText(commentPrefix) && line.startsWith(commentPrefix);
     }
+
+    public record Row(int lineNumber, String[] values) {}
 }

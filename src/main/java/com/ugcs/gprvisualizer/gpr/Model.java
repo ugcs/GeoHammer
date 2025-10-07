@@ -394,6 +394,10 @@ public class Model implements InitializingBean {
 		return Optional.ofNullable(csvFiles.get(csvFile));
 	}
 
+	public Collection<SensorLineChart> getCsvCharts() {
+		return csvFiles.values();
+	}
+
 	public void chartsZoomOut() {
 		csvFiles.forEach((file, chart) -> {
 			chart.zoomToFit();
@@ -531,10 +535,6 @@ public class Model implements InitializingBean {
 
 		field.setSceneCenter(trace.getLatLon());
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapscroll));
-	}
-
-	public Collection<SensorLineChart> getCharts() {
-		return csvFiles.values();
 	}
 
 	public void publishEvent(BaseEvent event) {

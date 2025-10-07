@@ -238,6 +238,26 @@ public abstract class TraceFile extends SgyFile {
         return getTraces().getFirst().numSamples();
     }
 
+	public void loadFrom(TraceFile other) {
+		this.setTraces(other.getTraces());
+		this.setGroundProfile(other.getGroundProfile());
+		this.setUnsaved(true);
+
+		TraceMeta meta = other.metaFile != null
+				? other.metaFile.getMetaFromState()
+				: null;
+		if (meta == null) {
+			return; // no meta
+		}
+		MetaFile metaFile = this.getMetaFile();
+		if (metaFile == null) {
+			return; // no meta file
+		}
+
+		metaFile.setMetaToState(meta);
+		this.updateTracesFromMeta();
+	}
+
     public class TraceList extends AbstractList<Trace> {
 
         @Override

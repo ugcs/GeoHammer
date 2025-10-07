@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -80,12 +81,7 @@ public class CsvFile extends SgyFile {
 
         for (GeoCoordinates coord : coordinates) {
             // Added points if lat and lon are not 0 and point is close to the first point
-            if (coord.getLatitude().intValue() != 0
-                    && (geoData.isEmpty()
-                        || (Math.abs(coord.getLatitude().intValue() 
-                            - geoData.getFirst().getLatitude().intValue()) <= 1
-                        && Math.abs(coord.getLongitude().intValue() 
-                            - geoData.getFirst().getLongitude().intValue()) <= 1))) {
+            if (coord.getLatitude().intValue() != 0) {
                 if (coord instanceof GeoData value) {
                     int traceIndex = geoData.size();
                     geoData.add(value);
@@ -134,12 +130,15 @@ public class CsvFile extends SgyFile {
 			currentGeoData.setSensorValue(GeoData.Semantic.MARK.getName(), needMark ? 1 : 0);
 		}
 
-		Map<Integer, GeoData> geoDataMap = getGeoData().stream()
-				.collect(Collectors.toMap(GeoData::getLineNumber, geoData -> geoData));
+        Map<Integer, GeoData> geoDataMap = getGeoData().stream()
+                .collect(Collectors.toMap(GeoData::getFileLineNumber, gd -> gd));
 
 		String separator = parser.getTemplate().getFileFormat().getSeparator();
 		Map<String, SensorData> semanticToSensorData = parser.getTemplate().getDataMapping().getDataValues().stream()
 				.collect(Collectors.toMap(SensorData::getSemantic, Function.identity()));
+
+        // changed line numbers in the output file
+        Map<Integer, Integer> changedLineNumbers = new HashMap<>();
 
 		try (BufferedReader reader = Files.newBufferedReader(inputFile);
 			 BufferedWriter writer = Files.newBufferedWriter(tempFile)) {
@@ -244,6 +243,7 @@ public class CsvFile extends SgyFile {
 			parser.setIndexByHeaderForSensorData(skippedLines, nextWPColumn);
 
 			writer.write(skippedLines);
+            int writeLineNumber = skippedLines.isEmpty() ? 0 : skippedLines.split(System.lineSeparator()).length;
 
 			// Prepare descending order list of indices to remove
 			List<Integer> rowRemovalIndices = indicesToRemove.stream()
@@ -265,15 +265,28 @@ public class CsvFile extends SgyFile {
 							);
 						}
 					}
-
 					for (int index : rowRemovalIndices) {
 						line = removeColumnData(line, separator, index);
 					}
+
+					writeLineNumber++;
+					if (lineNumber != writeLineNumber) {
+						changedLineNumbers.put(lineNumber, writeLineNumber);
+					}
+
 					writer.write(line);
 					writer.newLine();
 				}
 			}
 		}
+
+        for (Map.Entry<Integer, Integer> entry : changedLineNumbers.entrySet()) {
+            GeoData value = geoDataMap.get(entry.getKey());
+            if (value == null) {
+                continue;
+            }
+            value.setFileLineNumber(entry.getValue());
+        }
 	}
 
     private static String replaceCsvValue(String input, String separator, int position, String newValue) {
@@ -346,7 +359,13 @@ public class CsvFile extends SgyFile {
         return new Snapshot(this);
     }
 
-    public boolean isSameTemplate(CsvFile file) {
+	public void loadFrom(CsvFile other) {
+		this.setGeoData(other.getGeoData());
+		this.setAuxElements(other.getAuxElements());
+		this.setUnsaved(true);
+	}
+
+	public boolean isSameTemplate(CsvFile file) {
         return Objects.equals(file.getTemplate(), getTemplate());
     }
 

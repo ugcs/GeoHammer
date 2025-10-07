@@ -7,12 +7,14 @@ import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
+import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.gpr.TemplateSettings;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
 import com.ugcs.gprvisualizer.utils.Views;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
@@ -369,7 +371,10 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         }
         if (!templateEquals(template, selectedTemplate)) {
             selectedTemplate = template;
-            selectTemplate(template);
+            Template templateRef = template; // final reference
+            Platform.runLater(() -> {
+                selectTemplate(templateRef);
+            });
         }
     }
 
@@ -385,12 +390,35 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
                 Template template = csvFile.getTemplate();
                 if (templateEquals(template, selectedTemplate)) {
                     // reload template
-                    selectTemplate(template);
+                    Platform.runLater(() -> {
+                        selectTemplate(template);
+                    });
                     break;
                 }
             }
         }
     }
+
+	@EventListener
+	private void onFileUpdated(FileUpdatedEvent event) {
+		if (selectedTemplate == null) {
+			return;
+		}
+
+		Set<File> updatedFiles = new HashSet<>(event.getFiles());
+		for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
+			if (updatedFiles.contains(csvFile.getFile())) {
+				Template template = csvFile.getTemplate();
+				if (templateEquals(template, selectedTemplate)) {
+					// reload template
+                    Platform.runLater(() -> {
+                        selectTemplate(template);
+                    });
+					break;
+				}
+			}
+		}
+	}
 
     @EventListener
     private void onFileClosed(FileClosedEvent event) {
@@ -402,7 +430,9 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             Template template = csvFile.getTemplate();
             if (templateEquals(template, selectedTemplate)) {
                 // reload template
-                selectTemplate(template);
+                Platform.runLater(() -> {
+                    selectTemplate(template);
+                });
             }
         }
     }

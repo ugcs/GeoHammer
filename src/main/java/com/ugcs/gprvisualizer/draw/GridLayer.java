@@ -9,7 +9,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
@@ -324,23 +326,29 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 		if (chart.isEmpty()) {
 			return;
 		}
-		String sensor = chart.get().getSelectedSeriesName();
+		String seriesName = chart.get().getSelectedSeriesName();
 
-		var savedGriddingRange = optionPane.getSavedGriddingRangeValues(chart.toString() + sensor);
-		var minValue = (float) savedGriddingRange.lowValue();
-		var maxValue = (float) savedGriddingRange.highValue();
+		var griddingRange = optionPane.getGriddingRange(csvFile, seriesName);
+		var minValue = (float) griddingRange.lowValue();
+		var maxValue = (float) griddingRange.highValue();
 
 		// Check if we have stored results for this file and if we need to recalculate
 		//GriddingResult storedResult = griddingResults.get(csvFile);
 
-	if (recalcGrid) {
+		if (recalcGrid) {
 
 			var startFiltering = System.currentTimeMillis();
 
+			Set<CsvFile> targetFiles = toAll
+					? model.getFileManager().getCsvFiles()
+						.stream()
+						.filter(f -> f.isSameTemplate(csvFile))
+						.collect(Collectors.toSet())
+					: Collections.singleton(csvFile);
+
 			List<DataPoint> dataPoints = new ArrayList<>();
-			for (CsvFile csvFile1 : model.getFileManager().getCsvFiles().stream().map(f -> (CsvFile) f).filter(f ->
-					toAll ? f.isSameTemplate(csvFile) : f.equals(csvFile)).toList()) {
-				dataPoints.addAll(getDataPoints(csvFile1, sensor));
+			for (CsvFile targetFile : targetFiles) {
+				dataPoints.addAll(getDataPoints(targetFile, seriesName));
 			}
 
 			dataPoints = getMedianValues(dataPoints);
@@ -533,9 +541,8 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 				}
 			}
 
-			//removeFromGriddingResults(csvFile);
-			// Store the gridding result for this file
-			griddingResults.put(csvFile.getFile(), new GriddingResult(
+			// Store the gridding result for the affected files
+			GriddingResult griddingResult = new GriddingResult(
 					gridData, // Deep cloning is done in the constructor
 					applyLowPassFilter(gridData),
 					minLatLon,
@@ -544,19 +551,22 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 					currentParams.getBlankingDistance(),
 					minValue,
 					maxValue,
-					sensor,
+					seriesName,
 					currentParams.isAnalyticSignalEnabled(),
 					currentParams.isHillShadingEnabled(),
 					currentParams.isSmoothingEnabled(),
 					currentParams.getHillShadingAzimuth(),
 					currentParams.getHillShadingAltitude(),
 					currentParams.getHillShadingIntensity()
-			));
+			);
+			for (CsvFile targetFile : targetFiles) {
+				griddingResults.put(targetFile.getFile(), griddingResult);
+			}
 
 			recalcGrid = false;
 		}
 
-		if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor.equals(sensor)) {
+		if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor.equals(seriesName)) {
 			griddingResults.put(csvFile.getFile(), gr.setValues(
 					minValue,
 					maxValue,

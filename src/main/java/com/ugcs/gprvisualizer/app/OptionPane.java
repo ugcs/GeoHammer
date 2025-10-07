@@ -233,7 +233,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, pythonScriptExecutorService);
 		StackPane scriptsPane = new StackPane(scriptExecutionView);
 
 		container.getChildren().addAll(List.of(
@@ -558,8 +558,10 @@ public class OptionPane extends VBox implements InitializingBean {
 	 */
 	private void showGridInputDataChangedWarning(boolean show) {
 		if (griddingWarningLabel != null) {
-			griddingWarningLabel.setVisible(show);
-			griddingWarningLabel.setManaged(show);
+			Platform.runLater(() -> {
+				griddingWarningLabel.setVisible(show);
+				griddingWarningLabel.setManaged(show);
+			});
 		}
 	}
 
@@ -1057,7 +1059,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(c -> c.lowPassFilter(c.getSelectedSeriesName(), value));
 		showGridInputDataChangedWarning(true);
-		//model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
 	private void applyLowPassFilterToAll(int value) {
@@ -1069,7 +1070,6 @@ public class OptionPane extends VBox implements InitializingBean {
 					.forEach(c -> c.lowPassFilter(seriesName, value));
 		});
 		showGridInputDataChangedWarning(true);
-		//model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
 	private void applyMedianCorrection(int value) {
@@ -1167,7 +1167,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
-		scriptExecutionView = new ScriptExecutionView(model, loader, status, selectedFile, pythonScriptExecutorService);
+		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, pythonScriptExecutorService);
 		StackPane scriptsPane = new StackPane(scriptExecutionView);
 		ToggleButton scriptsButton = new ToggleButton("Scripts");
 		scriptsButton.setMaxWidth(Double.MAX_VALUE);
@@ -1256,12 +1256,12 @@ public class OptionPane extends VBox implements InitializingBean {
 		SgyFile previouslySelectedFile = selectedFile;
 		selectedFile = event.getFile();
 		if (selectedFile == null) {
-			clear();
+			Platform.runLater(this::clear);
 			return;
 		}
 
         if (selectedFile instanceof CsvFile) {
-            showTab(csvTab);
+            Platform.runLater(() -> showTab(csvTab));
 			if (statisticsView != null) {
 				Platform.runLater(() -> {
 					statisticsView.update(event.getFile());
@@ -1271,7 +1271,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				scriptExecutionView.updateView(event.getFile());
 			}
 			//setGriddingMinMax();
-			Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange());
+			Platform.runLater(this::updateGriddingMinMaxPreserveUserRange);
 			setSavedFilterInputValue(Filter.lowpass);
             setSavedFilterInputValue(Filter.timelag);
             setSavedFilterInputValue(Filter.gridding_cellsize);
@@ -1299,8 +1299,10 @@ public class OptionPane extends VBox implements InitializingBean {
 		if (selectedFile instanceof TraceFile traceFile) {
 			// do nothing if selected file is same as previously selected
 			if (!Objects.equals(event.getFile(), previouslySelectedFile)) {
-				showTab(gprTab);
-				prepareGprTab(gprTab, traceFile);
+				Platform.runLater(() -> {
+					showTab(gprTab);
+					prepareGprTab(gprTab, traceFile);
+				});
 			}
         }
     }

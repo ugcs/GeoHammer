@@ -30,14 +30,14 @@ public class GeoData extends GeoCoordinates {
     /** 
      * Line number in the source file
      */
-    private final int lineNumber;
+    private int fileLineNumber;
 
     private final boolean marked;
 
-    public GeoData(boolean marked, int lineNumber, List<SensorValue> sensorValues, GeoCoordinates geoCoordinates) {
+    public GeoData(boolean marked, int fileLineNumber, List<SensorValue> sensorValues, GeoCoordinates geoCoordinates) {
         super(geoCoordinates.getLatitude(), geoCoordinates.getLongitude(), geoCoordinates.getAltitude(), geoCoordinates.getTimeInMs(), geoCoordinates.getTraceNumber(), geoCoordinates.getDateTime());
         this.sensorValues = sensorValues;
-        this.lineNumber = lineNumber;
+        this.fileLineNumber = fileLineNumber;
         this.marked = marked;
     }
 
@@ -47,7 +47,7 @@ public class GeoData extends GeoCoordinates {
         for (SensorValue sensorValue : geoData.sensorValues) {
             sensorValues.add(new SensorValue(sensorValue));
         }
-        this.lineNumber = geoData.lineNumber;
+        this.fileLineNumber = geoData.fileLineNumber;
         this.marked = geoData.marked;
     }
 
@@ -55,8 +55,12 @@ public class GeoData extends GeoCoordinates {
         return sensorValues;
     }
 
-    public int getLineNumber() {
-        return lineNumber;
+    public int getFileLineNumber() {
+        return fileLineNumber;
+    }
+
+    public void setFileLineNumber(int fileLineNumber) {
+        this.fileLineNumber = fileLineNumber;
     }
 
     public void setLineIndex(int lineNumber) {

@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.ScriptExecutionView;
 import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
+import com.ugcs.gprvisualizer.utils.FileNames;
 import com.ugcs.gprvisualizer.utils.PythonLocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -51,61 +53,42 @@ public class PythonScriptExecutorService {
 					new ScriptExecutionResult.Error(-1, "Selected file does not exist: " + currentFile)
 			);
 		}
-		String fileKey = currentFile.getName();
-		// Check if script is already running for this file
-		if (executingFiles.containsKey(fileKey)) {
+
+		String filename = currentFile.getName();
+		String prefix = FileNames.removeExtension(filename);
+		String suffix = "." + FileNames.getExtension(filename);
+		try {
+			File tempFile = Files.createTempFile(prefix, suffix).toFile();
+			selectedFile.save(tempFile);
+
+			SgyFile tempSgyFile = selectedFile.copy();
+			tempSgyFile.setFile(tempFile);
+
+			String fileKey = currentFile.getName();
+			// Check if script is already running for this file
+			if (executingFiles.containsKey(fileKey)) {
+				return CompletableFuture.completedFuture(
+						new ScriptExecutionResult.Error(-1, "Script is already running for this file")
+				);
+			}
+			return executor.submit(() -> executeScript(fileKey, selectedFile, tempSgyFile, scriptMetadata, parameters));
+		} catch (IOException e) {
 			return CompletableFuture.completedFuture(
 					new ScriptExecutionResult.Error(-1, "Script is already running for this file")
 			);
 		}
-		return executor.submit(() -> executeScript(fileKey, selectedFile, scriptMetadata, parameters));
 	}
 
-	private ScriptExecutionResult executeScript(String fileKey, SgyFile selectedFile, ScriptExecutionView.ScriptMetadata scriptMetadata, Map<String, String> parameters) throws IOException, InterruptedException {
-		executingFiles.put(fileKey, new ScriptBinding(scriptMetadata.filename(), selectedFile));
+	private ScriptExecutionResult executeScript(String fileKey, SgyFile originalSelectedFile, SgyFile tempSgyFile, ScriptExecutionView.ScriptMetadata scriptMetadata, Map<String, String> parameters) throws IOException, InterruptedException {
+		executingFiles.put(fileKey, new ScriptBinding(scriptMetadata.filename(), tempSgyFile));
 		try {
 			String scriptFilename = scriptMetadata.filename();
-			List<String> command = new ArrayList<>();
-			String pythonPath = pythonConfig.getPythonExecutorPath();
-			Future<String> future = new PythonLocator().getPythonExecutorPathAsync();
-			if (pythonPath == null || pythonPath.isEmpty()) {
-				try {
-					pythonPath = future.get();
-				} catch (Exception e) {
-					log.error("Error getting Python path", e);
-					return new ScriptExecutionResult.Error(-1, "Failed to get Python executor: " + e.getMessage());
-				}
-			}
-			command.add(pythonPath);
-			try {
-				Path scriptsPath = getScriptsPath();
-				if (scriptsPath == null) {
-					return new ScriptExecutionResult.Error(-1, "Scripts directory not found");
-				}
-				command.add(scriptsPath.resolve(scriptFilename).toString());
-			} catch (URISyntaxException e) {
-				log.error("Error resolving scripts path", e);
-				return new ScriptExecutionResult.Error(-1, "Failed to resolve scripts path: " + e.getMessage());
-			}
-
-			File file = selectedFile.getFile();
+			File file = tempSgyFile.getFile();
 			if (file == null || !file.exists()) {
-				return new ScriptExecutionResult.Error(-1, "Selected file does not exist: " + selectedFile.getFile());
+				return new ScriptExecutionResult.Error(-1, "Selected file does not exist: " + file);
 			}
-			command.add(file.getAbsolutePath());
-
-			for (Map.Entry<String, String> entry : parameters.entrySet()) {
-				String key = entry.getKey();
-				String value = entry.getValue();
-				if (isBooleanParameter(scriptMetadata, key)) {
-					if (Boolean.parseBoolean(value)) {
-						command.add("--" + key);
-					}
-				} else {
-					command.add("--" + key);
-					command.add(value);
-				}
-			}
+			Path path = file.toPath();
+			List<String> command = buildCommand(scriptMetadata, parameters, path);
 
 			log.info("Executing script: {}", String.join(" ", command));
 
@@ -127,10 +110,57 @@ public class PythonScriptExecutorService {
 				log.error("Script {} execution failed with exit code {}: {}", scriptFilename, exitCode, output);
 				return new ScriptExecutionResult.Error(exitCode, output.toString());
 			}
-			return new ScriptExecutionResult.Success(output.toString());
+			return new ScriptExecutionResult.Success(output.toString(), originalSelectedFile, path);
+		} catch (URISyntaxException e) {
+			return new ScriptExecutionResult.Error(-1, "Invalid script path: " + e.getMessage());
 		} finally {
 			executingFiles.remove(fileKey);
 		}
+	}
+
+	/**
+	 * Builds the process command:
+	 * [python, <scripts/path>/<script.py>, <workingCopy>, --key value | --flag]
+	 */
+	private List<String> buildCommand(
+			ScriptExecutionView.ScriptMetadata scriptMetadata,
+			Map<String, String> parameters,
+			Path filePath
+	) throws URISyntaxException, IOException {
+		List<String> command = new ArrayList<>();
+
+		String pythonPath = pythonConfig.getPythonExecutorPath();
+		if (pythonPath == null || pythonPath.isEmpty()) {
+			try {
+				pythonPath = new PythonLocator()
+						.getPythonExecutorPathAsync()
+						.get();
+			} catch (Exception e) {
+				throw new IOException("Failed to get Python executor: " + e.getMessage(), e);
+			}
+		}
+		command.add(pythonPath);
+
+		Path scriptsPath = getScriptsPath();
+
+		command.add(scriptsPath.resolve(scriptMetadata.filename()).toString());
+
+		command.add(filePath.toAbsolutePath().toString());
+
+		for (Map.Entry<String, String> entry : parameters.entrySet()) {
+			String key = entry.getKey();
+			String value = entry.getValue();
+			if (isBooleanParameter(scriptMetadata, key)) {
+				if (Boolean.parseBoolean(value)) {
+					command.add("--" + key);
+				}
+			} else {
+				command.add("--" + key);
+				command.add(value);
+			}
+		}
+
+		return command;
 	}
 
 	public boolean isExecuting(SgyFile sgyFile) {
@@ -187,8 +217,21 @@ public class PythonScriptExecutorService {
 		}
 
 		public static final class Success extends ScriptExecutionResult {
-			public Success(String output) {
+			private final SgyFile originalSelectedFile;
+			private final Path modifiedFilePath;
+
+			public Success(String output, SgyFile originalSelectedFile, Path modifiedFilePath) {
 				super(output);
+				this.originalSelectedFile = originalSelectedFile;
+				this.modifiedFilePath = modifiedFilePath;
+			}
+
+			public SgyFile getOriginalSelectedFile() {
+				return originalSelectedFile;
+			}
+
+			public Path getModifiedFilePath() {
+				return modifiedFilePath;
 			}
 		}
 

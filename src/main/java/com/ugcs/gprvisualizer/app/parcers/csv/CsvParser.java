@@ -68,122 +68,113 @@ public class CsvParser extends Parser {
             parseDateFromNameOfFile(new File(logPath).getName());
         }
 
-        List<String[]> allDataRows = new ArrayList<>();
+        List<Row> rows = new ArrayList<>();
         List<String> headers = new ArrayList<>();
 
         try (var reader = new BufferedReader(new FileReader(logPath))) {
             String line = skipLines(reader);
-			// tells if current line value is already in a skipped list
-			boolean lineSkipped = line != null;
 
             var markSensorData = new SensorData();
 			markSensorData.setHeader(GeoData.Semantic.MARK.getName());
 
             if (template.getFileFormat().isHasHeader()) {
-                // Handle empty lines and comments before header
-                boolean eof = template.getSkipLinesTo() != null && line == null;
-                while (!eof && isBlankOrCommented(line)) {
-                    line = reader.readLine();
-					lineSkipped = false;
-                    eof = line == null;
-                }
+                line = skipBlankAndComments(reader, line);
                 Check.notNull(line, "No header found");
                 findIndexesByHeaders(line);
                 setIndexByHeaderForSensorData(line, markSensorData);
-				if (!lineSkipped) {
-					skippedLines.append(line).append(System.lineSeparator());
-				}
 
                 headers = Arrays.stream(line.split(template.getFileFormat().getSeparator()))
                         .map(String::trim)
                         .toList();
             }
 
-            // Collect all data rows
-            String dataLine;
-            while ((dataLine = reader.readLine()) != null) {
-                if (isBlankOrCommented(dataLine)) {
+            // read data rows
+            var lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length;
+
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+
+                if (isBlankOrCommented(line)) {
 					continue;
 				}
 
-                var data = dataLine.split(template.getFileFormat().getSeparator());
-                if (data.length < 2) {
+                var values = line.split(template.getFileFormat().getSeparator());
+                if (values.length < 2) {
 					continue;
 				}
 
-                allDataRows.add(data);
+                rows.add(new Row(lineNumber, values));
             }
 
             // Second pass: identify undeclared numeric headers
             Set<String> declaredHeader = getDeclaredHeaders();
-            Set<String> undeclaredNumericHeaders = findUndeclaredNumericHeaders(allDataRows, headers, declaredHeader);
+            Set<String> undeclaredNumericHeaders = findUndeclaredNumericHeaders(rows, headers, declaredHeader);
 
             // Filter sensors to load
             List<SensorData> sensors = filterSensors(template.getDataMapping().getDataValues());
 
             // Third pass: process all rows with known undeclared headers
-            var lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length;
 
             var traceCount = 0;
-            for (String[] row : allDataRows) {
-                lineNumber++;
+            for (Row row : rows) {
+                String[] values = row.values();
 
 				BaseData templateLatitude = template.getDataMapping().getLatitude();
-                if (row.length <= templateLatitude.getIndex()) {
-                    log.warn("Row #{} is not correct: insufficient columns", lineNumber);
+                if (values.length <= templateLatitude.getIndex()) {
+                    log.warn("Row #{} is not correct: insufficient columns", row.lineNumber());
                     continue;
                 }
-                var lat = parseDouble(templateLatitude, row[templateLatitude.getIndex()]);
+                var lat = parseDouble(templateLatitude, values[templateLatitude.getIndex()]);
 
 				BaseData templateLongitude = template.getDataMapping().getLongitude();
-                if (row.length <= templateLongitude.getIndex()) {
-                    log.warn("Row #{} is not correct: insufficient columns", lineNumber);
+                if (values.length <= templateLongitude.getIndex()) {
+                    log.warn("Row #{} is not correct: insufficient columns", row.lineNumber());
                     continue;
                 }
-                var lon = parseDouble(templateLongitude, row[templateLongitude.getIndex()]);
+                var lon = parseDouble(templateLongitude, values[templateLongitude.getIndex()]);
 
                 if (lat == null || lon == null) {
-                    log.warn("Row #{} is not correct, lat or lon was not parsed", lineNumber);
+                    log.warn("Row #{} is not correct, lat or lon was not parsed", row.lineNumber());
                     continue;
                 }
 
                 var alt = template.getDataMapping().getAltitude() != null
                         && template.getDataMapping().getAltitude().getIndex() != null
                         && template.getDataMapping().getAltitude().getIndex() != -1
-                        && template.getDataMapping().getAltitude().getIndex() < row.length
-                        && StringUtils.hasText(row[template.getDataMapping().getAltitude().getIndex()])
-                        ? parseDouble(template.getDataMapping().getAltitude(), row[template.getDataMapping().getAltitude().getIndex()])
+                        && template.getDataMapping().getAltitude().getIndex() < values.length
+                        && StringUtils.hasText(values[template.getDataMapping().getAltitude().getIndex()])
+                        ? parseDouble(template.getDataMapping().getAltitude(), values[template.getDataMapping().getAltitude().getIndex()])
                         : null;
 
                 Integer traceNumber = null;
                 if (template.getDataMapping().getTraceNumber() != null
                         && template.getDataMapping().getTraceNumber().getIndex() != -1
-                        && template.getDataMapping().getTraceNumber().getIndex() < row.length) {
-                    traceNumber = parseInt(template.getDataMapping().getTraceNumber(), row[template.getDataMapping().getTraceNumber().getIndex()]);
+                        && template.getDataMapping().getTraceNumber().getIndex() < values.length) {
+                    traceNumber = parseInt(template.getDataMapping().getTraceNumber(), values[template.getDataMapping().getTraceNumber().getIndex()]);
                 }
                 traceNumber = traceNumber != null ? traceNumber : traceCount;
 
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
                     for (SensorData sensor : sensors) {
-                        String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < row.length) ? row[sensor.getIndex()] : null;
+                        String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < values.length) ? values[sensor.getIndex()] : null;
                         sensorValues.add(new SensorValue(sensor.getSemantic(), sensor.getUnits(), parseNumber(sensor, sensorData)));
                     }
                 }
 
                 // Add dynamic sensors efficiently using pre-identified headers
-                addNumericValuesForUndeclaredHeaders(row, headers, sensorValues, undeclaredNumericHeaders);
+                addNumericValuesForUndeclaredHeaders(values, headers, sensorValues, undeclaredNumericHeaders);
 
                 traceCount++;
 
-                var dateTime = parseDateTime(row);
+                var dateTime = parseDateTime(values);
 
                 boolean marked = false;
-                if (markSensorData.getIndex() != null && markSensorData.getIndex() != -1 && markSensorData.getIndex() < row.length) {
-                    marked = parseInt(markSensorData, row[markSensorData.getIndex()]) instanceof Integer i && i == 1;
+                if (markSensorData.getIndex() != null && markSensorData.getIndex() != -1 && markSensorData.getIndex() < values.length) {
+                    marked = parseInt(markSensorData, values[markSensorData.getIndex()]) instanceof Integer i && i == 1;
                 }
 
-                coordinates.add(new GeoData(marked, lineNumber, sensorValues, new GeoCoordinates(dateTime, lat, lon, alt, traceNumber)));
+                coordinates.add(new GeoData(marked, row.lineNumber(), sensorValues, new GeoCoordinates(dateTime, lat, lon, alt, traceNumber)));
             }
         } catch (Exception e) {
 			throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
@@ -245,23 +236,24 @@ public class CsvParser extends Parser {
         return declaredHeaders;
     }
 
-    private Set<String> findUndeclaredNumericHeaders(List<String[]> allDataRows, List<String> allHeaders, Set<String> declaredHeaderSet) {
+    private Set<String> findUndeclaredNumericHeaders(List<Row> rows, List<String> headers, Set<String> declaredHeaders) {
         Set<String> undeclaredNumericHeaders = new HashSet<>();
-        for (int i = 0; i < allHeaders.size(); i++) {
-            String headerName = allHeaders.get(i);
+        for (int i = 0; i < headers.size(); i++) {
+            String header = headers.get(i);
 
-            if (declaredHeaderSet.contains(headerName)) {
+            if (declaredHeaders.contains(header)) {
 				continue;
 			}
 
             // Check if this column contains numeric values in any row
             boolean hasNumericValue = false;
-            for (String[] row : allDataRows) {
-                if (i >= row.length || row[i] == null || row[i].isEmpty()) {
+            for (Row row : rows) {
+                String[] values = row.values();
+                if (i >= values.length || values[i] == null || values[i].isEmpty()) {
 					continue;
 				}
 
-				Number value = parseNumber(new SensorData(), row[i]);
+				Number value = parseNumber(new SensorData(), values[i]);
 
 				if (value != null) {
 					hasNumericValue = true;
@@ -270,7 +262,7 @@ public class CsvParser extends Parser {
 			}
 
             if (hasNumericValue) {
-                undeclaredNumericHeaders.add(headerName);
+                undeclaredNumericHeaders.add(header);
             }
         }
 

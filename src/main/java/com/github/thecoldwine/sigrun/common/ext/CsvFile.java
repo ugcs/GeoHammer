@@ -1,6 +1,5 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -8,15 +7,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
+import com.ugcs.gprvisualizer.app.parcers.SensorValue;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -31,7 +31,6 @@ import com.ugcs.gprvisualizer.app.parcers.csv.CSVParsersFactory;
 import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
-import org.springframework.util.StringUtils;
 
 public class CsvFile extends SgyFile {
 
@@ -115,179 +114,89 @@ public class CsvFile extends SgyFile {
         }
     }
 
-	@Override
-	public void save(File file) throws IOException {
-		Path inputFile = getFile().toPath();
-		Path tempFile = file.toPath();
+    @Override
+    public void save(File file) throws IOException {
+        Path path = file.toPath();
 
-		var foundPlaces = getAuxElements().stream()
-				.filter(bo -> bo instanceof FoundPlace)
-				.map(bo -> ((FoundPlace) bo).getTraceIndex())
-				.collect(Collectors.toSet());
-		for (int i = 0; i < geoData.size(); i++) {
-			GeoData currentGeoData = this.geoData.get(i);
-			boolean needMark = currentGeoData.isMarked() || foundPlaces.contains(i);
-			currentGeoData.setSensorValue(GeoData.Semantic.MARK.getName(), needMark ? 1 : 0);
-		}
-
-        Map<Integer, GeoData> geoDataMap = getGeoData().stream()
-                .collect(Collectors.toMap(GeoData::getFileLineNumber, gd -> gd));
-
-		String separator = parser.getTemplate().getFileFormat().getSeparator();
-		Map<String, SensorData> semanticToSensorData = parser.getTemplate().getDataMapping().getDataValues().stream()
-				.collect(Collectors.toMap(SensorData::getSemantic, Function.identity()));
-
-        // changed line numbers in the output file
-        Map<Integer, Integer> changedLineNumbers = new HashMap<>();
-
-		try (BufferedReader reader = Files.newBufferedReader(inputFile);
-			 BufferedWriter writer = Files.newBufferedWriter(tempFile)) {
-
-			String skippedLines = parser.getSkippedLines();
-
-			// check if "Next WP" exists and is it the last column
-			SensorData nextWPColumn = semanticToSensorData.getOrDefault(GeoData.Semantic.LINE.getName(), new SensorData() {{
-				setHeader("Next WP");
-			}});
-			SensorData markColumn = semanticToSensorData.getOrDefault(GeoData.Semantic.MARK.getName(), new SensorData() {{
-				setHeader("Mark");
-			}});
-			log.debug("Source file skippedLines: {}", skippedLines);
-
-			for (var semantic : semanticToSensorData.keySet()
-					.stream()
-					.filter(semantic -> semantic.contains(GeoData.ANOMALY_SEMANTIC_SUFFIX))
-					.toList()) {
-				if (semanticToSensorData.get(semantic) instanceof SensorData sensorData
-						&& !skippedLines.contains(sensorData.getHeader())) {
-					// add "*_anomaly" to the end of the header if not exists
-					skippedLines = skippedLines.replaceAll(
-							System.lineSeparator() + "$",
-							separator + semanticToSensorData.get(semantic).getHeader() + System.lineSeparator());
-					parser.setIndexByHeaderForSensorData(skippedLines, semanticToSensorData.get(semantic));
-				}
-			}
-
-			if (!skippedLines.contains(nextWPColumn.getHeader())) {
-				// add "Next WP" to the end of the header if not exists
-				skippedLines = skippedLines.replaceAll(
-						System.lineSeparator() + "$",
-						separator + nextWPColumn.getHeader() + System.lineSeparator());
-				parser.setIndexByHeaderForSensorData(skippedLines, nextWPColumn);
-			}
-
-			if (!skippedLines.contains(markColumn.getHeader())) {
-				// add "Mark" to the end of the header if not exists
-				skippedLines = skippedLines.replaceAll(
-						System.lineSeparator() + "$",
-						separator + markColumn.getHeader() + System.lineSeparator());
-			}
-			parser.setIndexByHeaderForSensorData(skippedLines, markColumn);
-			semanticToSensorData.put(markColumn.getHeader(), markColumn);
-
-			String[] headers = skippedLines.split(System.lineSeparator(), -1);
-			int headersSize = headers.length - 1;
-			while (headersSize > 0 && headers[headersSize].isEmpty()) {
-				headersSize--;
-			}
-			String headerLine = headers[headersSize];
-
-			List<String> anomalySemantics = semanticToSensorData.keySet().stream()
-					.filter(semantic -> semantic.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX))
-					.toList();
-			for (String semantic : anomalySemantics) {
-				parser.setIndexByHeaderForSensorData(skippedLines, semanticToSensorData.get(semantic));
-			}
-
-			boolean hasAnyMark = geoData.stream().anyMatch(geoData ->
-					geoData.getSensorValues().stream().anyMatch(sensorValue ->
-							GeoData.Semantic.MARK.getName().equals(sensorValue.semantic())
-									&& Objects.equals(sensorValue.data(), 1))
-			);
-
-			List<Integer> indicesToRemove = new ArrayList<>();
-			if (markColumn.getIndex() >= 0 && !hasAnyMark) {
-				indicesToRemove.add(markColumn.getIndex());
-			}
-
-			Map<String, Boolean> anomalyHasData = anomalySemantics.stream().collect(Collectors.toMap(
-					semantic -> semantic,
-					semantic -> geoData.stream().anyMatch(geoData -> columnHasData(geoData, semantic))
-			));
-
-			for (String semantic : anomalySemantics) {
-				SensorData sensorData = semanticToSensorData.get(semantic);
-				boolean hasData = anomalyHasData.getOrDefault(semantic, false);
-				if (sensorData != null && sensorData.getIndex() >= 0 && !hasData) {
-					indicesToRemove.add(sensorData.getIndex());
-				}
-			}
-
-			// Descending order removal to keep indices valid
-			List<Integer> headerRemoval = indicesToRemove.stream()
-					.sorted((a, b) -> Integer.compare(b, a))
-					.toList();
-			for (int index : headerRemoval) {
-				headerLine = removeColumnData(headerLine, separator, index);
-			}
-			headers[headersSize] = headerLine;
-			skippedLines = String.join(System.lineSeparator(), headers);
-			if (!skippedLines.endsWith(System.lineSeparator())) {
-				skippedLines = skippedLines + System.lineSeparator();
-			}
-
-			for (SensorData sensorData : semanticToSensorData.values()) {
-				parser.setIndexByHeaderForSensorData(skippedLines, sensorData);
-			}
-			parser.setIndexByHeaderForSensorData(skippedLines, markColumn);
-			parser.setIndexByHeaderForSensorData(skippedLines, nextWPColumn);
-
-			writer.write(skippedLines);
-            int writeLineNumber = skippedLines.isEmpty() ? 0 : skippedLines.split(System.lineSeparator()).length;
-
-			// Prepare descending order list of indices to remove
-			List<Integer> rowRemovalIndices = indicesToRemove.stream()
-					.sorted((a, b) -> Integer.compare(b, a))
-					.toList();
-
-			String line;
-			int lineNumber = 0;
-
-			while ((line = reader.readLine()) != null) {
-				lineNumber++;
-				if (geoDataMap.get(lineNumber) instanceof GeoData gd) {
-					for (var sensorValue : gd.getSensorValues()) {
-						var template = semanticToSensorData.get(sensorValue.semantic());
-						if (template != null && sensorValue.originalData() != sensorValue.data()) {
-							line = replaceCsvValue(
-									line, separator, template.getIndex(),
-									sensorValue.data() != null ? String.format("%s", sensorValue.data()) : ""
-							);
-						}
-					}
-					for (int index : rowRemovalIndices) {
-						line = removeColumnData(line, separator, index);
-					}
-
-					writeLineNumber++;
-					if (lineNumber != writeLineNumber) {
-						changedLineNumbers.put(lineNumber, writeLineNumber);
-					}
-
-					writer.write(line);
-					writer.newLine();
-				}
-			}
-		}
-
-        for (Map.Entry<Integer, Integer> entry : changedLineNumbers.entrySet()) {
-            GeoData value = geoDataMap.get(entry.getKey());
-            if (value == null) {
-                continue;
-            }
-            value.setFileLineNumber(entry.getValue());
+        var foundPlaces = getAuxElements().stream()
+                .filter(bo -> bo instanceof FoundPlace)
+                .map(bo -> ((FoundPlace) bo).getTraceIndex())
+                .collect(Collectors.toSet());
+        for (int i = 0; i < geoData.size(); i++) {
+            GeoData currentGeoData = this.geoData.get(i);
+            boolean needMark = currentGeoData.isMarked() || foundPlaces.contains(i);
+            currentGeoData.setSensorValue(GeoData.Semantic.MARK.getName(), needMark ? 1 : 0);
         }
-	}
+
+        String separator = parser.getTemplate().getFileFormat().getSeparator();
+
+        Map<String, SensorData> semanticToSensorData = parser.getTemplate().getDataMapping().getDataValues().stream()
+                .collect(Collectors.toMap(SensorData::getSemantic, dv -> dv));
+
+        String skippedLines = parser.getSkippedLines();
+
+        Set<String> presentedSemantics = geoData.stream()
+                .filter(gd -> gd.getSensorValues() != null)
+                .flatMap(value -> value.getSensorValues().stream()
+                        .map(SensorValue::semantic)
+                ).collect(Collectors.toSet());
+        Set<String> semanticsToSave = getSemanticsToSave(presentedSemantics, semanticToSensorData, skippedLines);
+        Set<String> newlyAddedSemantics = new LinkedHashSet<>();
+
+        for (var semantic : semanticsToSave) {
+            SensorData sensorData = semanticToSensorData.get(semantic);
+            String header = sensorData != null ? sensorData.getHeader() : semantic;
+            if (!skippedLines.contains(header)) {
+                skippedLines = skippedLines.replaceAll(System.lineSeparator() + "$", separator + header + System.lineSeparator());
+                if (sensorData == null) {
+                    sensorData = semanticToSensorData.getOrDefault(semantic, new SensorData() {{
+                        setHeader(semantic);
+                    }});
+                    semanticToSensorData.put(semantic, sensorData);
+                }
+                parser.setIndexByHeaderForSensorData(skippedLines, sensorData);
+                newlyAddedSemantics.add(semantic);
+            }
+        }
+
+        try (BufferedWriter writer = Files.newBufferedWriter(path)) {
+            writer.write(skippedLines);
+
+            String line;
+            for (GeoData gd : geoData) {
+                if (gd == null) {
+                    continue;
+                }
+                line = gd.getSourceLine();
+                for (var sv : gd.getSensorValues()) {
+                    if (!semanticsToSave.contains(sv.semantic())) {
+                        continue;
+                    }
+
+                    if (newlyAddedSemantics.contains(sv.semantic()) || !Objects.equals(sv.originalData(), sv.data())) {
+                        var template = semanticToSensorData.get(sv.semantic());
+                        line = replaceCsvValue(line, separator, Objects.requireNonNull(template).getIndex(), sv.data() != null ? String.format("%s", sv.data()) : "");
+                        gd.setSourceLine(line);
+                    }
+                }
+                writer.write(line);
+                writer.newLine();
+            }
+        }
+    }
+
+    private Set<String> getSemanticsToSave(Set<String> presentedSemantics, Map<String, SensorData> semanticToSensorData, String skippedLines) {
+        Set<String> semanticsToSave = new LinkedHashSet<>();
+        for (String semantic : presentedSemantics) {
+            if (semanticToSensorData.get(semantic) instanceof SensorData sensorData
+                    && skippedLines.contains(sensorData.getHeader())) {
+                semanticsToSave.add(semantic);
+            } else if (hasAnyValidValue(geoData, semantic)) {
+                semanticsToSave.add(semantic);
+            }
+        }
+        return semanticsToSave;
+    }
 
     private static String replaceCsvValue(String input, String separator, int position, String newValue) {
         String[] parts = input.split(separator, -1); // -1 for save empty string
@@ -301,33 +210,15 @@ public class CsvFile extends SgyFile {
         return String.join(separator, parts);
     }
 
-	private static String removeColumnData(String row, String separator, int columnIndex) {
-		String[] parts = row.split(separator, -1);
-		if (columnIndex < 0 || columnIndex >= parts.length) {
-			return row;
-		}
-		StringBuilder stringBuilder = new StringBuilder();
-		for (int i = 0; i < parts.length; i++) {
-			if (i == columnIndex) {
-				continue;
-			}
-			if (!stringBuilder.isEmpty()) {
-				stringBuilder.append(separator);
-			}
-			stringBuilder.append(parts[i]);
-		}
-		return stringBuilder.toString();
-	}
-
-	private boolean columnHasData(GeoData geoData, String headerName) {
-		if (geoData == null || geoData.getSensorValues() == null) {
-			return false;
-		}
-		return geoData.getSensorValues().stream()
-				.anyMatch(sensorValue -> sensorValue.semantic().equals(headerName)
-						&& sensorValue.data() != null
-						&& StringUtils.hasText(sensorValue.data().toString()));
-	}
+    private boolean hasAnyValidValue(List<GeoData> geoData, String semantic) {
+        for (GeoData gd : geoData) {
+            SensorValue sv = gd.getSensorValue(semantic);
+            if (sv != null && sv.data() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     @Override
     public List<GeoData> getGeoData() {
@@ -339,9 +230,9 @@ public class CsvFile extends SgyFile {
     }
 
     @Nullable
-	public CsvParser getParser() {
-		return parser;
-	}
+    public CsvParser getParser() {
+        return parser;
+    }
 
     @Nullable
     public Template getTemplate() {
@@ -360,12 +251,13 @@ public class CsvFile extends SgyFile {
     }
 
 	public void loadFrom(CsvFile other) {
+        this.parser = other.getParser();
 		this.setGeoData(other.getGeoData());
 		this.setAuxElements(other.getAuxElements());
 		this.setUnsaved(true);
 	}
 
-	public boolean isSameTemplate(CsvFile file) {
+    public boolean isSameTemplate(CsvFile file) {
         return Objects.equals(file.getTemplate(), getTemplate());
     }
 

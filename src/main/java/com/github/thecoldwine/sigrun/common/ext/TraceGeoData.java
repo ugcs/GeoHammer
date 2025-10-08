@@ -29,7 +29,7 @@ public class TraceGeoData extends GeoData {
     public TraceGeoData(int traceIndex) {
         super(
                 false,
-                0,
+                null,
                 newSensorValues(),
                 newGeoCoordinates(0, 0)
 

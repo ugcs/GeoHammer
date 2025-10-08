@@ -68,7 +68,7 @@ public class CsvParser extends Parser {
             parseDateFromNameOfFile(new File(logPath).getName());
         }
 
-        List<Row> rows = new ArrayList<>();
+        List<String> lines = new ArrayList<>();
         List<String> headers = new ArrayList<>();
 
         try (var reader = new BufferedReader(new FileReader(logPath))) {
@@ -88,53 +88,41 @@ public class CsvParser extends Parser {
                         .toList();
             }
 
-            // read data rows
-            var lineNumber = skippedLines.isEmpty() ? 0 : skippedLines.toString().split(System.lineSeparator()).length;
-
+            // read data lines
             while ((line = reader.readLine()) != null) {
-                lineNumber++;
-
                 if (isBlankOrCommented(line)) {
 					continue;
 				}
 
-                var values = line.split(template.getFileFormat().getSeparator());
-                if (values.length < 2) {
-					continue;
-				}
-
-                rows.add(new Row(lineNumber, values));
+                lines.add(line);
             }
 
             // Second pass: identify undeclared numeric headers
             Set<String> declaredHeader = getDeclaredHeaders();
-            Set<String> undeclaredNumericHeaders = findUndeclaredNumericHeaders(rows, headers, declaredHeader);
+            Set<String> undeclaredNumericHeaders = findUndeclaredNumericHeaders(lines, headers, declaredHeader);
 
             // Filter sensors to load
             List<SensorData> sensors = filterSensors(template.getDataMapping().getDataValues());
 
-            // Third pass: process all rows with known undeclared headers
+            // Third pass: process all lines with known undeclared headers
 
             var traceCount = 0;
-            for (Row row : rows) {
-                String[] values = row.values();
+            for (String dataLine : lines) {
+                String[] values = dataLine.split(template.getFileFormat().getSeparator());
 
 				BaseData templateLatitude = template.getDataMapping().getLatitude();
                 if (values.length <= templateLatitude.getIndex()) {
-                    log.warn("Row #{} is not correct: insufficient columns", row.lineNumber());
                     continue;
                 }
                 var lat = parseDouble(templateLatitude, values[templateLatitude.getIndex()]);
 
 				BaseData templateLongitude = template.getDataMapping().getLongitude();
                 if (values.length <= templateLongitude.getIndex()) {
-                    log.warn("Row #{} is not correct: insufficient columns", row.lineNumber());
                     continue;
                 }
                 var lon = parseDouble(templateLongitude, values[templateLongitude.getIndex()]);
 
                 if (lat == null || lon == null) {
-                    log.warn("Row #{} is not correct, lat or lon was not parsed", row.lineNumber());
                     continue;
                 }
 
@@ -174,7 +162,7 @@ public class CsvParser extends Parser {
                     marked = parseInt(markSensorData, values[markSensorData.getIndex()]) instanceof Integer i && i == 1;
                 }
 
-                coordinates.add(new GeoData(marked, row.lineNumber(), sensorValues, new GeoCoordinates(dateTime, lat, lon, alt, traceNumber)));
+                coordinates.add(new GeoData(marked, dataLine, sensorValues, new GeoCoordinates(dateTime, lat, lon, alt, traceNumber)));
             }
         } catch (Exception e) {
 			throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
@@ -236,7 +224,7 @@ public class CsvParser extends Parser {
         return declaredHeaders;
     }
 
-    private Set<String> findUndeclaredNumericHeaders(List<Row> rows, List<String> headers, Set<String> declaredHeaders) {
+    private Set<String> findUndeclaredNumericHeaders(List<String> lines, List<String> headers, Set<String> declaredHeaders) {
         Set<String> undeclaredNumericHeaders = new HashSet<>();
         for (int i = 0; i < headers.size(); i++) {
             String header = headers.get(i);
@@ -247,8 +235,8 @@ public class CsvParser extends Parser {
 
             // Check if this column contains numeric values in any row
             boolean hasNumericValue = false;
-            for (Row row : rows) {
-                String[] values = row.values();
+            for (String line : lines) {
+                String[] values = line.split(template.getFileFormat().getSeparator());
                 if (i >= values.length || values[i] == null || values[i].isEmpty()) {
 					continue;
 				}

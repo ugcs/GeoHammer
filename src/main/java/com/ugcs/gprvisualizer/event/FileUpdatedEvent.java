@@ -1,17 +1,16 @@
 package com.ugcs.gprvisualizer.event;
 
-import java.io.File;
-import java.util.List;
+import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 
 public class FileUpdatedEvent extends BaseEvent {
-	private final List<File> files;
+	private final SgyFile sgyFile;
 
-	public FileUpdatedEvent(Object source, List<File> files) {
+	public FileUpdatedEvent(Object source, SgyFile sgyFile) {
 		super(source);
-		this.files = files;
+		this.sgyFile = sgyFile;
 	}
 
-	public List<File> getFiles() {
-		return files;
+	public SgyFile getSgyFile() {
+		return sgyFile;
 	}
 }

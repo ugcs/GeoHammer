@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
@@ -405,18 +406,16 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 			return;
 		}
 
-		Set<File> updatedFiles = new HashSet<>(event.getFiles());
-		for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
-			if (updatedFiles.contains(csvFile.getFile())) {
-				Template template = csvFile.getTemplate();
-				if (templateEquals(template, selectedTemplate)) {
-					// reload template
-                    Platform.runLater(() -> {
-                        selectTemplate(template);
-                    });
-					break;
-				}
-			}
+		SgyFile sgyFile = event.getSgyFile();
+		if (!(sgyFile instanceof CsvFile csvFile)) {
+			return;
+		}
+		Template template = csvFile.getTemplate();
+		if (templateEquals(template, selectedTemplate)) {
+			// reload template
+			Platform.runLater(() -> {
+				selectTemplate(template);
+			});
 		}
 	}
 

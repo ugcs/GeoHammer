@@ -123,9 +123,9 @@ public class CsvFile extends SgyFile {
                 .map(bo -> ((FoundPlace) bo).getTraceIndex())
                 .collect(Collectors.toSet());
         for (int i = 0; i < geoData.size(); i++) {
-            GeoData currentGeoData = this.geoData.get(i);
-            boolean needMark = currentGeoData.isMarked() || foundPlaces.contains(i);
-            currentGeoData.setSensorValue(GeoData.Semantic.MARK.getName(), needMark ? 1 : 0);
+            GeoData gd = geoData.get(i);
+            boolean needMark = gd.isMarked() || foundPlaces.contains(i);
+            gd.setSensorValue(GeoData.Semantic.MARK.getName(), needMark ? 1 : 0);
         }
 
         String separator = parser.getTemplate().getFileFormat().getSeparator();

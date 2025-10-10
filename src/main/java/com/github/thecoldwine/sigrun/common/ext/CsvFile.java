@@ -124,8 +124,8 @@ public class CsvFile extends SgyFile {
                 .collect(Collectors.toSet());
         for (int i = 0; i < geoData.size(); i++) {
             GeoData gd = geoData.get(i);
-            boolean needMark = gd.isMarked() || foundPlaces.contains(i);
-            gd.setSensorValue(GeoData.Semantic.MARK.getName(), needMark ? 1 : 0);
+            boolean marked = gd.isMarked() || foundPlaces.contains(i);
+            gd.setSensorValue(GeoData.Semantic.MARK.getName(), marked ? 1 : 0);
         }
 
         String separator = parser.getTemplate().getFileFormat().getSeparator();
@@ -188,8 +188,9 @@ public class CsvFile extends SgyFile {
     private Set<String> getSemanticsToSave(Set<String> presentedSemantics, Map<String, SensorData> semanticToSensorData, String skippedLines) {
         Set<String> semanticsToSave = new LinkedHashSet<>();
         for (String semantic : presentedSemantics) {
-            if (semanticToSensorData.get(semantic) instanceof SensorData sensorData
-                    && skippedLines.contains(sensorData.getHeader())) {
+			SensorData sensorData = semanticToSensorData.get(semantic);
+			String header = sensorData != null ? sensorData.getHeader() : semantic;
+            if (skippedLines.contains(header)) {
                 semanticsToSave.add(semantic);
             } else if (hasAnyValidValue(geoData, semantic)) {
                 semanticsToSave.add(semantic);

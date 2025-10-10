@@ -15,7 +15,7 @@ import com.ugcs.gprvisualizer.app.quality.LineDistanceCheck;
 import com.ugcs.gprvisualizer.app.quality.QualityCheck;
 import com.ugcs.gprvisualizer.app.quality.QualityControl;
 import com.ugcs.gprvisualizer.app.quality.QualityIssue;
-import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
+import com.ugcs.gprvisualizer.app.scripts.ScriptExecutor;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.draw.QualityLayer;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
@@ -127,7 +127,7 @@ public class OptionPane extends VBox implements InitializingBean {
 	@Nullable private ScriptExecutionView scriptExecutionView;
 
 	@Autowired
-	private PythonScriptExecutorService pythonScriptExecutorService;
+	private ScriptExecutor scriptExecutor;
 
 	public OptionPane(MapView mapView, ProfileView profileView, Model model,
 					  LevelFilter levelFilter, PrefSettings prefSettings,
@@ -233,7 +233,7 @@ public class OptionPane extends VBox implements InitializingBean {
 				this::applyQualityControl,
 				this::applyQualityControlToAll);
 
-		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, pythonScriptExecutorService);
+		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, scriptExecutor);
 		StackPane scriptsPane = new StackPane(scriptExecutionView);
 
 		container.getChildren().addAll(List.of(
@@ -1167,7 +1167,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		elevationToggle.setMaxWidth(Double.MAX_VALUE);
 		elevationToggle.setOnAction(getChangeVisibleAction(elevationOptions));
 
-		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, pythonScriptExecutorService);
+		scriptExecutionView = new ScriptExecutionView(model, status, selectedFile, scriptExecutor);
 		StackPane scriptsPane = new StackPane(scriptExecutionView);
 		ToggleButton scriptsButton = new ToggleButton("Scripts");
 		scriptsButton.setMaxWidth(Double.MAX_VALUE);

@@ -386,7 +386,7 @@ public class ScriptExecutionView extends VBox {
 
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		model.publishEvent(new FileUpdatedEvent(this, List.of(file)));
+		model.publishEvent(new FileUpdatedEvent(this, sgyFile));
 	}
 
 	@Nullable

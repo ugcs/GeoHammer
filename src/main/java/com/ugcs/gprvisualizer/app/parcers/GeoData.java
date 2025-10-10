@@ -26,18 +26,18 @@ public class GeoData extends GeoCoordinates {
     }
 
     private final List<SensorValue> sensorValues;
-    
-    /** 
-     * Line number in the source file
+
+    /**
+     * Original line from source file
      */
-    private int fileLineNumber;
+    private String sourceLine;
 
     private final boolean marked;
 
-    public GeoData(boolean marked, int fileLineNumber, List<SensorValue> sensorValues, GeoCoordinates geoCoordinates) {
+    public GeoData(boolean marked, String sourceLine, List<SensorValue> sensorValues, GeoCoordinates geoCoordinates) {
         super(geoCoordinates.getLatitude(), geoCoordinates.getLongitude(), geoCoordinates.getAltitude(), geoCoordinates.getTimeInMs(), geoCoordinates.getTraceNumber(), geoCoordinates.getDateTime());
         this.sensorValues = sensorValues;
-        this.fileLineNumber = fileLineNumber;
+        this.sourceLine = sourceLine;
         this.marked = marked;
     }
 
@@ -47,7 +47,7 @@ public class GeoData extends GeoCoordinates {
         for (SensorValue sensorValue : geoData.sensorValues) {
             sensorValues.add(new SensorValue(sensorValue));
         }
-        this.fileLineNumber = geoData.fileLineNumber;
+        this.sourceLine = geoData.sourceLine;
         this.marked = geoData.marked;
     }
 
@@ -55,15 +55,15 @@ public class GeoData extends GeoCoordinates {
         return sensorValues;
     }
 
-    public int getFileLineNumber() {
-        return fileLineNumber;
-    }
+	public String getSourceLine() {
+		return sourceLine;
+	}
 
-    public void setFileLineNumber(int fileLineNumber) {
-        this.fileLineNumber = fileLineNumber;
-    }
+	public void setSourceLine(String sourceLine) {
+		this.sourceLine = sourceLine;
+	}
 
-    public void setLineIndex(int lineNumber) {
+	public void setLineIndex(int lineNumber) {
         setSensorValue(Semantic.LINE.name, lineNumber);
     }
 

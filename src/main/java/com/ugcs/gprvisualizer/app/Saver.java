@@ -3,7 +3,6 @@ package com.ugcs.gprvisualizer.app;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
@@ -143,25 +142,7 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		log.info("Saving CSV {}", file);
 
-		File folder = file.getParentFile();
-		String extension = FileNames.getExtension(file.getName());
-
-		// save to a temporary file
-		File tmp = File.createTempFile("tmp", "." + extension, folder);
-		csvFile.save(tmp);
-
-		// delete current file
-		boolean deleted = file.delete();
-		if (!deleted) {
-			log.error("Failed to delete file: {}", file);
-		}
-
-		// move tmp to a source path
-		boolean renamed = tmp.renameTo(file);
-		if (!renamed) {
-			log.error("Failed to rename file: {} -> {}", tmp, file);
-		}
-
+		csvFile.save(file);
 		csvFile.setUnsaved(false);
 
 		// Publish a file rename event to notify components

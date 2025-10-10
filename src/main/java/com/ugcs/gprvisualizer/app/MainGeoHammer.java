@@ -4,8 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.analytics.EventSender;
 import com.ugcs.gprvisualizer.analytics.EventsFactory;
 import com.ugcs.gprvisualizer.app.service.FileOpenEventsAnalytics;
-import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
-import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
+
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Application;
@@ -63,10 +62,6 @@ public class MainGeoHammer extends Application {
 		context.getBean(FileOpenEventsAnalytics.class);
 
 		eventsFactory = context.getBean(EventsFactory.class);
-
-		context.getBean(PythonScriptExecutorService.class);
-
-		context.getBean(PythonConfig.class);
     }
 
 	@Override
@@ -116,21 +111,5 @@ public class MainGeoHammer extends Application {
 		eventSender.send(eventsFactory.createAppStartedEvent(appBuildInfo.getBuildVersion()));
 	}
 
-
-	private static final ProgressListener emptyListener = new ProgressListener() {
-		@Override
-		public void progressPercent(int percent) {}
-		
-		@Override
-		public void progressMsg(String msg) {}
-
-		@Override
-		public void progressSubMsg(String msg) {
-			// TODO Auto-generated method stub
-			
-		}
-	};
-
 	private BuildInfo appBuildInfo;
-
 }

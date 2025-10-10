@@ -1,45 +1,39 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.scripts.JsonScriptMetadataLoader;
+import com.ugcs.gprvisualizer.app.scripts.ScriptException;
+import com.ugcs.gprvisualizer.app.scripts.ScriptParameter;
+import com.ugcs.gprvisualizer.app.scripts.ScriptMetadata;
 import com.ugcs.gprvisualizer.app.scripts.ScriptMetadataLoader;
-import com.ugcs.gprvisualizer.app.service.PythonScriptExecutorService;
-import com.ugcs.gprvisualizer.dzt.DztFile;
-import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
-import com.ugcs.gprvisualizer.event.WhatChanged;
+import com.ugcs.gprvisualizer.app.scripts.ScriptExecutor;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.FileTemplate;
+import com.ugcs.gprvisualizer.utils.Strings;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,26 +43,38 @@ public class ScriptExecutionView extends VBox {
 
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutionView.class);
 
+	private static final int MAX_OUTPUT_LINES_IN_DIALOG = 7;
+
 	private final Model model;
+
 	@Nullable
 	private SgyFile selectedFile;
-	private final PythonScriptExecutorService scriptExecutorService;
+
+	private final ScriptExecutor scriptExecutor;
+
 	private final Status status;
-	private final Stage primaryStage = AppContext.stage;
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+	private final ExecutorService executor = Executors.newCachedThreadPool();
+
 	private final ProgressIndicator progressIndicator;
+
 	private final VBox parametersBox;
+
 	private final ComboBox<String> scriptsMetadataSelector;
+
 	private final Button applyButton;
+
 	private List<ScriptMetadata> scriptsMetadata = List.of();
+
 	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionView.class);
+
 	@Nullable
 	private ScriptMetadata currentScriptMetadata = null;
 
-	public ScriptExecutionView(Model model, Status status, @Nullable SgyFile selectedFile, PythonScriptExecutorService scriptExecutorService) {
+	public ScriptExecutionView(Model model, Status status, @Nullable SgyFile selectedFile, ScriptExecutor scriptExecutor) {
 		this.model = model;
 		this.status = status;
-		this.scriptExecutorService = scriptExecutorService;
+		this.scriptExecutor = scriptExecutor;
 
 		setSpacing(OptionPane.DEFAULT_SPACING);
 		setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
@@ -93,7 +99,7 @@ public class ScriptExecutionView extends VBox {
 		scriptsMetadataSelector.setOnAction(e -> {
 			String filename = scriptsMetadataSelector.getValue();
 			ScriptMetadata selected = scriptsMetadata.stream()
-					.filter(scriptMetadata -> scriptMetadata.filename.equals(filename))
+					.filter(scriptMetadata -> scriptMetadata.filename().equals(filename))
 					.findFirst()
 					.orElse(null);
 
@@ -108,7 +114,7 @@ public class ScriptExecutionView extends VBox {
 					parametersBox.getChildren().add(parametersLabel);
 				}
 
-				for (PythonScriptParameter param : selected.parameters()) {
+				for (ScriptParameter param : selected.parameters()) {
 					VBox paramBox = createParameterInput(param);
 					parametersBox.getChildren().add(paramBox);
 				}
@@ -123,7 +129,7 @@ public class ScriptExecutionView extends VBox {
 		applyButton.setOnAction(event -> {
 			String filename = scriptsMetadataSelector.getValue();
 			ScriptMetadata selected = scriptsMetadata.stream()
-					.filter(scriptMetadata -> scriptMetadata.filename.equals(filename))
+					.filter(scriptMetadata -> scriptMetadata.filename().equals(filename))
 					.findFirst()
 					.orElse(null);
 			executeScript(selected);
@@ -149,18 +155,12 @@ public class ScriptExecutionView extends VBox {
 			List<ScriptMetadata> loadedScriptsMetadata;
 			try {
 				ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
-				Path scriptsPath;
-				try {
-					scriptsPath = scriptExecutorService.getScriptsPath();
-				} catch (URISyntaxException e) {
-					log.error("Failed to get scripts path", e);
-					showExceptionDialog("Scripts Directory Error", "No scripts directory. Please check that scripts directory exists and is accessible.");
-					scriptsPath = Path.of("");
-				}
+				Path scriptsPath = scriptExecutor.getScriptsPath();
 				loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
 			} catch (IOException e) {
 				log.warn("Failed to load scripts", e);
-				showExceptionDialog("Scripts Directory Error", "Failed to load scripts metadata: " + e.getMessage());
+				MessageBoxHelper.showError("Scripts Directory Error",
+						"Failed to load scripts metadata: " + e.getMessage());
 				loadedScriptsMetadata = List.of();
 			}
 			String currentFileTemplate = selectedFile != null ? FileTemplate.getTemplateName(model, selectedFile.getFile()) : null;
@@ -182,9 +182,9 @@ public class ScriptExecutionView extends VBox {
 				applyButton.setDisable(true);
 			}
 
-			if (selectedFile != null && scriptExecutorService.isExecuting(selectedFile)) {
+			if (selectedFile != null && scriptExecutor.isExecuting(selectedFile)) {
 				setExecutingProgress(true);
-				String executingScriptName = scriptExecutorService.getExecutingScriptName(selectedFile);
+				String executingScriptName = scriptExecutor.getExecutingScriptName(selectedFile);
 				if (executingScriptName != null) {
 					scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
 				} else {
@@ -196,7 +196,7 @@ public class ScriptExecutionView extends VBox {
 		});
 	}
 
-	private VBox createParameterInput(PythonScriptParameter param) {
+	private VBox createParameterInput(ScriptParameter param) {
 		VBox paramBox = new VBox(5);
 		String labelText = param.displayName() + (param.required() ? " *" : "");
 		Label label = new Label(labelText);
@@ -205,14 +205,14 @@ public class ScriptExecutionView extends VBox {
 		String initialValue = loadStoredParamValue(scriptFilename, param.name(), param.defaultValue());
 
 		Node inputNode = getInputNode(param, initialValue, labelText);
-		if (param.type() != PythonScriptParameter.ParameterType.BOOLEAN) {
+		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
 			paramBox.getChildren().add(label);
 		}
 		paramBox.getChildren().add(inputNode);
 		return paramBox;
 	}
 
-	private static Node getInputNode(PythonScriptParameter param, String initialValue, String labelText) {
+	private static Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
 		Node inputNode = switch (param.type()) {
 			case STRING, FILE_PATH -> {
 				TextField textField = new TextField(initialValue);
@@ -258,51 +258,61 @@ public class ScriptExecutionView extends VBox {
 			log.error("No script selected for execution");
 			return;
 		}
-		setExecutingProgress(true);
 
-		Map<String, String> parameters = extractScriptParams(scriptMetadata.parameters);
+		Map<String, String> parameters = extractScriptParams(scriptMetadata.parameters());
 		storeParamValues(scriptMetadata.filename(), parameters);
-		Future<PythonScriptExecutorService.ScriptExecutionResult> future =
-				scriptExecutorService.executeScriptAsync(selectedFile, scriptMetadata, parameters);
+
+		ArrayDeque<String> lastOutputLines = new ArrayDeque<>();
+		Consumer<String> onScriptOutput = line -> {
+			if (Strings.isNullOrEmpty(line)) {
+				return;
+			}
+			lastOutputLines.offer(line);
+			if (lastOutputLines.size() > MAX_OUTPUT_LINES_IN_DIALOG) {
+				lastOutputLines.poll();
+			}
+			status.showMessage(line, scriptMetadata.displayName());
+		};
 
 		executor.submit(() -> {
+			setExecutingProgress(true);
 			try {
-				PythonScriptExecutorService.ScriptExecutionResult result = future.get();
-				handleScriptResult(result, scriptMetadata);
+				scriptExecutor.executeScript(selectedFile, scriptMetadata, parameters, onScriptOutput);
+				showSuccess(scriptMetadata);
 			} catch (Exception e) {
-				showExceptionDialog("Script Execution Error", "Failed to execute script: " + e.getMessage());
+				String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
+				showError(scriptMetadata, e, scriptOutput);
 			} finally {
-				setExecutingProgress(false);
+				if (Objects.equals(selectedFile, this.selectedFile)) {
+					setExecutingProgress(false);
+				}
 			}
+			return null;
 		});
 	}
 
-	private void handleScriptResult(PythonScriptExecutorService.ScriptExecutionResult result, ScriptMetadata scriptMetadata) {
-		if (result instanceof PythonScriptExecutorService.ScriptExecutionResult.Success) {
-			handleSuccessResult((PythonScriptExecutorService.ScriptExecutionResult.Success) result, scriptMetadata);
-		} else {
-			PythonScriptExecutorService.ScriptExecutionResult.Error errorResult = (PythonScriptExecutorService.ScriptExecutionResult.Error) result;
-			showErrorDialog(scriptMetadata.displayName, errorResult.getCode(), errorResult.getOutput());
-		}
+	private void showSuccess(ScriptMetadata scriptMetadata) {
+		status.showMessage("Script executed successfully.", scriptMetadata.displayName());
 	}
 
-	private void handleSuccessResult(PythonScriptExecutorService.ScriptExecutionResult.Success result, ScriptMetadata scriptMetadata) {
-		String successMessage = "Script '" + scriptMetadata.displayName + "' executed successfully.";
-		String output = result.getOutput();
-		if (output != null && !output.isEmpty()) {
-			successMessage += "\nOutput: " + output;
-		}
-		status.showMessage(successMessage, "Script");
-		Path resultPath = result.getModifiedFilePath();
-		if (resultPath != null && Files.exists(resultPath)) {
-			File fileToOpen = resultPath.toFile();
-			loadResultsToFile(fileToOpen, result.getOriginalSelectedFile());
-		} else {
-			showExceptionDialog("Script Execution Error","Selected file does not exist or is not valid.");
-		}
+	private void showError(ScriptMetadata scriptMetadata, Exception e, String scriptOutput) {
+		String title = "Script Execution Error";
+		String message;
+
+        if (e instanceof ScriptException scriptException) {
+            message = "Script '" + scriptMetadata.filename()
+                    + "' failed with exit code " + scriptException.getExitCode() + ".";
+            if (!Strings.isNullOrEmpty(scriptOutput)) {
+                message += System.lineSeparator() + "Output:"
+                        + System.lineSeparator() + scriptOutput;
+            }
+        } else {
+            message = "Failed to execute script: " + e.getMessage();
+        }
+		MessageBoxHelper.showError(title, message);
 	}
 
-	private Map<String, String> extractScriptParams(List<PythonScriptParameter> params) {
+	private Map<String, String> extractScriptParams(List<ScriptParameter> params) {
 		Map<String, String> parameters = new HashMap<>();
 		for (Node paramBox : parametersBox.getChildren()) {
 			if (!(paramBox instanceof VBox)) {
@@ -329,66 +339,6 @@ public class ScriptExecutionView extends VBox {
 		return parameters;
 	}
 
-	private void loadResultsToFile(File resultsFile, SgyFile originalSelectedFile) {
-		if (originalSelectedFile == null) {
-			log.error("No file selected to load results into");
-			return;
-		}
-
-		try {
-			switch (originalSelectedFile) {
-				case CsvFile openedCsvFile -> {
-					CsvFile modifiedCsvFile = new CsvFile(model.getFileManager().getFileTemplates());
-					modifiedCsvFile.open(resultsFile);
-					openedCsvFile.loadFrom(modifiedCsvFile);
-
-					Platform.runLater(() -> notifyFileChanged(openedCsvFile));
-				}
-				case GprFile openedGprFile -> {
-					GprFile modifiedGprFile = new GprFile();
-					modifiedGprFile.open(resultsFile);
-					openedGprFile.loadFrom(modifiedGprFile);
-
-					Platform.runLater(() -> notifyFileChanged(openedGprFile));
-				}
-				case DztFile openedDztFile -> {
-					DztFile modifiedTraceFile = new DztFile();
-					modifiedTraceFile.open(resultsFile);
-					openedDztFile.loadFrom(modifiedTraceFile);
-
-					Platform.runLater(() -> notifyFileChanged(openedDztFile));
-				}
-				default -> showExceptionDialog("File Load Error",
-						"Unsupported file type for loading results: " + originalSelectedFile.getClass().getSimpleName());
-			}
-		} catch (Exception e) {
-			showExceptionDialog("File Load Error", "Failed to load result file: " + e.getMessage());
-		} finally {
-			if (!resultsFile.delete()) {
-				log.warn("Failed to delete temporary results file: {}", resultsFile.getAbsolutePath());
-			}
-		}
-	}
-
-	private void notifyFileChanged(SgyFile sgyFile) {
-		File file = sgyFile.getFile();
-		if (file == null) {
-			return;
-		}
-		sgyFile.rebuildLineRanges();
-
-		Chart chart = model.getFileChart(sgyFile);
-		if (chart != null) {
-			chart.reload();
-		}
-
-		model.updateAuxElements();
-
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		model.publishEvent(new FileUpdatedEvent(this, sgyFile));
-	}
-
 	@Nullable
 	private String extractValueFromNode(Node node) {
 		return switch (node) {
@@ -404,57 +354,5 @@ public class ScriptExecutionView extends VBox {
 		parametersBox.setDisable(inProgress);
 		applyButton.setDisable(inProgress);
 		scriptsMetadataSelector.setDisable(inProgress);
-	}
-
-	private void showErrorDialog(String scriptName, int exitCode, @javax.annotation.Nullable String output) {
-		Platform.runLater(() -> {
-			Dialog<String> dialog = new Dialog<>();
-			dialog.initOwner(primaryStage);
-			dialog.setTitle("Script Execution Error");
-			dialog.setHeaderText("Error");
-			String errorMessage = "Script '" + scriptName + "' failed with exit code " + exitCode + ".";
-			if (output != null && !output.isEmpty()) {
-				errorMessage += "\nOutput: " + output;
-			}
-			dialog.setContentText(errorMessage);
-			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
-			dialog.showAndWait();
-		});
-
-	}
-
-	private void showExceptionDialog(String title, String errorMessage) {
-		Platform.runLater(() -> {
-			Dialog<String> dialog = new Dialog<>();
-			dialog.initOwner(primaryStage);
-			dialog.setTitle(title);
-			dialog.setHeaderText("Error");
-			dialog.setContentText(errorMessage);
-			dialog.getDialogPane().getButtonTypes().add(ButtonType.OK);
-			dialog.showAndWait();
-		});
-	}
-
-	public record ScriptMetadata(
-			String filename,
-			@JsonProperty("display_name")
-			String displayName,
-			List<PythonScriptParameter> parameters,
-			List<String> templates
-	) {
-	}
-
-	public record PythonScriptParameter(
-			String name,
-			@JsonProperty("display_name")
-			String displayName,
-			ParameterType type,
-			@JsonProperty("default_value")
-			String defaultValue,
-			boolean required
-	) {
-		public enum ParameterType {
-			STRING, INTEGER, DOUBLE, BOOLEAN, FILE_PATH
-		}
 	}
 }

@@ -11,6 +11,7 @@ import java.util.Objects;
 
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.PositionFile;
+import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.kml.KmlReader;
 
@@ -18,11 +19,13 @@ import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
+import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
+import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -285,5 +288,48 @@ public class Loader {
 		}
 
 		model.updateAuxElements();
+	}
+
+	public void loadFrom(SgyFile sgyFile, File file) throws IOException {
+		Check.notNull(sgyFile);
+		Check.notNull(file);
+
+		switch (sgyFile) {
+			case CsvFile csvFile -> {
+				CsvFile temp = new CsvFile(model.getFileManager().getFileTemplates());
+				temp.open(file);
+				csvFile.loadFrom(temp);
+			}
+			case GprFile gprFile -> {
+				GprFile temp = new GprFile();
+				temp.open(file);
+				gprFile.loadFrom(temp);
+			}
+			case DztFile dztFile -> {
+				DztFile temp = new DztFile();
+				temp.open(file);
+				dztFile.loadFrom(temp);
+			}
+			default -> throw new IllegalArgumentException(
+					"Unsupported file type: " + sgyFile.getClass().getSimpleName());
+		}
+		Platform.runLater(() -> notifyFileChanged(sgyFile));
+	}
+
+	private void notifyFileChanged(SgyFile sgyFile) {
+		Check.notNull(sgyFile);
+
+		sgyFile.rebuildLineRanges();
+
+		Chart chart = model.getFileChart(sgyFile);
+		if (chart != null) {
+			chart.reload();
+		}
+
+		model.updateAuxElements();
+
+		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+		model.publishEvent(new FileUpdatedEvent(this, sgyFile));
 	}
 }

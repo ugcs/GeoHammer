@@ -1,6 +1,5 @@
 package com.ugcs.gprvisualizer.app.scripts;
 
-import com.ugcs.gprvisualizer.app.ScriptExecutionView;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,7 +16,7 @@ public class JsonScriptMetadataLoaderTest {
 	void loadsScriptsFromDirectory() throws Exception {
 		Path testDir = Paths.get("src/test/resources/scripts");
 		ScriptMetadataLoader loader = new JsonScriptMetadataLoader();
-		List<ScriptExecutionView.ScriptMetadata> scripts = loader.loadScriptMetadata(testDir);
+		List<ScriptMetadata> scripts = loader.loadScriptMetadata(testDir);
 		Assertions.assertFalse(scripts.isEmpty());
 	}
 
@@ -26,7 +25,7 @@ public class JsonScriptMetadataLoaderTest {
 	void returnsEmptyListForEmptyDirectory() throws Exception {
 		Path emptyDir = Files.createTempDirectory("empty-scripts");
 		ScriptMetadataLoader loader = new JsonScriptMetadataLoader();
-		List<ScriptExecutionView.ScriptMetadata> scripts = loader.loadScriptMetadata(emptyDir);
+		List<ScriptMetadata> scripts = loader.loadScriptMetadata(emptyDir);
 		assertTrue(scripts.isEmpty());
 		Files.delete(emptyDir);
 	}
@@ -48,7 +47,7 @@ public class JsonScriptMetadataLoaderTest {
 		Path txtFile = tempDir.resolve("not_a_script.txt");
 		Files.writeString(txtFile, "not a script");
 		ScriptMetadataLoader loader = new JsonScriptMetadataLoader();
-		List<ScriptExecutionView.ScriptMetadata> scripts = loader.loadScriptMetadata(tempDir);
+		List<ScriptMetadata> scripts = loader.loadScriptMetadata(tempDir);
 		assertTrue(scripts.isEmpty());
 		Files.delete(txtFile);
 		Files.delete(tempDir);

@@ -13,17 +13,9 @@ import de.micromata.opengis.kml.v_2_2_0.Point;
 
 import java.io.File;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class KmlReader {
-
-    public static void main(String[] args) {
-
-        //TODO: remove this main method and create a test for this class
-        //new KmlReader().read(new File("c:\\work\\gpr-data\\2022-04-28 Cobra Plug-In\\DAT_0010.kml"), new Model());
-
-    }
 
     public void read(File file, Model model) {
         Kml kml = Kml.unmarshal(file);
@@ -31,7 +23,6 @@ public class KmlReader {
         Document doc = (Document) kml.getFeature();
         List<Feature> features = doc.getFeature();
 
-        //Placemark> placemarks =
         features.stream()
             .flatMap(f -> {
                 if (f instanceof Placemark) {

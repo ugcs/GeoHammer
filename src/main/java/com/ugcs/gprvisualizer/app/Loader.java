@@ -8,6 +8,8 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutorService;
 
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.PositionFile;
@@ -15,6 +17,7 @@ import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.kml.KmlReader;
 
+import com.ugcs.gprvisualizer.app.service.task.TaskService;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.dzt.DztFile;
 import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
@@ -55,11 +58,18 @@ public class Loader {
 
 	private final ApplicationEventPublisher eventPublisher;
 
+	private final TaskService taskService;
+
+	private final ExecutorService executor;
+
 	@Autowired
-	public Loader(Model model, Status status, ApplicationEventPublisher eventPublisher) {
+	public Loader(Model model, Status status, ApplicationEventPublisher eventPublisher,
+			TaskService taskService, ExecutorService executor) {
 		this.model = model;
 		this.status = status;
 		this.eventPublisher = eventPublisher;
+		this.taskService = taskService;
+		this.executor = executor;
 	}
 
 	public EventHandler<DragEvent> getDragHandler() {
@@ -84,9 +94,7 @@ public class Loader {
         }
 
         List<File> files = dragboard.getFiles();
-        if (load(files)) {
-			return;
-		}
+        load(files);
 
         event.setDropCompleted(true);
         event.consume();
@@ -101,13 +109,20 @@ public class Loader {
 	 *
 	 * @param files the list of files to be loaded; each file is evaluated to determine
 	 *              its type and processed accordingly
-	 * @return true if the files are successfully loaded and processed; false if need some aditional logic for processing.
 	 */
-	public boolean load(List<File> files) {
+	public void load(List<File> files) {
+		if (files.isEmpty()) {
+			return;
+		}
+
 		ProgressTask loadTask = listener -> {
 			List<File> openedFiles = new ArrayList<>();
 
 			for (File file : prepareOpenFiles(files)) {
+				if (Thread.currentThread().isInterrupted()) {
+					break;
+				}
+
 				model.setLoading(true);
 				try {
 					listener.progressMsg("Opening " + file);
@@ -117,9 +132,14 @@ public class Loader {
 						listener.progressMsg("File opened: " + file);
 						openedFiles.add(file);
 					}
+				} catch (CancellationException e) {
+					// loading cancelled
+					log.warn("Loading cancelled", e);
+					break;
 				} catch (Exception e) {
 					log.error("Error", e);
 					listener.progressMsg("Error: " + e.getMessage());
+
 					eventPublisher.publishEvent(new FileOpenErrorEvent(this, file, e));
 					MessageBoxHelper.showError(
 							"Can`t open file " + file.getName(),
@@ -130,16 +150,26 @@ public class Loader {
 			}
 
 			if (!openedFiles.isEmpty()) {
-				eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.updateButtons));
-				eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-				eventPublisher.publishEvent(new FileOpenedEvent(this, files));
+				// run in app thread to wait for open postponed tasks
+				Platform.runLater(() -> {
+					eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.updateButtons));
+					eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+					eventPublisher.publishEvent(new FileOpenedEvent(this, openedFiles));
+				});
 			} else {
 				listener.progressMsg("No files loaded");
 			}
         };
 
-		new TaskRunner(status, loadTask).start();
-		return false;
+		String taskName = files.size() == 1
+				? "Loading " + files.getFirst().getName()
+				: "Loading " + files.size()	+ " files";
+
+		TaskRunner runner = new TaskRunner(status, loadTask);
+		var future = executor.submit(() -> {
+			runner.start(false);
+		});
+		taskService.registerTask(future, taskName);
 	}
 
 	private List<File> prepareOpenFiles(List<File> files) {
@@ -219,8 +249,6 @@ public class Loader {
 
 		gprFile.open(file);
 
-		model.getFileManager().addFile(gprFile);
-
 		// positions
 		FileTemplates templates = model.getFileManager().getFileTemplates();
 		try {
@@ -229,8 +257,11 @@ public class Loader {
 			log.warn("Error loading positions file", e);
 		}
 
-		model.updateAuxElements();
-		model.initField();
+		Platform.runLater(() -> {
+			model.getFileManager().addFile(gprFile);
+			model.updateAuxElements();
+			model.initField();
+		});
 	}
 
 	private void openDztFile(File file) throws IOException {
@@ -240,9 +271,11 @@ public class Loader {
 
 		dztFile.open(file);
 
-		model.getFileManager().addFile(dztFile);
-		model.updateAuxElements();
-		model.initField();
+		Platform.runLater(() -> {
+			model.getFileManager().addFile(dztFile);
+			model.updateAuxElements();
+			model.initField();
+		});
 	}
 
 	private void openCsvFile(File file) throws IOException {
@@ -255,16 +288,18 @@ public class Loader {
 			throw new IOException("File has no data.");
 		}
 
-		if (model.getCsvChart(csvFile).isEmpty()) {
-			model.getFileManager().addFile(csvFile);
-			model.updateAuxElements();
-			model.initCsvChart(csvFile);
-			model.initField();
-		} else if (csvFile.getFile() != null && Objects.equals(file.getAbsolutePath(), csvFile.getFile().getAbsolutePath())) {
-			model.recreateCsvChart(csvFile);
-			model.updateAuxElements();
-			model.initField();
-		}
+		Platform.runLater(() -> {
+			if (model.getCsvChart(csvFile).isEmpty()) {
+				model.getFileManager().addFile(csvFile);
+				model.updateAuxElements();
+				model.initCsvChart(csvFile);
+				model.initField();
+			} else if (csvFile.getFile() != null && Objects.equals(file.getAbsolutePath(), csvFile.getFile().getAbsolutePath())) {
+				model.recreateCsvChart(csvFile);
+				model.updateAuxElements();
+				model.initField();
+			}
+		});
 	}
 
 	private void openKmlFile(File file) {
@@ -287,7 +322,9 @@ public class Loader {
 			constPointFile.calcVerticalCutNearestPoints(traceFile);
 		}
 
-		model.updateAuxElements();
+		Platform.runLater(() -> {
+			model.updateAuxElements();
+		});
 	}
 
 	public void loadFrom(SgyFile sgyFile, File file) throws IOException {

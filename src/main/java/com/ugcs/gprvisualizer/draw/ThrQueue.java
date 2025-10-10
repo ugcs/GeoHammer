@@ -34,44 +34,42 @@ public abstract class ThrQueue {
         return actual;
     }
 
-    void add() {
+    public void add() {
         executor.submit(getWorker());
     }
 
     private Runnable getWorker() {
-        return new Thread() {
-            public void run() {
-                try {
-                    if (executor.getQueue().size() > 0) {
-                        return;
-                    }
-
-                    actualizeBackImg();
-
-                    MapField field = new MapField(model.getMapField());
-
-                    ///
-                    draw(backImg, field);
-                    ///
-
-                    BufferedImage img = backImg;
-                    backImg = frontImg;
-                    frontImg = img;
-
-                    if (img == null) {
-                        backImg = null;
-                        frontImg = null;
-
-                        clear();
-                        return;
-                    }
-                    actual = new ThrFront(img, field);
-                    ready();
-
-
-                } catch (Exception e) {
-                    e.printStackTrace();
+        return () -> {
+            try {
+                if (executor.getQueue().size() > 0) {
+                    return;
                 }
+
+                actualizeBackImg();
+
+                MapField field = new MapField(model.getMapField());
+
+                ///
+                draw(backImg, field);
+                ///
+
+                BufferedImage img = backImg;
+                backImg = frontImg;
+                frontImg = img;
+
+                if (img == null) {
+                    backImg = null;
+                    frontImg = null;
+
+                    clear();
+                    return;
+                }
+                actual = new ThrFront(img, field);
+                ready();
+
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         };
     }

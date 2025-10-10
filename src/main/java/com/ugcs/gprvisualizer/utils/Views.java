@@ -1,10 +1,13 @@
 package com.ugcs.gprvisualizer.utils;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 
 public final class Views {
 
@@ -22,15 +25,17 @@ public final class Views {
 
     public static Button createGlyphButton(String text, int width, int height) {
         Label iconLabel = new Label(text);
-        iconLabel.setStyle("-fx-font-family: 'System', 'Arial', sans-serif;"
-                + "-fx-text-fill: white;"
-                + "-fx-alignment: center;"
-                + "-fx-text-alignment: center;"
+        iconLabel.setStyle(
+                "-fx-font-family: 'System', 'Arial', sans-serif;" +
+                "-fx-text-fill: white;" +
+                "-fx-alignment: center;" +
+                "-fx-text-alignment: center;"
         );
 
         Button button = new Button();
         button.setGraphic(iconLabel);
-        button.setStyle("-fx-background-color: #a0a0a0;" +
+        button.setStyle(
+                "-fx-background-color: #a0a0a0;" +
                 "-fx-background-radius: 50%;" +
                 "-fx-alignment: center;" +
                 "-fx-content-display: graphic-only;"
@@ -40,6 +45,29 @@ public final class Views {
         button.setMinSize(width, height);
         button.setMaxSize(width, height);
         button.setCursor(Cursor.HAND);
+        return button;
+    }
+
+    public static Button createFlatButton(String text, int height) {
+        Button button = new Button(text);
+        button.setTextFill(Color.WHITE);
+        button.setFont(Font.font("Arial", 12));
+        button.setPadding(new Insets(0, 8, 0, 8));
+        button.setAlignment(Pos.CENTER);
+        button.setCursor(Cursor.HAND);
+
+        button.setStyle(
+                "-fx-background-color: #a0a0a0;" +
+                "-fx-background-radius: " + height / 2 + ";"
+        );
+
+        button.setPrefHeight(height);
+        button.setMinHeight(height);
+        button.setMaxHeight(height);
+
+        button.setMinWidth(Region.USE_PREF_SIZE);
+        button.setMaxWidth(Region.USE_PREF_SIZE);
+
         return button;
     }
 }

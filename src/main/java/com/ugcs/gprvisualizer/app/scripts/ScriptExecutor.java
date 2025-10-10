@@ -64,6 +64,9 @@ public class ScriptExecutor {
 
 			List<String> command = buildCommand(scriptMetadata, parameters, tempFile.toPath());
 			runScript(command, onScriptOutput);
+			if (Thread.currentThread().isInterrupted()) {
+				throw new InterruptedException();
+			}
 
 			loader.loadFrom(sgyFile, tempFile);
 		} finally {

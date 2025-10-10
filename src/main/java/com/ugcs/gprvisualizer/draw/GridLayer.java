@@ -4,21 +4,20 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.ugcs.gprvisualizer.app.MapView;
 import com.ugcs.gprvisualizer.app.OptionPane;
+import com.ugcs.gprvisualizer.app.SensorLineChart;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.app.service.GriddingResult;
+import com.ugcs.gprvisualizer.app.service.GriddingService;
+import com.ugcs.gprvisualizer.app.service.task.TaskService;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -26,7 +25,7 @@ import com.ugcs.gprvisualizer.math.AnalyticSignal;
 import com.ugcs.gprvisualizer.math.AnalyticSignalFilter;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
-import edu.mines.jtk.interp.SplinesGridder2;
+import com.ugcs.gprvisualizer.utils.Strings;
 import javafx.scene.control.Button;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
@@ -63,6 +62,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
     private final Model model;
 
+    private final TaskService taskService;
+
+    private final GriddingService griddingService;
+
+    private final ExecutorService executor;
+
     private final MapView mapView;
 
     private final OptionPane optionPane;
@@ -79,10 +84,6 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
     // Map to store gridding results for each file
     private final Map<File, GriddingResult> griddingResults = new ConcurrentHashMap<>();
 
-    private volatile boolean recalcGrid;
-
-    private boolean toAll;
-
     private final EventHandler<ActionEvent> showMapListener = new EventHandler<>() {
         @Override
         public void handle(ActionEvent event) {
@@ -92,78 +93,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         }
     };
 
-    public record DataPoint(double latitude, double longitude, double value) implements Comparable<DataPoint> {
-        public DataPoint {
-            if (latitude < -90 || latitude > 90) {
-                throw new IllegalArgumentException("Latitude must be in range [-90, 90]");
-            }
-            if (longitude < -180 || longitude > 180) {
-                throw new IllegalArgumentException("Longitude must be in range [-180, 180]");
-            }
-        }
-
-        @Override
-        public int compareTo(DataPoint o) {
-            return latitude == o.latitude ? Double.compare(longitude, o.longitude) : Double.compare(latitude, o.latitude);
-        }
-    }
-
-    public record Grid(
-            float[][] values,
-            float minValue,
-            float maxValue,
-            LatLon minLatLon,
-            LatLon maxLatLon
-    ) {
-    }
-
-    // Class to store gridding result for a file
-    private record GriddingResult(
-            float[][] gridData,
-            float[][] smoothedGridData,
-            LatLon minLatLon,
-            LatLon maxLatLon,
-            double cellSize,
-            double blankingDistance,
-            float minValue,
-            float maxValue,
-            String sensor,
-            // Analytic signal
-            boolean analyticSignalEnabled,
-            // Hill-shading parameters
-            boolean hillShadingEnabled,
-            boolean smoothingEnabled,
-            double hillShadingAzimuth,
-            double hillShadingAltitude,
-            double hillShadingIntensity) {
-
-        public GriddingResult setValues(float minValue,
-                                        float maxValue,
-                                        boolean analyticSignalEnabled,
-                                        boolean hillShadingEnabled,
-                                        boolean smoothingEnabled) {
-            return new GriddingResult(
-                    gridData,
-                    smoothedGridData,
-                    minLatLon,
-                    maxLatLon,
-                    cellSize,
-                    blankingDistance,
-                    minValue,
-                    maxValue,
-                    sensor,
-                    analyticSignalEnabled,
-                    hillShadingEnabled,
-                    smoothingEnabled,
-                    hillShadingAzimuth,
-                    hillShadingAltitude,
-                    hillShadingIntensity
-            );
-        }
-    }
-
-    public GridLayer(Model model, MapView mapView, OptionPane optionPane) {
+    public GridLayer(Model model, TaskService taskService, GriddingService griddingService,
+                     ExecutorService executor, MapView mapView, OptionPane optionPane) {
         this.model = model;
+        this.taskService = taskService;
+        this.griddingService = griddingService;
+        this.executor = executor;
         this.mapView = mapView;
         this.optionPane = optionPane;
     }
@@ -174,17 +109,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
         q = new ThrQueue(model, mapView) {
             protected void draw(BufferedImage backImg, MapField field) {
-                if (recalcGrid) {
-                    optionPane.griddingProgress(true);
-                }
-
                 Graphics2D g2 = (Graphics2D) backImg.getGraphics();
                 g2.translate(backImg.getWidth() / 2, backImg.getHeight() / 2);
                 drawOnMapField(g2, field);
             }
 
             public void ready() {
-                optionPane.griddingProgress(false);
                 getRepaintListener().repaint();
             }
         };
@@ -200,23 +130,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         q.drawImgOnChangedField(g2, currentField, q.getFront());
     }
 
-
     public void drawOnMapField(Graphics2D g2, MapField field) {
         if (isActive()) {
             if (currentFile != null) {
                 drawFileOnMapField(g2, field, currentFile);
             }
-            setActive(isActive() && optionPane.getGridding().isSelected());
-        }
-    }
-
-    private static double calculateMedian(List<Double> values) {
-        Collections.sort(values);
-        int size = values.size();
-        if (size % 2 == 0) {
-            return (values.get(size / 2 - 1) + values.get(size / 2)) / 2.0;
-        } else {
-            return values.get(size / 2);
+            setActive(optionPane.getGridding().isSelected());
         }
     }
 
@@ -296,14 +215,6 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         return new Color(r, g, b, baseColor.getAlpha() / 255.0f);
     }
 
-    private static float[][] cloneGridData(float[][] gridData) {
-        var result = new float[gridData.length][];
-        for (int i = 0; i < gridData.length; i++) {
-            result[i] = gridData[i].clone();
-        }
-        return result;
-    }
-
     /**
      * Draws the grid visualization for a given file on the map field.
      * <p>
@@ -327,396 +238,31 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         if (chart.isEmpty()) {
             return;
         }
+
+        // update gridding range for a target file
         String seriesName = chart.get().getSelectedSeriesName();
-
-        var griddingRange = optionPane.getGriddingRange(csvFile, seriesName);
-        var minValue = (float) griddingRange.lowValue();
-        var maxValue = (float) griddingRange.highValue();
-
-        if (recalcGrid) {
-            var startFiltering = System.currentTimeMillis();
-
-            Set<CsvFile> targetFiles = toAll
-                    ? model.getFileManager().getCsvFiles()
-                    .stream()
-                    .filter(f -> f.isSameTemplate(csvFile))
-                    .collect(Collectors.toSet())
-                    : Collections.singleton(csvFile);
-
-            List<DataPoint> dataPoints = new ArrayList<>();
-            for (CsvFile targetFile : targetFiles) {
-                dataPoints.addAll(getDataPoints(targetFile, seriesName));
-            }
-
-            dataPoints = getMedianValues(dataPoints);
-            if (dataPoints.isEmpty()) {
-                return;
-            }
-
-            double minLon = dataPoints.stream().mapToDouble(DataPoint::longitude).min().orElseThrow();
-            double maxLon = dataPoints.stream().mapToDouble(DataPoint::longitude).max().orElseThrow();
-            double minLat = dataPoints.stream().mapToDouble(DataPoint::latitude).min().orElseThrow();
-            double maxLat = dataPoints.stream().mapToDouble(DataPoint::latitude).max().orElseThrow();
-
-            var minLatLon = new LatLon(minLat, minLon);
-            var maxLatLon = new LatLon(maxLat, maxLon);
-
-            List<Double> valuesList = new ArrayList<>(dataPoints.stream().map(p -> p.value).toList());
-            var median = calculateMedian(valuesList);
-
-            int gridSizeX = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
-                    new LatLon(maxLat, minLon).getDistance(new LatLon(maxLat, maxLon)));
-
-            gridSizeX = (int) (gridSizeX / currentParams.getCellSize());
-
-            int gridSizeY = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
-                    new LatLon(minLat, maxLon).getDistance(new LatLon(maxLat, maxLon)));
-
-            gridSizeY = (int) (gridSizeY / currentParams.getCellSize());
-
-            double lonStep = (maxLon - minLon) / gridSizeX;
-            double latStep = (maxLat - minLat) / gridSizeY;
-
-            var gridData = new float[gridSizeX][gridSizeY];
-
-            boolean[][] m = new boolean[gridSizeX][gridSizeY];
-            for (int i = 0; i < gridSizeX; i++) {
-                for (int j = 0; j < gridSizeY; j++) {
-                    m[i][j] = true;
-                }
-            }
-
-            Map<String, List<Double>> points = new HashMap<>();
-            for (DataPoint point : dataPoints) {
-                int xIndex = (int) ((point.longitude - minLon) / lonStep);
-                int yIndex = (int) ((point.latitude - minLat) / latStep);
-
-                String key = xIndex + "," + yIndex;
-                points.computeIfAbsent(key, (k -> new ArrayList<>())).add(point.value);
-            }
-
-            var gridBDx = gridSizeX / (gridSizeX * currentParams.getCellSize() / currentParams.getBlankingDistance());
-            var gridBDy = gridSizeY / (gridSizeY * currentParams.getCellSize() / currentParams.getBlankingDistance());
-            var visiblePoints = new boolean[gridSizeX][gridSizeY];
-
-            for (Map.Entry<String, List<Double>> entry : points.entrySet()) {
-                String[] coords = entry.getKey().split(",");
-                int xIndex = Integer.parseInt(coords[0]);
-                int yIndex = Integer.parseInt(coords[1]);
-                double medianValue = calculateMedian(entry.getValue());
-                try {
-                    gridData[xIndex][yIndex] = (float) medianValue;
-                    m[xIndex][yIndex] = false;
-
-                    for (int dx = -(int) gridBDx; dx <= gridBDx; dx++) {
-                        for (int dy = -(int) gridBDy; dy <= gridBDy; dy++) {
-                            int nx = xIndex + dx;
-                            int ny = yIndex + dy;
-                            if (nx >= 0 && nx < gridSizeX && ny >= 0 && ny < gridSizeY) {
-                                visiblePoints[nx][ny] = true;
-                            }
-                        }
-                    }
-                } catch (ArrayIndexOutOfBoundsException e) {
-                    System.out.println("Out of bounds - xIndex = " + xIndex + " yIndex = " + yIndex);
-                }
-            }
-
-            int count = 0;
-            m = thinOutBooleanGrid(m);
-
-            for (int i = 0; i < gridData.length; i++) {
-                for (int j = 0; j < gridData[0].length; j++) {
-                    if (!m[i][j]) {
-                        continue;
-                    }
-
-                    gridData[i][j] = (float) median;
-
-                    if (!visiblePoints[i][j]) {
-                        m[i][j] = false;
-                        count++;
-                    }
-                }
-            }
-
-            System.out.println("Filtering complete in " + (System.currentTimeMillis() - startFiltering) / 1000 + "s");
-            System.out.println("Aditional points: " + count);
-
-
-            System.out.println("Splines interpolation");
-            var start = System.currentTimeMillis();
-            // Use original splines interpolation
-            var gridder = new SplinesGridder2();
-            var maxIterations = 100;
-            var tension = 0f;
-
-            gridder.setMaxIterations(maxIterations); // 200 if the anomaly
-            gridder.setTension(tension); //0.9999999f); - maximum
-            gridder.gridMissing(m, gridData);
-            if (gridder.getIterationCount() >= maxIterations) {
-                tension = 0.999999f;
-                maxIterations = 200;
-                gridder.setTension(tension);
-                gridder.setMaxIterations(maxIterations);
-                gridder.gridMissing(m, gridData);
-            }
-            System.out.println("Iterations: " + gridder.getIterationCount() + " time: " + (System.currentTimeMillis() - start) / 1000 + "s" + " tension: " + tension + " maxIterations: " + maxIterations);
-
-            System.out.println("Interpolation complete");
-
-            for (int i = 0; i < gridData.length; i++) {
-                for (int j = 0; j < gridData[0].length; j++) {
-                    if (!visiblePoints[i][j]) {
-                        gridData[i][j] = Float.NaN;
-                    }
-                }
-            }
-
-            // Store the gridding result for the affected files
-            GriddingResult griddingResult = new GriddingResult(
-                    gridData, // Deep cloning is done in the constructor
-                    applyLowPassFilter(gridData),
-                    minLatLon,
-                    maxLatLon,
-                    currentParams.getCellSize(),
-                    currentParams.getBlankingDistance(),
-                    minValue,
-                    maxValue,
-                    seriesName,
-                    currentParams.isAnalyticSignalEnabled(),
-                    currentParams.isHillShadingEnabled(),
-                    currentParams.isSmoothingEnabled(),
-                    currentParams.getHillShadingAzimuth(),
-                    currentParams.getHillShadingAltitude(),
-                    currentParams.getHillShadingIntensity()
-            );
-            for (CsvFile targetFile : targetFiles) {
-                griddingResults.put(targetFile.getFile(), griddingResult);
-            }
-
-            recalcGrid = false;
-        }
-
-        if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor.equals(seriesName)) {
+        if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor().equals(seriesName)) {
+            var griddingRange = optionPane.getGriddingRange(csvFile, seriesName);
             griddingResults.put(csvFile.getFile(), gr.setValues(
-                    minValue,
-                    maxValue,
+                    (float) griddingRange.lowValue(),
+                    (float) griddingRange.highValue(),
                     currentParams.isAnalyticSignalEnabled(),
                     currentParams.isHillShadingEnabled(),
                     currentParams.isSmoothingEnabled()));
         }
 
-        var gr = griddingResults.remove(csvFile.getFile());
-        for (var griddingResult : griddingResults.values()) {
-            print(g2, field, griddingResult);
-        }
-
-        if (gr != null) {
-            print(g2, field, gr);
-            griddingResults.put(csvFile.getFile(), gr);
-        }
-    }
-
-
-    /**
-     * Before thinning, determine the minimum number of true values per row and column.
-     */
-    private static int[] computeRowColMin(boolean[][] gridData) {
-        int rows = gridData.length;
-        int cols = rows > 0 ? gridData[0].length : 0;
-        int[] rowCounts = new int[rows];
-        int[] colCounts = new int[cols];
-
-        for (int i = 0; i < rows; i++) {
-            int countRow = 0;
-            for (int j = 0; j < cols; j++) {
-                if (!gridData[i][j]) {
-                    countRow++;
-                    colCounts[j]++;
-                }
-            }
-            rowCounts[i] = countRow;
-        }
-        int rowsum = 0;
-        int rowcount = 0;
-        for (int i = 0; i < rows; i++) {
-            if (rowCounts[i] > cols * 0.01) {
-                rowsum += rowCounts[i];
-                rowcount++;
+        // render gridding results, put current file's grid on top
+        GriddingResult last = null;
+        for (var e : griddingResults.entrySet()) {
+            if (csvFile.getFile().equals(e.getKey())) {
+                last = e.getValue();
+            } else {
+                drawGrid(g2, field, e.getValue());
             }
         }
-
-        int colsum = 0;
-        int colcount = 0;
-        for (int j = 0; j < cols; j++) {
-            if (colCounts[j] > rows * 0.01) {
-                colsum += colCounts[j];
-                colcount++;
-            }
+        if (last != null) {
+            drawGrid(g2, field, last);
         }
-        return new int[]{rowsum / (rowcount != 0 ? rowcount : 1), colsum / (colcount != 0 ? colcount : 1)};
-    }
-
-    /**
-     * Applies a low-pass filter to the grid data to smooth out high-frequency variations.
-     * Uses a Gaussian kernel for the convolution.
-     *
-     * @param gridData The grid data to filter
-     */
-    private float[][] applyLowPassFilter(float[][] gridData) {
-        if (gridData == null || gridData.length == 0 || gridData[0].length == 0) {
-            return gridData;
-        }
-
-        int kernelSize = 15;
-        int kernelRadius = 7;
-
-        System.out.println("Applying low-pass filter with " + kernelSize + "x" + kernelSize + " kernel");
-        long startTime = System.currentTimeMillis();
-
-        float[][] kernel = new float[kernelSize][kernelSize];
-
-        // Initialize kernel with Gaussian values
-        double sigma = 5.0;
-        double sum = 0.0;
-
-        for (int x = -kernelRadius; x <= kernelRadius; x++) {
-            for (int y = -kernelRadius; y <= kernelRadius; y++) {
-                double value = Math.exp(-(x * x + y * y) / (2 * sigma * sigma));
-                kernel[x + kernelRadius][y + kernelRadius] = (float) value;
-                sum += value;
-            }
-        }
-
-        // Normalize kernel
-        for (int i = 0; i < kernelSize; i++) {
-            for (int j = 0; j < kernelSize; j++) {
-                kernel[i][j] /= sum;
-            }
-        }
-
-        int width = gridData.length;
-        int height = gridData[0].length;
-
-        var resultData = cloneGridData(gridData);
-
-        // Apply convolution
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                // Skip NaN values
-                if (Float.isNaN(gridData[i][j])) {
-                    continue;
-                }
-
-                float sum2 = 0;
-                float weightSum = 0;
-
-                // Apply kernel
-                for (int ki = -kernelRadius; ki <= kernelRadius; ki++) {
-                    for (int kj = -kernelRadius; kj <= kernelRadius; kj++) {
-                        int ni = i + ki;
-                        int nj = j + kj;
-
-                        // Skip out of bounds or NaN values
-                        if (ni < 0 || ni >= width || nj < 0 || nj >= height || Float.isNaN(gridData[ni][nj])) {
-                            continue;
-                        }
-
-                        float weight = kernel[ki + kernelRadius][kj + kernelRadius];
-                        sum2 += gridData[ni][nj] * weight;
-                        weightSum += weight;
-                    }
-                }
-
-                // Normalize by the sum of weights
-                if (weightSum > 0) {
-                    resultData[i][j] = sum2 / weightSum;
-                }
-            }
-        }
-
-        System.out.println("Low-pass filter applied in " + (System.currentTimeMillis() - startTime) + "ms");
-        return resultData;
-    }
-
-    /**
-     * Thin out the matrix by rows and columns so that the minimum density is not reduced.
-     * If almost all cells are filled, the array is returned unchanged.
-     */
-    public static boolean[][] thinOutBooleanGrid(boolean[][] gridData) {
-        int rows = gridData.length;
-        int cols = rows > 0 ? gridData[0].length : 0;
-
-        int[] minValues = computeRowColMin(gridData);
-        int minRowTrue = minValues[0];
-        int minColTrue = minValues[1];
-
-        if (minRowTrue >= cols * 0.9 && minColTrue >= rows * 0.9 || minRowTrue == 0 && minColTrue == 0) {
-            return gridData;
-        }
-
-        double avg = Math.min(0.22, Math.min((double) minRowTrue / cols, (double) minColTrue / rows));
-
-        if (avg < 0.05) {
-            return gridData;
-        }
-
-        boolean[][] result = new boolean[rows][cols];
-        for (int i = 0; i < rows; i++) {
-            System.arraycopy(gridData[i], 0, result[i], 0, cols);
-        }
-
-        for (int i = 0; i < rows; i++) {
-            List<Integer> trueIndices = new ArrayList<>();
-            for (int j = 0; j < cols; j++) {
-                if (!result[i][j]) {
-                    trueIndices.add(j);
-                }
-            }
-            int count = trueIndices.size();
-            minRowTrue = (int) (avg * cols);
-            if (count > minRowTrue && minRowTrue > 0) {
-                List<Integer> keepIndices = new ArrayList<>();
-                double step = (double) (count - 1) / (minRowTrue - 1);
-                for (int k = 0; k < minRowTrue; k++) {
-                    int index = trueIndices.get((int) Math.round(k * step));
-                    keepIndices.add(index);
-                }
-                for (int j = 0; j < cols; j++) {
-                    result[i][j] = true;
-                }
-                for (int j : keepIndices) {
-                    result[i][j] = false;
-                }
-            }
-        }
-
-        for (int j = 0; j < cols; j++) {
-            List<Integer> trueIndices = new ArrayList<>();
-            for (int i = 0; i < rows; i++) {
-                if (!result[i][j]) {
-                    trueIndices.add(i);
-                }
-            }
-            int count = trueIndices.size();
-            minColTrue = (int) (avg * rows);
-            if (count > minColTrue && minColTrue > 0) {
-                List<Integer> keepIndices = new ArrayList<>();
-                double step = (double) (count - 1) / (minColTrue - 1);
-                for (int k = 0; k < minColTrue; k++) {
-                    int index = trueIndices.get((int) Math.round(k * step));
-                    keepIndices.add(index);
-                }
-                for (int i = 0; i < rows; i++) {
-                    result[i][j] = true;
-                }
-                for (int i : keepIndices) {
-                    result[i][j] = false;
-                }
-            }
-        }
-        return result;
     }
 
     public Grid getCurrentGrid() {
@@ -735,19 +281,19 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
     private Grid getFilteredGrid(GriddingResult griddingResult) {
         Check.notNull(griddingResult);
 
-        float[][] grid = griddingResult.smoothingEnabled
-                ? griddingResult.smoothedGridData
-                : griddingResult.gridData;
+        float[][] grid = griddingResult.smoothingEnabled()
+                ? griddingResult.smoothedGridData()
+                : griddingResult.gridData();
 
-        float minValue = griddingResult.minValue;
-        float maxValue = griddingResult.maxValue;
+        float minValue = griddingResult.minValue();
+        float maxValue = griddingResult.maxValue();
 
-        if (griddingResult.analyticSignalEnabled) {
+        if (griddingResult.analyticSignalEnabled()) {
             int gridWidth = grid.length;
             int gridHeight = grid[0].length;
 
-            LatLon minLatLon = griddingResult.minLatLon;
-            LatLon maxLatLon = griddingResult.maxLatLon;
+            LatLon minLatLon = griddingResult.minLatLon();
+            LatLon maxLatLon = griddingResult.maxLatLon();
 
             double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
             double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
@@ -768,10 +314,10 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         }
 
         return new Grid(grid, minValue, maxValue,
-                griddingResult.minLatLon, griddingResult.maxLatLon);
+                griddingResult.minLatLon(), griddingResult.maxLatLon());
     }
 
-    private void print(Graphics2D g2, MapField field, GriddingResult gr) {
+    private void drawGrid(Graphics2D g2, MapField field, GriddingResult gr) {
         Grid grid = getFilteredGrid(gr);
 
         var minLatLon = grid.minLatLon;
@@ -792,9 +338,9 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         System.out.println("cellWidth = " + cellWidth + " cellHeight = " + cellHeight);
 
         // Log hill-shading parameters if enabled
-        if (gr.hillShadingEnabled) {
-            System.out.println("Hill-shading enabled with azimuth=" + gr.hillShadingAzimuth +
-                    ", altitude=" + gr.hillShadingAltitude + ", intensity=" + gr.hillShadingIntensity);
+        if (gr.hillShadingEnabled()) {
+            System.out.println("Hill-shading enabled with azimuth=" + gr.hillShadingAzimuth() +
+                    ", altitude=" + gr.hillShadingAltitude() + ", intensity=" + gr.hillShadingIntensity());
         }
 
         for (int i = 0; i < gridWidth; i++) {
@@ -809,18 +355,18 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
                     Color color = getColorForValue(value, grid.minValue, grid.maxValue);
 
                     // Apply hill-shading if enabled
-                    if (gr.hillShadingEnabled) {
+                    if (gr.hillShadingEnabled()) {
                         // Calculate illumination for this cell
                         double illumination = calculateHillShading(
                                 grid.values,
                                 i,
                                 j,
-                                gr.hillShadingAzimuth,
-                                gr.hillShadingAltitude
+                                gr.hillShadingAzimuth(),
+                                gr.hillShadingAltitude()
                         );
 
                         // Apply hill-shading to the color
-                        color = applyHillShading(color, illumination, gr.hillShadingIntensity);
+                        color = applyHillShading(color, illumination, gr.hillShadingIntensity());
                     }
 
                     g2.setColor(color);
@@ -837,35 +383,11 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         }
     }
 
-    private List<DataPoint> getDataPoints(CsvFile csvFile, String sensor) {
-        return csvFile.getGeoData().stream().filter(gd -> gd.getSensorValue(sensor).data() != null)
-                .map(gd -> new DataPoint(gd.getLatitude(), gd.getLongitude(), gd.getSensorValue(sensor).data().doubleValue())).toList();
-    }
-
-    private static List<DataPoint> getMedianValues(List<DataPoint> dataPoints) {
-        Map<String, List<Double>> dataMap = new HashMap<>();
-        for (DataPoint point : dataPoints) {
-            String key = point.latitude + "," + point.longitude;
-            dataMap.computeIfAbsent(key, k -> new ArrayList<>()).add(point.value);
-        }
-
-        List<DataPoint> medianDataPoints = new ArrayList<>();
-        for (Map.Entry<String, List<Double>> entry : dataMap.entrySet()) {
-            String[] coords = entry.getKey().split(",");
-            double latitude = Double.parseDouble(coords[0]);
-            double longitude = Double.parseDouble(coords[1]);
-            double medianValue = calculateMedian(entry.getValue());
-            medianDataPoints.add(new DataPoint(latitude, longitude, medianValue));
-        }
-
-        return medianDataPoints;
-    }
-
     @EventListener
     public void handleFileSelectedEvent(FileSelectedEvent event) {
         this.currentFile = event.getFile() instanceof CsvFile csvFile ? csvFile : null;
         if (this.currentFile != null) {
-            q.add();
+            submitDraw();
         }
     }
 
@@ -874,7 +396,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         if (event.getSgyFile() instanceof CsvFile csvFile) {
             removeFromGriddingResults(csvFile);
             if (griddingResults.size() == 0) {
-                q.add();
+                submitDraw();
             }
         }
     }
@@ -896,18 +418,15 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         }
     }
 
-    private void switchGriddingResult(CsvFile csvFile, File oldFile) {
+    private synchronized void switchGriddingResult(CsvFile csvFile, File oldFile) {
         if (griddingResults.remove(oldFile) instanceof GriddingResult gr) {
             griddingResults.put(csvFile.getFile(), gr);
         }
     }
 
-    private void removeFromGriddingResults(CsvFile csvFile) {
-        System.out.println("griddingResultsCount: " + griddingResults.size() + ", griddingResults: " + griddingResults);
+    private synchronized void removeFromGriddingResults(CsvFile csvFile) {
         griddingResults.remove(csvFile.getFile());
-        System.out.println("griddingResultsCount: " + griddingResults.size() + ", griddingResults: " + griddingResults);
         if (model.getFileManager().getCsvFiles().isEmpty() && griddingResults.size() > 0) {
-            System.err.println("Have to clear griddingResultsCount: " + griddingResults.size() + ", griddingResults: " + griddingResults);
             griddingResults.clear();
         }
     }
@@ -920,14 +439,10 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
                 //|| changed.isJustdraw()
                 || changed.isGriddingRangeChanged()) {
             if (isActive()) {
-                System.out.println("GridLayer: " + changed + ", griddingResults: " + griddingResults);
-                if (!recalcGrid) {
-                    q.add();
-                }
+                submitDraw();
             }
         } else if (changed.isCsvDataFiltered()) {
-            recalcGrid = true;
-            q.add();
+            submitGridding();
         }
     }
 
@@ -943,17 +458,73 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
      * Triggers grid recalculation only when explicitly requested through the UI.
      */
     @EventListener(GriddingParamsSetted.class)
-    private void gridParamsSetted(GriddingParamsSetted griddingParamsSetted) {
-        currentParams = griddingParamsSetted;
-        toAll = griddingParamsSetted.isToAll();
+    private void gridParamsSetted(GriddingParamsSetted griddingParams) {
+        setActive(true);
+
+        currentParams = griddingParams;
 
         // Only recalculate grid when explicitly requested through the UI
         // This is triggered by the "Apply" or "Apply to all" buttons
-        if (griddingParamsSetted.getSource() instanceof Button) {
-            recalcGrid = true;
+        if (griddingParams.getSource() instanceof Button) {
+            submitGridding();
+        } else {
+            submitDraw();
         }
+    }
 
-        setActive(true);
+    private void submitGridding() {
+        CsvFile file = currentFile;
+        if (file == null) {
+            return;
+        }
+        SensorLineChart chart = model.getCsvChart(file).orElse(null);
+        if (chart == null) {
+            return;
+        }
+        String seriesName = chart.getSelectedSeriesName();
+        if (Strings.isNullOrEmpty(seriesName)) {
+            return;
+        }
+        GriddingParamsSetted params = currentParams;
+        if (params == null) {
+            return;
+        }
+        OptionPane.GriddingRange griddingRange = optionPane.getGriddingRange(file, seriesName);
+
+        var future = executor.submit(() -> {
+            optionPane.griddingProgress(true);
+            return griddingService.runGridding(file, seriesName, params, griddingRange);
+        });
+
+        String taskName = "Gridding " + seriesName;
+        if (file.getFile() != null) {
+            taskName += ": " + file.getFile().getName();
+        }
+        taskService.registerTask(future, taskName)
+                .whenComplete((results, throwable) -> {
+            try {
+                if (results != null) {
+                    synchronized (this) {
+                        griddingResults.putAll(results);
+                    }
+                    submitDraw();
+                }
+            } finally {
+                optionPane.griddingProgress(false);
+            }
+        });
+    }
+
+    private void submitDraw() {
         q.add();
+    }
+
+    public record Grid(
+            float[][] values,
+            float minValue,
+            float maxValue,
+            LatLon minLatLon,
+            LatLon maxLatLon
+    ) {
     }
 }

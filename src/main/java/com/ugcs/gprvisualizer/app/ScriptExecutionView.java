@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
@@ -20,6 +21,7 @@ import com.ugcs.gprvisualizer.app.scripts.ScriptParameter;
 import com.ugcs.gprvisualizer.app.scripts.ScriptMetadata;
 import com.ugcs.gprvisualizer.app.scripts.ScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.ScriptExecutor;
+import com.ugcs.gprvisualizer.app.service.task.TaskService;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.FileTemplate;
 import com.ugcs.gprvisualizer.utils.Strings;
@@ -274,11 +276,13 @@ public class ScriptExecutionView extends VBox {
 			status.showMessage(line, scriptMetadata.displayName());
 		};
 
-		executor.submit(() -> {
+		Future<Void> future = executor.submit(() -> {
 			setExecutingProgress(true);
 			try {
 				scriptExecutor.executeScript(selectedFile, scriptMetadata, parameters, onScriptOutput);
 				showSuccess(scriptMetadata);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
 			} catch (Exception e) {
 				String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
 				showError(scriptMetadata, e, scriptOutput);
@@ -289,6 +293,12 @@ public class ScriptExecutionView extends VBox {
 			}
 			return null;
 		});
+
+		String taskName = "Running script " + scriptMetadata.displayName();
+		if (selectedFile.getFile() != null) {
+			taskName += ": " + selectedFile.getFile().getName();
+		}
+		AppContext.getInstance(TaskService.class).registerTask(future, taskName);
 	}
 
 	private void showSuccess(ScriptMetadata scriptMetadata) {

@@ -1,7 +1,5 @@
 package com.ugcs.gprvisualizer.math;
 
-import com.ugcs.gprvisualizer.draw.GridLayer;
-import org.junit.experimental.theories.DataPoint;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.kdtree.KdNode;
@@ -117,13 +115,13 @@ public class IDWInterpolator {
 
             // Early return for exact matches
             if (distanceSq < EXACT_MATCH_THRESHOLD) {
-                return ((GridLayer.DataPoint) node.getData()).value();
+                return ((DataPoint) node.getData()).value();
             }
 
             // Use squared distance and cached power value for faster calculation
             double weight = 1.0 / Math.pow(distanceSq, power/2);  // Equivalent to 1/distance^power but faster
             weightSum += weight;
-            valueSum += weight * ((GridLayer.DataPoint) node.getData()).value();
+            valueSum += weight * ((DataPoint) node.getData()).value();
         }
 
         return valueSum / weightSum;

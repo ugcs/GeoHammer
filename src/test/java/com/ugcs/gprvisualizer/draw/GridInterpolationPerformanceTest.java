@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.draw;
 
-import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
+import com.ugcs.gprvisualizer.math.DataPoint;
 import com.ugcs.gprvisualizer.math.IDWInterpolator;
 import edu.mines.jtk.interp.SplinesGridder2;
 import org.junit.jupiter.api.AfterAll;
@@ -85,14 +85,14 @@ class GridInterpolationPerformanceTest {
     /**
      * Generates test data points with random distribution within valid lat/lon ranges
      */
-    private List<GridLayer.DataPoint> generateTestData(int numPoints) {
-        List<GridLayer.DataPoint> points = new ArrayList<>();
+    private List<DataPoint> generateTestData(int numPoints) {
+        List<DataPoint> points = new ArrayList<>();
         for (int i = 0; i < numPoints; i++) {
             // Generate points in valid lat/lon ranges centered around CENTER_LAT/LON
             double lat = CENTER_LAT + (random.nextDouble() - 0.5) * TEST_AREA_SIZE;
             double lon = CENTER_LON + (random.nextDouble() - 0.5) * TEST_AREA_SIZE;
             double value = random.nextDouble() * 100; // Random values between 0 and 100
-            points.add(new GridLayer.DataPoint(lat, lon, value));
+            points.add(new DataPoint(lat, lon, value));
         }
         return points;
     }
@@ -100,9 +100,9 @@ class GridInterpolationPerformanceTest {
     /**
      * Creates a KD-tree from test points
      */
-    private KdTree buildKdTree(List<GridLayer.DataPoint> points) {
+    private KdTree buildKdTree(List<DataPoint> points) {
         KdTree kdTree = new KdTree();
-        for (GridLayer.DataPoint point : points) {
+        for (DataPoint point : points) {
             kdTree.insert(new Coordinate(point.longitude(), point.latitude()), point);
         }
         return kdTree;
@@ -121,7 +121,7 @@ class GridInterpolationPerformanceTest {
     /**
      * Creates a grid with given size and marks missing values
      */
-    private GridData createGrid(int gridSize, List<GridLayer.DataPoint> points) {
+    private GridData createGrid(int gridSize, List<DataPoint> points) {
         float[][] grid = new float[gridSize][gridSize];
         boolean[][] missing = new boolean[gridSize][gridSize];
 
@@ -139,7 +139,7 @@ class GridInterpolationPerformanceTest {
         double maxLon = CENTER_LON + TEST_AREA_SIZE/2;
 
         // Place known points
-        for (GridLayer.DataPoint point : points) {
+        for (DataPoint point : points) {
             int x = (int) ((point.longitude() - minLon) / TEST_AREA_SIZE * (gridSize - 1));
             int y = (int) ((point.latitude() - minLat) / TEST_AREA_SIZE * (gridSize - 1));
             if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
@@ -215,7 +215,7 @@ class GridInterpolationPerformanceTest {
     private void runPerformanceTest(int numPoints, int gridSize) throws InterruptedException {
         // Generate test data
         long startGen = System.nanoTime();
-        List<GridLayer.DataPoint> points = generateTestData(numPoints);
+        List<DataPoint> points = generateTestData(numPoints);
         long genTime = System.nanoTime() - startGen;
         System.out.println("[DEBUG_LOG] Data generation time: " + genTime / 1_000_000.0 + " ms");
 

@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.concurrent.CancellationException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -108,6 +109,10 @@ public class CsvParser extends Parser {
 
             var traceCount = 0;
             for (String dataLine : lines) {
+                if (Thread.currentThread().isInterrupted()) {
+                    break;
+                }
+
                 String[] values = dataLine.split(template.getFileFormat().getSeparator());
 
 				BaseData templateLatitude = template.getDataMapping().getLatitude();
@@ -166,6 +171,9 @@ public class CsvParser extends Parser {
             }
         } catch (Exception e) {
 			throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
+        }
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException();
         }
 
         // timestamps could be in wrong order in the file

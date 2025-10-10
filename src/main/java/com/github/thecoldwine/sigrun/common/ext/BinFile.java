@@ -8,6 +8,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 import com.github.thecoldwine.sigrun.common.BinaryHeader;
 import com.github.thecoldwine.sigrun.common.TextHeader;
@@ -52,15 +53,17 @@ public class BinFile {
 			System.out.println(binaryHeader.getDataSampleCode() + " " + binaryHeader.getDataSampleCode().getSize());
 			
 			while (blockFile.hasNext(TraceHeader.TRACE_HEADER_LENGTH)) {
+				if (Thread.currentThread().isInterrupted()) {
+					throw new CancellationException();
+				}
+
 				Block traceHdrBlock = blockFile.next(TraceHeader.TRACE_HEADER_LENGTH);
 				
 				BinTrace binTrace = new BinTrace();
 				binTrace.header = traceHdrBlock.read(blockFile).array();
-				
-				
+
 		        TraceHeader header = GprFile.traceHeaderReader.read(binTrace.header);
-		        
-		        
+
 		        int dataLength = binaryHeader.getDataSampleCode().getSize() * header.getNumberOfSamples();
 		        
 		        if (dataLength > 0 && blockFile.hasNext(dataLength)) {

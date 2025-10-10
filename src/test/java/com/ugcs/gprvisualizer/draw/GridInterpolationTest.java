@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.draw;
 
-import com.ugcs.gprvisualizer.event.GriddingParamsSetted;
+import com.ugcs.gprvisualizer.math.DataPoint;
 import com.ugcs.gprvisualizer.math.IDWInterpolator;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
@@ -18,14 +18,14 @@ class GridInterpolationTest {
     void testIDWInterpolation() {
         // Create test data points in a grid pattern with a missing point in the middle
         KdTree kdTree = new KdTree();
-        List<GridLayer.DataPoint> testValues = new ArrayList<>() {{
-            add(new GridLayer.DataPoint(1.0, 1.0, 10.0));
-            add(new GridLayer.DataPoint(1.0, 3.0, 20.0));
-            add(new GridLayer.DataPoint(3.0, 1.0, 30.0));
-            add(new GridLayer.DataPoint(3.0, 3.0, 40.0));
+        List<DataPoint> testValues = new ArrayList<>() {{
+            add(new DataPoint(1.0, 1.0, 10.0));
+            add(new DataPoint(1.0, 3.0, 20.0));
+            add(new DataPoint(3.0, 1.0, 30.0));
+            add(new DataPoint(3.0, 3.0, 40.0));
         }};
 
-        for (GridLayer.DataPoint point : testValues) {
+        for (DataPoint point : testValues) {
             kdTree.insert(new Coordinate(point.latitude(), point.longitude()), point);
         }
 
@@ -69,16 +69,16 @@ class GridInterpolationTest {
         // Create scattered test points
         KdTree kdTree = new KdTree();
 
-        List<GridLayer.DataPoint> testValues = new ArrayList<>() {{
-            add(new GridLayer.DataPoint(1.0, 1.0, 10.0));
-            add(new GridLayer.DataPoint(1.5, 1.5, 15.0));
-            add(new GridLayer.DataPoint(2.0, 2.0, 20.0));
-            add(new GridLayer.DataPoint(4.0, 4.0, 40.0));
-            add(new GridLayer.DataPoint(4.5, 4.5, 45.0));
-            add(new GridLayer.DataPoint(5.0, 5.0, 50.0));
+        List<DataPoint> testValues = new ArrayList<>() {{
+            add(new DataPoint(1.0, 1.0, 10.0));
+            add(new DataPoint(1.5, 1.5, 15.0));
+            add(new DataPoint(2.0, 2.0, 20.0));
+            add(new DataPoint(4.0, 4.0, 40.0));
+            add(new DataPoint(4.5, 4.5, 45.0));
+            add(new DataPoint(5.0, 5.0, 50.0));
         }};
 
-        for (GridLayer.DataPoint point : testValues) {
+        for (DataPoint point : testValues) {
             kdTree.insert(new Coordinate(point.latitude(), point.longitude()), point);
         }
 
@@ -109,14 +109,14 @@ class GridInterpolationTest {
         // Create test data with large gaps
         KdTree kdTree = new KdTree();
 
-        List<GridLayer.DataPoint> testValues = new ArrayList<>() {{
-            add(new GridLayer.DataPoint(1.0, 1.0, 10.0));
-            add(new GridLayer.DataPoint(1.0, 9.0, 20.0));
-            add(new GridLayer.DataPoint(9.0, 1.0, 30.0));
-            add(new GridLayer.DataPoint(9.0, 9.0, 40.0));
+        List<DataPoint> testValues = new ArrayList<>() {{
+            add(new DataPoint(1.0, 1.0, 10.0));
+            add(new DataPoint(1.0, 9.0, 20.0));
+            add(new DataPoint(9.0, 1.0, 30.0));
+            add(new DataPoint(9.0, 9.0, 40.0));
         }};
 
-        for (GridLayer.DataPoint point : testValues) {
+        for (DataPoint point : testValues) {
             kdTree.insert(new Coordinate(point.latitude(), point.longitude()), point);
         }
 

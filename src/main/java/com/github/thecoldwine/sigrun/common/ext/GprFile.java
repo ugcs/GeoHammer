@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 import com.github.thecoldwine.sigrun.common.BinaryHeader;
 import com.github.thecoldwine.sigrun.common.ConverterFactory;
@@ -122,6 +123,10 @@ public class GprFile extends TraceFile {
 		List<BinTrace> binTraces = binFile.getTraces();
 		List<Trace> traces = new ArrayList<>(binTraces.size());
 		for (BinTrace binTrace : binTraces) {
+			if (Thread.currentThread().isInterrupted()) {
+				throw new CancellationException();
+			}
+
 			Trace trace = readTrace(binTrace, converter);
 			if (trace == null) {
 				continue;

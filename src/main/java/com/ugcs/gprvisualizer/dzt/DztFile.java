@@ -13,6 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MetaFile;
@@ -159,6 +160,10 @@ public class DztFile extends TraceFile {
 		int traceIndex = 0;
 
 		while (channel.position() < channel.size()) {
+			if (Thread.currentThread().isInterrupted()) {
+				throw new CancellationException();
+			}
+
 			Trace trace = readTrace(channel, sampleCodec, traceIndex++);
 			traces.add(trace);
 		}

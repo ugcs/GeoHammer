@@ -48,21 +48,24 @@ public class TaskRunner implements ProgressListener {
 	}
 
 	public void start() {
-		showPopup();
+		start(true);
+	}
 
-		//new Thread() {
-		//	public void run() {
-				try {
-					task.run(TaskRunner.this);
+	public void start(boolean withWaitCursor) {
+		if (withWaitCursor) {
+			showPopup();
+		}
 
-				} catch (Exception e) {
-					e.printStackTrace();
-					progressMsg("Error: " + e.getMessage());
-				}
-
+		try {
+			task.run(TaskRunner.this);
+		} catch (Exception e) {
+			e.printStackTrace();
+			progressMsg("Error: " + e.getMessage());
+		} finally {
+			if (withWaitCursor) {
 				closePopup();
-			//}
-		//}.start();
+			}
+		}
 	}
 
 	protected void closePopup() {

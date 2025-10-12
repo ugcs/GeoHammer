@@ -3,10 +3,11 @@ package com.ugcs.gprvisualizer.app;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -34,6 +35,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
@@ -66,6 +69,8 @@ public class ScriptExecutionView extends VBox {
 
 	private final Button applyButton;
 
+	private final Button applyToAllButton;
+
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
 	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionView.class);
@@ -96,7 +101,10 @@ public class ScriptExecutionView extends VBox {
 		parametersLabel.setVisible(false);
 
 		applyButton = new Button("Apply");
-		applyButton.setDisable(true);
+		applyButton.setVisible(false);
+
+		applyToAllButton = new Button("Apply to all");
+		applyToAllButton.setVisible(false);
 
 		scriptsMetadataSelector.setOnAction(e -> {
 			String filename = scriptsMetadataSelector.getValue();
@@ -121,24 +129,47 @@ public class ScriptExecutionView extends VBox {
 					parametersBox.getChildren().add(paramBox);
 				}
 
-				applyButton.setDisable(false);
+				applyButton.setVisible(true);
+				applyToAllButton.setVisible(true);
 			} else {
 				parametersLabel.setVisible(false);
-				applyButton.setDisable(true);
+				applyButton.setVisible(false);
+				applyToAllButton.setVisible(false);
 			}
 		});
 
 		applyButton.setOnAction(event -> {
 			String filename = scriptsMetadataSelector.getValue();
-			ScriptMetadata selected = scriptsMetadata.stream()
-					.filter(scriptMetadata -> scriptMetadata.filename().equals(filename))
+			ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+					.filter(sM -> sM.filename().equals(filename))
 					.findFirst()
 					.orElse(null);
-			executeScript(selected);
+			if (selectedFile != null) {
+				executeScript(scriptMetadata, List.of(selectedFile));
+			}
 		});
 
+		applyToAllButton.setOnAction(event -> {
+			String filename = scriptsMetadataSelector.getValue();
+			ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+					.filter(sM -> sM.filename().equals(filename))
+					.findFirst()
+					.orElse(null);
+			List<SgyFile> filesToProcess = model.getFileManager().getFiles().stream().toList();
+			executeScript(scriptMetadata, filesToProcess);
+		});
+
+		HBox buttonsRow = new HBox(5);
+		HBox rightBox = new HBox();
+		HBox leftBox = new HBox(5);
+		leftBox.getChildren().addAll(applyButton);
+		HBox.setHgrow(leftBox, Priority.ALWAYS);
+		rightBox.getChildren().addAll(applyToAllButton);
+
+		buttonsRow.getChildren().addAll(leftBox, rightBox);
+
 		VBox contentBox = new VBox();
-		contentBox.getChildren().addAll(scriptsMetadataSelector, parametersBox, applyButton);
+		contentBox.getChildren().addAll(scriptsMetadataSelector, parametersBox, buttonsRow);
 
 		StackPane stackPane = new StackPane(contentBox, progressIndicator);
 		StackPane.setAlignment(progressIndicator, Pos.CENTER);
@@ -181,7 +212,6 @@ public class ScriptExecutionView extends VBox {
 			} else {
 				scriptsMetadataSelector.getSelectionModel().clearSelection();
 				parametersBox.getChildren().clear();
-				applyButton.setDisable(true);
 			}
 
 			if (selectedFile != null && scriptExecutor.isExecuting(selectedFile)) {
@@ -254,9 +284,8 @@ public class ScriptExecutionView extends VBox {
 		params.forEach((k, v) -> prefs.put("script." + scriptFilename + "." + k, v));
 	}
 
-	private void executeScript(@Nullable ScriptMetadata scriptMetadata) {
-		SgyFile selectedFile = this.selectedFile;
-		if (scriptMetadata == null || selectedFile == null) {
+	private void executeScript(@Nullable ScriptMetadata scriptMetadata, List<SgyFile> files) {
+		if (scriptMetadata == null || files.isEmpty()) {
 			log.error("No script selected for execution");
 			return;
 		}
@@ -276,36 +305,55 @@ public class ScriptExecutionView extends VBox {
 			status.showMessage(line, scriptMetadata.displayName());
 		};
 
-		Future<Void> future = executor.submit(() -> {
-			setExecutingProgress(true);
-			try {
-				scriptExecutor.executeScript(selectedFile, scriptMetadata, parameters, onScriptOutput);
-				showSuccess(scriptMetadata);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			} catch (Exception e) {
-				String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
-				showError(scriptMetadata, e, scriptOutput);
-			} finally {
-				if (Objects.equals(selectedFile, this.selectedFile)) {
-					setExecutingProgress(false);
+		setExecutingProgress(true);
+
+		List<Future<Void>> futures = new ArrayList<>();
+		for (SgyFile sgyFile : files) {
+			Future<Void> future = executor.submit(() -> {
+				try {
+					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput);
+					showSuccess(scriptMetadata);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				} catch (Exception e) {
+					String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
+					showError(scriptMetadata, e, scriptOutput);
 				}
+				return null;
+			});
+
+			String taskName = "Running script " + scriptMetadata.displayName();
+			if (sgyFile.getFile() != null) {
+				taskName += ": " + sgyFile.getFile().getName();
+			}
+			AppContext.getInstance(TaskService.class).registerTask(future, taskName);
+			futures.add(future);
+		}
+
+		executor.submit(() -> {
+			try {
+				for (Future<Void> future : futures) {
+					try {
+						future.get();
+					} catch (InterruptedException ie) {
+						Thread.currentThread().interrupt();
+						break;
+					} catch (ExecutionException ee) {
+						showError(scriptMetadata, ee, null);
+					}
+				}
+			} finally {
+				setExecutingProgress(false);
 			}
 			return null;
 		});
-
-		String taskName = "Running script " + scriptMetadata.displayName();
-		if (selectedFile.getFile() != null) {
-			taskName += ": " + selectedFile.getFile().getName();
-		}
-		AppContext.getInstance(TaskService.class).registerTask(future, taskName);
 	}
 
 	private void showSuccess(ScriptMetadata scriptMetadata) {
 		status.showMessage("Script executed successfully.", scriptMetadata.displayName());
 	}
 
-	private void showError(ScriptMetadata scriptMetadata, Exception e, String scriptOutput) {
+	private void showError(ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
 		String title = "Script Execution Error";
 		String message;
 
@@ -362,7 +410,8 @@ public class ScriptExecutionView extends VBox {
 		progressIndicator.setVisible(inProgress);
 		progressIndicator.setManaged(inProgress);
 		parametersBox.setDisable(inProgress);
-		applyButton.setDisable(inProgress);
 		scriptsMetadataSelector.setDisable(inProgress);
+		applyButton.setDisable(inProgress);
+		applyToAllButton.setDisable(inProgress);
 	}
 }

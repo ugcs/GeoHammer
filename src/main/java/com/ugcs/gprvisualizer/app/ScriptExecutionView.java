@@ -180,13 +180,36 @@ public class ScriptExecutionView extends VBox {
 	public void updateView(@Nullable SgyFile sgyFile) {
 		try {
 			List<ScriptMetadata> loadedScriptsMetadata = getLoadedScriptsMetadata();
-			this.scriptsMetadata = getScriptsMetadata(sgyFile, loadedScriptsMetadata);
+			this.scriptsMetadata = filterScriptsByTemplate(sgyFile, loadedScriptsMetadata);
 		} catch (Exception e) {
 			this.scriptsMetadata = List.of();
 			MessageBoxHelper.showError("Scripts Directory Error",
 					"Failed to load scripts metadata: " + e.getMessage());
 		}
 
+		restoreScriptSelection();
+
+		refreshExecutionStatus(sgyFile);
+	}
+
+	private List<ScriptMetadata> getLoadedScriptsMetadata() throws IOException {
+		ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
+		Path scriptsPath = scriptExecutor.getScriptsPath();
+		return scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
+	}
+
+	private List<ScriptMetadata> filterScriptsByTemplate(@Nullable SgyFile sgyFile, List<ScriptMetadata> scriptsMetadata) {
+		String fileTemplate = sgyFile != null ? FileTemplate.getTemplateName(model, sgyFile.getFile()) : null;
+		if (fileTemplate == null) {
+			return scriptsMetadata;
+		} else {
+			return scriptsMetadata.stream()
+					.filter(metadata -> metadata.templates().contains(fileTemplate))
+					.toList();
+		}
+	}
+
+	private void restoreScriptSelection() {
 		@Nullable String prevSelectedScript = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
 		scriptsMetadataSelector.getItems().setAll(
 				scriptsMetadata.stream()
@@ -199,7 +222,9 @@ public class ScriptExecutionView extends VBox {
 			scriptsMetadataSelector.getSelectionModel().clearSelection();
 			scriptsMetadataSelector.setPromptText("Select script");
 		}
+	}
 
+	private void refreshExecutionStatus(@Nullable SgyFile sgyFile) {
 		if (scriptExecutor.isExecuting(sgyFile)) {
 			setExecutingProgress(true);
 			String executingScriptName = scriptExecutor.getExecutingScriptName(sgyFile);
@@ -211,23 +236,6 @@ public class ScriptExecutionView extends VBox {
 		} else {
 			setExecutingProgress(false);
 		}
-	}
-
-	private List<ScriptMetadata> getScriptsMetadata(@Nullable SgyFile selectedFile, List<ScriptMetadata> loadedScriptsMetadata) {
-		String currentFileTemplate = selectedFile != null ? FileTemplate.getTemplateName(model, selectedFile.getFile()) : null;
-		if (currentFileTemplate == null) {
-			 return loadedScriptsMetadata;
-		} else {
-			return loadedScriptsMetadata.stream()
-					.filter(metadata -> metadata.templates().contains(currentFileTemplate))
-					.toList();
-		}
-	}
-
-	private List<ScriptMetadata> getLoadedScriptsMetadata() throws IOException {
-		ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
-		Path scriptsPath = scriptExecutor.getScriptsPath();
-		return scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
 	}
 
 	private VBox createParameterInput(ScriptParameter param, String initialValue) {
@@ -343,11 +351,11 @@ public class ScriptExecutionView extends VBox {
 		status.showMessage("Script executed successfully.", scriptMetadata.displayName());
 	}
 
-	private void showError(@Nullable ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
+	private void showError(ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
 		String title = "Script Execution Error";
 		String message;
 
-        if (e instanceof ScriptException scriptException && scriptMetadata != null) {
+        if (e instanceof ScriptException scriptException) {
             message = "Script '" + scriptMetadata.filename()
                     + "' failed with exit code " + scriptException.getExitCode() + ".";
             if (!Strings.isNullOrEmpty(scriptOutput)) {

@@ -1586,7 +1586,7 @@ public class SensorLineChart extends Chart {
         double rmsOriginal = calculateRMS(valuesNonNull);
         double rmsFiltered = calculateRMS(filteredValuesNonNull);
 
-        double scale = rmsFiltered != 0.0 && rmsFiltered != 0.0
+        double scale = rmsOriginal != 0.0 && rmsFiltered != 0.0
                 ? rmsOriginal / rmsFiltered
                 : 0.0;
         for (int i = 0; i < filtered.size(); i++) {

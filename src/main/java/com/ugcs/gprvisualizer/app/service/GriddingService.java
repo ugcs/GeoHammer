@@ -219,8 +219,10 @@ public class GriddingService {
     }
 
     private List<DataPoint> getDataPoints(CsvFile csvFile, String sensor) {
-        return csvFile.getGeoData().stream().filter(gd -> gd.getSensorValue(sensor).data() != null)
-                .map(gd -> new DataPoint(gd.getLatitude(), gd.getLongitude(), gd.getSensorValue(sensor).data().doubleValue())).toList();
+        return csvFile.getGeoData().stream()
+                .filter(gd -> gd.getSensorValue(sensor) != null && gd.getSensorValue(sensor).data() != null)
+                .map(gd -> new DataPoint(gd.getLatitude(), gd.getLongitude(), gd.getSensorValue(sensor).data().doubleValue()))
+                .toList();
     }
 
     private static List<DataPoint> getMedianValues(List<DataPoint> dataPoints) {

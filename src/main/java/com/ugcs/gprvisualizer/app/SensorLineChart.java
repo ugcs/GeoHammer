@@ -130,30 +130,30 @@ public class SensorLineChart extends Chart {
 	};
 
     public List<PlotData> generatePlotData(CsvFile csvFile) {
-
-        record PlotKey(String semantic, String units) {}
-
-        Map<PlotKey, List<Number>> sensorValues = new LinkedHashMap<>();
+        // semantic -> unit
+        Map<String, String> semantics = new LinkedHashMap<>();
         for (GeoData data : csvFile.getGeoData()) {
             for (SensorValue value : data.getSensorValues()) {
-                PlotKey plotKey = new PlotKey(
-                        value.semantic(),
-                        Strings.nullToEmpty(value.units()));
-                sensorValues.computeIfAbsent(plotKey, k -> new ArrayList<>())
-                        .add(value.data());
+                semantics.putIfAbsent(value.semantic(), Strings.nullToEmpty(value.units()));
             }
         }
 
-        List<PlotData> plotDataList = new ArrayList<>();
-        for (Map.Entry<PlotKey, List<Number>> e: sensorValues.entrySet()) {
-            PlotKey key = e.getKey();
-            List<Number> data = e.getValue();
+        List<PlotData> plotDataList = new ArrayList<>(semantics.size());
+        for (Map.Entry<String, String> e : semantics.entrySet()) {
+            String semantic = e.getKey();
+            String unit = e.getValue();
+
+            List<Number> semanticValues = new ArrayList<>(csvFile.getGeoData().size());
+            for (GeoData data : csvFile.getGeoData()) {
+                SensorValue sensorValue = data.getSensorValue(semantic);
+                semanticValues.add(sensorValue != null ? sensorValue.data() : null);
+            }
 
             PlotData plotData = new PlotData(
-                    key.semantic,
-                    key.units,
-                    getColor(key.semantic),
-                    data);
+                    semantic,
+                    unit,
+                    getColor(semantic),
+                    semanticValues);
             plotDataList.add(plotData);
         }
         return plotDataList;
@@ -1572,16 +1572,23 @@ public class SensorLineChart extends Chart {
         var filtered = filter.filterList(values).subList(shift, values.size() + shift);
         assert filtered.size() == values.size();
 
-        double rmsOriginal = calculateRMS(values.stream()
-                .filter(Objects::nonNull)
-                .mapToDouble(Number::doubleValue)
-                .toArray());
-        double rmsFiltered = calculateRMS(filtered.stream()
-                .filter(Objects::nonNull)
-                .mapToDouble(Number::doubleValue)
-                .toArray());
+        List<Number> valuesNonNull = new ArrayList<>();
+        List<Number> filteredValuesNonNull = new ArrayList<>();
+        for (int i = 0; i < values.size(); i++) {
+            Number value = values.get(i);
+            Number filteredValue = filtered.get(i);
+            if (value != null && filteredValue != null) {
+                valuesNonNull.add(value);
+                filteredValuesNonNull.add(filteredValue);
+            }
+        }
 
-        double scale = rmsOriginal / rmsFiltered;
+        double rmsOriginal = calculateRMS(valuesNonNull);
+        double rmsFiltered = calculateRMS(filteredValuesNonNull);
+
+        double scale = rmsOriginal != 0.0 && rmsFiltered != 0.0
+                ? rmsOriginal / rmsFiltered
+                : 0.0;
         for (int i = 0; i < filtered.size(); i++) {
             Number value = filtered.get(i);
             if (value != null) {
@@ -1591,12 +1598,17 @@ public class SensorLineChart extends Chart {
         return filtered;
     }
 
-    private static double calculateRMS(double[] signal) {
+    private static double calculateRMS(List<Number> values) {
         double sum = 0.0;
-        for (double v : signal) {
-            sum += v * v;
+        int count = 0;
+        for (Number value : values) {
+            if (value == null) {
+                continue;
+            }
+            sum += value.doubleValue() * value.doubleValue();
+            count++;
         }
-        return Math.sqrt(sum / signal.length);
+        return count > 0 ? Math.sqrt(sum / count) : 0.0;
     }
 
     public void medianCorrection(String seriesName, int window) {

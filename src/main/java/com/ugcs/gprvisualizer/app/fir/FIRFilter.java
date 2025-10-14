@@ -71,8 +71,9 @@ public class FIRFilter {
             var value = data.get(paddingLength - 1 - i);
             if (value != null) {
                 filter(value.doubleValue());
+            } else {
+                filter(null);
             }
-            //filter(data.get(0).doubleValue());
         }
 
         List<Number> result = new ArrayList<>();
@@ -80,7 +81,7 @@ public class FIRFilter {
             if (value != null) {
                 result.add(filter(value.doubleValue()));
             } else {
-                result.add(null);
+                result.add(filter(null));
             }
         }
 
@@ -89,28 +90,38 @@ public class FIRFilter {
             if (value != null) {
                 result.add(filter(value.doubleValue()));
             } else {
-                result.add(null);
+                result.add(filter(null));
             }
         }
         return result;
     }
 
-    private double filter(double inputValue) {
+    private Double filter(Double inputValue) {
+        if (inputValue == null) {
+            inputValue = Double.NaN;
+        }
         buffer[bufferIndex] = inputValue;
         double result = 0.0;
         int coefIndex = 0;
+        double coefSum = 0.0;
         for (int i = bufferIndex; i >= 0; i--) {
-            result += coefficients[coefIndex] * buffer[i];
+            if (!Double.isNaN(buffer[i])) {
+                result += coefficients[coefIndex] * buffer[i];
+                coefSum += coefficients[coefIndex];
+            }
             coefIndex++;
         }
         for (int i = buffer.length - 1; i > bufferIndex; i--) {
-            result += coefficients[coefIndex] * buffer[i];
+            if (!Double.isNaN(buffer[i])) {
+                result += coefficients[coefIndex] * buffer[i];
+                coefSum += coefficients[coefIndex];
+            }
             coefIndex++;
         }
         bufferIndex++;
         if (bufferIndex == buffer.length) {
             bufferIndex = 0;
         }
-        return result;
+        return coefSum != 0 ? result / coefSum : null;
     }
 }

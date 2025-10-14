@@ -51,6 +51,9 @@ public class ScriptExecutionView extends VBox {
 
 	private final Model model;
 
+	@Nullable
+	private SgyFile selectedFile;
+
 	private final ScriptExecutor scriptExecutor;
 
 	private final Status status;
@@ -75,6 +78,7 @@ public class ScriptExecutionView extends VBox {
 		this.model = model;
 		this.status = status;
 		this.scriptExecutor = scriptExecutor;
+		this.selectedFile = selectedFile;
 
 		setSpacing(OptionPane.DEFAULT_SPACING);
 		setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
@@ -130,29 +134,8 @@ public class ScriptExecutionView extends VBox {
 			}
 		});
 
-		applyButton.setOnAction(event -> {
-			String filename = scriptsMetadataSelector.getValue();
-			ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-					.filter(sM -> sM.filename().equals(filename))
-					.findFirst()
-					.orElse(null);
-			if (selectedFile != null) {
-				executeScript(scriptMetadata, List.of(selectedFile));
-			} else {
-				MessageBoxHelper.showError("No File Selected",
-						"Please select a file to apply the script");
-			}
-		});
-
-		applyToAllButton.setOnAction(event -> {
-			String filename = scriptsMetadataSelector.getValue();
-			ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-					.filter(sM -> sM.filename().equals(filename))
-					.findFirst()
-					.orElse(null);
-			List<SgyFile> filesToProcess = model.getFileManager().getFiles().stream().toList();
-			executeScript(scriptMetadata, filesToProcess);
-		});
+		applyButton.setOnAction(event -> onApplyClicked());
+		applyToAllButton.setOnAction(event -> onApplyToAllClicked(model));
 
 		HBox buttonsRow = new HBox(5);
 		HBox rightBox = new HBox();
@@ -177,7 +160,33 @@ public class ScriptExecutionView extends VBox {
 		setManaged(false);
 	}
 
+	private void onApplyClicked() {
+		String filename = scriptsMetadataSelector.getValue();
+		ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+				.filter(sM -> sM.filename().equals(filename))
+				.findFirst()
+				.orElse(null);
+		SgyFile sgyFile = this.selectedFile;
+		if (sgyFile != null) {
+			executeScript(scriptMetadata, List.of(sgyFile));
+		} else {
+			MessageBoxHelper.showError("No file selected",
+					"Please select a file to apply the script");
+		}
+	}
+
+	private void onApplyToAllClicked(Model model) {
+		String filename = scriptsMetadataSelector.getValue();
+		ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+				.filter(sM -> sM.filename().equals(filename))
+				.findFirst()
+				.orElse(null);
+		List<SgyFile> filesToProcess = model.getFileManager().getFiles().stream().toList();
+		executeScript(scriptMetadata, filesToProcess);
+	}
+
 	public void updateView(@Nullable SgyFile sgyFile) {
+		this.selectedFile = sgyFile;
 		try {
 			List<ScriptMetadata> loadedScriptsMetadata = getLoadedScriptsMetadata();
 			this.scriptsMetadata = filterScriptsByTemplate(sgyFile, loadedScriptsMetadata);
@@ -318,8 +327,8 @@ public class ScriptExecutionView extends VBox {
 		});
 
 		AtomicInteger remainingFiles = new AtomicInteger(files.size());
-		for (SgyFile sgyFile : files) {
-			Future<Void> future = executor.submit(() -> {
+		Future<Void> future = executor.submit(() -> {
+			for (SgyFile sgyFile : files) {
 				try {
 					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput);
 					showSuccess(scriptMetadata);
@@ -336,15 +345,21 @@ public class ScriptExecutionView extends VBox {
 						});
 					}
 				}
-				return null;
-			});
+			}
+			return null;
+		});
 
-			String taskName = "Running script " + scriptMetadata.displayName();
+		int filesCount = files.size();
+		String taskName = "Running script " + scriptMetadata.displayName();
+		if (filesCount == 1) {
+			SgyFile sgyFile = files.getFirst();
 			if (sgyFile.getFile() != null) {
 				taskName += ": " + sgyFile.getFile().getName();
 			}
-			AppContext.getInstance(TaskService.class).registerTask(future, taskName);
+		} else if (filesCount > 1) {
+			taskName += " on " + filesCount + " files";
 		}
+		AppContext.getInstance(TaskService.class).registerTask(future, taskName);
 	}
 
 	private void showSuccess(ScriptMetadata scriptMetadata) {

@@ -38,5 +38,5 @@
       "required": false
     }
   ],
-  "templates": ["MagNIMBUS"]
+  "templates": ["MagNIMBUS", "SkyHub"]
 }

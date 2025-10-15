@@ -1,7 +1,5 @@
 package com.ugcs.gprvisualizer.app;
 
-import java.awt.Desktop;
-
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.ext.FileManager;
 import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
@@ -9,9 +7,6 @@ import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -51,30 +46,8 @@ public class SceneContent extends BorderPane implements InitializingBean {
 	public void afterPropertiesSet() throws Exception {
 		this.setOnDragOver(loader.getDragHandler());
 		this.setOnDragDropped(loader.getDropHandler());
-		setupMenuBar();
 		this.setCenter(createSplitPane());
 		this.setBottom(statusBar);
-	}
-
-	private void setupMenuBar() {
-		String os = System.getProperty("os.name").toLowerCase();
-		if (Desktop.isDesktopSupported() && os.contains("mac")) {
-			Desktop desktop = Desktop.getDesktop();
-			desktop.setPreferencesHandler(event ->
-					Platform.runLater(() ->
-							new SettingsView(pythonConfig)
-					)
-			);
-		} else {
-			MenuBar menuBar = new MenuBar();
-			Menu menu = new Menu("File");
-			MenuItem settingsItem = new MenuItem("Settings");
-			settingsItem.setOnAction(event -> new SettingsView(pythonConfig));
-			menu.getItems().add(settingsItem);
-			menuBar.getMenus().add(menu);
-
-			this.setTop(menuBar);
-		}
 	}
 
 	private SplitPane createSplitPane() {

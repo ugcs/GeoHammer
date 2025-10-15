@@ -38,5 +38,5 @@
       "required": false
     }
   ],
-  "templates": ["MagNIMBUS", "SkyHub"]
+  "templates": ["MagNIMBUS", "MagDrone R1"]
 }

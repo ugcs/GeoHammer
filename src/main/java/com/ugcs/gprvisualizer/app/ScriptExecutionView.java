@@ -181,8 +181,23 @@ public class ScriptExecutionView extends VBox {
 				.filter(sM -> sM.filename().equals(filename))
 				.findFirst()
 				.orElse(null);
-		List<SgyFile> filesToProcess = model.getFileManager().getFiles().stream().toList();
+		List<SgyFile> filesToProcess = getFilesToProcess(model);
 		executeScript(scriptMetadata, filesToProcess);
+	}
+
+	private List<SgyFile> getFilesToProcess(Model model) {
+		SgyFile sgyFile = this.selectedFile;
+		String template = sgyFile != null
+				? FileTemplate.getTemplateName(model, sgyFile.getFile())
+				: null;
+		List<SgyFile> filesToProcess = model.getFileManager().getFiles();
+		if (template != null) {
+			filesToProcess = filesToProcess.stream().filter(file -> {
+				String fileTemplate = FileTemplate.getTemplateName(model, file.getFile());
+				return template.equals(fileTemplate);
+			}).toList();
+		}
+		return filesToProcess;
 	}
 
 	public void updateView(@Nullable SgyFile sgyFile) {

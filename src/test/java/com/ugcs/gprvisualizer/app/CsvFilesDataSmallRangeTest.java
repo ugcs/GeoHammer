@@ -126,16 +126,16 @@ public class CsvFilesDataSmallRangeTest {
         assertEquals(0.0, range.getMin(), "Min value should be 0");
         assertEquals(1.0, range.getMax(), "Max value should be 1");
 
-        // Check the semantic min/max values directly in the maps using reflection
-        Field semanticMinValuesField = SensorLineChart.class.getDeclaredField("semanticMinValues");
-        semanticMinValuesField.setAccessible(true);
-        Map<String, Double> semanticMinValues = (Map<String, Double>) semanticMinValuesField.get(chart);
+        // Check the series min/max values directly in the maps using reflection
+        Field seriesMinValuesField = SensorLineChart.class.getDeclaredField("seriesMinValues");
+        seriesMinValuesField.setAccessible(true);
+        Map<String, Double> seriesMinValues = (Map<String, Double>) seriesMinValuesField.get(chart);
 
-        Field semanticMaxValuesField = SensorLineChart.class.getDeclaredField("semanticMaxValues");
-        semanticMaxValuesField.setAccessible(true);
-        Map<String, Double> semanticMaxValues = (Map<String, Double>) semanticMaxValuesField.get(chart);
+        Field seriesMaxValuesField = SensorLineChart.class.getDeclaredField("seriesMaxValues");
+        seriesMaxValuesField.setAccessible(true);
+        Map<String, Double> seriesMaxValues = (Map<String, Double>) seriesMaxValuesField.get(chart);
 
-        assertEquals(0.1, semanticMinValues.get("test"), "Semantic min value should be 0.1");
-        assertEquals(0.9, semanticMaxValues.get("test"), "Semantic max value should be 0.9");
+        assertEquals(0.1, seriesMinValues.get("test"), "Series min value should be 0.1");
+        assertEquals(0.9, seriesMaxValues.get("test"), "Series max value should be 0.9");
     }
 }

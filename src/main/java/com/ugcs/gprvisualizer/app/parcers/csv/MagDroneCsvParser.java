@@ -1,8 +1,6 @@
 package com.ugcs.gprvisualizer.app.parcers.csv;
 
 import java.io.*;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -22,40 +20,40 @@ import com.ugcs.gprvisualizer.utils.Check;
 
 public class MagDroneCsvParser extends CsvParser {
 
-    private DecimalFormat format;
-
     public MagDroneCsvParser(Template template) {
         super(template);
     }
 
     @Override
-    public List<GeoCoordinates> parse(String logPath) throws FileNotFoundException {
+    public List<GeoCoordinates> parse(String path) throws FileNotFoundException {
         
         if (template == null) {
             throw new NullPointerException("Template is not set");
         }
 
-        File file = new File(logPath);
+        File file = new File(path);
 
         if (!file.exists()) {
-            throw new FileNotFoundException("File " + logPath + " does not exist");
+            throw new FileNotFoundException("File " + path + " does not exist");
         }
 
         if (template.getDataMapping().getDate() != null && Source.FileName.equals(template.getDataMapping().getDate().getSource())) {
-            parseDateFromNameOfFile(new File(logPath).getName());
+            parseDateFromFilename(new File(path).getName());
         }
 
+        this.headers = new HashMap<>();
+
         List<GeoCoordinates> coordinates = new ArrayList<>();
-        try (var reader = new BufferedReader(new FileReader(logPath))) {
+        try (var reader = new BufferedReader(new FileReader(path))) {
             String line = skipLines(reader);
 
             if (template.getFileFormat().isHasHeader()) {
                 line = skipBlankAndComments(reader, line);
                 Check.notNull(line, "No header found");
-                findIndexesByHeaders(line);
-            }
 
-            format = new DecimalFormat("0.#", new DecimalFormatSymbols(Locale.US));
+                headers = parseHeaders(line);
+                initColumnIndices(headers);
+            }
 
             int traceCount = 0;
             LocalDateTime firstDateTime = null;
@@ -85,16 +83,16 @@ public class MagDroneCsvParser extends CsvParser {
             
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
-                    for (SensorData sensor : filterSensors(template.getDataMapping().getDataValues())) {
+                    for (SensorData sensor : template.getDataMapping().getDataValues()) {
                         String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < data.length) ? data[sensor.getIndex()] : null;
-                        sensorValues.add(new SensorValue(sensor.getSemantic(), sensor.getUnits(), parseNumber(sensor, sensorData)));
+                        sensorValues.add(new SensorValue(sensor.getHeader(), sensor.getUnits(), parseNumber(sensor, sensorData)));
                     }    
                 }
 
                 if (mapping.getTime() == null) {
                     Instant instant = Instant.ofEpochMilli(timestamp);
                     LocalDateTime date = LocalDateTime.ofInstant(instant, ZoneId.of("UTC"));
-                    coordinates.add(new GeoData(false, line, sensorValues, new GeoCoordinates(date, lat, lon, alt, traceNumber)));
+                    coordinates.add(new GeoData(false, data, sensorValues, new GeoCoordinates(date, lat, lon, alt, traceNumber)));
                 }
                 
                 SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");

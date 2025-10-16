@@ -5,6 +5,7 @@ import com.ugcs.gprvisualizer.app.meta.TraceLine;
 import com.ugcs.gprvisualizer.app.meta.TraceMark;
 import com.ugcs.gprvisualizer.app.meta.TraceMeta;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.quality.LineSchema;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
@@ -177,7 +178,8 @@ public class MetaFile {
         meta.setSampleRange(sampleRange);
 
         // lines
-        TreeMap<Integer, Range> lineRanges = LineSchema.getLineRanges(values);
+        String lineHeader = GeoData.getHeader(Semantic.LINE, null);
+        TreeMap<Integer, Range> lineRanges = LineSchema.getLineRanges(values, lineHeader);
         List<TraceLine> lines = new ArrayList<>();
         for (Map.Entry<Integer, Range> e : lineRanges.entrySet()) {
             Integer lineIndex = e.getKey();
@@ -233,12 +235,13 @@ public class MetaFile {
             numValues += line.getTo() - line.getFrom();
         }
 
+        String lineHeader = GeoData.getHeader(Semantic.LINE, null);
         int lineIndex = 0;
         List<TraceGeoData> values = new ArrayList<>(numValues);
         for (TraceLine line : lines) {
             for (int i = line.getFrom(); i < line.getTo(); i++) {
                 TraceGeoData value = new TraceGeoData(i);
-                value.setLineIndex(lineIndex);
+                value.setSensorValue(lineHeader, lineIndex);
                 values.add(value);
             }
             lineIndex++;

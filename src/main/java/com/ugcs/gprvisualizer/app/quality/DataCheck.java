@@ -7,6 +7,7 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.parcers.SensorValue;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.utils.Check;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,16 +41,16 @@ public class DataCheck extends FileQualityCheck {
             return List.of();
         }
 
-        Template template = file.getParser().getTemplate();
+        Template template = file.getTemplate();
         DataValidation validation = DataCheck.buildDataValidation(template);
         if (validation == null) {
             return List.of();
         }
 
-        return checkValues(file.getGeoData(), validation);
+        return checkValues(file.getGeoData(), template, validation);
     }
 
-    private List<QualityIssue> checkValues(List<GeoData> values, DataValidation validation) {
+    private List<QualityIssue> checkValues(List<GeoData> values, Template template, DataValidation validation) {
         if (values == null) {
             return List.of();
         }
@@ -62,7 +64,7 @@ public class DataCheck extends FileQualityCheck {
         Expression expression = new Expression(validation.getExpression());
         Map<String, Number> varValues = new HashMap<>();
         for (GeoData value : values) {
-            if (isInRange(value, lastProblem)) {
+            if (isInRange(value, lastProblem, template)) {
                 // skip sample
                 continue;
             }
@@ -72,8 +74,8 @@ public class DataCheck extends FileQualityCheck {
                 for (Map.Entry<String, String> e : validation.getVarSemantics().entrySet()) {
                     String varName = e.getKey();
                     String varSemantic = e.getValue();
-
-                    SensorValue sensorValue = value.getSensorValue(varSemantic);
+                    String varHeader = GeoData.getHeader(varSemantic, template);
+                    SensorValue sensorValue = value.getSensorValue(varHeader);
                     if (sensorValue == null || sensorValue.data() == null) {
                         varMissing = true;
                         break;
@@ -102,11 +104,12 @@ public class DataCheck extends FileQualityCheck {
         return issues;
     }
 
-    private boolean isInRange(GeoData value, GeoData last) {
+    private boolean isInRange(GeoData value, GeoData last, Template template) {
         if (last == null) {
             return false;
         }
-        if (value.getLineIndexOrDefault() != last.getLineIndexOrDefault()) {
+        String lineHeader = GeoData.getHeader(Semantic.LINE, template);
+        if (!Objects.equals(value.getInt(lineHeader), last.getInt(lineHeader))) {
             return false;
         }
         LatLon latlon = new LatLon(value.getLatitude(), value.getLongitude());

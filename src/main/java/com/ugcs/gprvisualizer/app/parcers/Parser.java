@@ -1,7 +1,6 @@
 package com.ugcs.gprvisualizer.app.parcers;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -11,61 +10,52 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
-import org.springframework.util.StringUtils;
+import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
+import com.ugcs.gprvisualizer.app.yaml.DataMapping;
+import com.ugcs.gprvisualizer.app.yaml.data.Date;
+import com.ugcs.gprvisualizer.utils.Strings;
 
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.DateTime;
 
-public abstract class Parser implements IGeoCoordinateParser {
+public abstract class Parser {
 
-    /**
-     * Contains lines that were skipped during parsing
-     */
-    protected StringBuilder skippedLines;
-
-    /**
-     * Date from the name of the file
-     */
-    protected LocalDate dateFromNameOfFile;
-    // private CultureInfo format;
-
-    /**
-     * Template for parsing
-     */
     protected final Template template;
 
-    private int countOfReplacedLines;
+    // contains lines that were skipped during parsing
+    protected StringBuilder skippedLines;
 
-    public int getCountOfReplacedLines() {
-        return countOfReplacedLines;
-    }
-
-    public void setCountOfReplacedLines(int countOfReplacedLines) {
-        this.countOfReplacedLines = countOfReplacedLines;
-        if (countOfReplacedLines % 100 == 0) {
-            // OnOneHundredLinesReplaced?.Invoke(countOfReplacedLines);
-        }
-    }
-
-    // public event Action<int> OnOneHundredLinesReplaced;
-
-    public abstract List<GeoCoordinates> parse(String path) throws IOException;
-
-    public abstract Result createFileWithCorrectedCoordinates(String oldFile,
-            String newFile,
-            Iterable<GeoCoordinates> coordinates) throws FileNotFoundException; // ,
-    // CancellationTokenSource token);
+    protected LocalDate dateFromFilename;
 
     public Parser(Template template) {
         this.template = template;
     }
 
-    protected String skipLines(BufferedReader reader) throws IOException {
+    public Template getTemplate() {
+        return template;
+    }
+
+    public String getSkippedLines() {
+        return skippedLines.toString();
+    }
+
+    public abstract List<GeoCoordinates> parse(String path) throws IOException;
+
+    public boolean isBlankOrCommented(String line) {
+        if (Strings.isNullOrBlank(line)) {
+            return true;
+        }
+        String commentPrefix = template.getFileFormat().getCommentPrefix();
+        return !Strings.isNullOrBlank(commentPrefix) && line.startsWith(commentPrefix);
+    }
+
+    public String skipLines(BufferedReader reader) throws IOException {
         skippedLines = new StringBuilder();
 
         if (template.getSkipLinesTo() == null) {
@@ -90,7 +80,7 @@ public abstract class Parser implements IGeoCoordinateParser {
         return line;
     }
 
-    protected String skipBlankAndComments(BufferedReader reader, String line) throws IOException {
+    public String skipBlankAndComments(BufferedReader reader, String line) throws IOException {
         // Handle empty lines and comments before header
         boolean eof = template.getSkipLinesTo() != null && line == null;
         while (!eof && isBlankOrCommented(line)) {
@@ -104,252 +94,206 @@ public abstract class Parser implements IGeoCoordinateParser {
         return line;
     }
 
-    protected Number parseNumber(BaseData data, String column) {
-        if (StringUtils.hasText(column) && column.indexOf(getTemplate().getFileFormat().getDecimalSeparator()) > 0) {
-            return parseDouble(data, column);
+    public void parseDateFromFilename(String filename) {
+        DataMapping mapping = template.getDataMapping();
+
+        Pattern pattern = Pattern.compile(mapping.getDate().getRegex());
+        Matcher matcher = pattern.matcher(filename);
+
+        if (!matcher.find()) {
+            throw new IncorrectDateFormatException("Incorrect file name. Set date of logging.");
+        }
+
+        List<String> formats = mapping.getDate().getFormat() != null
+                ? List.of(mapping.getDate().getFormat())
+                : mapping.getDate().getFormats();
+        dateFromFilename = parseDate(matcher.group(), formats);
+    }
+
+    private LocalDate parseDate(String date, List<String> formats) {
+        for (String format : formats) {
+            try {
+                return LocalDate.parse(date, DateTimeFormatter.ofPattern(format, Locale.US));
+            } catch (DateTimeParseException e) {
+                // do nothing
+            }
+        }
+        throw new IncorrectDateFormatException("Incorrect date formats");
+    }
+
+    public String matchString(BaseData column, String value) {
+        if (Strings.isNullOrEmpty(value)) {
+            return null;
+        }
+        String regex = column != null
+                ? Strings.trim(column.getRegex())
+                : null;
+        if (!Strings.isNullOrEmpty(regex)) {
+            var pattern = Pattern.compile(regex);
+            var matcher = pattern.matcher(value);
+            return matcher.matches() ? matcher.group() : null;
+        }
+        return Strings.emptyToNull(Strings.trim(value));
+    }
+
+    public Number parseNumber(BaseData column, String value) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+
+        String decimalSeparator = template.getFileFormat().getDecimalSeparator();
+        if (value.indexOf(decimalSeparator) > 0) {
+            return parseDouble(column, value);
         } else {
-            return parseInt(data, column);
+            return parseInt(column, value);
         }
     }
 
-    protected Double parseDouble(BaseData data, String column) {
-        Double result;
-        if (StringUtils.hasText(data.getRegex())) {
-            var match = findByRegex(data.getRegex(), column);
-            if (match.matches()) {
-                try {
-                    result = Double.parseDouble(match.group());
-
-                    // if (Double.TryParse(match.Value, NumberStyles.Float, format, out result)) {
-
-                    return result;
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-
-            }
+    public Double parseDouble(BaseData column, String value) {
+        value = matchString(column, value);
+        if (Strings.isNullOrEmpty(value)) {
+            return null;
         }
 
         try {
-            result = Double.parseDouble(column);
-            // if (Double.TryParse(match.Value, NumberStyles.Float, format, out result)) {
-            return result;
+            return Double.parseDouble(value);
         } catch (NumberFormatException e) {
             return null;
         }
     }
 
-    protected Integer parseInt(BaseData data, String column) {
-        int result;
-        if (StringUtils.hasText(data.getRegex())) {
-            var match = findByRegex(data.getRegex(), column);
-            if (match.matches()) {
-                try {
-                    result = Integer.parseInt(match.group());
-                    return result;
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-            }
+    public Integer parseInt(BaseData column, String value) {
+        value = matchString(column, value);
+        if (Strings.isNullOrEmpty(value)) {
+            return null;
         }
 
         try {
-            result = Integer.parseInt(column);
-            return result;
+            return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             return null;
         }
     }
 
-    protected Long parseLong(BaseData data, String column) {
-        long result;
-        if (StringUtils.hasText(data.getRegex())) {
-            var match = findByRegex(data.getRegex(), column);
-            if (match.matches()) {
-                try {
-                    result = Long.parseLong(match.group());
-                    return result;
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-            }
+    public Long parseLong(BaseData column, String value) {
+        value = matchString(column, value);
+        if (Strings.isNullOrEmpty(value)) {
+            return null;
         }
 
         try {
-            result = Long.parseLong(column);
-            return result;
+            return Long.parseLong(value);
         } catch (NumberFormatException e) {
             return null;
         }
     }
 
-    protected LocalDateTime parseDateTime(String[] data) {
+    private LocalDate parseDate(DateTime column, String value) {
+        value = matchString(column, value);
+        if (Strings.isNullOrEmpty(value)) {
+            return null;
+        }
 
-        if (template.getDataMapping().getDateTime() != null
-                && template.getDataMapping().getDateTime().getIndex() != -1) {
-            if (DateTime.Type.GPST.equals(template.getDataMapping().getDateTime().getType())) {
-                return gpsToUTC(data[template.getDataMapping().getDateTime().getIndex()]);
+        try {
+            return LocalDate.parse(value, DateTimeFormatter.ofPattern(column.getFormat()));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private LocalTime parseTime(DateTime column, String value) {
+        value = matchString(column, value);
+        if (Strings.isNullOrEmpty(value)) {
+            return null;
+        }
+
+        String format = column.getFormat().replaceAll("f", "S");
+        try {
+            return LocalTime.parse(value, DateTimeFormatter.ofPattern(format));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private LocalDateTime parseDateTime(DateTime column, String value) {
+        value = matchString(column, value);
+        if (Strings.isNullOrEmpty(value)) {
+            return null;
+        }
+
+        String format = column.getFormat().replaceAll("f", "S");
+        try {
+            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern(format));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private LocalDateTime parseGpsTime(String value) {
+        var tokens = value.split(" ");
+        var weeksInDays = Integer.parseInt(tokens[0]);
+        var secondsAndMs = (Double.parseDouble(tokens[1]) * 1000);
+        LocalDateTime datum = LocalDateTime.of(1980, 1, 6, 0, 0, 0);
+        LocalDateTime week = datum.plusDays(weeksInDays * 7L);
+        return week.plusSeconds((long) (secondsAndMs * 1000));
+    }
+
+    public boolean valuesContainColumn(String[] values, BaseData column) {
+        if (values == null) {
+            return false;
+        }
+        if (column == null) {
+            return false;
+        }
+        Integer index = column.getIndex();
+        return index != null && index >= 0 && index < values.length;
+    }
+
+    public LocalDateTime parseDateTime(String[] values) {
+        DataMapping mapping = template.getDataMapping();
+
+        // dateTime column
+        DateTime dateTimeColumn = mapping.getDateTime();
+        if (valuesContainColumn(values, dateTimeColumn)) {
+            if (dateTimeColumn.getType() == DateTime.Type.GPST) {
+                return parseGpsTime(values[dateTimeColumn.getIndex()]);
             } else {
-                return parseDateAndTime(template.getDataMapping().getDateTime(),
-                        data[template.getDataMapping().getDateTime().getIndex()]);
+                return parseDateTime(dateTimeColumn, values[dateTimeColumn.getIndex()]);
             }
         }
 
-        if (template.getDataMapping().getTime() != null
-                && template.getDataMapping().getTime().getIndex() != -1
-                && template.getDataMapping().getDate() != null
-                && template.getDataMapping().getDate().getIndex() != null) {
-            var date = parseDate(template.getDataMapping().getDate(),
-                    data[(int) template.getDataMapping().getDate().getIndex()]);
-            var time = parseTime(template.getDataMapping().getTime(),
-                    data[(int) template.getDataMapping().getTime().getIndex()]);
-            //var totalMS = calculateTotalMS(time);
+        // date + time columns
+        Date dateColumn = mapping.getDate();
+        DateTime timeColumn = mapping.getTime();
+        if (valuesContainColumn(values, dateColumn)
+                && valuesContainColumn(values, timeColumn)) {
+            var date = parseDate(dateColumn, values[dateColumn.getIndex()]);
             if (date == null) {
                 throw new CSVParsingException(null, "Header 'date' not found in a data file");
-            } else if (time == null) {
+            }
+            var time = parseTime(timeColumn, values[timeColumn.getIndex()]);
+            if (time == null) {
                 throw new CSVParsingException(null, "Header 'time' not found in a data file");
             }
-            var dateTime = LocalDateTime.of(date, time); //date.plusNanos(totalMS);
-            return dateTime;
+            return LocalDateTime.of(date, time);
         }
 
-        if (template.getDataMapping().getTime() != null
-                && template.getDataMapping().getTime().getIndex() != -1
-                && dateFromNameOfFile != null) {
-            var time = parseTime(template.getDataMapping().getTime(),
-                    data[(int) template.getDataMapping().getTime().getIndex()]);
-            //var totalMS = calculateTotalMS(time);
-            var dateTime = LocalDateTime.of(dateFromNameOfFile, time);
-            return dateTime;
+        // date from file name + time column
+        if (valuesContainColumn(values, timeColumn) && dateFromFilename != null) {
+            var time = parseTime(timeColumn, values[timeColumn.getIndex()]);
+            if (time == null) {
+                throw new CSVParsingException(null, "Header 'time' not found in a data file");
+            }
+            return LocalDateTime.of(dateFromFilename, time);
         }
 
-        if (template.getDataMapping().getTimestamp() != null
-                && template.getDataMapping().getTimestamp().getIndex() != -1) {
-            long timestamp = parseLong(getTemplate().getDataMapping().getTimestamp(), data[getTemplate().getDataMapping().getTimestamp().getIndex()]);
+        // timestamp column
+        BaseData timestampColumn = mapping.getTimestamp();
+        if (valuesContainColumn(values, timestampColumn)) {
+            long timestamp = parseLong(timestampColumn, values[timestampColumn.getIndex()]);
             return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
         }
 
         throw new RuntimeException("Cannot parse DateTime from file");
     }
-
-    // TODO: Add tests for new format
-    private LocalDateTime gpsToUTC(String gpsTime) {
-        var data = gpsTime.split(" ");
-        var weeksInDays = Integer.parseInt(data[0]);
-        var secondsAndMs = (Double.parseDouble(data[1]) * 1000); // , CultureInfo.InvariantCulture);
-        LocalDateTime datum = LocalDateTime.of(1980, 1, 6, 0, 0, 0);
-        LocalDateTime week = datum.plusDays(weeksInDays * 7);
-        LocalDateTime time = week.plusSeconds((long) (secondsAndMs * 1000));
-        return time;
-    }
-
-
-    private LocalDateTime parseDateAndTime(DateTime data, String column) {
-        if (column != null) {
-            column = column.trim();
-        }
-        LocalDateTime result;
-        if (StringUtils.hasText(data.getRegex())) {
-            var match = findByRegex(data.getRegex(), column);
-            if (match.matches()) {
-                try {
-                    var format = data.getFormat().replaceAll("f", "S");
-                    result = LocalDateTime.parse(match.group(), DateTimeFormatter.ofPattern(format));
-                    return result;
-                } catch (DateTimeParseException e) {
-                    return null;
-                }
-            }
-        }
-
-        try {
-            var format = data.getFormat().replaceAll("f", "S");
-            result = LocalDateTime.parse(column, DateTimeFormatter.ofPattern(format));
-            return result;
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }    
-
-    private LocalDate parseDate(DateTime data, String column) {
-        if (column != null) {
-            column = column.trim();
-        }
-        LocalDate result;
-        if (StringUtils.hasText(data.getRegex())) {
-            var match = findByRegex(data.getRegex(), column);
-            if (match.matches()) {
-                try {
-                    result = LocalDate.parse(match.group(), DateTimeFormatter.ofPattern(data.getFormat()));
-                    return result;
-                } catch (DateTimeParseException e) {
-                    return null;
-                }
-            }
-        }
-
-        try {
-            result = LocalDate.parse(column, DateTimeFormatter.ofPattern(data.getFormat()));
-            return result;
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    private LocalTime parseTime(DateTime data, String column) {
-        if (column != null) {
-            column = column.trim();
-        }
-        LocalTime result;
-        if (StringUtils.hasText(data.getRegex())) {
-            var match = findByRegex(data.getRegex(), column);
-            if (match.matches()) {
-                try {
-                    var format = data.getFormat().replaceAll("f", "S");
-                    result = LocalTime.parse(match.group(), DateTimeFormatter.ofPattern(format));
-                    return result;
-                } catch (DateTimeParseException e) {
-                    return null;
-                }
-            }
-        }
-
-        try {
-            var format = data.getFormat().replaceAll("f", "S");
-            result = LocalTime.parse(column, DateTimeFormatter.ofPattern(format));
-            return result;
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    /* 
-    private long calculateTotalMS(LocalDateTime time) {
-        return time.getSecond() * 1000 + time.getMinute() * 60000 + time.getHour() * 3600000 + time.getNano();
-    } 
-    */
-
-    private Matcher findByRegex(String regex, String column) {
-        var r = Pattern.compile(regex);
-        var m = r.matcher(column);
-        return m;
-    }
-
-    public Template getTemplate() {
-        return template;
-    }
-
-    public String getSkippedLines() {
-        return skippedLines.toString();
-    }
-
-    protected boolean isBlankOrCommented(String line) {
-        if (!StringUtils.hasText(line)) {
-            return true;
-        }
-        String commentPrefix = template.getFileFormat().getCommentPrefix();
-        return StringUtils.hasText(commentPrefix) && line.startsWith(commentPrefix);
-    }
-
-    public record Row(int lineNumber, String[] values) {}
 }

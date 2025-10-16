@@ -14,6 +14,7 @@ import com.ugcs.gprvisualizer.app.axis.SensorLineChartXAxis;
 import com.ugcs.gprvisualizer.app.axis.SensorLineChartYAxis;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -89,8 +90,8 @@ public class SensorLineChart extends Chart {
     private VBox root;
     private StackPane chartsContainer;
     private CsvFile file;
-    private Map<String, Double> semanticMinValues = new HashMap<>();
-    private Map<String, Double> semanticMaxValues = new HashMap<>();
+    private Map<String, Double> seriesMinValues = new HashMap<>();
+    private Map<String, Double> seriesMaxValues = new HashMap<>();
     private Map<FoundPlace, Data<Number, Number>> foundPlaces = new HashMap<>();
 
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -130,37 +131,37 @@ public class SensorLineChart extends Chart {
 	};
 
     public List<PlotData> generatePlotData(CsvFile csvFile) {
-        // semantic -> unit
-        Map<String, String> semantics = new LinkedHashMap<>();
+        // header -> unit
+        Map<String, String> headers = new LinkedHashMap<>();
         for (GeoData data : csvFile.getGeoData()) {
             for (SensorValue value : data.getSensorValues()) {
-                semantics.putIfAbsent(value.semantic(), Strings.nullToEmpty(value.units()));
+                headers.putIfAbsent(value.header(), Strings.nullToEmpty(value.unit()));
             }
         }
 
-        List<PlotData> plotDataList = new ArrayList<>(semantics.size());
-        for (Map.Entry<String, String> e : semantics.entrySet()) {
-            String semantic = e.getKey();
+        List<PlotData> plotDataList = new ArrayList<>(headers.size());
+        for (Map.Entry<String, String> e : headers.entrySet()) {
+            String header = e.getKey();
             String unit = e.getValue();
 
-            List<Number> semanticValues = new ArrayList<>(csvFile.getGeoData().size());
+            List<Number> headerValues = new ArrayList<>(csvFile.getGeoData().size());
             for (GeoData data : csvFile.getGeoData()) {
-                SensorValue sensorValue = data.getSensorValue(semantic);
-                semanticValues.add(sensorValue != null ? sensorValue.data() : null);
+                SensorValue sensorValue = data.getSensorValue(header);
+                headerValues.add(sensorValue != null ? sensorValue.data() : null);
             }
 
             PlotData plotData = new PlotData(
-                    semantic,
+                    header,
                     unit,
-                    getColor(semantic),
-                    semanticValues);
+                    getColor(header),
+                    headerValues);
             plotDataList.add(plotData);
         }
         return plotDataList;
     }
 
-    private Color getColor(String semantic) {
-        return model.getColorBySemantic(semantic);
+    private Color getColor(String header) {
+        return model.getColorByHeader(header);
     }
 
     @Override
@@ -173,23 +174,19 @@ public class SensorLineChart extends Chart {
         eventPublisher.publishEvent(new FileSelectedEvent(this, file));
     }
 
-    public record PlotData(String semantic, String units, Color color, List<Number> data,
+    public record PlotData(String header, String unit, Color color, List<Number> data,
                            Set<Number> renderedIndices, boolean rendered) {
 
-        public PlotData(String semantic, String units, Color color, List<Number> data) {
-            this(semantic, units, color, data, new HashSet<>(), false);
+        public PlotData(String header, String unit, Color color, List<Number> data) {
+            this(header, unit, color, data, new HashSet<>(), false);
         }
 
         public PlotData withData(List<Number> data) {
-            return new PlotData(semantic, units, color, data);
+            return new PlotData(header, unit, color, data);
         }
 
-        /**
-         * Set rendered flag to true
-         * @return PlotData with rendered flag set to true
-         */
         public PlotData render() {
-            return new PlotData(semantic, units, color, data, renderedIndices, true);
+            return new PlotData(header, unit, color, data, renderedIndices, true);
         }
 
         public String getPlotStyle() {
@@ -217,7 +214,7 @@ public class SensorLineChart extends Chart {
             createLineChart(plotData, xAxis, yAxis);
         }
 
-        lastLineChart = charts.get(GeoData.Semantic.LINE.getName());
+        lastLineChart = charts.get(GeoData.getHeaderInFile(Semantic.LINE, file));
 
         if (lastLineChart != null) {
             lastLineChart.setMouseTransparent(false);
@@ -293,7 +290,7 @@ public class SensorLineChart extends Chart {
     }
 
     private void initLineMarkers() {
-        Color lineColor = getColor(GeoData.Semantic.LINE.getName());
+        Color lineColor = getColor(GeoData.getHeader(Semantic.LINE, file.getTemplate()));
         for (Map.Entry<Integer, Range> e : file.getLineRanges().entrySet()) {
             int lineIndex = e.getKey();
             Range lineRange = e.getValue();
@@ -356,7 +353,7 @@ public class SensorLineChart extends Chart {
         }
 
         Series<Number, Number> series = new Series<>();
-        series.setName(plotData.semantic());
+        series.setName(plotData.header());
 
         // Add data to chart
         addSeriesDataFiltered(series, plotData, 0, data.size());
@@ -365,10 +362,10 @@ public class SensorLineChart extends Chart {
         }
 
         Series<Number, Number> filtered = new Series<>();
-        filtered.setName(plotData.semantic() + FILTERED_SERIES_SUFFIX);
+        filtered.setName(plotData.header() + FILTERED_SERIES_SUFFIX);
 
         // Creating chart
-        Range valueRange = getValueRange(data, plotData.semantic);
+        Range valueRange = getValueRange(data, plotData.header);
         ZoomRect outZoomRect = new ZoomRect(0, Math.max(0, data.size() - 1),
                 valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
         LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, outZoomRect, plotData);
@@ -417,12 +414,12 @@ public class SensorLineChart extends Chart {
 
     private ValueAxis<Number> createYAxis(PlotData plotData) {
         SensorLineChartYAxis yAxis = new SensorLineChartYAxis(10);
-        yAxis.setLabel(plotData.units());
+        yAxis.setLabel(plotData.unit());
         yAxis.setSide(Side.RIGHT); // Y-axis on the right
         yAxis.setPrefWidth(70);
         yAxis.setMinorTickVisible(false);
 
-        Range valueRange = getValueRange(plotData.data, plotData.semantic);
+        Range valueRange = getValueRange(plotData.data, plotData.header);
         yAxis.setLowerBound(valueRange.getMin().doubleValue());
         yAxis.setUpperBound(valueRange.getMax().doubleValue());
 
@@ -441,7 +438,7 @@ public class SensorLineChart extends Chart {
 
         List<PlotData> plotDataList = generatePlotData(file);
         for (PlotData plotData : plotDataList) {
-            LineChartWithMarkers lineChart = charts.get(plotData.semantic());
+            LineChartWithMarkers lineChart = charts.get(plotData.header());
             if (lineChart == null) {
 				ValueAxis<Number> xAxis = createXAxis();
 				ValueAxis<Number> yAxis = createYAxis(plotData);
@@ -453,7 +450,7 @@ public class SensorLineChart extends Chart {
 				}
             }
 
-            Range valueRange = getValueRange(plotData.data, plotData.semantic);
+            Range valueRange = getValueRange(plotData.data, plotData.header);
 
             lineChart.outZoomRect = new ZoomRect(
                     0, Math.max(0, plotData.data.size() - 1),
@@ -464,14 +461,14 @@ public class SensorLineChart extends Chart {
             lineChart.setZoomRect(lineChart.zoomRect);
         }
 
-		// remove charts for semantics that are no longer present
-		Set<String> currentSemantics = plotDataList.stream()
-				.map(PlotData::semantic)
+		// remove charts for headers that are no longer present
+		Set<String> currentHeaders = plotDataList.stream()
+				.map(PlotData::header)
 				.collect(Collectors.toSet());
 
 		for (Iterator<Map.Entry<String, LineChartWithMarkers>> it = charts.entrySet().iterator(); it.hasNext(); ) {
 			Map.Entry<String, LineChartWithMarkers> entry = it.next();
-			if (!currentSemantics.contains(entry.getKey())) {
+			if (!currentHeaders.contains(entry.getKey())) {
 				LineChartWithMarkers chart = entry.getValue();
 				it.remove();
 				chartsContainer.getChildren().remove(chart);
@@ -658,7 +655,8 @@ public class SensorLineChart extends Chart {
         }
         // correct out of range values to point to the first or last trace
         index = Math.max(0, Math.min(index, values.size() - 1));
-        return values.get(index).getLineIndexOrDefault();
+        String lineHeader = GeoData.getHeader(Semantic.LINE, file.getTemplate());
+        return values.get(index).getInt(lineHeader).orElse(0);
     }
 
     public int getViewLineIndex() {
@@ -941,12 +939,12 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    public double getSemanticMinValue() {
-        return semanticMinValues.getOrDefault(getSelectedSeriesName(), 0.0);
+    public double getSeriesMinValue() {
+        return seriesMinValues.getOrDefault(getSelectedSeriesName(), 0.0);
     }
 
-    public double getSemanticMaxValue() {
-        return semanticMaxValues.getOrDefault(getSelectedSeriesName(), 0.0);
+    public double getSeriesMaxValue() {
+        return seriesMaxValues.getOrDefault(getSelectedSeriesName(), 0.0);
     }
 
     private double getScaleFactor(double value) {
@@ -954,7 +952,7 @@ public class SensorLineChart extends Chart {
         return Math.pow(10, base);
     }
 
-    private Range getValueRange(List<Number> data, String semantic) {
+    private Range getValueRange(List<Number> data, String header) {
         Double min = null;
         Double max = null;
         for (Number value : data) {
@@ -976,8 +974,8 @@ public class SensorLineChart extends Chart {
             max = 0.0;
         }
 
-        semanticMinValues.put(semantic, min);
-        semanticMaxValues.put(semantic, max);
+        seriesMinValues.put(header, min);
+        seriesMaxValues.put(header, max);
 
         // get scale factor and align min max to it
         double f = Math.max(getScaleFactor(min), getScaleFactor(max));
@@ -1088,7 +1086,7 @@ public class SensorLineChart extends Chart {
 
         public void rescaleY() {
             Range oldYRange = new Range(outZoomRect.yMin, outZoomRect.yMax);
-            Range newYRange = getValueRange(plotData.data, plotData.semantic);
+            Range newYRange = getValueRange(plotData.data, plotData.header);
 
             outZoomRect = new ZoomRect(
                     0, Math.max(0, plotData.data.size() - 1),
@@ -1490,7 +1488,7 @@ public class SensorLineChart extends Chart {
             // undo all
             chart.filteredData = null;
             for (int i = 0; i < file.getGeoData().size(); i++) {
-                file.getGeoData().get(i).undoSensorValue(chart.plotData.semantic);
+                file.getGeoData().get(i).undoSensorValue(chart.plotData.header);
             }
             return;
         }
@@ -1526,7 +1524,7 @@ public class SensorLineChart extends Chart {
 
         chart.filteredData = chart.plotData.withData(filtered);
         for (int i = 0; i < file.getGeoData().size(); i++) {
-            file.getGeoData().get(i).setSensorValue(chart.plotData.semantic, filtered.get(i));
+            file.getGeoData().get(i).setSensorValue(chart.plotData.header, filtered.get(i));
         }
         file.setUnsaved(true);
         Platform.runLater(this::updateChartName);
@@ -1615,16 +1613,16 @@ public class SensorLineChart extends Chart {
         if (Strings.isNullOrEmpty(seriesName)) {
             return;
         }
-        if (seriesName.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX)) {
+        if (seriesName.endsWith(Semantic.ANOMALY_SUFFIX)) {
             seriesName = seriesName.substring(0,
-                    seriesName.length() - GeoData.ANOMALY_SEMANTIC_SUFFIX.length());
+                    seriesName.length() - Semantic.ANOMALY_SUFFIX.length());
         }
         LineChartWithMarkers chart = getDataChart(seriesName);
         if (chart == null) {
             return;
         }
 
-        String filteredSeriesName = chart.plotData.semantic + GeoData.ANOMALY_SEMANTIC_SUFFIX;
+        String filteredSeriesName = chart.plotData.header + Semantic.ANOMALY_SUFFIX;
         Template template = file.getParser().getTemplate();
         boolean hasAnomalySemantic = template.getDataMapping().getDataValues().stream()
                 .anyMatch(v -> v != null && Objects.equals(v.getSemantic(), filteredSeriesName));
@@ -1666,7 +1664,7 @@ public class SensorLineChart extends Chart {
             if (filteredChart == null) {
                 PlotData filteredData = new PlotData(
                         filteredSeriesName,
-                        chart.plotData.units,
+                        chart.plotData.unit,
                         chart.plotData.color,
                         filtered
                 );
@@ -1692,7 +1690,8 @@ public class SensorLineChart extends Chart {
         if (seriesName == null) {
             return null;
         }
-        if (seriesName.equals(GeoData.Semantic.LINE.getName())) {
+        String lineHeader = GeoData.getHeader(Semantic.LINE, file.getTemplate());
+        if (seriesName.equals(lineHeader)) {
             return null;
         }
         return charts.get(seriesName);

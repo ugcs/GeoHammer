@@ -4,7 +4,9 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.SphericalMercator;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.math.DouglasPeucker;
 import com.ugcs.gprvisualizer.utils.Range;
 import javafx.geometry.Point2D;
@@ -35,16 +37,19 @@ public class AltitudeCheck extends FileQualityCheck {
 
     @Override
     public List<QualityIssue> checkFile(CsvFile file) {
-        return file != null ? checkValues(file.getGeoData()) : List.of();
+        return file != null ? checkValues(file.getGeoData(), file.getTemplate()) : List.of();
     }
 
-    private List<QualityIssue> checkValues(List<GeoData> values) {
+    private List<QualityIssue> checkValues(List<GeoData> values, Template template) {
         if (values == null) {
             return List.of();
         }
 
+        String lineHeader = GeoData.getHeader(Semantic.LINE, template);
+        String altitudeAglHeader = GeoData.getHeader(Semantic.ALTITUDE_AGL, template);
+
         // compute line components
-        LineSchema lineSchema = new LineSchema(values);
+        LineSchema lineSchema = new LineSchema(values, lineHeader);
 
         List<QualityIssue> issues = new ArrayList<>();
         for (Map.Entry<Integer, Range> e : lineSchema.getRanges().entrySet()) {
@@ -55,7 +60,7 @@ public class AltitudeCheck extends FileQualityCheck {
             List<LatLon> issuePoints = new ArrayList<>();
             for (int i = lineRange.getMin().intValue(); i <= lineRange.getMax().intValue(); i++) {
                 GeoData value = values.get(i);
-                SensorValue sensorValue = value.getSensorValue(GeoData.Semantic.ALTITUDE_AGL);
+                SensorValue sensorValue = value.getSensorValue(altitudeAglHeader);
                 Double altitudeAgl = sensorValue != null && sensorValue.data() != null
                         ? sensorValue.data().doubleValue()
                         : null;

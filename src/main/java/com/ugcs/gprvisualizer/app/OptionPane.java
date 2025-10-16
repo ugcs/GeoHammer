@@ -29,7 +29,6 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -334,8 +333,8 @@ public class OptionPane extends VBox implements InitializingBean {
 
 			for (SensorLineChart chart : model.getCsvCharts()) {
 				if (csvFile.isSameTemplate(chart.getFile())) {
-					min = Math.min(min, chart.getSemanticMinValue());
-					max = Math.max(max, chart.getSemanticMaxValue());
+					min = Math.min(min, chart.getSeriesMinValue());
+					max = Math.max(max, chart.getSeriesMaxValue());
 				}
 			}
 			return Double.isInfinite(min) || Double.isInfinite(max)

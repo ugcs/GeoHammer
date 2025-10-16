@@ -43,7 +43,7 @@ public abstract class TraceFile extends SgyFile {
     private PositionFile positionFile;
 
     @Nullable
-    private String groundProfileTraceSemantic;
+    private String groundProfileTraceHeader;
 
     private boolean spreadCoordinatesNecessary = false;
 
@@ -129,12 +129,12 @@ public abstract class TraceFile extends SgyFile {
         return positionFile;
     }
 
-    public @Nullable String getGroundProfileTraceSemantic() {
-        return groundProfileTraceSemantic;
+    public @Nullable String getGroundProfileTraceHeader() {
+        return groundProfileTraceHeader;
     }
 
-    public void setGroundProfileTraceSemantic(@Nullable String groundProfileTraceSemantic) {
-        this.groundProfileTraceSemantic = groundProfileTraceSemantic;
+    public void setGroundProfileTraceHeader(@Nullable String groundProfileTraceHeader) {
+        this.groundProfileTraceHeader = groundProfileTraceHeader;
     }
 
     public HorizontalProfile getGroundProfile() {

@@ -8,6 +8,7 @@ public class BaseData {
     public static final int DEFAULT_DECIMALS = 2;
 
     private String header;
+    @Deprecated
     private Integer index;
     private String regex;
     private int decimals = DEFAULT_DECIMALS;
@@ -20,10 +21,12 @@ public class BaseData {
         this.header = header;
     }
 
+    @Deprecated
     public Integer getIndex() {
         return index;
     }
 
+    @Deprecated
     public void setIndex(Integer index) {
         this.index = index;
     }

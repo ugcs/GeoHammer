@@ -1,16 +1,16 @@
 package com.ugcs.gprvisualizer.app.parcers;
 
-public record SensorValue(String semantic, String units, Number data, Number originalData) {
+public record SensorValue(String header, String unit, Number data, Number originalData) {
     
-    public SensorValue(String semantic, String units, Number data) {
-        this(semantic, units, data, data);
+    public SensorValue(String header, String unit, Number data) {
+        this(header, unit, data, data);
     }
 
-    public SensorValue(SensorValue sensorValue) {
-        this(sensorValue.semantic(), sensorValue.units(), sensorValue.data(), sensorValue.originalData());
+    public SensorValue(SensorValue other) {
+        this(other.header, other.unit, other.data, other.originalData);
     }
 
     public SensorValue withValue(Number data) {
-        return new SensorValue(semantic(), units(), data, originalData());
+        return new SensorValue(header, unit, data, originalData);
     }
 }

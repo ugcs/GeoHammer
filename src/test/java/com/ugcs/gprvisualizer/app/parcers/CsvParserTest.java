@@ -172,43 +172,4 @@ class CsvParserTest extends BaseParsersTest {
             fail(e.getMessage());
         }
     }
-
-    @Test
-    void testCreateFileWithCorrectedCoordinates_fileDoesNotExist() {
-        oldFile = "nonexistent/file/path";
-        assertThrows(FileNotFoundException.class, () -> {
-            csvParser.createFileWithCorrectedCoordinates(oldFile, newFile, coordinates);
-        });
-    }
-
-    @Test
-    void testCreateFileWithCorrectedCoordinates_templateNotSet() {
-        oldFile = "existing/file/path";
-        // TODO: Make sure the file at oldFile exists
-        assertThrows(FileNotFoundException.class, () -> {
-            csvParser.createFileWithCorrectedCoordinates(oldFile, newFile, coordinates);
-        });
-    }
-
-    //@Test
-    void testCreateFileWithCorrectedCoordinates_correctDictionary() throws FileNotFoundException {
-        oldFile = "existing/file/path";
-        newFile = "path/to/newFile";
-        // TODO: Make sure the file at oldFile exists
-        // TODO: Set the template on csvParser
-        // TODO: Add some GeoCoordinates to the coordinates list with trace numbers
-        Result result = csvParser.createFileWithCorrectedCoordinates(oldFile, newFile, coordinates);
-        // TODO: Assert something about the result
-    }
-
-    //@Test
-    void testCreateFileWithCorrectedCoordinates_incorrectDictionary() throws FileNotFoundException {
-        oldFile = "existing/file/path";
-        newFile = "path/to/newFile";
-        // TODO: Make sure the file at oldFile exists
-        // TODO: Set the template on csvParser
-        // TODO: Add some GeoCoordinates to the coordinates list without trace numbers
-        Result result = csvParser.createFileWithCorrectedCoordinates(oldFile, newFile, coordinates);
-        // TODO: Assert something about the result
-    }
 }

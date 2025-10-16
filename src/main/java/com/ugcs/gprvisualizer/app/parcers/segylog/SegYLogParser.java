@@ -1,12 +1,10 @@
 package com.ugcs.gprvisualizer.app.parcers.segylog;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.Parser;
-import com.ugcs.gprvisualizer.app.parcers.Result;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 
 public class SegYLogParser extends Parser {
@@ -47,13 +45,4 @@ public class SegYLogParser extends Parser {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'parse'");
     }
-
-    @Override
-    public Result createFileWithCorrectedCoordinates(String oldFile, String newFile,
-            Iterable<GeoCoordinates> coordinates) throws FileNotFoundException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createFileWithCorrectedCoordinates'");
-    }
-
-
 }

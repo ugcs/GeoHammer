@@ -15,6 +15,10 @@ public final class Strings {
 		return str == null || str.isEmpty();
 	}
 
+	public static boolean isNullOrBlank(String str) {
+		return str == null || str.isBlank();
+	}
+
 	public static String nullToEmpty(String str) {
 		return str == null ? EMPTY_STRING : str;
 	}

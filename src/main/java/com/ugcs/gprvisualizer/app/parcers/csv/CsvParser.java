@@ -1,14 +1,12 @@
 package com.ugcs.gprvisualizer.app.parcers.csv;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,496 +14,306 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.concurrent.CancellationException;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import com.ugcs.gprvisualizer.app.parcers.*;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
+import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
+import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.StringUtils;
 
 import com.ugcs.gprvisualizer.app.parcers.exceptions.ColumnsMatchingException;
-import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.Locale;
 
 public class CsvParser extends Parser {
 
     private static final Logger log = LoggerFactory.getLogger(CsvParser.class);
 
+    protected Map<String, Integer> headers;
+
     public CsvParser(Template template) {
         super(template);
     }
 
+    public Map<String, Integer> getHeaders() {
+        return headers;
+    }
+
     @Override
-    public List<GeoCoordinates> parse(String logPath) throws FileNotFoundException {
-        var coordinates = new ArrayList<GeoCoordinates>();
+    public List<GeoCoordinates> parse(String path) throws FileNotFoundException {
+        Check.notNull(template, "Template is not set");
 
-        if (!new File(logPath).exists()) {
-            throw new FileNotFoundException(String.format("File %s does not exist", logPath));
+        File file = new File(path);
+        try {
+            return parseFile(file);
+        } catch (FileNotFoundException | CancellationException | IncorrectDateFormatException e) {
+            throw e;
+        } catch (Exception e) {
+            String message = Strings.nullToEmpty(e.getMessage())
+                    + ", used template: " + template.getName();
+            throw new CSVParsingException(file, message);
+        }
+    }
+
+    private List<GeoCoordinates> parseFile(File file) throws IOException {
+        Check.notNull(file);
+        Check.notNull(template);
+
+        DataMapping mapping = template.getDataMapping();
+
+        // add system columns
+        mapping.addDataColumn(Semantic.MARK.getName(), Semantic.MARK.getName(), null);
+        mapping.addDataColumn(Semantic.LINE.getName(), Semantic.LINE.getName(), null);
+
+        // date from filename
+        if (mapping.getDate() != null && mapping.getDate().getSource() == Source.FileName) {
+            parseDateFromFilename(file.getName());
         }
 
-        if (template == null) {
-            throw new IllegalArgumentException("Template is not set");
-        }
+        // header -> index
+        this.headers = new HashMap<>();
+        List<String[]> data = new ArrayList<>();
 
-        if (template.getDataMapping().getDate() != null && Source.FileName.equals(template.getDataMapping().getDate().getSource())) {
-            parseDateFromNameOfFile(new File(logPath).getName());
-        }
+        try (var r = new BufferedReader(new FileReader(file))) {
+            String line = skipLines(r);
 
-        List<String> lines = new ArrayList<>();
-        List<String> headers = new ArrayList<>();
-
-        try (var reader = new BufferedReader(new FileReader(logPath))) {
-            String line = skipLines(reader);
-
-            var markSensorData = new SensorData();
-			markSensorData.setHeader(GeoData.Semantic.MARK.getName());
-
+            // reade header
             if (template.getFileFormat().isHasHeader()) {
-                line = skipBlankAndComments(reader, line);
+                line = skipBlankAndComments(r, line);
                 Check.notNull(line, "No header found");
-                findIndexesByHeaders(line);
-                setIndexByHeaderForSensorData(line, markSensorData);
 
-                headers = Arrays.stream(line.split(template.getFileFormat().getSeparator()))
-                        .map(String::trim)
-                        .toList();
+                headers = parseHeaders(line);
+                initColumnIndices(headers);
+                //updateColumnIndex(markColumn, headers);
             }
 
             // read data lines
-            while ((line = reader.readLine()) != null) {
+            while ((line = r.readLine()) != null) {
                 if (isBlankOrCommented(line)) {
-					continue;
-				}
+                    continue;
+                }
 
-                lines.add(line);
+                String[] values = splitLine(line);
+                // TODO check values.length == headers.length
+                data.add(values);
             }
-
-            // Second pass: identify undeclared numeric headers
-            Set<String> declaredHeader = getDeclaredHeaders();
-            Set<String> undeclaredNumericHeaders = findUndeclaredNumericHeaders(lines, headers, declaredHeader);
-
-            // Filter sensors to load
-            List<SensorData> sensors = filterSensors(template.getDataMapping().getDataValues());
-
-            // Third pass: process all lines with known undeclared headers
-
-            var traceCount = 0;
-            for (String dataLine : lines) {
-                if (Thread.currentThread().isInterrupted()) {
-                    break;
-                }
-
-                String[] values = dataLine.split(template.getFileFormat().getSeparator());
-
-				BaseData templateLatitude = template.getDataMapping().getLatitude();
-                if (values.length <= templateLatitude.getIndex()) {
-                    continue;
-                }
-                var lat = parseDouble(templateLatitude, values[templateLatitude.getIndex()]);
-
-				BaseData templateLongitude = template.getDataMapping().getLongitude();
-                if (values.length <= templateLongitude.getIndex()) {
-                    continue;
-                }
-                var lon = parseDouble(templateLongitude, values[templateLongitude.getIndex()]);
-
-                if (lat == null || lon == null) {
-                    continue;
-                }
-
-                var alt = template.getDataMapping().getAltitude() != null
-                        && template.getDataMapping().getAltitude().getIndex() != null
-                        && template.getDataMapping().getAltitude().getIndex() != -1
-                        && template.getDataMapping().getAltitude().getIndex() < values.length
-                        && StringUtils.hasText(values[template.getDataMapping().getAltitude().getIndex()])
-                        ? parseDouble(template.getDataMapping().getAltitude(), values[template.getDataMapping().getAltitude().getIndex()])
-                        : null;
-
-                Integer traceNumber = null;
-                if (template.getDataMapping().getTraceNumber() != null
-                        && template.getDataMapping().getTraceNumber().getIndex() != -1
-                        && template.getDataMapping().getTraceNumber().getIndex() < values.length) {
-                    traceNumber = parseInt(template.getDataMapping().getTraceNumber(), values[template.getDataMapping().getTraceNumber().getIndex()]);
-                }
-                traceNumber = traceNumber != null ? traceNumber : traceCount;
-
-                List<SensorValue> sensorValues = new ArrayList<>();
-                if (template.getDataMapping().getDataValues() != null) {
-                    for (SensorData sensor : sensors) {
-                        String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < values.length) ? values[sensor.getIndex()] : null;
-                        sensorValues.add(new SensorValue(sensor.getSemantic(), sensor.getUnits(), parseNumber(sensor, sensorData)));
-                    }
-                }
-
-                // Add dynamic sensors efficiently using pre-identified headers
-                addNumericValuesForUndeclaredHeaders(values, headers, sensorValues, undeclaredNumericHeaders);
-
-                traceCount++;
-
-                var dateTime = parseDateTime(values);
-
-                boolean marked = false;
-                if (markSensorData.getIndex() != null && markSensorData.getIndex() != -1 && markSensorData.getIndex() < values.length) {
-                    marked = parseInt(markSensorData, values[markSensorData.getIndex()]) instanceof Integer i && i == 1;
-                }
-
-                coordinates.add(new GeoData(marked, dataLine, sensorValues, new GeoCoordinates(dateTime, lat, lon, alt, traceNumber)));
-            }
-        } catch (Exception e) {
-			throw new CSVParsingException(new File(logPath), e.getMessage() + ", used template: " + template.getName());
         }
         if (Thread.currentThread().isInterrupted()) {
             throw new CancellationException();
         }
 
+        List<GeoCoordinates> coordinates = parseData(headers, data);
+
         // timestamps could be in wrong order in the file
-        if (template.getDataMapping().getTimestamp() != null && template.getDataMapping().getTimestamp().getIndex() != -1) {
+        if (mapping.getTimestamp() != null && mapping.getTimestamp().getIndex() != -1) {
             coordinates.sort(Comparator.comparing(GeoCoordinates::getDateTime));
         }
 
         return coordinates;
     }
 
-    private Set<String> getDeclaredHeaders() {
-        Set<String> declaredHeaders = new HashSet<>();
-        if (template.getDataMapping().getDataValues() != null) {
-            for (SensorData sensorData : template.getDataMapping().getDataValues()) {
-                if (sensorData == null) {
-					continue;
-				}
-                if (sensorData.getHeader() != null) {
-					declaredHeaders.add(sensorData.getHeader());
-				}
-            }
+    private String[] splitLine(String line) {
+        if (Strings.isNullOrEmpty(line)) {
+            return new String[0];
         }
-		BaseData latitude = template.getDataMapping().getLatitude();
-        if (latitude != null && latitude.getHeader() != null) {
-            declaredHeaders.add(latitude.getHeader());
+        String[] tokens = line.split(template.getFileFormat().getSeparator());
+        for (int i = 0; i < tokens.length; i++) {
+            tokens[i] = tokens[i].trim();
         }
-		BaseData longitude = template.getDataMapping().getLongitude();
-        if (longitude != null && longitude.getHeader() != null) {
-            declaredHeaders.add(longitude.getHeader());
-        }
-		BaseData altitude = template.getDataMapping().getAltitude();
-		if (altitude != null && altitude.getHeader() != null) {
-			declaredHeaders.add(altitude.getHeader());
-		}
-		BaseData date = template.getDataMapping().getDate();
-		if (date != null && date.getHeader() != null) {
-			declaredHeaders.add(date.getHeader());
-		}
-		BaseData time = template.getDataMapping().getTime();
-		if (time != null && time.getHeader() != null) {
-			declaredHeaders.add(time.getHeader());
-		}
-		BaseData dateTime = template.getDataMapping().getDateTime();
-		if (dateTime != null && dateTime.getHeader() != null) {
-			declaredHeaders.add(dateTime.getHeader());
-		}
-		BaseData timestamp = template.getDataMapping().getTimestamp();
-		if (timestamp != null && timestamp.getHeader() != null) {
-			declaredHeaders.add(timestamp.getHeader());
-		}
-		BaseData traceNumber = template.getDataMapping().getTraceNumber();
-		if (traceNumber != null && traceNumber.getHeader() != null) {
-			declaredHeaders.add(traceNumber.getHeader());
-		}
-		
-        return declaredHeaders;
+        return tokens;
     }
 
-    private Set<String> findUndeclaredNumericHeaders(List<String> lines, List<String> headers, Set<String> declaredHeaders) {
-        Set<String> undeclaredNumericHeaders = new HashSet<>();
-        for (int i = 0; i < headers.size(); i++) {
-            String header = headers.get(i);
+    // header -> index in a file headers line
+    protected Map<String, Integer> parseHeaders(String line) {
+        String[] tokens = splitLine(line);
+        Map<String, Integer> headers = new HashMap<>(tokens.length);
+        for (int i = 0; i < tokens.length; i++) {
+            headers.put(tokens[i].trim(), i);
+        }
+        return headers;
+    }
 
-            if (declaredHeaders.contains(header)) {
-				continue;
-			}
+    private List<String> getDataHeaders(Map<String, Integer> headers, List<String[]> data) {
+        Check.notNull(headers);
 
-            // Check if this column contains numeric values in any row
-            boolean hasNumericValue = false;
-            for (String line : lines) {
-                String[] values = line.split(template.getFileFormat().getSeparator());
-                if (i >= values.length || values[i] == null || values[i].isEmpty()) {
-					continue;
-				}
+        List<String> dataHeaders = new ArrayList<>();
 
-				Number value = parseNumber(new SensorData(), values[i]);
-
-				if (value != null) {
-					hasNumericValue = true;
-					break;
-				}
-			}
-
-            if (hasNumericValue) {
-                undeclaredNumericHeaders.add(header);
+        // columns declared in template:
+        // - present in a file
+        // - is line or mark column
+        // - is anomaly column
+        for (SensorData column : Nulls.toEmpty(template.getDataMapping().getDataValues())) {
+            if (column == null) {
+                continue;
+            }
+            String header = column.getHeader();
+            if (headers.containsKey(header)) {
+                dataHeaders.add(header);
+                continue;
+            }
+            String semantic = column.getSemantic();
+            if (Objects.equals(semantic, Semantic.LINE.getName()) ||
+                    Objects.equals(semantic, Semantic.MARK.getName())) {
+                dataHeaders.add(header);
+                continue;
+            }
+            if (semantic.endsWith(Semantic.ANOMALY_SUFFIX)) {
+                String sourceSemantic = semantic.substring(
+                        0, semantic.length() - Semantic.ANOMALY_SUFFIX.length());
+                SensorData sourceColumn = template.getDataMapping().getDataColumnBySemantic(sourceSemantic);
+                if (sourceColumn != null && headers.containsKey(sourceColumn.getHeader())) {
+                    dataHeaders.add(header);
+                }
             }
         }
 
-        return undeclaredNumericHeaders;
+        // non-empty columns with numbers
+        Set<String> templateHeaders = new HashSet<>(dataHeaders);
+        List<String> nonTemplateHeaders = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : headers.entrySet()) {
+            String header = e.getKey();
+            if (templateHeaders.contains(header)) {
+                continue;
+            }
+            Integer columnIndex = e.getValue();
+            if (isNonEmptyNumericColumn(data, columnIndex)) {
+                nonTemplateHeaders.add(header);
+            }
+        }
+        nonTemplateHeaders.sort(Comparator.naturalOrder());
+        dataHeaders.addAll(nonTemplateHeaders);
+
+        return dataHeaders;
     }
 
-    private void addNumericValuesForUndeclaredHeaders(String[] row, List<String> headers,
-													  List<SensorValue> sensorValues,
-													  Set<String> undeclaredNumericHeaders) {
-        for (int i = 0; i < Math.min(headers.size(), row.length); i++) {
-            String headerName = headers.get(i);
+    private boolean isNonEmptyNumericColumn(List<String[]> data, int columnIndex) {
+        for (String[] values : Nulls.toEmpty(data)) {
+            if (columnIndex < 0 || columnIndex >= values.length) {
+                continue;
+            }
+            Number number = parseNumber(null, values[columnIndex]);
+            if (number != null) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-            if (!undeclaredNumericHeaders.contains(headerName) || row[i] == null || row[i].isEmpty()) {
+    private List<GeoCoordinates> parseData(Map<String, Integer> headers, List<String[]> data) {
+        DataMapping mapping = template.getDataMapping();
+
+        // list of data headers to load
+        var dataHeaders = getDataHeaders(headers, data);
+        var dataColumns = template.getDataMapping().getDataColumns();
+
+        List<GeoCoordinates> coordinates = new ArrayList<>();
+
+        var traceCount = 0;
+        for (String[] values : data) {
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
+
+            if (values == null || values.length == 0) {
                 continue;
             }
 
-            Number value = parseNumber(new SensorData(), row[i]);
-			if (value != null) {
-				sensorValues.add(new SensorValue(headerName, null, value));
-			}
-        }
-    }
+            BaseData latitudeColumn = mapping.getLatitude();
+            Double latitude = valuesContainColumn(values, latitudeColumn)
+                    ? parseDouble(latitudeColumn, values[latitudeColumn.getIndex()])
+                    : null;
 
-    protected List<SensorData> filterSensors(List<SensorData> sensors) {
-        // semantic with column in a file
-        Set<String> hasColumn = Nulls.toEmpty(sensors).stream()
-                .filter(Objects::nonNull)
-                .filter(sensor -> sensor.getIndex() != null && sensor.getIndex() != -1)
-                .map(SensorData::getSemantic)
-                .filter(semantic -> !Strings.isNullOrEmpty(semantic))
-                .collect(Collectors.toSet());
+            BaseData longitudeColumn = mapping.getLongitude();
+            Double longitude = valuesContainColumn(values, longitudeColumn)
+                    ? parseDouble(longitudeColumn, values[longitudeColumn.getIndex()])
+                    : null;
 
-        return Nulls.toEmpty(sensors).stream()
-                .filter(Objects::nonNull)
-                .filter(sensor -> {
-                    String semantic = Strings.nullToEmpty(sensor.getSemantic());
-
-                    // present column
-                    if (hasColumn.contains(semantic)) {
-                        return true;
-                    }
-
-                    // is line or mark
-                    if (Objects.equals(semantic, GeoData.Semantic.LINE.getName()) ||
-                            Objects.equals(semantic, GeoData.Semantic.MARK.getName())) {
-                        return true;
-                    }
-
-                    // is anomaly for present column
-                    if (semantic.endsWith(GeoData.ANOMALY_SEMANTIC_SUFFIX)) {
-                        String sourceSemantic = semantic.substring(
-                                0,
-                                semantic.length() - GeoData.ANOMALY_SEMANTIC_SUFFIX.length());
-                        return hasColumn.contains(sourceSemantic);
-                    }
-
-                    return false;
-                })
-                .toList();
-    }
-
-    protected void parseDateFromNameOfFile(String logName) {
-        Pattern r = Pattern.compile(template.getDataMapping().getDate().getRegex());
-        Matcher m = r.matcher(logName);
-
-        if (!m.find()) {
-            throw new IncorrectDateFormatException("Incorrect file name. Set date of logging.");
-        }
-
-        dateFromNameOfFile = template.getDataMapping().getDate().getFormat() != null ?
-                parseDate(m.group(), template.getDataMapping().getDate().getFormat()) :
-                parseDate(m.group(), template.getDataMapping().getDate().getFormats());
-    }
-
-    private LocalDate parseDate(String date, List<String> formats) {
-        for (String format : formats) {
-            try {
-                return parseDate(date, format);
-            } catch (IncorrectDateFormatException e) {
-                // do nothing
-            }
-        }
-        throw new IncorrectDateFormatException("Incorrect date formats");
-    }
-
-    private LocalDate parseDate(String date, String format) {
-        try {
-            return LocalDate.parse(date, DateTimeFormatter.ofPattern(format, Locale.US));
-        } catch (DateTimeParseException e) {
-            throw new IncorrectDateFormatException("Incorrect date format");
-        }
-    }
-
-        /*protected void parseDateFromNameOfFile(String logName) {
-            var regex = template.getDataMapping().getDate().getRegex();
-            var pattern = Pattern.compile(regex);
-            var matcher = pattern.matcher(logName);
-
-            if (!matcher.matches()) {
-                throw new RuntimeException("Incorrect file name. Set date of logging.");
+            if (latitude == null || longitude == null) {
+                continue;
             }
 
-            dateFromNameOfFile = LocalDateTime.parse(matcher.group(), DateTimeFormatter.ofPattern(template.getDataMapping().getDate().getFormat(), Locale.US));
-        }*/
+            BaseData altitudeColumn = mapping.getAltitude();
+            Double altitude = valuesContainColumn(values, altitudeColumn)
+                    ? parseDouble(altitudeColumn, values[altitudeColumn.getIndex()])
+                    : null;
 
-    @Override
-    public Result createFileWithCorrectedCoordinates(String oldFile, String newFile,
-                                                     Iterable<GeoCoordinates> coordinates) throws FileNotFoundException { //, CancellationTokenSource token) {
-        if (!new File(oldFile).exists()) {
-            throw new FileNotFoundException("File " + oldFile + " does not exist");
-        }
+            LocalDateTime dateTime = parseDateTime(values);
 
-        if (template == null) {
-            throw new RuntimeException("Template is not set");
-        }
-
-        var result = new Result();
-
-        try (var oldFileReader = new BufferedReader(new FileReader(oldFile))) {
-
-            String line;
-            var traceCount = 0;
-            var countOfReplacedLines = 0;
-
-
-            var correctDictionary = true;
-            Map<Integer, GeoCoordinates> dict;
-
-            try {
-                dict = StreamSupport.stream(coordinates.spliterator(), false)
-                        .collect(Collectors.toMap(GeoCoordinates::getTraceNumber, Function.identity()));
-            } catch (Exception e) {
-                correctDictionary = false;
-                dict = new HashMap<>();
-                var i = 0;
-                for (var coordinate : coordinates) {
-                    dict.put(i, coordinate);
-                    i++;
-                }
+            BaseData traceNumberColumn = mapping.getTraceNumber();
+            Integer traceNumber = valuesContainColumn(values, traceNumberColumn)
+                    ? parseInt(traceNumberColumn, values[traceNumberColumn.getIndex()])
+                    : null;
+            if (traceNumber == null) {
+                traceNumber = traceCount;
             }
 
-            try (var correctedFile = new BufferedWriter(new FileWriter(newFile))) {
-
-                if (template.getSkipLinesTo() != null) {
-                    line = skipLines(oldFileReader);
-                    correctedFile.write(skippedLines.toString().trim());
-                    correctedFile.write(System.lineSeparator());
-                }
-
-                if (template.getFileFormat().isHasHeader()) {
-                    line = oldFileReader.readLine();
-                    correctedFile.write(line.replaceAll("\\s", ""));
-                }
-
-                while ((line = oldFileReader.readLine()) != null) {
-
-                    //if (token.isCancellationRequested) {
-                    //    break;
-                    //}
-
-                    try {
-                        if (line.startsWith(template.getFileFormat().getCommentPrefix()) || !StringUtils.hasText(line)) {
-                            continue;
-                        }
-
-                        var data = line.split(template.getFileFormat().getSeparator());
-
-                        var traceNumber = template.getDataMapping().getTraceNumber().getIndex() != null && correctDictionary
-                                ? Integer.parseInt(data[template.getDataMapping().getTraceNumber().getIndex()])
-                                : traceCount;
-
-
-                        if (dict.containsKey(traceNumber)) {
-                            var format = template.getFileFormat().getDecimalSeparator();
-
-
-                            data[template.getDataMapping().getLongitude().getIndex()] = Double.toString(dict.get(traceNumber).getLongitude());
-                            data[template.getDataMapping().getLatitude().getIndex()] = Double.toString(dict.get(traceNumber).getLatitude());
-
-                            if (template.getDataMapping().getAltitude() != null
-                                    && template.getDataMapping().getAltitude().getIndex() != null
-                                    && template.getDataMapping().getAltitude().getIndex() != -1) {
-                                data[template.getDataMapping().getAltitude().getIndex()] = Double.toString(dict.get(traceNumber).getAltitude());
-                            }
-
-                            StringJoiner joiner = new StringJoiner(template.getFileFormat().getSeparator());
-                            Arrays.asList(data).forEach(joiner::add);
-                            correctedFile.write(joiner.toString().replaceAll("\\s", ""));
-
-                            result.incrementCountOfReplacedLines(); //result.getCountOfReplacedLines() + 1);
-                        }
-                    } finally {
-                        result.incrementCountOfLines();
-                        countOfReplacedLines++;
-                        traceCount++;
-                    }
-                }
-            } catch (IOException e) {
-                log.error("Error writing corrected file: {}", e.getMessage(), e);
+            boolean marked = false;
+            BaseData markColumn = mapping.getDataColumnBySemantic(Semantic.MARK.getName());
+            if (valuesContainColumn(values, markColumn)) {
+                marked = parseInt(markColumn, values[markColumn.getIndex()]) instanceof Integer i && i == 1;
             }
 
-        } catch (IOException e) {
-            log.error("Error reading original file: {}", e.getMessage(), e);
+            List<SensorValue> sensorValues = new ArrayList<>();
+            for (String header : dataHeaders) {
+                // get column index
+                Integer columnIndex = headers.get(header);
+                if (columnIndex == null || columnIndex < 0 || columnIndex >= values.length) {
+                    continue;
+                }
+                // get column definition from the template
+                SensorData column = dataColumns.get(header);
+                // parse and add value
+                Number number = parseNumber(column, values[columnIndex]);
+                SensorValue sensorValue = new SensorValue(
+                        header,
+                        column != null ? column.getUnits() : null,
+                        number);
+                sensorValues.add(sensorValue);
+            }
+
+            traceCount++;
+
+            var geoCoordinates = new GeoCoordinates(dateTime, latitude, longitude, altitude, traceNumber);
+            var geoData = new GeoData(marked, values, sensorValues, geoCoordinates);
+
+            coordinates.add(geoData);
         }
-        return result;
+
+        return coordinates;
     }
 
-    private void setIndexIfHeaderNotNull(BaseData dataMapping, List<String> headers) {
-        String header = dataMapping != null ? dataMapping.getHeader() : null;
-        if (header != null) {
-            dataMapping.setIndex(headers.indexOf(header));
+    protected void initColumnIndices(Map<String, Integer> headers) {
+        List<BaseData> columns = template.getDataMapping().getAllColumns();
+        for (BaseData column : columns) {
+            updateColumnIndex(column, headers);
         }
+
+        // TODO extract from the method
+        validateColumns();
     }
 
-    public void setIndexByHeaderForSensorData(String header, SensorData sensorData) {
-        List<String> headers = Arrays.stream(header.split(template.getFileFormat().getSeparator()))
-                .map(String::trim)
-                .collect(Collectors.toList());
-        setIndexIfHeaderNotNull(sensorData, headers);
-    }
-
-    protected void findIndexesByHeaders(String line) {
-        if (line == null) {
+    private void updateColumnIndex(BaseData column, Map<String, Integer> headers) {
+        if (column == null) {
             return;
         }
-
-        List<String> headers = Arrays.stream(line.split(template.getFileFormat().getSeparator()))
-                .map(String::trim)
-                .collect(Collectors.toList());
-
-        setIndexIfHeaderNotNull(template.getDataMapping().getLatitude(), headers);
-        setIndexIfHeaderNotNull(template.getDataMapping().getLongitude(), headers);
-        setIndexIfHeaderNotNull(template.getDataMapping().getDate(), headers);
-        setIndexIfHeaderNotNull(template.getDataMapping().getTime(), headers);
-        setIndexIfHeaderNotNull(template.getDataMapping().getDateTime(), headers);
-        setIndexIfHeaderNotNull(template.getDataMapping().getTimestamp(), headers);
-        setIndexIfHeaderNotNull(template.getDataMapping().getTraceNumber(), headers);
-        setIndexIfHeaderNotNull(template.getDataMapping().getAltitude(), headers);
-
-        if (template.getDataMapping().getDataValues() != null) {
-            for (var sensor : template.getDataMapping().getDataValues()) {
-                setIndexIfHeaderNotNull(sensor, headers);
-            }
+        String header = column.getHeader();
+        if (!Strings.isNullOrBlank(header)) {
+            column.setIndex(headers.getOrDefault(header, -1));
         }
+    }
 
-        if (template.getDataMapping().getLatitude().getIndex() == -1
-                || template.getDataMapping().getLongitude().getIndex() == -1) {
+    protected void validateColumns() {
+        DataMapping mapping = template.getDataMapping();
+
+        if (mapping.getLatitude().getIndex() == -1
+                || mapping.getLongitude().getIndex() == -1) {
             throw new ColumnsMatchingException("Column names for latitude and longitude are not matched");
         }
     }

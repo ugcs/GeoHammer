@@ -120,7 +120,7 @@ public class Model implements InitializingBean {
 
 	private final PrefSettings prefSettings;
 
-	private final Map<String, Color> semanticColors = new HashMap<>();
+	private final Map<String, Color> headerColors = new HashMap<>();
 
 	private final AuxElementEditHandler auxEditHandler;
 
@@ -287,7 +287,7 @@ public class Model implements InitializingBean {
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		AppContext.model = this;
-		loadColorSettings(semanticColors);
+		loadColorSettings(headerColors);
 	}
 
 	/**
@@ -300,7 +300,7 @@ public class Model implements InitializingBean {
 			return;
 		}
 		var sensorLineChart = createSensorLineChart(csvFile);
-		saveColorSettings(semanticColors);
+		saveColorSettings(headerColors);
 
 		Platform.runLater(() -> selectAndScrollToChart(sensorLineChart));
 	}
@@ -334,7 +334,7 @@ public class Model implements InitializingBean {
 
 		// Create and add the new chart
 		SensorLineChart newChart = createSensorLineChart(csvFile);
-		saveColorSettings(semanticColors);
+		saveColorSettings(headerColors);
 		getFileManager().addFile(csvFile);
 
 		Platform.runLater(() -> selectAndScrollToChart(newChart));
@@ -379,9 +379,9 @@ public class Model implements InitializingBean {
 		return chart;
 	}
 
-	private void saveColorSettings(Map<String, Color> semanticColors) {
+	private void saveColorSettings(Map<String, Color> headerColors) {
 		String group = "colors";
-		prefSettings.saveSetting(group, semanticColors);
+		prefSettings.saveSetting(group, headerColors);
 	}
 
 	/**
@@ -433,16 +433,16 @@ public class Model implements InitializingBean {
 		}
 	}
 
-	public void loadColorSettings(Map<String, Color> semanticColors) {
+	public void loadColorSettings(Map<String, Color> headerColors) {
 		var colors = prefSettings.getAllSettings().get("colors");
 		if (colors != null)
 			colors.forEach((key, value) -> {
-				semanticColors.put(key, Color.web(value));
+				headerColors.put(key, Color.web(value));
 			});
 	}
 
-	public Color getColorBySemantic(String semantic) {
-		return semanticColors.computeIfAbsent(semantic, k -> generateRandomColor());
+	public Color getColorByHeader(String header) {
+		return headerColors.computeIfAbsent(header, k -> generateRandomColor());
 	}
 
 	// Generate random color

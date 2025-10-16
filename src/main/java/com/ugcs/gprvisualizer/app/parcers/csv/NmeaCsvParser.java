@@ -27,12 +27,12 @@ public class NmeaCsvParser extends CsvParser {
     }
 
     @Override
-    public List<GeoCoordinates> parse(String logPath) throws FileNotFoundException {
+    public List<GeoCoordinates> parse(String path) throws FileNotFoundException {
 
-        File logFile = new File(logPath);
+        File logFile = new File(path);
 
         if (!logFile.exists()) {
-            throw new FileNotFoundException("File " + logPath + " does not exist");
+            throw new FileNotFoundException("File " + path + " does not exist");
         }
 
         if (getTemplate() == null) {
@@ -41,12 +41,12 @@ public class NmeaCsvParser extends CsvParser {
 
         if (getTemplate().getDataMapping().getDate() != null 
             && getTemplate().getDataMapping().getDate().getSource() == com.ugcs.gprvisualizer.app.yaml.data.Date.Source.FileName) {
-            parseDateFromNameOfFile(logPath);
+            parseDateFromFilename(path);
         }
 
         List<GeoCoordinates> coordinates = new ArrayList<GeoCoordinates>();
 
-        try (var reader = new BufferedReader(new FileReader(logPath))) {
+        try (var reader = new BufferedReader(new FileReader(path))) {
             String line = skipLines(reader);
 
             format = NumberFormat.getNumberInstance(Locale.US);

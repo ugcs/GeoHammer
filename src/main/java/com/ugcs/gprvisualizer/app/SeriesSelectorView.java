@@ -264,7 +264,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         if (template != null) {
             DataMapping dataMapping = template.getDataMapping();
             for (SensorData sensorData : Nulls.toEmpty(dataMapping.getDataValues())) {
-                String seriesName = sensorData.getSemantic();
+                String seriesName = sensorData.getHeader();
                 if (seriesNames.remove(seriesName)) {
                     orderedSeriesNames.add(seriesName);
                 }
@@ -296,7 +296,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
         return new SeriesMeta(
                 seriesName,
-                model.getColorBySemantic(seriesName),
+                model.getColorByHeader(seriesName),
                 createVisibleProperty(template, seriesName));
     }
 

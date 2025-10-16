@@ -3,7 +3,6 @@ package com.ugcs.gprvisualizer.app.parcers;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 
 public class GeoCoordinates {
 

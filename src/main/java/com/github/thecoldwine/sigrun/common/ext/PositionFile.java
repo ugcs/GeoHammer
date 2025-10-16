@@ -4,11 +4,10 @@ import java.awt.Color;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
@@ -18,7 +17,7 @@ import com.ugcs.gprvisualizer.utils.FileTypes;
 
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.parcers.csv.CSVParsersFactory;
+import com.ugcs.gprvisualizer.app.parcers.csv.CsvParsersFactory;
 import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
@@ -97,9 +96,9 @@ public class PositionFile {
 		this.positionFile = positionFile;
 
 		traceFile.setGroundProfileSource(this);
-		List<String> traceSemantics = getAvailableTraceSemantics();
-		if (!traceSemantics.isEmpty()) {
-			setGroundProfile(traceFile, traceSemantics.getFirst());
+		List<String> traceHeaders = getAvailableTraceHeaders();
+		if (!traceHeaders.isEmpty()) {
+			setGroundProfile(traceFile, traceHeaders.getFirst());
 		}
 	}
 
@@ -113,14 +112,14 @@ public class PositionFile {
 		}
 
 		log.info("Using position file template: {}", template.getName());
-		CsvParser parser = new CSVParsersFactory().createCSVParser(template);
+		CsvParser parser = new CsvParsersFactory().createCsvParser(template);
         return parser.parse(path);
 	}
 
-	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceSemantic) {
+	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceHeader) {
 		Check.notNull(traceFile);
 
-		if (Strings.isNullOrEmpty(traceSemantic)) {
+		if (Strings.isNullOrEmpty(traceHeader)) {
 			return null;
 		}
 
@@ -133,14 +132,14 @@ public class PositionFile {
 		int numTraces = traceFile.traces.size();
 		int[] depths = new int[numTraces];
 
+		String altitudeAglHeader = GeoData.getHeader(Semantic.ALTITUDE_AGL, template);
 		for (GeoCoordinates c : Nulls.toEmpty(coordinates)) {
 			if (c instanceof GeoData geoData) {
-				Integer traceIndex = geoData.getInt(traceSemantic).orElse(null);
+				Integer traceIndex = geoData.getInt(traceHeader).orElse(null);
 				if (traceIndex == null || traceIndex < 0 || traceIndex >= numTraces) {
 					continue;
 				}
-				Optional<Double> altitudeAgl = geoData
-						.getDouble(GeoData.Semantic.ALTITUDE_AGL.getName());
+				Optional<Double> altitudeAgl = geoData.getDouble(altitudeAglHeader);
 				if (altitudeAgl.isPresent()) {
 					double altitudeSamples = samplesPerMeter * altitudeAgl.get();
 					depths[traceIndex] = (int)altitudeSamples;
@@ -156,17 +155,17 @@ public class PositionFile {
 		return profile;
 	}
 
-	public void setGroundProfile(TraceFile traceFile, String traceSemantic) {
+	public void setGroundProfile(TraceFile traceFile, String traceHeader) {
 		Check.notNull(traceFile);
 
-		HorizontalProfile profile = loadGroundProfile(traceFile, traceSemantic);
+		HorizontalProfile profile = loadGroundProfile(traceFile, traceHeader);
 
 		traceFile.setGroundProfileSource(this);
-		traceFile.setGroundProfileTraceSemantic(Strings.emptyToNull(traceSemantic));
+		traceFile.setGroundProfileTraceHeader(Strings.emptyToNull(traceHeader));
 		traceFile.setGroundProfile(profile);
 	}
 
-	public List<String> getAvailableTraceSemantics() {
+	public List<String> getAvailableTraceHeaders() {
 		if (template == null) {
 			return List.of();
 		}
@@ -175,19 +174,17 @@ public class PositionFile {
 			return List.of();
 		}
 
-		Set<String> traceHeaders = new HashSet<>();
+		List<String> traceHeaders = new ArrayList<>();
 		for (BaseData sgyTrace : Nulls.toEmpty(mapping.getSgyTraces())) {
-			traceHeaders.add(Strings.nullToEmpty(sgyTrace.getHeader()));
-		}
-		List<String> traceSemantics = new ArrayList<>();
-		for (SensorData sensorData : Nulls.toEmpty(mapping.getDataValues())) {
-			if (sensorData.getIndex() == -1) {
-				continue; // no header in the data file
+			String traceHeader = sgyTrace.getHeader();
+			if (Strings.isNullOrEmpty(traceHeader)) {
+				continue;
 			}
-			if (traceHeaders.contains(sensorData.getHeader())) {
-				traceSemantics.add(sensorData.getSemantic());
+			SensorData column = mapping.getDataColumnByHeader(traceHeader);
+			if (column != null && column.getIndex() != -1) {
+				traceHeaders.add(traceHeader);
 			}
 		}
-		return traceSemantics;
+		return traceHeaders;
 	}
 }

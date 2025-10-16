@@ -117,7 +117,7 @@ public class LineDistanceCheck implements QualityCheck {
             if (values == null || values.isEmpty()) {
                 continue;
             }
-            Map<Integer, Range> ranges = LineSchema.getLineRanges(values);
+            Map<Integer, Range> ranges = file.getLineRanges();
             for (Range range : ranges.values()) {
                 addLinePoints(points, values, range);
             }
@@ -153,7 +153,7 @@ public class LineDistanceCheck implements QualityCheck {
                 continue;
             }
             double k = SphericalMercator.scaleFactorAt(values.getFirst().getLatitude());
-            Map<Integer, Range> ranges = LineSchema.getLineRanges(values);
+            Map<Integer, Range> ranges = file.getLineRanges();
             for (Range range : ranges.values()) {
                 LineString line = getLine(values, range);
                 line = Spatial.simplifyLine(line, k * SIMPLIFY_TOLERANCE);

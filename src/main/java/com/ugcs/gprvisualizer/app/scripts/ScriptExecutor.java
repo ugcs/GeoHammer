@@ -158,8 +158,8 @@ public class ScriptExecutor {
 		return command;
 	}
 
-	public boolean isExecuting(SgyFile sgyFile) {
-		return executingScripts.containsKey(sgyFile);
+	public boolean isExecuting(@Nullable SgyFile sgyFile) {
+		return sgyFile != null && executingScripts.containsKey(sgyFile);
 	}
 
 	@Nullable

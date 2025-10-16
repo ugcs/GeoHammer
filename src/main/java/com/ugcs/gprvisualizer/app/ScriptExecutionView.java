@@ -6,10 +6,10 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
@@ -34,6 +34,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
@@ -66,17 +68,17 @@ public class ScriptExecutionView extends VBox {
 
 	private final Button applyButton;
 
+	private final Button applyToAllButton;
+
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
 	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionView.class);
-
-	@Nullable
-	private ScriptMetadata currentScriptMetadata = null;
 
 	public ScriptExecutionView(Model model, Status status, @Nullable SgyFile selectedFile, ScriptExecutor scriptExecutor) {
 		this.model = model;
 		this.status = status;
 		this.scriptExecutor = scriptExecutor;
+		this.selectedFile = selectedFile;
 
 		setSpacing(OptionPane.DEFAULT_SPACING);
 		setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
@@ -96,49 +98,56 @@ public class ScriptExecutionView extends VBox {
 		parametersLabel.setVisible(false);
 
 		applyButton = new Button("Apply");
-		applyButton.setDisable(true);
+		applyButton.setVisible(false);
+
+		applyToAllButton = new Button("Apply to all");
+		applyToAllButton.setVisible(false);
 
 		scriptsMetadataSelector.setOnAction(e -> {
 			String filename = scriptsMetadataSelector.getValue();
-			ScriptMetadata selected = scriptsMetadata.stream()
+			ScriptMetadata selectedScript = scriptsMetadata.stream()
 					.filter(scriptMetadata -> scriptMetadata.filename().equals(filename))
 					.findFirst()
 					.orElse(null);
-
-			currentScriptMetadata = selected;
 			parametersBox.getChildren().clear();
 
-			if (selected != null) {
-				if (selected.parameters().isEmpty()) {
+			if (selectedScript != null) {
+				if (selectedScript.parameters().isEmpty()) {
 					parametersLabel.setVisible(false);
 				} else {
 					parametersLabel.setVisible(true);
 					parametersBox.getChildren().add(parametersLabel);
 				}
 
-				for (ScriptParameter param : selected.parameters()) {
-					VBox paramBox = createParameterInput(param);
+				for (ScriptParameter param : selectedScript.parameters()) {
+					String initialValue = loadStoredParamValue(selectedScript.filename(), param.name(), param.defaultValue());
+					VBox paramBox = createParameterInput(param, initialValue);
 					parametersBox.getChildren().add(paramBox);
 				}
 
-				applyButton.setDisable(false);
+				applyButton.setVisible(true);
+				applyToAllButton.setVisible(true);
 			} else {
 				parametersLabel.setVisible(false);
-				applyButton.setDisable(true);
+				applyButton.setVisible(false);
+				applyToAllButton.setVisible(false);
 			}
 		});
 
-		applyButton.setOnAction(event -> {
-			String filename = scriptsMetadataSelector.getValue();
-			ScriptMetadata selected = scriptsMetadata.stream()
-					.filter(scriptMetadata -> scriptMetadata.filename().equals(filename))
-					.findFirst()
-					.orElse(null);
-			executeScript(selected);
-		});
+		applyButton.setOnAction(event -> onApplyClicked());
+		applyToAllButton.setOnAction(event -> onApplyToAllClicked(model));
+
+		HBox buttonsRow = new HBox(5);
+		HBox rightBox = new HBox();
+		HBox leftBox = new HBox(5);
+		leftBox.getChildren().addAll(applyButton);
+		HBox.setHgrow(leftBox, Priority.ALWAYS);
+		rightBox.getChildren().addAll(applyToAllButton);
+
+		buttonsRow.getChildren().addAll(leftBox, rightBox);
 
 		VBox contentBox = new VBox();
-		contentBox.getChildren().addAll(scriptsMetadataSelector, parametersBox, applyButton);
+		contentBox.getChildren().addAll(scriptsMetadataSelector, parametersBox, buttonsRow);
 
 		StackPane stackPane = new StackPane(contentBox, progressIndicator);
 		StackPane.setAlignment(progressIndicator, Pos.CENTER);
@@ -151,60 +160,112 @@ public class ScriptExecutionView extends VBox {
 		setManaged(false);
 	}
 
-	public void updateView(@Nullable SgyFile newSelectedFile) {
-		this.selectedFile = newSelectedFile;
-		Platform.runLater(() -> {
-			List<ScriptMetadata> loadedScriptsMetadata;
-			try {
-				ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
-				Path scriptsPath = scriptExecutor.getScriptsPath();
-				loadedScriptsMetadata = scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
-			} catch (IOException e) {
-				log.warn("Failed to load scripts", e);
-				MessageBoxHelper.showError("Scripts Directory Error",
-						"Failed to load scripts metadata: " + e.getMessage());
-				loadedScriptsMetadata = List.of();
-			}
-			String currentFileTemplate = selectedFile != null ? FileTemplate.getTemplateName(model, selectedFile.getFile()) : null;
-			this.scriptsMetadata = loadedScriptsMetadata.stream()
-					.filter(metadata -> metadata.templates().isEmpty() || metadata.templates().contains(currentFileTemplate))
-					.toList();
-
-			@Nullable String prevSelected = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
-			scriptsMetadataSelector.getItems().setAll(
-					scriptsMetadata.stream()
-							.map(ScriptMetadata::filename)
-							.toList()
-			);
-			if (prevSelected != null && scriptsMetadataSelector.getItems().contains(prevSelected)) {
-				scriptsMetadataSelector.getSelectionModel().select(prevSelected);
-			} else {
-				scriptsMetadataSelector.getSelectionModel().clearSelection();
-				parametersBox.getChildren().clear();
-				applyButton.setDisable(true);
-			}
-
-			if (selectedFile != null && scriptExecutor.isExecuting(selectedFile)) {
-				setExecutingProgress(true);
-				String executingScriptName = scriptExecutor.getExecutingScriptName(selectedFile);
-				if (executingScriptName != null) {
-					scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
-				} else {
-					scriptsMetadataSelector.getSelectionModel().clearSelection();
-				}
-			} else {
-				setExecutingProgress(false);
-			}
-		});
+	private void onApplyClicked() {
+		String filename = scriptsMetadataSelector.getValue();
+		ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+				.filter(sM -> sM.filename().equals(filename))
+				.findFirst()
+				.orElse(null);
+		SgyFile sgyFile = this.selectedFile;
+		if (sgyFile != null) {
+			executeScript(scriptMetadata, List.of(sgyFile));
+		} else {
+			MessageBoxHelper.showError("No file selected",
+					"Please select a file to apply the script");
+		}
 	}
 
-	private VBox createParameterInput(ScriptParameter param) {
+	private void onApplyToAllClicked(Model model) {
+		String filename = scriptsMetadataSelector.getValue();
+		ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+				.filter(sM -> sM.filename().equals(filename))
+				.findFirst()
+				.orElse(null);
+		List<SgyFile> filesToProcess = getFilesToProcess(model);
+		executeScript(scriptMetadata, filesToProcess);
+	}
+
+	private List<SgyFile> getFilesToProcess(Model model) {
+		SgyFile sgyFile = this.selectedFile;
+		String template = sgyFile != null
+				? FileTemplate.getTemplateName(model, sgyFile.getFile())
+				: null;
+		List<SgyFile> filesToProcess = model.getFileManager().getFiles();
+		if (template != null) {
+			filesToProcess = filesToProcess.stream().filter(file -> {
+				String fileTemplate = FileTemplate.getTemplateName(model, file.getFile());
+				return template.equals(fileTemplate);
+			}).toList();
+		}
+		return filesToProcess;
+	}
+
+	public void updateView(@Nullable SgyFile sgyFile) {
+		this.selectedFile = sgyFile;
+		try {
+			List<ScriptMetadata> loadedScriptsMetadata = getLoadedScriptsMetadata();
+			this.scriptsMetadata = filterScriptsByTemplate(sgyFile, loadedScriptsMetadata);
+		} catch (Exception e) {
+			this.scriptsMetadata = List.of();
+			MessageBoxHelper.showError("Scripts Directory Error",
+					"Failed to load scripts metadata: " + e.getMessage());
+		}
+
+		restoreScriptSelection();
+
+		refreshExecutionStatus(sgyFile);
+	}
+
+	private List<ScriptMetadata> getLoadedScriptsMetadata() throws IOException {
+		ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
+		Path scriptsPath = scriptExecutor.getScriptsPath();
+		return scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
+	}
+
+	private List<ScriptMetadata> filterScriptsByTemplate(@Nullable SgyFile sgyFile, List<ScriptMetadata> scriptsMetadata) {
+		String fileTemplate = sgyFile != null ? FileTemplate.getTemplateName(model, sgyFile.getFile()) : null;
+		if (fileTemplate == null) {
+			return scriptsMetadata;
+		} else {
+			return scriptsMetadata.stream()
+					.filter(metadata -> metadata.templates().contains(fileTemplate))
+					.toList();
+		}
+	}
+
+	private void restoreScriptSelection() {
+		@Nullable String prevSelectedScript = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
+		scriptsMetadataSelector.getItems().setAll(
+				scriptsMetadata.stream()
+						.map(ScriptMetadata::filename)
+						.toList()
+		);
+		if (prevSelectedScript != null && scriptsMetadataSelector.getItems().contains(prevSelectedScript)) {
+			scriptsMetadataSelector.getSelectionModel().select(prevSelectedScript);
+		} else {
+			scriptsMetadataSelector.getSelectionModel().clearSelection();
+			scriptsMetadataSelector.setPromptText("Select script");
+		}
+	}
+
+	private void refreshExecutionStatus(@Nullable SgyFile sgyFile) {
+		if (scriptExecutor.isExecuting(sgyFile)) {
+			setExecutingProgress(true);
+			String executingScriptName = scriptExecutor.getExecutingScriptName(sgyFile);
+			if (executingScriptName != null) {
+				scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
+			} else {
+				scriptsMetadataSelector.getSelectionModel().clearSelection();
+			}
+		} else {
+			setExecutingProgress(false);
+		}
+	}
+
+	private VBox createParameterInput(ScriptParameter param, String initialValue) {
 		VBox paramBox = new VBox(5);
 		String labelText = param.displayName() + (param.required() ? " *" : "");
 		Label label = new Label(labelText);
-
-		String scriptFilename = currentScriptMetadata != null ? currentScriptMetadata.filename() : null;
-		String initialValue = loadStoredParamValue(scriptFilename, param.name(), param.defaultValue());
 
 		Node inputNode = getInputNode(param, initialValue, labelText);
 		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
@@ -247,16 +308,15 @@ public class ScriptExecutionView extends VBox {
 		if (scriptFilename == null) {
 			return defaultValue;
 		}
-		return prefs.get("script." + scriptFilename + "." + paramName, defaultValue);
+		return prefs.get(scriptFilename + "." + paramName, defaultValue);
 	}
 
 	private void storeParamValues(String scriptFilename, Map<String, String> params) {
-		params.forEach((k, v) -> prefs.put("script." + scriptFilename + "." + k, v));
+		params.forEach((name, value) -> prefs.put(scriptFilename + "." + name, value));
 	}
 
-	private void executeScript(@Nullable ScriptMetadata scriptMetadata) {
-		SgyFile selectedFile = this.selectedFile;
-		if (scriptMetadata == null || selectedFile == null) {
+	private void executeScript(@Nullable ScriptMetadata scriptMetadata, List<SgyFile> files) {
+		if (scriptMetadata == null || files.isEmpty()) {
 			log.error("No script selected for execution");
 			return;
 		}
@@ -276,27 +336,43 @@ public class ScriptExecutionView extends VBox {
 			status.showMessage(line, scriptMetadata.displayName());
 		};
 
-		Future<Void> future = executor.submit(() -> {
+		Platform.runLater(() -> {
 			setExecutingProgress(true);
-			try {
-				scriptExecutor.executeScript(selectedFile, scriptMetadata, parameters, onScriptOutput);
-				showSuccess(scriptMetadata);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			} catch (Exception e) {
-				String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
-				showError(scriptMetadata, e, scriptOutput);
-			} finally {
-				if (Objects.equals(selectedFile, this.selectedFile)) {
-					setExecutingProgress(false);
+			applyToAllButton.setDisable(true);
+		});
+
+		AtomicInteger remainingFiles = new AtomicInteger(files.size());
+		Future<Void> future = executor.submit(() -> {
+			for (SgyFile sgyFile : files) {
+				try {
+					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput);
+					showSuccess(scriptMetadata);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				} catch (Exception e) {
+					String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
+					showError(scriptMetadata, e, scriptOutput);
+				} finally {
+					if (remainingFiles.decrementAndGet() == 0) {
+						Platform.runLater(() -> {
+							setExecutingProgress(false);
+							applyToAllButton.setDisable(false);
+						});
+					}
 				}
 			}
 			return null;
 		});
 
+		int filesCount = files.size();
 		String taskName = "Running script " + scriptMetadata.displayName();
-		if (selectedFile.getFile() != null) {
-			taskName += ": " + selectedFile.getFile().getName();
+		if (filesCount == 1) {
+			SgyFile sgyFile = files.getFirst();
+			if (sgyFile.getFile() != null) {
+				taskName += ": " + sgyFile.getFile().getName();
+			}
+		} else if (filesCount > 1) {
+			taskName += " on " + filesCount + " files";
 		}
 		AppContext.getInstance(TaskService.class).registerTask(future, taskName);
 	}
@@ -305,7 +381,7 @@ public class ScriptExecutionView extends VBox {
 		status.showMessage("Script executed successfully.", scriptMetadata.displayName());
 	}
 
-	private void showError(ScriptMetadata scriptMetadata, Exception e, String scriptOutput) {
+	private void showError(ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
 		String title = "Script Execution Error";
 		String message;
 
@@ -362,7 +438,7 @@ public class ScriptExecutionView extends VBox {
 		progressIndicator.setVisible(inProgress);
 		progressIndicator.setManaged(inProgress);
 		parametersBox.setDisable(inProgress);
-		applyButton.setDisable(inProgress);
 		scriptsMetadataSelector.setDisable(inProgress);
+		applyButton.setDisable(inProgress);
 	}
 }

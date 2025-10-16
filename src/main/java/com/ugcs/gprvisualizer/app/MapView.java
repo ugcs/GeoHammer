@@ -98,6 +98,9 @@ public class MapView implements InitializingBean {
 	@Autowired
 	private List<BaseLayer> baseLayers;
 
+	@Autowired
+	private SettingsView settingsView;
+
 	private List<Layer> layers = new ArrayList<>();
 
 	public List<Layer> getLayers() {
@@ -146,6 +149,8 @@ public class MapView implements InitializingBean {
 
 		mapRuler.setRepaintCallback(() -> listener.repaint());
 		getLayers().add(mapRuler);
+
+		getLayers().add(settingsView);
 
 		getLayers().add(zoomButtonLayer);
 
@@ -245,12 +250,11 @@ public class MapView implements InitializingBean {
 	public Node getCenter() {
 		
 		toolBar.setDisable(true);
+		toolBar.getItems().addAll(settingsView.buildToolNodes());
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
 		toolBar.getItems().addAll(mapRuler.buildToolNodes());
 		toolBar.getItems().add(getSpacer());
 
-
-				
 		toolBar.getItems().addAll(getToolNodes());
 		
 		Pane sp1 = new Pane();

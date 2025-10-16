@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -34,6 +37,8 @@ public class ScriptExecutor {
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutor.class);
 
 	public static final String SCRIPTS_DIRECTORY = "scripts";
+
+	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
 	private final PythonConfig pythonConfig;
 
@@ -127,9 +132,8 @@ public class ScriptExecutor {
 		String pythonPath = pythonConfig.getPythonExecutorPath();
 		if (pythonPath == null || pythonPath.isEmpty()) {
 			try {
-				pythonPath = new PythonLocator()
-						.getPythonExecutorPathAsync()
-						.get();
+				Future<String> future = executor.submit(PythonLocator::getPythonExecutorPath);
+				pythonPath = future.get();
 			} catch (ExecutionException e) {
 				throw new RuntimeException(e);
 			}

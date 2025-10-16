@@ -142,7 +142,6 @@ public class MapView implements InitializingBean {
 		getLayers().add(qualityLayer);
 		getLayers().add(gpsTrackMap);
 		getLayers().add(new FoundTracesLayer(model));
-		getLayers().add(settingsView);
 
 		//TODO: bad style
 		traceCutter.setListener(listener);		

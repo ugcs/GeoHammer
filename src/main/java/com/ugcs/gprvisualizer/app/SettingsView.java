@@ -39,6 +39,7 @@ public class SettingsView implements Layer, InitializingBean {
 	private final PythonConfig pythonConfig;
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
 	@Nullable
 	private Stage settingsStage = null;
 
@@ -83,23 +84,23 @@ public class SettingsView implements Layer, InitializingBean {
 		Stage stage = new Stage();
 		stage.setTitle("Settings");
 
-		stage.setOnCloseRequest(e -> toggleButton.setSelected(false));
+		stage.setOnCloseRequest(event -> toggleButton.setSelected(false));
 
-		Node pythonPathSetting = createPythonPathSetting(stage);
+		Node pythonPathSetting = createPythonPathPane(stage);
 
 		VBox root = new VBox(pythonPathSetting);
-		Scene scene = new Scene(root, 500, 120);
+		Scene scene = new Scene(root, 700, 120);
 
 		stage.setScene(scene);
 		return stage;
 	}
 
 
-	private Node createPythonPathSetting(Stage settingsStage) {
+	private Node createPythonPathPane(Stage settingsStage) {
 		Label pythonLabel = new Label("Python Executor Path:");
 		TextField pythonPathField = new TextField();
 		pythonPathField.setEditable(false);
-		pythonPathField.setPrefWidth(200);
+		pythonPathField.setPrefWidth(400);
 
 		String pythonPath = "";
 		String configPath = pythonConfig.getPythonExecutorPath();
@@ -121,11 +122,11 @@ public class SettingsView implements Layer, InitializingBean {
 
 	private @NotNull HBox createPythonPathRow(Stage settingsStage, TextField pythonPathField, Label pythonLabel) {
 		Button browseButton = new Button("Browse...");
-		browseButton.setOnAction(e -> onBrowseClicked(settingsStage, pythonPathField));
+		browseButton.setOnAction(event -> onBrowseClicked(settingsStage, pythonPathField));
 
 		Button pasteButton = ResourceImageHolder.setButtonImage(ResourceImageHolder.PASTE, new Button());
 		pasteButton.setTooltip(new Tooltip("Paste path from clipboard"));
-		pasteButton.setOnAction(e -> onPasteClicked(pythonPathField));
+		pasteButton.setOnAction(event -> onPasteClicked(pythonPathField));
 
 		HBox row = new HBox(10, pythonLabel, pythonPathField, pasteButton, browseButton);
 		row.setPadding(new Insets(20, 20, 20, 20));

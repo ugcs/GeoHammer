@@ -13,7 +13,6 @@ import java.util.Locale;
 
 import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parcers.Parser;
-import com.ugcs.gprvisualizer.app.parcers.Result;
 import com.ugcs.gprvisualizer.app.parcers.exceptions.ColumnsMatchingException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 
@@ -60,10 +59,6 @@ public class FixedColumnWidthParser extends Parser {
         } 
 
         return coordinates;
-    }
-
-    public Result createFileWithCorrectedCoordinates(String oldFile, String newFile, Iterable<GeoCoordinates> coordinates) {//, Runnable token) {
-        return new Result();
     }
 
     private GeoCoordinates parseLineData(List<String> data) {

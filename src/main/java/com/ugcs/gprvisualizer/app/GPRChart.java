@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.MetaFile;
 import com.github.thecoldwine.sigrun.common.ext.ProfileField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceGeoData;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.github.thecoldwine.sigrun.common.ext.TraceSample;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
@@ -15,6 +16,7 @@ import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.RemoveLineButton;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.draw.PrismDrawer;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
@@ -915,7 +917,8 @@ public class GPRChart extends Chart {
         }
         // correct out of range values to point to the first or last trace
         index = Math.clamp(index, 0, values.size() - 1);
-        return values.get(index).getLineIndexOrDefault();
+        String lineHeader = GeoData.getHeader(Semantic.LINE, null);
+        return values.get(index).getInt(lineHeader).orElse(0);
     }
 
     private void zoomToLine(int lineIndex) {

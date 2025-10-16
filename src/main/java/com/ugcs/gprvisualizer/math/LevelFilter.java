@@ -106,7 +106,7 @@ public class LevelFilter implements ToolProducer {
         if (elevationSourceName == null) {
             elevationSourceName = new Label();
         }
-        // trace semantic
+        // trace header
         if (traceColumnSelector == null) {
             traceColumnSelector = new ComboBox<>();
             traceColumnSelector.setPrefWidth(200);
@@ -215,8 +215,8 @@ public class LevelFilter implements ToolProducer {
                 ? traceFile.getGroundProfileSource()
                 : null;
         if (positionFile != null) {
-            traceColumnSelector.getItems().addAll(positionFile.getAvailableTraceSemantics());
-            traceColumnSelector.setValue(traceFile.getGroundProfileTraceSemantic());
+            traceColumnSelector.getItems().addAll(positionFile.getAvailableTraceHeaders());
+            traceColumnSelector.setValue(traceFile.getGroundProfileTraceHeader());
         } else {
             traceColumnSelector.setValue(null);
         }
@@ -227,13 +227,13 @@ public class LevelFilter implements ToolProducer {
         if (traceFile == null) {
             return;
         }
-        String traceSemantic = traceColumnSelector.getValue();
-        if (Objects.equals(traceSemantic, traceFile.getGroundProfileTraceSemantic())) {
+        String traceHeader = traceColumnSelector.getValue();
+        if (Objects.equals(traceHeader, traceFile.getGroundProfileTraceHeader())) {
             return; // already selected
         }
         PositionFile positionFile = traceFile.getGroundProfileSource();
         if (positionFile != null) {
-            positionFile.setGroundProfile(traceFile, traceSemantic);
+            positionFile.setGroundProfile(traceFile, traceHeader);
             HorizontalProfile profile = traceFile.getGroundProfile();
             if (profile != null) {
                 // apply offset

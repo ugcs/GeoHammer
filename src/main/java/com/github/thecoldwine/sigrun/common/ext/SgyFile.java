@@ -6,13 +6,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.SortedMap;
-import java.util.TreeMap;
 
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.quality.LineSchema;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
-import com.ugcs.gprvisualizer.app.undo.UndoSnapshot;
 import com.ugcs.gprvisualizer.utils.Range;
 import org.jspecify.annotations.Nullable;
 
@@ -32,7 +31,8 @@ public abstract class SgyFile {
 
 	public SortedMap<Integer, Range> getLineRanges() {
 		if (lineRanges == null) {
-			lineRanges = LineSchema.getLineRanges(getGeoData());
+			String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, this);
+			lineRanges = LineSchema.getLineRanges(getGeoData(), lineHeader);
 		}
 		return lineRanges;
 	}

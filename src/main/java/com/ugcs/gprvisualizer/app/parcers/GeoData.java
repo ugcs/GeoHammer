@@ -1,40 +1,29 @@
 package com.ugcs.gprvisualizer.app.parcers;
 
+import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.yaml.DataMapping;
+import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Strings;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class GeoData extends GeoCoordinates {
 
-    public static final String ANOMALY_SEMANTIC_SUFFIX = "_anomaly";
-
-    public enum Semantic {
-
-        LINE("Line"),
-        ALTITUDE_AGL("Altitude AGL"),
-        TMI("TMI"), MARK("Mark"),;
-
-        private final String name;
-
-        Semantic(String name) {
-            this.name = name;
-        }
-
-        public String getName() {
-            return name;
-        }
-    }
-
     private final List<SensorValue> sensorValues;
 
     /**
      * Original line from source file
      */
-    private String sourceLine;
+    private String[] sourceLine;
 
     private final boolean marked;
 
-    public GeoData(boolean marked, String sourceLine, List<SensorValue> sensorValues, GeoCoordinates geoCoordinates) {
+    public GeoData(boolean marked, String[] sourceLine, List<SensorValue> sensorValues, GeoCoordinates geoCoordinates) {
         super(geoCoordinates.getLatitude(), geoCoordinates.getLongitude(), geoCoordinates.getAltitude(), geoCoordinates.getTimeInMs(), geoCoordinates.getTraceNumber(), geoCoordinates.getDateTime());
         this.sensorValues = sensorValues;
         this.sourceLine = sourceLine;
@@ -51,56 +40,25 @@ public class GeoData extends GeoCoordinates {
         this.marked = geoData.marked;
     }
 
+	public String[] getSourceLine() {
+		return sourceLine;
+	}
+
+	public void setSourceLine(String[] sourceLine) {
+		this.sourceLine = sourceLine;
+	}
+
     public List<SensorValue> getSensorValues() {
         return sensorValues;
     }
 
-	public String getSourceLine() {
-		return sourceLine;
-	}
-
-	public void setSourceLine(String sourceLine) {
-		this.sourceLine = sourceLine;
-	}
-
-	public void setLineIndex(int lineNumber) {
-        setSensorValue(Semantic.LINE.name, lineNumber);
-    }
-
-    public int getLineIndexOrDefault() {
-        return getLineIndex().orElse(0);
-    }
-
-    public Optional<Integer> getLineIndex() {
-        return getInt(Semantic.LINE.name);
-    }
-
-    public Optional<Double> getDouble(String semantic) {
-        SensorValue sensorValue = getSensorValue(semantic);
-        return sensorValue != null && sensorValue.data() != null
-                ? Optional.of(sensorValue.data().doubleValue())
-                : Optional.empty();
-    }
-
-    public Optional<Integer> getInt(String semantic) {
-        SensorValue sensorValue = getSensorValue(semantic);
-        return sensorValue != null && sensorValue.data() != null
-                ? Optional.of(sensorValue.data().intValue())
-                : Optional.empty();
-    }
-
-    public SensorValue getLine() {
-        return getSensorValue(Semantic.LINE);    
-    }
-
-    public SensorValue getSensorValue(Semantic semantic) {
-        return getSensorValue(semantic.name);
-    }
-
-    public SensorValue getSensorValue(String semantic) {
+    public SensorValue getSensorValue(String header) {
+        if (Strings.isNullOrEmpty(header)) {
+            return null;
+        }
         SensorValue result = null;
-        for(SensorValue sensorValue : sensorValues) {
-            if (semantic.equals(sensorValue.semantic())) {
+        for (SensorValue sensorValue : sensorValues) {
+            if (header.equals(sensorValue.header())) {
                 result = sensorValue;
                 break;
             }
@@ -108,20 +66,26 @@ public class GeoData extends GeoCoordinates {
         return result;
     }
 
-    public void setSensorValue(String semantic, Number value) {
+    public void setSensorValue(String header, Number value) {
+        if (Strings.isNullOrEmpty(header)) {
+            return;
+        }
         for(SensorValue sensorValue : sensorValues) {
-            if (semantic.equals(sensorValue.semantic())) {
+            if (header.equals(sensorValue.header())) {
                 sensorValues.add(sensorValue.withValue(value));
                 sensorValues.remove(sensorValue);
                 return;
             }
         }
-        sensorValues.add(new SensorValue(semantic, "", value, value));
+        sensorValues.add(new SensorValue(header, "", value, value));
     }
 
-    public void undoSensorValue(String semantic) {
-        for(SensorValue sensorValue : sensorValues) {
-            if (semantic.equals(sensorValue.semantic())) {
+    public void undoSensorValue(String header) {
+        if (Strings.isNullOrEmpty(header)) {
+            return;
+        }
+        for (SensorValue sensorValue : sensorValues) {
+            if (header.equals(sensorValue.header())) {
                 sensorValues.add(sensorValue.withValue(sensorValue.originalData()));
                 sensorValues.remove(sensorValue);
                 break;
@@ -129,7 +93,49 @@ public class GeoData extends GeoCoordinates {
         }
     }
 
+    public Optional<Integer> getInt(String header) {
+        SensorValue sensorValue = getSensorValue(header);
+        return sensorValue != null && sensorValue.data() != null
+                ? Optional.of(sensorValue.data().intValue())
+                : Optional.empty();
+    }
+
+    public Optional<Double> getDouble(String header) {
+        SensorValue sensorValue = getSensorValue(header);
+        return sensorValue != null && sensorValue.data() != null
+                ? Optional.of(sensorValue.data().doubleValue())
+                : Optional.empty();
+    }
+
     public boolean isMarked() {
         return marked;
+    }
+
+    public static String getHeaderInFile(Semantic semantic, SgyFile file) {
+        return getHeaderInFile(semantic.getName(), file);
+    }
+
+    public static String getHeaderInFile(String semantic, SgyFile file) {
+        if (file instanceof TraceFile traceFile) {
+            return getHeader(semantic, null);
+        }
+        if (file instanceof CsvFile csvFile) {
+            return getHeader(semantic, Check.notNull(csvFile.getTemplate()));
+        }
+        return null;
+    }
+
+    public static String getHeader(Semantic semantic, Template template) {
+        return getHeader(semantic.getName(), template);
+    }
+
+    public static String getHeader(String semantic, Template template) {
+        Check.notNull(template);
+        DataMapping mapping = template.getDataMapping();
+        if (mapping != null) {
+            return mapping.getHeaderBySemantic(semantic);
+        }
+        // use semantic name as a header when no template
+        return semantic;
     }
 }

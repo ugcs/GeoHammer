@@ -92,22 +92,18 @@ public class StatisticsView extends VBox {
         setManaged(false);
     }
 
-    private int getDecimals(CsvFile csvFile, String semantic) {
-        SensorData sensorData = getSensorDataBySemantic(csvFile, semantic);
+    private int getDecimals(CsvFile csvFile, String header) {
+        SensorData sensorData = getSensorDataByHeader(csvFile, header);
         return sensorData != null
                 ? sensorData.getDecimals()
                 : SensorData.DEFAULT_DECIMALS;
     }
 
-    private SensorData getSensorDataBySemantic(CsvFile csvFile, String semantic) {
+    private SensorData getSensorDataByHeader(CsvFile csvFile, String header) {
         if (csvFile == null) {
             return null;
         }
-        CsvParser parser = csvFile.getParser();
-        if (parser == null) {
-            return null;
-        }
-        Template template = parser.getTemplate();
+        Template template = csvFile.getTemplate();
         if (template == null) {
             return null;
         }
@@ -115,12 +111,7 @@ public class StatisticsView extends VBox {
         if (dataMapping == null) {
             return null;
         }
-        for (SensorData sensorData : Nulls.toEmpty(dataMapping.getDataValues())) {
-            if (Objects.equals(semantic, sensorData.getSemantic())) {
-                return sensorData;
-            }
-        }
-        return null;
+        return dataMapping.getDataColumnByHeader(header);
     }
 
     public void update(SgyFile selectedFile) {
@@ -149,8 +140,8 @@ public class StatisticsView extends VBox {
                 SensorValue sensorValue = findNearestSensorValue(values, series, index);
                 if (hasData(sensorValue)) {
                     valueText = formatValue(sensorValue.data().doubleValue());
-                    if (!Strings.isNullOrEmpty(sensorValue.units())) {
-                        valueText += " " + sensorValue.units();
+                    if (!Strings.isNullOrEmpty(sensorValue.unit())) {
+                        valueText += " " + sensorValue.unit();
                     }
                 }
             }
@@ -163,7 +154,7 @@ public class StatisticsView extends VBox {
     }
 
     @Nullable
-    private SensorValue findNearestSensorValue(List<GeoData> values, String semantic, int index) {
+    private SensorValue findNearestSensorValue(List<GeoData> values, String header, int index) {
         if (values == null) {
             return null;
         }
@@ -172,7 +163,7 @@ public class StatisticsView extends VBox {
             return null;
         }
 
-        SensorValue sensorValue = values.get(index) != null ? values.get(index).getSensorValue(semantic) : null;
+        SensorValue sensorValue = values.get(index) != null ? values.get(index).getSensorValue(header) : null;
         if (hasData(sensorValue)) {
             return sensorValue;
         }
@@ -182,7 +173,7 @@ public class StatisticsView extends VBox {
         while (leftIndex >= 0 || rightIndex < size) {
             if (leftIndex >= 0) {
                 GeoData geoData = values.get(leftIndex);
-                SensorValue leftSensorValue = geoData != null ? geoData.getSensorValue(semantic) : null;
+                SensorValue leftSensorValue = geoData != null ? geoData.getSensorValue(header) : null;
                 if (hasData(leftSensorValue)) {
                     return leftSensorValue;
                 }
@@ -190,7 +181,7 @@ public class StatisticsView extends VBox {
             }
             if (rightIndex < size) {
                 GeoData geoData = values.get(rightIndex);
-                SensorValue rightSensorValue = geoData != null ? geoData.getSensorValue(semantic) : null;
+                SensorValue rightSensorValue = geoData != null ? geoData.getSensorValue(header) : null;
                 if (hasData(rightSensorValue)) {
                     return rightSensorValue;
                 }
@@ -465,21 +456,21 @@ public class StatisticsView extends VBox {
 
         final List<GeoData> values;
 
-        final String semantic;
+        final String header;
 
-        public GeoDataAdapter(List<GeoData> values, String semantic) {
+        public GeoDataAdapter(List<GeoData> values, String header) {
             Check.notNull(values);
-            Check.notNull(semantic);
+            Check.notNull(header);
 
             this.values = values;
-            this.semantic = semantic;
+            this.header = header;
         }
 
         @Override
         public Double get(int index) {
             GeoData value = values.get(index);
             return value != null
-                    ? value.getDouble(semantic).orElse(Double.NaN)
+                    ? value.getDouble(header).orElse(Double.NaN)
                     : Double.NaN;
         }
 

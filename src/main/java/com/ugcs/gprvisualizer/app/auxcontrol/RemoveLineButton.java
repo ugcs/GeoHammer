@@ -11,6 +11,8 @@ import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.app.TraceTransform;
+import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Range;
@@ -52,7 +54,8 @@ public class RemoveLineButton extends PositionalObject {
 				if (lineRanges.size() == 1) {
 					gprChart.close();
 				} else {
-					int lineIndex = file.getGeoData().get(trace.getIndex()).getLineIndexOrDefault();
+					String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, file);
+					int lineIndex = file.getGeoData().get(trace.getIndex()).getInt(lineHeader).orElse(0);
 					TraceTransform traceTransform = AppContext.getInstance(TraceTransform.class);
 					traceTransform.removeLine(file, lineIndex);
 				}

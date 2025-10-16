@@ -13,6 +13,7 @@ import java.util.Optional;
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -130,12 +131,13 @@ public class HorizontalRulerDrawer {
 
         cumulativeDistances.add(0.0);
 
+        String lineHeader = GeoData.getHeader(Semantic.LINE, null);
         for (int i = 1; i < geoData.size(); i++) {
             LatLon previous = geoData.get(i - 1).getLatLon();
             LatLon current = geoData.get(i).getLatLon();
 
-            Optional<Integer> previousLineIndex = geoData.get(i - 1).getLineIndex();
-            Optional<Integer> currentLineIndex = geoData.get(i).getLineIndex();
+            Optional<Integer> previousLineIndex = geoData.get(i - 1).getInt(lineHeader);
+            Optional<Integer> currentLineIndex = geoData.get(i).getInt(lineHeader);
 
             // For different lines, reset distance to 0
             if (previousLineIndex.isPresent() && currentLineIndex.isPresent()) {

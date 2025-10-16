@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parcers.Semantic;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -137,12 +138,13 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
         cumulativeDistances.add(0.0);
 
+        String lineHeader = GeoData.getHeader(Semantic.LINE, file.getTemplate());
         for (int i = 1; i < geoData.size(); i++) {
             LatLon previousLocation = geoData.get(i - 1).getLatLon();
             LatLon currentLocation = geoData.get(i).getLatLon();
 
-            Optional<Integer> previousLineIndex = geoData.get(i - 1).getLineIndex();
-            Optional<Integer> currentLineIndex = geoData.get(i).getLineIndex();
+            Optional<Integer> previousLineIndex = geoData.get(i - 1).getInt(lineHeader);
+            Optional<Integer> currentLineIndex = geoData.get(i).getInt(lineHeader);
 
             // For different lines, reset distance to 0
             if (previousLineIndex.isPresent() && currentLineIndex.isPresent()) {

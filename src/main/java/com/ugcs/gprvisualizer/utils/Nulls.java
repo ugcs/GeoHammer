@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public final class Nulls {
 
@@ -33,5 +35,11 @@ public final class Nulls {
 
 	public static <K, V> boolean isNullOrEmpty(Map<K, V> map) {
 		return map == null || map.isEmpty();
+	}
+
+	public static <T> void ifPresent(T value, Consumer<T> consumer) {
+		if (value != null) {
+			consumer.accept(value);
+		}
 	}
 }

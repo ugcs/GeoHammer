@@ -6,8 +6,8 @@ import org.jspecify.annotations.Nullable;
 
 public class MapField {
 
-	public static final Double MIN_ZOOM = 0.5;
-	public static final Double MAX_ZOOM = 30.0;
+	public static final int MIN_ZOOM = 2;
+	public static final int MAX_ZOOM = 30;
 
 	private static final double R = 6378137;
 
@@ -20,13 +20,12 @@ public class MapField {
 	@Nullable
 	private LatLon sceneCenter;
 
-	private double zoom;
+	private int zoom;
 
 	@Nullable
 	private MapProvider mapProvider;
 
 	public MapField() {
-		this.zoom = 1.0;
 	}
 	
 	public MapField(MapField field) {
@@ -44,61 +43,17 @@ public class MapField {
 		return pathCenter != null;
 	}
 
-	private double getTileSize() {
-		return 256.0;
-	}
-
-	private double mapSize(double zoom) {
-		return getTileSize() * Math.pow(2.0, zoom);
-	}
-
-	private Point2D toWorld(LatLon latLon, double zoom) {
-		double size = mapSize(zoom);
-		double x = (latLon.getLonDgr() + 180.0) / 360.0 * size;
-
-		double sinLat = Math.sin(Math.toRadians(latLon.getLatDgr()));
-		// Clamp to avoid infinity near the poles
-		sinLat = Math.max(-0.9999, Math.min(0.9999, sinLat));
-
-		double y = (0.5 - Math.log((1.0 + sinLat) / (1.0 - sinLat)) / (4.0 * Math.PI)) * size;
-		return new Point2D(x, y);
-	}
-
-	private LatLon fromWorld(Point2D p, double zoom) {
-		double size = mapSize(zoom);
-
-		double lon = (p.getX() / size) * 360.0 - 180.0;
-
-		double y = 0.5 - (p.getY() / size);
-		double latRad = Math.PI / 2.0 - 2.0 * Math.atan(Math.exp(-y * 2.0 * Math.PI));
-		double lat = Math.toDegrees(latRad);
-
-		return new LatLon(lat, lon);
-	}
-
 	public Point2D latLonToScreen(@Nullable LatLon latlon) {
 		if (latlon == null || getSceneCenter() == null) {
 			return new Point2D(0, 0);
 		}
 
-		Point2D centerPoint = toWorld(getSceneCenter(), getZoom());
-		Point2D currentPoint = toWorld(latlon, getZoom());
+		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoom());
+		Point2D p2d = GoogleCoordUtils.createInfoWindowContent(latlon, getZoom());
 
-		return new Point2D(currentPoint.getX() - centerPoint.getX(), currentPoint.getY() - centerPoint.getY());
-	}
-
-	public LatLon screenTolatLon(Point2D point) {
-		if (getSceneCenter() == null) {
-			return fromWorld(new Point2D(0, 0), getZoom());
-		}
-
-		Point2D pCenter = toWorld(getSceneCenter(), getZoom());
-		Point2D p = new Point2D(
-				pCenter.getX() + point.getX(),
-				pCenter.getY() + point.getY()
-		);
-
-		return fromWorld(p, getZoom());
+		return new Point2D(
+			(p2d.getX() - psc.getX()),
+			(p2d.getY() - psc.getY()));
 	}
 
 	/**
@@ -123,18 +78,38 @@ public class MapField {
 		return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 	}
 
-	public double getZoom() {
+	public LatLon screenTolatLon(Point2D point) {
+		if (getSceneCenter() == null) {
+			return GoogleCoordUtils.llFromP(new Point2D(0, 0), getZoom());
+		}
+
+		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoom());
+		Point2D p = new Point2D(
+			psc.getX() + point.getX(),
+			psc.getY() + point.getY());
+
+		return GoogleCoordUtils.llFromP(p, getZoom());
+	}
+
+	//public static final int MAP_SCALE = 1;
+	private double getTileSize() {
+		return 256;
+	}
+
+	private double getInitialResolution() {
+		return 2 * Math.PI * R / getTileSize();
+	}
+
+	public double resolution(double zoom) {
+		return getInitialResolution() / (Math.pow(2, zoom));
+	}
+
+	public int getZoom() {
 		return zoom;
 	}
 
-	public int getZoomInt() {
-		// Keep for tile providers or other int-zoom consumers
-		return (int) Math.round(zoom);
-	}
-	
-	public void setZoom(double zoom) {
-		zoom = Math.clamp(zoom, MIN_ZOOM, MAX_ZOOM);
-		this.zoom = zoom;
+	public void setZoom(int zoom) {
+		this.zoom = Math.clamp(zoom, MIN_ZOOM, MAX_ZOOM);
 	}
 
 	@Nullable

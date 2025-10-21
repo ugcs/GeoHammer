@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
+import com.github.thecoldwine.sigrun.common.ext.SphericalMercator;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.draw.BaseLayer;
 import com.ugcs.gprvisualizer.draw.GpsTrack;
@@ -24,10 +25,12 @@ import com.ugcs.gprvisualizer.draw.MapRuler;
 import com.ugcs.gprvisualizer.draw.ZoomButtonLayer;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
+import it.geosolutions.io.output.MathUtils;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.ZoomEvent;
 import javafx.scene.layout.BorderPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +63,9 @@ import javax.annotation.Nullable;
 public class MapView implements InitializingBean {
 
 	private static final Logger log = LoggerFactory.getLogger(MapView.class);
+
+	private static final double STEP = 10.0;
+
 	@Autowired
 	private TraceCutter traceCutter;
 
@@ -68,9 +74,6 @@ public class MapView implements InitializingBean {
 	
 	@Autowired
 	private Model model;
-	
-	//@Autowired
-	//private Status status;
 
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
@@ -122,7 +125,9 @@ public class MapView implements InitializingBean {
 	@Nullable private DistanceLabelPane distanceLabelPane;
 
 	protected RepaintListener listener = this::updateUI;
-	
+
+	private double zoomLevelAccum = 0.0;
+
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		
@@ -189,25 +194,50 @@ public class MapView implements InitializingBean {
 	private void initImageView() {
 		//ZOOM
 		imageView.setOnScroll(event -> {
-			
 			if (!isGpsPresent()) {
 				return;
 			}
-			
+
 			Point2D p = getLocalCoords(event.getSceneX(), event.getSceneY());
-			LatLon ll = model.getMapField().screenTolatLon(p);
-			
-	    	double increment = event.getDeltaY() > 0 ? 0.1 : -0.1;
-			double zoom = model.getMapField().getZoom() + increment;
-			model.getMapField().setZoom(zoom);
-	    	
-	    	Point2D p2 = model.getMapField().latLonToScreen(ll);
-	    	Point2D pdist = new Point2D(p2.getX() - p.getX(), p2.getY() - p.getY());
-	    	
-	    	LatLon sceneCenter = model.getMapField().screenTolatLon(pdist);			
-			model.getMapField().setSceneCenter(sceneCenter);
+
+			zoomLevelAccum += event.getDeltaY();
+
+			int increment = 0;
+				while (Math.abs(zoomLevelAccum) >= STEP) {
+					increment += (zoomLevelAccum > 0) ? 1 : -1;
+					zoomLevelAccum -= (zoomLevelAccum > 0) ? STEP : -STEP;
+				}
+				if (increment == 0) {
+					return;
+				}
+
+			MapField mapField = model.getMapField();
+
+			int zoom = mapField.getZoom();
+
+			mapField.setZoom(zoom + increment);
+			int newZoom = mapField.getZoom();
+
+
+			LatLon latLon = mapField.screenTolatLon(p);
+			Point2D clickedMercator = SphericalMercator.project(latLon);
+
+			double resolution = mapField.resolution(zoom);
+			Point2D center = new Point2D(
+					clickedMercator.getX() - p.getX() * resolution,
+					clickedMercator.getY() + p.getY() * resolution
+			);
+
+			if (newZoom == zoom) {
+				zoomLevelAccum = 0.0;
+				return;
+			}
+
+			LatLon sceneCenter = SphericalMercator.restore(center);
+//			mapField.setSceneCenter(sceneCenter);
 
 			eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
+			event.consume();
 	    });
 	
 		imageView.setOnMouseClicked(mouseClickHandler);
@@ -231,7 +261,7 @@ public class MapView implements InitializingBean {
 			}
 		});
 	}
-	
+
 	protected EventHandler<MouseEvent> mouseClickHandler = new EventHandler<MouseEvent>() {
         @Override
         public void handle(MouseEvent event) {

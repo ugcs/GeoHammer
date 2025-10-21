@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
 public interface MapProvider {
 
 	@Nullable
-	BufferedImage loadimg(MapField field);
+	BufferedImage loading(MapField field);
 	
 	int getMaxZoom();
 

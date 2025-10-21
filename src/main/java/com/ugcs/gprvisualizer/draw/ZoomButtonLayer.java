@@ -53,19 +53,19 @@ public class ZoomButtonLayer implements Layer {
 		container.setSpacing(3);
 		container.getChildren().addAll(zoomInButton, zoomOutButton);
 
-		zoomInButton.setOnAction(e -> changeZoom(1.1));
-		zoomOutButton.setOnAction(e -> changeZoom(1.0 / 1.1));
+		zoomInButton.setOnAction(e -> changeZoom(1));
+		zoomOutButton.setOnAction(e -> changeZoom(-1));
 
 		zoomInButton.setText("+");
 		zoomOutButton.setText("-");
 	}
 
-	private void changeZoom(double factor) {
+	private void changeZoom(int factor) {
 		if (!isMapActive()) {
 			return;
 		}
 		MapField mf = model.getMapField();
-		double newZoom = Math.max(MapField.MIN_ZOOM, Math.min(MapField.MAX_ZOOM, mf.getZoom() * factor));
+		int newZoom = Math.clamp(mf.getZoom() + factor, MapField.MIN_ZOOM, MapField.MAX_ZOOM);
 		mf.setZoom(newZoom);
 		publisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 	}

@@ -14,8 +14,6 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.RadioMenuItem;
 
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -26,10 +24,7 @@ import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 
 @Component
@@ -56,7 +51,7 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		recalcQueue = new ThrQueue(model, mapView) {
 			protected void draw(BufferedImage backImg, MapField field) {
 				if (field.getMapProvider() != null) {
-					this.backImg = field.getMapProvider().loadimg(field);
+					this.backImg = field.getMapProvider().loading(field);
 				}
 			}
 

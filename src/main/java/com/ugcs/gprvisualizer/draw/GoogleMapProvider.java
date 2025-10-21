@@ -22,7 +22,7 @@ public class GoogleMapProvider implements MapProvider {
 
 	@Nullable
 	@Override
-	public BufferedImage loadimg(MapField field) {
+	public BufferedImage loading(MapField field) {
 
 		if (field.getZoom() > getMaxZoom()) {
 			field.setZoom(getMaxZoom());
@@ -39,7 +39,7 @@ public class GoogleMapProvider implements MapProvider {
 		System.setProperty("java.net.useSystemProxies", "true");
 
 		try {
-			img = createCenteredMapImage(midlPoint, field.getZoomInt());
+			img = createCenteredMapImage(midlPoint, field.getZoom());
 		} catch (IOException | URISyntaxException e) {
 			log.error("Failed to load map image", e);
 		}

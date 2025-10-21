@@ -30,14 +30,9 @@ public class GoogleCoordUtils {
 
 		Point2D worldCoordinate = project(latLng);
 
-		Point2D pixelCoordinate = new Point2D(
+		return new Point2D(
 			Math.floor(worldCoordinate.getX() * scale),
 			Math.floor(worldCoordinate.getY() * scale));
-
-		Point2D tileCoordinate = new Point2D(Math.floor(worldCoordinate.getX() * scale / TILE_SIZE),
-				Math.floor(worldCoordinate.getY() * scale / TILE_SIZE));
-
-		return pixelCoordinate;
 	}
 
 	// The mapping between latitude, longitude and pixels is defined by the web

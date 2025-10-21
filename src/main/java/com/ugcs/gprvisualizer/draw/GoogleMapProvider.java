@@ -36,7 +36,9 @@ public class GoogleMapProvider implements MapProvider {
 		System.setProperty("java.net.useSystemProxies", "true");
 
 		try {
-			img = createCenteredMapImage(midlPoint, field.getZoom());
+			int intZoom = (int)field.getZoom();
+			field.setZoom(intZoom);
+			img = createCenteredMapImage(midlPoint, intZoom);
 		} catch (IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -87,8 +89,6 @@ public class GoogleMapProvider implements MapProvider {
 		g2d.dispose();
 		return combinedImage;
 	}
-
-
 
 	/**
 	 * Utility class for working with tiles in the GoogleMapProvider.

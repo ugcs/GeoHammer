@@ -14,8 +14,6 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.RadioMenuItem;
 
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -26,10 +24,7 @@ import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 
 @Component
@@ -40,7 +35,9 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	private final MapView mapView;
     private final PrefSettings prefSettings;
 
-    public SatelliteMap(Model model, Status status, MapView mapView, PrefSettings prefSettings) {
+	private int lastTileZoom = -1;
+
+	public SatelliteMap(Model model, Status status, MapView mapView, PrefSettings prefSettings) {
 		this.model = model;
 		this.status = status;
 		this.mapView = mapView;
@@ -78,14 +75,14 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		menuItem1.setOnAction(e -> {
 			model.getMapField().setMapProvider(new GoogleMapProvider());
 			setActive(model.getMapField().getMapProvider() != null);
-			recalcQueue.clear();
+			clearTiles();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 		});
 
 		menuItem2.setOnAction(e -> {
 			model.getMapField().setMapProvider(new HereMapProvider(prefSettings.getSetting("maps", "here_api_key")));
 			setActive(model.getMapField().getMapProvider() != null);
-			recalcQueue.clear();
+			clearTiles();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 		});
 
@@ -95,25 +92,10 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		menuItem3.setOnAction(e -> {
 			model.getMapField().setMapProvider(null);
 			setActive(model.getMapField().getMapProvider() != null);
-			recalcQueue.clear();
+			clearTiles();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 		});
 	}	
-
-//	private EventHandler<ActionEvent> showMapListener = new EventHandler<ActionEvent>() {
-//		@Override
-//		public void handle(ActionEvent event) {
-//			setActive(showLayerCheckbox.isSelected());
-//			if (isActive()) {
-//				q.add();
-//			} else {
-//				getRepaintListener().repaint();
-//			}
-//				
-//		}
-//	};
-
-
 
 	RadioMenuItem menuItem1 = new RadioMenuItem("google maps");
 	RadioMenuItem menuItem2 = new RadioMenuItem("here.com");
@@ -121,29 +103,11 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	private final MenuButton optionsMenuBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.MAP, new MenuButton());
 
-	{
-		///optionsMenuBtn.setStyle("padding-left: 2px; padding-right: 2px");
-
-	}
-
-//	private ToggleButton showLayerCheckbox = 
-//			new ToggleButton("", ResourceImageHolder.getImageView("gmap-20.png"));
-//	
-//	{
-//		//boolean apiExists = StringUtils.isNotBlank(GOOGLE_API_KEY);
-//		
-//		showLayerCheckbox.setTooltip(new Tooltip("Toggle satellite map layer"));
-//		//showLayerCheckbox.setDisable(!apiExists);
-//		//showLayerCheckbox.setSelected(apiExists);
-//		showLayerCheckbox.setOnAction(showMapListener);
-//	}
-
 	@Override
 	public void draw(Graphics2D g2, MapField currentField) {
 		ThrFront front = recalcQueue.getFront();
 
 		if (front != null && isActive()) {
-
 			recalcQueue.drawImgOnChangedField(g2, currentField, front);
 		}		
 
@@ -158,22 +122,33 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	private void somethingChanged(WhatChanged changed) {
 		if (changed.isZoom()) {
 			if (model.isActive()) {
-				//loadMap();
-				recalcQueue.add();
+				submitTiles();
 			} else {
-				recalcQueue.clear();
-			}			
+				clearTiles();
+			}
 		}		
 	}
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
 		if (model.isActive()) {
-			//loadMap();
-			recalcQueue.add();
+			submitTiles();
 		} else {
-			recalcQueue.clear();
+			clearTiles();
 		}
+	}
+
+	private void submitTiles() {
+		int intZoom = (int)model.getMapField().getZoom();
+		if (intZoom != lastTileZoom) {
+			recalcQueue.add();
+			lastTileZoom = intZoom;
+		}
+	}
+
+	private void clearTiles() {
+		recalcQueue.clear();
+		lastTileZoom = -1;
 	}
 
 	MapField dragField = null;

@@ -45,12 +45,14 @@ public class HereMapProvider implements MapProvider {
 
 		DecimalFormat df = new DecimalFormat("#.0000000", DecimalFormatSymbols.getInstance(Locale.US));
 		try {
+			int intZoom = (int) field.getZoom();
+			field.setZoom(intZoom);
 			String url = String.format("https://image.maps.hereapi.com/mia/v3/base/mc/center:%s,%s;zoom=%d/1200x1200/png"
 							+ "?apiKey=%s"
 							+ "&style=explore.satellite.day",
 					df.format(midlPoint.getLatDgr()),
 					df.format(midlPoint.getLonDgr()),
-					field.getZoom(),
+					intZoom,
 					apiKey);
 
 			System.out.println(url);

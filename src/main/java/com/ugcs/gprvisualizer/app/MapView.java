@@ -27,6 +27,8 @@ import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -190,8 +192,9 @@ public class MapView implements InitializingBean {
 			
 			Point2D p = getLocalCoords(event.getSceneX(), event.getSceneY());
 			LatLon ll = model.getMapField().screenTolatLon(p);
-			
-	    	int zoom = model.getMapField().getZoom() + (event.getDeltaY() > 0 ? 1 : -1);
+
+			double zoomDelta = 0.1 * Math.clamp(event.getDeltaY(), -3, 3);
+	    	double zoom = model.getMapField().getZoom() + zoomDelta;
 			model.getMapField().setZoom(zoom);
 	    	
 	    	Point2D p2 = model.getMapField().latLonToScreen(ll);

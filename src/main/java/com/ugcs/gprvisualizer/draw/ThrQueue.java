@@ -111,15 +111,20 @@ public abstract class ThrQueue {
             return;
         }
 
-        Point2D offst = front.getField().getSceneCenter() != null ? currentField.latLonToScreen(front.getField().getSceneCenter()) : new Point2D(0, 0);
+        Point2D offset = front.getField().getSceneCenter() != null
+                ? currentField.latLonToScreen(front.getField().getSceneCenter())
+                : new Point2D(0, 0);
 
         double scale = Math.pow(2, currentField.getZoom() - front.getField().getZoom());
-        BufferedImage tmpImg = front.getImg();
-        g2.drawImage(tmpImg,
-                (int) (offst.getX() - tmpImg.getWidth() / 2 * scale),
-                (int) (offst.getY() - tmpImg.getHeight() / 2 * scale),
-                (int) (tmpImg.getWidth() * scale),
-                (int) (tmpImg.getHeight() * scale),
+        BufferedImage img = front.getImg();
+        double imgWidth = img.getWidth() * scale;
+        double imgHeight = img.getHeight() * scale;
+
+        g2.drawImage(img,
+                (int) (offset.getX() - 0.5 * imgWidth),
+                (int) (offset.getY() - 0.5 * imgHeight),
+                (int) imgWidth,
+                (int) imgHeight,
                 null);
     }
 }

@@ -13,9 +13,8 @@ public class GoogleCoordUtils {
 
 	}
 	
-	public static LatLon llFromP(Point2D p, int zoom) {
-	
-		int scale = 1 << zoom;
+	public static LatLon llFromP(Point2D p, double zoom) {
+		double scale = Math.pow(2, zoom);
 		
 		Point2D pixelCoordinate = new Point2D(
 				p.getX() / scale,
@@ -25,17 +24,14 @@ public class GoogleCoordUtils {
 		
 	}
 
-	public static Point2D createInfoWindowContent(LatLon latLng, int zoom) {
-		int scale = 1 << zoom;
+	public static Point2D createInfoWindowContent(LatLon latLng, double zoom) {
+		double scale = Math.pow(2, zoom);
 
 		Point2D worldCoordinate = project(latLng);
 
 		Point2D pixelCoordinate = new Point2D(
 			Math.floor(worldCoordinate.getX() * scale),
 			Math.floor(worldCoordinate.getY() * scale));
-
-		Point2D tileCoordinate = new Point2D(Math.floor(worldCoordinate.getX() * scale / TILE_SIZE),
-				Math.floor(worldCoordinate.getY() * scale / TILE_SIZE));
 
 		return pixelCoordinate;
 	}
@@ -82,8 +78,8 @@ public class GoogleCoordUtils {
 		return new LatLon(latDgr, lonDgr);
 	}
 
-	public static double getPixelSize(LatLon latlon, int zoom) {
-		int scale = 1 << zoom;
+	public static double getPixelSize(LatLon latlon, double zoom) {
+		double scale = Math.pow(2, zoom);
 
 		double earthCircumference = 2 * Math.PI * EARTH_R;
 		return Math.cos(Math.toRadians(latlon.getLatDgr())) * earthCircumference

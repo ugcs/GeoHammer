@@ -66,8 +66,9 @@ public class DepthStart extends BaseObjectImpl {
 	public void drawOnCut(Graphics2D g2, ScrollableData scrollableData) {
 		if (scrollableData instanceof GPRChart gprChart) {
 			Rectangle leftMainRect = gprChart.getField().getClipLeftMainRect();
-			Rectangle rectangle = new Rectangle(leftMainRect.x, leftMainRect.y - gprChart.getField().getTopMargin(),
-					leftMainRect.width, leftMainRect.height + 2 * gprChart.getField().getTopMargin());
+			int depthHeight = verM;
+			Rectangle rectangle = new Rectangle(leftMainRect.x, leftMainRect.y - depthHeight,
+					leftMainRect.width, leftMainRect.height + 2 * depthHeight);
 			setClip(g2, rectangle);
 
 			Point2D p = getCenter(gprChart);

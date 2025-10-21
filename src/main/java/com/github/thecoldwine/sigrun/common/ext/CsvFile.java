@@ -15,8 +15,8 @@ import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
-import com.ugcs.gprvisualizer.app.parcers.Semantic;
-import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.app.parsers.Semantic;
+import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -27,10 +27,10 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
-import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.parcers.csv.CsvParsersFactory;
-import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
+import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParsersFactory;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 
 public class CsvFile extends SgyFile {

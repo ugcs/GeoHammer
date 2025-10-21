@@ -1,11 +1,11 @@
-package com.ugcs.gprvisualizer.app.parcers;
+package com.ugcs.gprvisualizer.app.parsers;
 
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
-import java.util.Locale;
-import com.ugcs.gprvisualizer.app.parcers.exceptions.UnknownNMEATypeException;
 
-public class NMEACoordinates extends GeoCoordinates {
+import com.ugcs.gprvisualizer.app.parsers.exceptions.UnknownNmeaTypeException;
+
+public class NmeaCoordinates extends GeoCoordinates {
 
     public static final String North = "N";
     public static final String South = "S";
@@ -30,11 +30,11 @@ public class NMEACoordinates extends GeoCoordinates {
 
     private NumberFormat format;
 
-    public NMEACoordinates(NumberFormat format) {
+    public NmeaCoordinates(NumberFormat format) {
         this.format = format;
     }
 
-    public NMEACoordinates(NumberFormat format, String NMEALatitude, String NMEALongitude, String northOrSouth, String eastOrWest) {
+    public NmeaCoordinates(NumberFormat format, String NMEALatitude, String NMEALongitude, String northOrSouth, String eastOrWest) {
         this(format);
         this.NMEALatitude = NMEALatitude;
         this.NMEALongitude = NMEALongitude;
@@ -188,7 +188,7 @@ public class NMEACoordinates extends GeoCoordinates {
                 if (data[0].contains("$"))
                     data[0] = data[0].replace("$", "").trim();
                 if (!data[0].equals("GPRMC") && !data[0].equals("GNRMC"))
-                    throw new UnknownNMEATypeException("Unsupported NMEA type");
+                    throw new UnknownNmeaTypeException("Unsupported NMEA type");
                 NMEAType = data[0].substring(0, data[0].length());
                 UTCPosition = data[1];
                 positionStatus = data[2];

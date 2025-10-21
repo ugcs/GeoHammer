@@ -1,14 +1,14 @@
-package com.ugcs.gprvisualizer.app.parcers;
+package com.ugcs.gprvisualizer.app.parsers;
 
-import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
-import com.ugcs.gprvisualizer.app.parcers.csv.MagDroneCsvParser;
-import com.ugcs.gprvisualizer.app.parcers.csv.NmeaCsvParser;
-import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
+import com.ugcs.gprvisualizer.app.parsers.csv.MagDroneCsvParser;
+import com.ugcs.gprvisualizer.app.parsers.csv.NmeaCsvParser;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,7 +59,7 @@ class CsvParserTest extends BaseParsersTest {
         Template template = deserializer.load(file);
         CsvParser parser = new CsvParser(template);
 
-        assertThrows(CSVParsingException.class, () -> {
+        assertThrows(CsvParsingException.class, () -> {
             parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-missed-headers.csv")
                     .toAbsolutePath().toString());
         });

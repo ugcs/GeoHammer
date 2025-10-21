@@ -2,7 +2,7 @@ package com.ugcs.gprvisualizer.app.quality;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.SphericalMercator;
-import com.ugcs.gprvisualizer.app.parcers.GeoData;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.math.PrincipalComponents;
 import com.ugcs.gprvisualizer.utils.Range;
 import javafx.geometry.Point2D;

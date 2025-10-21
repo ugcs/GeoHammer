@@ -1,7 +1,7 @@
 package com.ugcs.gprvisualizer.utils;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.ugcs.gprvisualizer.app.parcers.csv.CsvParser;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
 import com.ugcs.gprvisualizer.gpr.Model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

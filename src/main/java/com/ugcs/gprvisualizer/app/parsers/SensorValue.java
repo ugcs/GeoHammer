@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers;
+package com.ugcs.gprvisualizer.app.parsers;
 
 public record SensorValue(String header, String unit, Number data, Number originalData) {
     

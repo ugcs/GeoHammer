@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers.csv;
+package com.ugcs.gprvisualizer.app.parsers.csv;
 
 import java.io.*;
 import java.text.ParseException;
@@ -9,9 +9,9 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
-import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
+import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;

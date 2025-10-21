@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers.exceptions;
+package com.ugcs.gprvisualizer.app.parsers.exceptions;
 
 public class ColumnsMatchingException extends RuntimeException {
 

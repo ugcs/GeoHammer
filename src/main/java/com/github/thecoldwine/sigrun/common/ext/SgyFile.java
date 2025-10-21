@@ -8,8 +8,8 @@ import java.util.Objects;
 import java.util.SortedMap;
 
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
-import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.parcers.Semantic;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
+import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.quality.LineSchema;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
 import com.ugcs.gprvisualizer.utils.Range;

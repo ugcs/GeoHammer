@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers;
+package com.ugcs.gprvisualizer.app.parsers;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,8 +14,8 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
-import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.data.Date;
 import com.ugcs.gprvisualizer.utils.Strings;
@@ -269,11 +269,11 @@ public abstract class Parser {
                 && valuesContainColumn(values, timeColumn)) {
             var date = parseDate(dateColumn, values[dateColumn.getIndex()]);
             if (date == null) {
-                throw new CSVParsingException(null, "Header 'date' not found in a data file");
+                throw new CsvParsingException(null, "Header 'date' not found in a data file");
             }
             var time = parseTime(timeColumn, values[timeColumn.getIndex()]);
             if (time == null) {
-                throw new CSVParsingException(null, "Header 'time' not found in a data file");
+                throw new CsvParsingException(null, "Header 'time' not found in a data file");
             }
             return LocalDateTime.of(date, time);
         }
@@ -282,7 +282,7 @@ public abstract class Parser {
         if (valuesContainColumn(values, timeColumn) && dateFromFilename != null) {
             var time = parseTime(timeColumn, values[timeColumn.getIndex()]);
             if (time == null) {
-                throw new CSVParsingException(null, "Header 'time' not found in a data file");
+                throw new CsvParsingException(null, "Header 'time' not found in a data file");
             }
             return LocalDateTime.of(dateFromFilename, time);
         }

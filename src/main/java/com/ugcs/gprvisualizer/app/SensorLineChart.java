@@ -14,7 +14,7 @@ import com.ugcs.gprvisualizer.app.axis.SensorLineChartXAxis;
 import com.ugcs.gprvisualizer.app.axis.SensorLineChartYAxis;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
-import com.ugcs.gprvisualizer.app.parcers.Semantic;
+import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -47,8 +47,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.ugcs.gprvisualizer.app.fir.FIRFilter;
-import com.ugcs.gprvisualizer.app.parcers.GeoData;
-import com.ugcs.gprvisualizer.app.parcers.SensorValue;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
+import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 import javafx.beans.InvalidationListener;

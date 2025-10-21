@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers.csv;
+package com.ugcs.gprvisualizer.app.parsers.csv;
 
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.utils.Check;

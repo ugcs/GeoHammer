@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.app;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -9,7 +9,7 @@ import java.util.List;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.ugcs.gprvisualizer.app.TraceUnit;
+import com.ugcs.gprvisualizer.draw.Layer;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.geometry.Point2D;
 import javafx.scene.Node;

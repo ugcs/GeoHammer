@@ -50,7 +50,7 @@ public class HereMapProvider implements MapProvider {
 							+ "&style=explore.satellite.day",
 					df.format(midlPoint.getLatDgr()),
 					df.format(midlPoint.getLonDgr()),
-					field.getZoomInt(),
+					field.getZoom(),
 					apiKey);
 
 			System.out.println(url);

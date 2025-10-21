@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers.csv;
+package com.ugcs.gprvisualizer.app.parsers.csv;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import com.ugcs.gprvisualizer.app.parcers.GeoCoordinates;
-import com.ugcs.gprvisualizer.app.parcers.NMEACoordinates;
+import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
+import com.ugcs.gprvisualizer.app.parsers.NmeaCoordinates;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 
 public class NmeaCsvParser extends CsvParser {
@@ -60,7 +60,7 @@ public class NmeaCsvParser extends CsvParser {
                 }
                 String[] data = line.split(getTemplate().getFileFormat().getSeparator());
                 LocalDateTime date = parseDateTime(data);
-                NMEACoordinates nmeaCoordinate = new NMEACoordinates(format);
+                NmeaCoordinates nmeaCoordinate = new NmeaCoordinates(format);
                 nmeaCoordinate.parseNMEAMessage(data[getTemplate().getDataMapping().getLongitude().getIndex()]);
                 nmeaCoordinate.setTraceNumber(traceCount);
                 nmeaCoordinate.setDateTime(date);

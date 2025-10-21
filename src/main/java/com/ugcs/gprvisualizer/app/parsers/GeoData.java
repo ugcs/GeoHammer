@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers;
+package com.ugcs.gprvisualizer.app.parsers;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;

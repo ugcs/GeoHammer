@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers;
+package com.ugcs.gprvisualizer.app.parsers;
 
 import org.springframework.util.StringUtils;
 import org.yaml.snakeyaml.LoaderOptions;

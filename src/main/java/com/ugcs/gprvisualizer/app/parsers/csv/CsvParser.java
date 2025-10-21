@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers.csv;
+package com.ugcs.gprvisualizer.app.parsers.csv;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,9 +16,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 
-import com.ugcs.gprvisualizer.app.parcers.*;
-import com.ugcs.gprvisualizer.app.parcers.exceptions.CSVParsingException;
-import com.ugcs.gprvisualizer.app.parcers.exceptions.IncorrectDateFormatException;
+import com.ugcs.gprvisualizer.app.parsers.*;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
@@ -27,7 +27,7 @@ import com.ugcs.gprvisualizer.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ugcs.gprvisualizer.app.parcers.exceptions.ColumnsMatchingException;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.ColumnsMatchingException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
@@ -58,7 +58,7 @@ public class CsvParser extends Parser {
         } catch (Exception e) {
             String message = Strings.nullToEmpty(e.getMessage())
                     + ", used template: " + template.getName();
-            throw new CSVParsingException(file, message);
+            throw new CsvParsingException(file, message);
         }
     }
 

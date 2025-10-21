@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.parcers;
+package com.ugcs.gprvisualizer.app.parsers;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -7,7 +7,7 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
-public class NMEAFormatTests {
+public class NmeaFormatTests {
 
     private static final double Delta = 0.00001;
 
@@ -17,7 +17,7 @@ public class NMEAFormatTests {
         Locale locale = Locale.US;
         NumberFormat nf = NumberFormat.getInstance(locale);
         nf.setMaximumFractionDigits(5);
-        NMEACoordinates nmeaCoordinate = new NMEACoordinates(
+        NmeaCoordinates nmeaCoordinate = new NmeaCoordinates(
                 nf,
                 "5651.7446",
                 "2406.7933",
@@ -34,7 +34,7 @@ public class NMEAFormatTests {
         Locale locale = Locale.US;
         NumberFormat nf = NumberFormat.getInstance(locale);
         nf.setMaximumFractionDigits(5);
-        NMEACoordinates nmeaCoordinate = new NMEACoordinates(
+        NmeaCoordinates nmeaCoordinate = new NmeaCoordinates(
                 nf);
         //        56.86241,
         //        24.113221,
@@ -52,7 +52,7 @@ public class NMEAFormatTests {
         Locale locale = Locale.US;
         NumberFormat nf = NumberFormat.getInstance(locale);
         nf.setMaximumFractionDigits(5);
-        NMEACoordinates coordinate = new NMEACoordinates(nf);
+        NmeaCoordinates coordinate = new NmeaCoordinates(nf);
         coordinate.parseNMEAMessage("$GNRMC,091613.699,A,5651.7446,N,02406.7933,E,0.18,-49.88,231020,,,A*69");
         assertTrue(true);
     }
@@ -62,7 +62,7 @@ public class NMEAFormatTests {
         Locale locale = Locale.US;
         NumberFormat nf = NumberFormat.getInstance(locale);
         nf.setMaximumFractionDigits(5);
-        NMEACoordinates coordinate = new NMEACoordinates(nf);
+        NmeaCoordinates coordinate = new NmeaCoordinates(nf);
         coordinate.parseNMEAMessage("$GNRMC,091613.699,A,5651.7446,N,02406.7933,E,0.18,-49.88,231020,,,A*69");
         String ckecksum = Integer.toHexString(coordinate.calculateCheckSum()).toUpperCase();
         coordinate.parseNMEAMessage("$GNRMC,091617.692,A,5651.7447,N,02406.7932,E,0.11,-50.19,231020,,,A*6F");

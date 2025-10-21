@@ -41,64 +41,20 @@ public class MapField {
 	}
 
 	public boolean isActive() {
-		return pathCenter != null;
+		return pathCenter != null; 
 	}
-
-	private double getTileSize() {
-		return 256.0;
-	}
-
-	private double mapSize(double zoom) {
-		return getTileSize() * Math.pow(2.0, zoom);
-	}
-
-	private Point2D toWorld(LatLon latLon, double zoom) {
-		double size = mapSize(zoom);
-		double x = (latLon.getLonDgr() + 180.0) / 360.0 * size;
-
-		double sinLat = Math.sin(Math.toRadians(latLon.getLatDgr()));
-		// Clamp to avoid infinity near the poles
-		sinLat = Math.max(-0.9999, Math.min(0.9999, sinLat));
-
-		double y = (0.5 - Math.log((1.0 + sinLat) / (1.0 - sinLat)) / (4.0 * Math.PI)) * size;
-		return new Point2D(x, y);
-	}
-
-	private LatLon fromWorld(Point2D p, double zoom) {
-		double size = mapSize(zoom);
-
-		double lon = (p.getX() / size) * 360.0 - 180.0;
-
-		double y = 0.5 - (p.getY() / size);
-		double latRad = Math.PI / 2.0 - 2.0 * Math.atan(Math.exp(-y * 2.0 * Math.PI));
-		double lat = Math.toDegrees(latRad);
-
-		return new LatLon(lat, lon);
-	}
-
+	
 	public Point2D latLonToScreen(@Nullable LatLon latlon) {
 		if (latlon == null || getSceneCenter() == null) {
 			return new Point2D(0, 0);
 		}
+		
+		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoomInt());
+		Point2D p2d = GoogleCoordUtils.createInfoWindowContent(latlon, getZoomInt());
 
-		Point2D centerPoint = toWorld(getSceneCenter(), getZoom());
-		Point2D currentPoint = toWorld(latlon, getZoom());
-
-		return new Point2D(currentPoint.getX() - centerPoint.getX(), currentPoint.getY() - centerPoint.getY());
-	}
-
-	public LatLon screenTolatLon(Point2D point) {
-		if (getSceneCenter() == null) {
-			return fromWorld(new Point2D(0, 0), getZoom());
-		}
-
-		Point2D pCenter = toWorld(getSceneCenter(), getZoom());
-		Point2D p = new Point2D(
-				pCenter.getX() + point.getX(),
-				pCenter.getY() + point.getY()
-		);
-
-		return fromWorld(p, getZoom());
+		return new Point2D(
+			p2d.getX() - psc.getX(),
+			p2d.getY() - psc.getY());
 	}
 
 	/**
@@ -109,10 +65,10 @@ public class MapField {
 	 * @return Distance in meters
 	 */
 	public Double latLonDistance(LatLon latLon1, LatLon latLon2) {
-		double lat1 = Math.toRadians(latLon1.getLatDgr());
-		double lon1 = Math.toRadians(latLon1.getLonDgr());
-		double lat2 = Math.toRadians(latLon2.getLatDgr());
-		double lon2 = Math.toRadians(latLon2.getLonDgr());
+		double lat1 = toRad(latLon1.getLatDgr());
+		double lon1 = toRad(latLon1.getLonDgr());
+		double lat2 = toRad(latLon2.getLatDgr());
+		double lon2 = toRad(latLon2.getLonDgr());
 
 		double deltaLon = lon2 - lon1;
 		double deltaLat = lat2 - lat1;
@@ -122,13 +78,42 @@ public class MapField {
 
 		return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 	}
+	
+	public LatLon screenTolatLon(Point2D point) {
+		if (getSceneCenter() == null) {
+			return GoogleCoordUtils.llFromP(new Point2D(0, 0), getZoomInt());
+		}
 
+		Point2D psc = GoogleCoordUtils.createInfoWindowContent(getSceneCenter(), getZoomInt());
+		Point2D p = new Point2D(
+			psc.getX() + point.getX(), 
+			psc.getY() + point.getY());
+		
+		return GoogleCoordUtils.llFromP(p, getZoomInt());
+	}
+	
+	//public static final int MAP_SCALE = 1;
+	private double getTileSize() {
+		return 256;
+	}
+
+	private double getInitialResolution() {
+		return 2 * Math.PI * R / getTileSize();
+	}
+
+	double resolution(double zoom) { 
+		return getInitialResolution() / Math.pow(2, zoom);
+	}
+	
+	private static double toRad(double degree) {
+		return degree * Math.PI / 180;
+	}
+	
 	public double getZoom() {
 		return zoom;
 	}
 
 	public int getZoomInt() {
-		// Keep for tile providers or other int-zoom consumers
 		return (int) Math.round(zoom);
 	}
 	
@@ -159,6 +144,7 @@ public class MapField {
 		this.pathCenter = pathCenter;
 	}	
 
+	
 	public void setPathEdgeLL(LatLon lt, LatLon rb) {
 		this.pathLt = lt;
 		this.pathRb = rb;
@@ -191,6 +177,7 @@ public class MapField {
 
 	public void setMapProvider(@Nullable MapProvider mapProvider) {
 		this.mapProvider = mapProvider;
+		
 		setZoom(getZoom());
 	}
 

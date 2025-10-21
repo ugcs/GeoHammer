@@ -208,7 +208,7 @@ public class MapView implements InitializingBean {
 			model.getMapField().setSceneCenter(sceneCenter);
 
 			eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
-	    });
+	    });		
 	
 		imageView.setOnMouseClicked(mouseClickHandler);
 		imageView.setOnMousePressed(mousePressHandler);
@@ -280,7 +280,7 @@ public class MapView implements InitializingBean {
 				sp1.getWidth() - zoomButtonLayer.getNode().prefWidth(-1) - 5
 		);
 		zoomButtonLayer.getNode().setLayoutY(
-				sp1.getHeight() - zoomButtonLayer.getNode().prefHeight(-1) + 5
+				sp1.getHeight() - zoomButtonLayer.getNode().prefHeight(-1 + 5)
 		);
 
 		sp1.widthProperty().addListener((obs, oldVal, newVal) -> {

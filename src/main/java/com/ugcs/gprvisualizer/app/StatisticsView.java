@@ -109,7 +109,7 @@ public class StatisticsView extends VBox {
         if (dataMapping == null) {
             return null;
         }
-        return dataMapping.getDataColumnByHeader(header);
+        return dataMapping.getDataValueByHeader(header);
     }
 
     public void update(SgyFile selectedFile) {

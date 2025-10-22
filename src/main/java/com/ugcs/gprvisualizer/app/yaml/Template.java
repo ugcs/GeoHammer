@@ -3,6 +3,8 @@ package com.ugcs.gprvisualizer.app.yaml;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import com.ugcs.gprvisualizer.app.parsers.Semantic;
+import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import org.jspecify.annotations.NullUnmarked;
 import org.springframework.util.StringUtils;
 
@@ -21,6 +23,31 @@ public class Template {
     private DataMapping dataMapping;
     private SkipLinesTo skipLinesTo;
 
+    /**
+     * Initialize template on load
+     */
+    public void init() {
+        if (dataMapping != null) {
+            // Line
+            String lineSemantic = Semantic.LINE.getName();
+            SensorData line = dataMapping.getDataValueBySemantic(lineSemantic);
+            if (line == null) {
+                line = new SensorData();
+                line.setSemantic(lineSemantic);
+                line.setHeader(lineSemantic);
+                dataMapping.addDataValue(line);
+            }
+            // Mark
+            String markSemantic = Semantic.MARK.getName();
+            SensorData mark = dataMapping.getDataValueBySemantic(markSemantic);
+            if (mark == null) {
+                mark = new SensorData();
+                mark.setSemantic(markSemantic);
+                mark.setHeader(markSemantic);
+                dataMapping.addDataValue(mark);
+            }
+        }
+    }
 
     /**
      * Checks if the template is valid.

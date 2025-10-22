@@ -16,7 +16,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.ugcs.gprvisualizer.app.StatusBar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -33,7 +32,6 @@ import org.yaml.snakeyaml.error.YAMLException;
 import org.yaml.snakeyaml.introspector.Property;
 import org.yaml.snakeyaml.introspector.PropertyUtils;
 
-import com.ugcs.gprvisualizer.app.MessageBoxHelper;
 import com.ugcs.gprvisualizer.app.intf.Status;
 import com.ugcs.gprvisualizer.app.yaml.Template.FileType;
 
@@ -61,7 +59,6 @@ public class FileTemplates implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
-
         logger.info("Loading templates...");
 
         Constructor c = new Constructor(Template.class, new LoaderOptions());
@@ -87,8 +84,6 @@ public class FileTemplates implements InitializingBean {
 
         c.getPropertyUtils().setSkipMissingProperties(true);
         yaml = new Yaml(c);
-
-
 
         Path templatesPath = Path.of(TEMPLATES_FOLDER);
         if (!Files.exists(templatesPath)) {
@@ -118,6 +113,7 @@ public class FileTemplates implements InitializingBean {
                 try (InputStream inputStream = resource.getInputStream()) {
                     try {
                         Template template = yaml.load(inputStream);
+                        template.init();
                         if (template.isTemplateValid()) {
                             templates.add(template);
                             logger.debug("Valid template, data: " + template);
@@ -237,25 +233,6 @@ public class FileTemplates implements InitializingBean {
         }
 
         return null;
-    }
-
-    private Template createSegyTemplate() {
-        return new Template() {
-            @Override
-            public String getCode() {
-                return "Segy";
-            }
-
-            @Override
-            public FileType getFileType() {
-                return FileType.Segy;
-            }
-
-            @Override
-            public String getName() {
-                return "Segy";
-            }
-        };
     }
 
     public Path getTemplatesPath() {

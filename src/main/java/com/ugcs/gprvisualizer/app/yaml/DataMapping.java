@@ -4,6 +4,7 @@ import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.Date;
 import com.ugcs.gprvisualizer.app.yaml.data.DateTime;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
+import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
 import org.jspecify.annotations.NullUnmarked;
@@ -12,7 +13,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @NullUnmarked
 public class DataMapping {
@@ -28,6 +28,10 @@ public class DataMapping {
 
     private List<BaseData> sgyTraces;
     private List<SensorData> dataValues;
+
+    // lookup caches
+    private Map<String, SensorData> dataValuesBySemantic;
+    private Map<String, SensorData> dataValuesByHeader;
 
     public List<BaseData> getSgyTraces() {
         return sgyTraces;
@@ -114,7 +118,7 @@ public class DataMapping {
         this.traceNumber = traceNumber;
     }
 
-    public List<BaseData> getAllColumns() {
+    public List<BaseData> getAllValues() {
         List<BaseData> columns = new ArrayList<>();
 
         Nulls.ifPresent(latitude, columns::add);
@@ -137,62 +141,81 @@ public class DataMapping {
         return columns;
     }
 
-    // header -> data column
-    public Map<String, SensorData> getDataColumns() {
-        Map<String, SensorData> dataColumns = new HashMap<>(Nulls.toEmpty(dataValues).size());
-        for (SensorData sensorData : Nulls.toEmpty(dataValues)) {
-            if (sensorData != null) {
-                dataColumns.put(sensorData.getHeader(), sensorData);
-            }
-        }
-        return dataColumns;
-    }
+    public boolean addDataValue(SensorData sensorData) {
+        Check.notNull(sensorData);
+        // semantic is required
+        String semantic = sensorData.getSemantic();
+        Check.notNull(semantic);
+        // either header or index is set
+        String header = sensorData.getHeader();
+        Check.condition(!Strings.isNullOrEmpty(header)
+                || sensorData.getIndex() != null);
 
-    public SensorData getDataColumnBySemantic(String semantic) {
-        for (SensorData sensorData : Nulls.toEmpty(dataValues)) {
-            if (sensorData != null && Objects.equals(sensorData.getSemantic(), semantic)) {
-                return sensorData;
-            }
-        }
-        return null;
-    }
-
-    public SensorData getDataColumnByHeader(String header) {
-        for (SensorData sensorData : Nulls.toEmpty(dataValues)) {
-            if (sensorData != null && Objects.equals(sensorData.getHeader(), header)) {
-                return sensorData;
-            }
-        }
-        return null;
-    }
-
-    public String getHeaderBySemantic(String semantic) {
-        SensorData column = getDataColumnBySemantic(semantic);
-        return column != null ? Strings.emptyToNull(column.getHeader()) : null;
-    }
-
-    public boolean addDataColumn(String semantic, String header, String units) {
-        SensorData column = new SensorData();
-        column.setSemantic(semantic);
-        column.setHeader(header);
-        column.setUnits(units);
-        return addDataColumn(column);
-    }
-
-    public boolean addDataColumn(SensorData column) {
-        if (column == null) {
+        if (getDataValueBySemantic(semantic) != null) {
             return false;
         }
-        for (SensorData templateColumn : Nulls.toEmpty(dataValues)) {
-            if (Objects.equals(column.getSemantic(), templateColumn.getSemantic())) {
-                // column with a matching semantic exists
-                return false;
-            }
+        if (!Strings.isNullOrEmpty(header) && getDataValueByHeader(header) != null) {
+            return false;
         }
+
         if (dataValues == null) {
             dataValues = new ArrayList<>(1);
         }
-        dataValues.add(column);
+        dataValues.add(sensorData);
         return true;
+    }
+
+    public Map<String, SensorData> getDataValuesBySemantic() {
+        if (dataValuesBySemantic == null) {
+            dataValuesBySemantic = new HashMap<>(Nulls.toEmpty(dataValues).size());
+            for (SensorData sensorData : Nulls.toEmpty(dataValues)) {
+                if (sensorData == null) {
+                    continue;
+                }
+                String semantic = sensorData.getSemantic();
+                if (!Strings.isNullOrBlank(semantic)) {
+                    dataValuesBySemantic.put(semantic, sensorData);
+                }
+            }
+        }
+        return dataValuesBySemantic;
+    }
+
+    public Map<String, SensorData> getDataValuesByHeader() {
+        if (dataValuesByHeader == null) {
+            dataValuesByHeader = new HashMap<>(Nulls.toEmpty(dataValues).size());
+            for (SensorData sensorData : Nulls.toEmpty(dataValues)) {
+                if (sensorData == null) {
+                    continue;
+                }
+                String header = sensorData.getHeader();
+                if (!Strings.isNullOrBlank(header)) {
+                    dataValuesByHeader.put(header, sensorData);
+                }
+            }
+        }
+        return dataValuesByHeader;
+    }
+
+    public SensorData getDataValueBySemantic(String semantic) {
+        return getDataValuesBySemantic().get(semantic);
+    }
+
+    public SensorData getDataValueByHeader(String header) {
+        return getDataValuesByHeader().get(header);
+    }
+
+    public String getHeaderBySemantic(String semantic) {
+        SensorData sensorData = getDataValueBySemantic(semantic);
+        return sensorData != null
+                ? Strings.emptyToNull(sensorData.getHeader())
+                : null;
+    }
+
+    public String getSemanticByHeader(String header) {
+        SensorData sensorData = getDataValueByHeader(header);
+        return sensorData != null
+                ? Strings.emptyToNull(sensorData.getSemantic())
+                : null;
     }
 }

@@ -69,12 +69,11 @@ public class DataCheck extends FileQualityCheck {
                 continue;
             }
             varValues.clear();
-            if (validation.getVarSemantics() != null) {
+            if (validation.getVarHeaders() != null) {
                 boolean varMissing = false;
-                for (Map.Entry<String, String> e : validation.getVarSemantics().entrySet()) {
+                for (Map.Entry<String, String> e : validation.getVarHeaders().entrySet()) {
                     String varName = e.getKey();
-                    String varSemantic = e.getValue();
-                    String varHeader = GeoData.getHeader(varSemantic, template);
+                    String varHeader = e.getValue();
                     SensorValue sensorValue = value.getSensorValue(varHeader);
                     if (sensorValue == null || sensorValue.data() == null) {
                         varMissing = true;
@@ -137,18 +136,18 @@ public class DataCheck extends FileQualityCheck {
         Pattern pattern = Pattern.compile("\\{([^}]+)\\}");
         Matcher matcher = pattern.matcher(template.getDataValidation());
 
-        // var: name -> semantic
+        // var: name -> header
         StringBuilder expression = new StringBuilder();
-        Map<String, String> varSemantics = new HashMap<>();
+        Map<String, String> varHeaders = new HashMap<>();
         while (matcher.find()) {
-            String varName = "v" + (varSemantics.size() + 1);
-            String varSemantic = Strings.nullToEmpty(matcher.group(1)).trim();
-            Check.notEmpty(varSemantic, "Expression error: empty semantic");
-            varSemantics.put(varName, varSemantic);
+            String varName = "v" + (varHeaders.size() + 1);
+            String varHeader = Strings.nullToEmpty(matcher.group(1)).trim();
+            Check.notEmpty(varHeader, "Expression error: empty header");
+            varHeaders.put(varName, varHeader);
             matcher.appendReplacement(expression, varName);
         }
         matcher.appendTail(expression);
-        return new DataValidation(expression.toString(), varSemantics);
+        return new DataValidation(expression.toString(), varHeaders);
     }
 
     public static class DataValidation {
@@ -156,22 +155,22 @@ public class DataCheck extends FileQualityCheck {
         // expression text
         private final String expression;
 
-        // variable name to semantic mapping
-        private final Map<String, String> varSemantics;
+        // variable name to header mapping
+        private final Map<String, String> varHeaders;
 
-        public DataValidation(String expression, Map<String, String> varSemantics) {
+        public DataValidation(String expression, Map<String, String> varHeaders) {
             Check.notEmpty(expression);
 
             this.expression = expression;
-            this.varSemantics = varSemantics;
+            this.varHeaders = varHeaders;
         }
 
         public String getExpression() {
             return expression;
         }
 
-        public Map<String, String> getVarSemantics() {
-            return varSemantics;
+        public Map<String, String> getVarHeaders() {
+            return varHeaders;
         }
     }
 }

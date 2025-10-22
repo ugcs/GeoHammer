@@ -300,8 +300,9 @@ public class MapRuler implements Layer {
 		}
 		double totalDistanceMeters = 0.0;
 		for (int i = 0; i < points.size() - 1; i++) {
-			totalDistanceMeters += mapField.latLonDistance(
-					points.get(i).getLocation(), points.get(i + 1).getLocation());
+			LatLon p1 = points.get(i).getLocation();
+			LatLon p2 = points.get(i + 1).getLocation();
+			totalDistanceMeters += p1.getDistance(p2);
 		}
 		double value = TraceUnit.convert(
 				totalDistanceMeters,

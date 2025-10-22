@@ -56,28 +56,6 @@ public class MapField {
 			(p2d.getX() - psc.getX()),
 			(p2d.getY() - psc.getY()));
 	}
-
-	/**
-	 * Calculate the distance between two LatLon points using the Haversine formula.
-	 *
-	 * @param latLon1 First LatLon point
-	 * @param latLon2 Second LatLon point
-	 * @return Distance in meters
-	 */
-	public Double latLonDistance(LatLon latLon1, LatLon latLon2) {
-		double lat1 = toRad(latLon1.getLatDgr());
-		double lon1 = toRad(latLon1.getLonDgr());
-		double lat2 = toRad(latLon2.getLatDgr());
-		double lon2 = toRad(latLon2.getLonDgr());
-
-		double deltaLon = lon2 - lon1;
-		double deltaLat = lat2 - lat1;
-
-		double a = Math.pow(Math.sin(deltaLat / 2), 2)
-				+ Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(deltaLon / 2), 2);
-
-		return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-	}
 	
 	public LatLon screenTolatLon(Point2D point) {
 		if (getSceneCenter() == null) {
@@ -90,22 +68,6 @@ public class MapField {
 			psc.getY() + point.getY());
 		
 		return GoogleCoordUtils.latLonFromPoint(p, zoom);
-	}
-	
-	private double getTileSize() {
-		return 256;
-	}
-
-	private double getInitialResolution() {
-		return 2 * Math.PI * R / getTileSize();
-	}
-
-	double resolution(double zoom) { 
-		return getInitialResolution() / (Math.pow(2, zoom));
-	}
-	
-	private static double toRad(double degree) {
-		return degree * Math.PI / 180;
 	}
 	
 	public double getZoom() {
@@ -138,7 +100,6 @@ public class MapField {
 		this.pathCenter = pathCenter;
 	}	
 
-	
 	public void setPathEdgeLL(LatLon lt, LatLon rb) {
 		this.pathLt = lt;
 		this.pathRb = rb;

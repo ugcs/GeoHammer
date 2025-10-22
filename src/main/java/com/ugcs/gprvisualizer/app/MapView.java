@@ -27,6 +27,8 @@ import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -55,6 +57,12 @@ import javax.annotation.Nullable;
 @Component
 public class MapView implements InitializingBean {
 
+	private static final Logger log = LoggerFactory.getLogger(MapView.class);
+
+	private static final String NO_GPS_TEXT = "There are no coordinates in files";
+
+	private static AtomicInteger entercount = new AtomicInteger(0);
+
 	@Autowired
 	private TraceCutter traceCutter;
 
@@ -64,9 +72,6 @@ public class MapView implements InitializingBean {
 	@Autowired
 	private Model model;
 	
-	//@Autowired
-	//private Status status;
-
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
 	
@@ -98,6 +103,73 @@ public class MapView implements InitializingBean {
 
 	private List<Layer> layers = new ArrayList<>();
 
+	private ImageView imageView = new ImageView();
+	private BufferedImage img;
+
+	private ToolBar toolBar = new ToolBar();
+	private Dimension windowSize = new Dimension();
+
+	private final BorderPane root = new BorderPane();
+	@Nullable private DistanceLabelPane distanceLabelPane;
+
+	private RepaintListener listener = this::updateUI;
+
+	private EventHandler<MouseEvent> mousePressHandler = event -> {
+        if (!isGpsPresent()) {
+            return;
+        }
+
+        Point2D p = getLocalCoords(event);
+
+        for (int i = getLayers().size() - 1; i >= 0; i--) {
+            Layer layer = getLayers().get(i);
+            try {
+                if (layer.mousePressed(p)) {
+                    return;
+                }
+            } catch (Exception e) {
+                log.error("Error", e);
+            }
+        }
+    };
+
+	private EventHandler<MouseEvent> mouseReleaseHandler = event -> {
+        if (!isGpsPresent()) {
+            return;
+        }
+        Point2D p = getLocalCoords(event);
+        for (int i = getLayers().size() - 1; i >= 0; i--) {
+            Layer layer = getLayers().get(i);
+            if (layer.mouseRelease(p)) {
+                return;
+            }
+        }
+    };
+
+	private EventHandler<MouseEvent> mouseMoveHandler = event -> {
+        if (!isGpsPresent()) {
+            return;
+        }
+        Point2D p = getLocalCoords(event);
+        for (int i = getLayers().size() - 1; i >= 0; i--) {
+            Layer layer = getLayers().get(i);
+            if (layer.mouseMove(p)) {
+                return;
+            }
+        }
+    };
+
+	private EventHandler<MouseEvent> mouseClickHandler = event -> {
+		if (!isGpsPresent()) {
+			return;
+		}
+		if (event.getClickCount() == 2) {
+			Point2D p = getLocalCoords(event);
+			LatLon location = model.getMapField().screenTolatLon(p);
+			model.selectNearestTrace(location);
+		}
+    };
+
 	public List<Layer> getLayers() {
 		return layers;
 	}
@@ -106,18 +178,6 @@ public class MapView implements InitializingBean {
 		return qualityLayer;
 	}
 
-	protected ImageView imageView = new ImageView();
-	protected BufferedImage img;
-
-
-	private ToolBar toolBar = new ToolBar();
-	private Dimension windowSize = new Dimension();
-
-	private final BorderPane root = new BorderPane();
-	@Nullable private DistanceLabelPane distanceLabelPane;
-
-	protected RepaintListener listener = this::updateUI;
-	
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		
@@ -147,7 +207,7 @@ public class MapView implements InitializingBean {
 
 		initImageView();
 	}
-	
+
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
 		if (!isGpsPresent()) {
@@ -225,21 +285,6 @@ public class MapView implements InitializingBean {
 			}
 		});
 	}
-	
-	protected EventHandler<MouseEvent> mouseClickHandler = new EventHandler<MouseEvent>() {
-        @Override
-        public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}        	
-        	
-        	if (event.getClickCount() == 2) {
-        		Point2D p = getLocalCoords(event);
-        		LatLon location = model.getMapField().screenTolatLon(p);
-				model.selectNearestTrace(location);
-			}
-		}
-	};
 
 	public Node getCenter() {
 		
@@ -308,11 +353,7 @@ public class MapView implements InitializingBean {
 		return lst;
 	}
 
-	
-	private static final String NO_GPS_TEXT = "There are no coordinates in files";
-	
-	
-	protected BufferedImage draw(int width,	int height) {
+	private BufferedImage draw(int width, int height) {
 		if (width <= 0 || height <= 0) {
 			return null;
 		}
@@ -332,14 +373,12 @@ public class MapView implements InitializingBean {
 			try {
 				l.draw(g2, fixedField);
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.error("Error drawing layer", e);
 			}
 		}
 		
 		return bi;
 	}
-
-	private static AtomicInteger entercount = new AtomicInteger(0);
 
 	protected void updateUI() {
 		if (windowSize.width <= 0 || windowSize.height <= 0) {
@@ -358,15 +397,6 @@ public class MapView implements InitializingBean {
 			}
 			toImageView();
 			entercount.decrementAndGet();
-		});
-	}
-
-	protected void updateWindow() {
-		Platform.runLater(new Runnable() {
-			@Override
-			public void run() {
-				toImageView();
-			}
 		});
 	}
 
@@ -410,60 +440,6 @@ public class MapView implements InitializingBean {
 		r3.setPrefWidth(7);
 		return r3;
 	}
-
-	protected EventHandler<MouseEvent> mousePressHandler = new EventHandler<MouseEvent>() {
-		@Override
-		public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}
-
-			Point2D p = getLocalCoords(event);
-
-			for (int i = getLayers().size() - 1; i >= 0; i--) {
-				Layer layer = getLayers().get(i);
-				try {
-					if (layer.mousePressed(p)) {
-						return;
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	};
-
-	private EventHandler<MouseEvent> mouseReleaseHandler = new EventHandler<MouseEvent>() {
-		@Override
-		public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}
-			Point2D p = getLocalCoords(event);
-			for (int i = getLayers().size() - 1; i >= 0; i--) {
-				Layer layer = getLayers().get(i);
-				if (layer.mouseRelease(p)) {
-					return;
-				}
-			}
-		}
-	};
-
-	private EventHandler<MouseEvent> mouseMoveHandler = new EventHandler<MouseEvent>() {
-		@Override
-		public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}
-			Point2D p = getLocalCoords(event);
-			for (int i = getLayers().size() - 1; i >= 0; i--) {
-				Layer layer = getLayers().get(i);
-				if (layer.mouseMove(p)) {
-					return;
-				}
-			}
-		}
-	};
 
 	private Point2D getLocalCoords(MouseEvent event) {
 		return getLocalCoords(event.getSceneX(), event.getSceneY());

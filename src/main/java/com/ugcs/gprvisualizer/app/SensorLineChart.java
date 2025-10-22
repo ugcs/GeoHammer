@@ -16,7 +16,8 @@ import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
-import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.app.yaml.DataMapping;
+import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
@@ -1613,29 +1614,39 @@ public class SensorLineChart extends Chart {
         if (Strings.isNullOrEmpty(seriesName)) {
             return;
         }
-        if (seriesName.endsWith(Semantic.ANOMALY_SUFFIX)) {
-            seriesName = seriesName.substring(0,
-                    seriesName.length() - Semantic.ANOMALY_SUFFIX.length());
-        }
-        LineChartWithMarkers chart = getDataChart(seriesName);
-        if (chart == null) {
-            return;
+
+        DataMapping mapping = file.getTemplate().getDataMapping();
+        String semantic = mapping.getSemanticByHeader(seriesName);
+
+        // if selected column is a semantic column, use origin
+        if (!Strings.isNullOrEmpty(semantic) && semantic.endsWith(Semantic.ANOMALY_SUFFIX)) {
+            semantic = semantic.substring(0, semantic.length() - Semantic.ANOMALY_SUFFIX.length());
+            seriesName = mapping.getHeaderBySemantic(semantic);
         }
 
-        String filteredSeriesName = chart.plotData.header + Semantic.ANOMALY_SUFFIX;
-        Template template = file.getParser().getTemplate();
-        boolean hasAnomalySemantic = template.getDataMapping().getDataValues().stream()
-                .anyMatch(v -> v != null && Objects.equals(v.getSemantic(), filteredSeriesName));
-        if (!hasAnomalySemantic) {
-            String errorMessage = """
-                    Cannot apply running median filter to "%s" \
-                    because there is no "%s" field \
-                    defined in import template.
-                    """.formatted(seriesName, filteredSeriesName);
+        if (Strings.isNullOrEmpty(seriesName) || Strings.isNullOrEmpty(semantic)) {
+            String errorMessage = "Cannot apply running median filter to %s.".formatted(seriesName);
             MessageBoxHelper.showError(errorMessage, "");
             return;
         }
 
+        String anomalySemantic = semantic + Semantic.ANOMALY_SUFFIX;
+        SensorData anomalyColumn = mapping.getDataValueBySemantic(anomalySemantic);
+        if (anomalyColumn == null) {
+            String errorMessage = """
+                    Cannot apply running median filter to "%s" \
+                    because there is no "%s" field \
+                    defined in import template.
+                    """.formatted(seriesName, anomalySemantic);
+            MessageBoxHelper.showError(errorMessage, "");
+            return;
+        }
+        String filteredSeriesName = anomalyColumn.getHeader();
+
+        LineChartWithMarkers chart = getDataChart(seriesName);
+        if (chart == null) {
+            return;
+        }
         PlotData data = chart.filteredData != null && !chart.filteredData.data().isEmpty()
                 ? chart.filteredData
                 : chart.plotData;

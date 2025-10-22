@@ -25,9 +25,6 @@ public class HereMapProvider implements MapProvider {
 
 	private static final int FETCH_TILE_SIZE = 1200;
 
-	private static final DecimalFormat COORDINATES_FORMAT
-			= new DecimalFormat("0.0000000", DecimalFormatSymbols.getInstance(Locale.US));
-
 	private static final String DEFAULT_API_KEY = "";
 
 	private final String apiKey;
@@ -60,14 +57,17 @@ public class HereMapProvider implements MapProvider {
 		center = getActualTileCenter(center, intZoom, tileSize);
 		field.setSceneCenter(center);
 
+		DecimalFormat coordinatesFormat
+				= new DecimalFormat("0.0000000", DecimalFormatSymbols.getInstance(Locale.US));
+
 		BufferedImage tile = null;
 		try {
 			String url = String.format(
 					"https://image.maps.hereapi.com/mia/v3/base/mc/center:%s,%s;zoom=%d/%dx%d/png"
 							+ "?apiKey=%s"
 							+ "&style=explore.satellite.day",
-					COORDINATES_FORMAT.format(center.getLatDgr()),
-					COORDINATES_FORMAT.format(center.getLonDgr()),
+					coordinatesFormat.format(center.getLatDgr()),
+					coordinatesFormat.format(center.getLonDgr()),
 					intZoom,
 					tileSize,
 					tileSize,

@@ -10,12 +10,10 @@ public class GoogleCoordUtils {
 	public static final int TILE_SIZE = 256;
 
 	private GoogleCoordUtils() {
-
 	}
 	
-	public static LatLon llFromP(Point2D p, int zoom) {
-	
-		int scale = 1 << zoom;
+	public static LatLon latLonFromPoint(Point2D p, double zoom) {
+		double scale = Math.pow(2, zoom);
 		
 		Point2D pixelCoordinate = new Point2D(
 				p.getX() / scale,
@@ -25,17 +23,14 @@ public class GoogleCoordUtils {
 		
 	}
 
-	public static Point2D createInfoWindowContent(LatLon latLng, int zoom) {
-		int scale = 1 << zoom;
+	public static Point2D latLonToPoint(LatLon latLng, double zoom) {
+		double scale = Math.pow(2, zoom);
 
 		Point2D worldCoordinate = project(latLng);
 
 		Point2D pixelCoordinate = new Point2D(
-			Math.floor(worldCoordinate.getX() * scale),
-			Math.floor(worldCoordinate.getY() * scale));
-
-		Point2D tileCoordinate = new Point2D(Math.floor(worldCoordinate.getX() * scale / TILE_SIZE),
-				Math.floor(worldCoordinate.getY() * scale / TILE_SIZE));
+			worldCoordinate.getX() * scale,
+			worldCoordinate.getY() * scale);
 
 		return pixelCoordinate;
 	}
@@ -47,9 +42,10 @@ public class GoogleCoordUtils {
 
 		// Truncating to 0.9999 effectively limits latitude to 89.189. This is
 		// about a third of a tile past the edge of the world tile.
-		siny = Math.min(Math.max(siny, -0.9999), 0.9999);
+		siny = Math.clamp(siny, -0.9999, 0.9999);
 
-		return new Point2D(TILE_SIZE * (0.5 + latLng.getLonDgr() / 360),
+		return new Point2D(
+				TILE_SIZE * (0.5 + latLng.getLonDgr() / 360),
 				TILE_SIZE * (0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI)));
 	}
 	
@@ -82,8 +78,8 @@ public class GoogleCoordUtils {
 		return new LatLon(latDgr, lonDgr);
 	}
 
-	public static double getPixelSize(LatLon latlon, int zoom) {
-		int scale = 1 << zoom;
+	public static double getPixelSize(LatLon latlon, double zoom) {
+		double scale = Math.pow(2, zoom);
 
 		double earthCircumference = 2 * Math.PI * EARTH_R;
 		return Math.cos(Math.toRadians(latlon.getLatDgr())) * earthCircumference

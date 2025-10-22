@@ -13,7 +13,7 @@ public interface MapProvider {
 	int getMaxZoom();
 
 	default int getMinZoom() {
-		return 1;
+		return 2;
 	};
 	
 }

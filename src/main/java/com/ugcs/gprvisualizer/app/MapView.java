@@ -20,8 +20,6 @@ import com.ugcs.gprvisualizer.draw.QualityLayer;
 import com.ugcs.gprvisualizer.draw.RadarMap;
 import com.ugcs.gprvisualizer.draw.RepaintListener;
 import com.ugcs.gprvisualizer.draw.SatelliteMap;
-import com.ugcs.gprvisualizer.draw.MapRuler;
-import com.ugcs.gprvisualizer.draw.ZoomButtonLayer;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
 import javafx.embed.swing.SwingFXUtils;
@@ -60,6 +58,11 @@ import javax.annotation.Nullable;
 public class MapView implements InitializingBean {
 
 	private static final Logger log = LoggerFactory.getLogger(MapView.class);
+
+	private static final String NO_GPS_TEXT = "There are no coordinates in files";
+
+	private static AtomicInteger entercount = new AtomicInteger(0);
+
 	@Autowired
 	private TraceCutter traceCutter;
 
@@ -69,9 +72,6 @@ public class MapView implements InitializingBean {
 	@Autowired
 	private Model model;
 	
-	//@Autowired
-	//private Status status;
-
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
 	
@@ -85,7 +85,7 @@ public class MapView implements InitializingBean {
 	private GpsTrack gpsTrackMap;
 
 	@Autowired
-	private ZoomButtonLayer zoomButtonLayer;
+	private ZoomControlsView zoomControlsView;
 	
 	//@Autowired
 	private Dimension wndSize = new Dimension();
@@ -103,6 +103,73 @@ public class MapView implements InitializingBean {
 
 	private List<Layer> layers = new ArrayList<>();
 
+	private ImageView imageView = new ImageView();
+	private BufferedImage img;
+
+	private ToolBar toolBar = new ToolBar();
+	private Dimension windowSize = new Dimension();
+
+	private final BorderPane root = new BorderPane();
+	@Nullable private DistanceLabelPane distanceLabelPane;
+
+	private RepaintListener listener = this::updateUI;
+
+	private EventHandler<MouseEvent> mousePressHandler = event -> {
+        if (!isGpsPresent()) {
+            return;
+        }
+
+        Point2D p = getLocalCoords(event);
+
+        for (int i = getLayers().size() - 1; i >= 0; i--) {
+            Layer layer = getLayers().get(i);
+            try {
+                if (layer.mousePressed(p)) {
+                    return;
+                }
+            } catch (Exception e) {
+                log.error("Error", e);
+            }
+        }
+    };
+
+	private EventHandler<MouseEvent> mouseReleaseHandler = event -> {
+        if (!isGpsPresent()) {
+            return;
+        }
+        Point2D p = getLocalCoords(event);
+        for (int i = getLayers().size() - 1; i >= 0; i--) {
+            Layer layer = getLayers().get(i);
+            if (layer.mouseRelease(p)) {
+                return;
+            }
+        }
+    };
+
+	private EventHandler<MouseEvent> mouseMoveHandler = event -> {
+        if (!isGpsPresent()) {
+            return;
+        }
+        Point2D p = getLocalCoords(event);
+        for (int i = getLayers().size() - 1; i >= 0; i--) {
+            Layer layer = getLayers().get(i);
+            if (layer.mouseMove(p)) {
+                return;
+            }
+        }
+    };
+
+	private EventHandler<MouseEvent> mouseClickHandler = event -> {
+		if (!isGpsPresent()) {
+			return;
+		}
+		if (event.getClickCount() == 2) {
+			Point2D p = getLocalCoords(event);
+			LatLon location = model.getMapField().screenTolatLon(p);
+			model.selectNearestTrace(location);
+		}
+    };
+
 	public List<Layer> getLayers() {
 		return layers;
 	}
@@ -111,18 +178,6 @@ public class MapView implements InitializingBean {
 		return qualityLayer;
 	}
 
-	protected ImageView imageView = new ImageView();
-	protected BufferedImage img;
-
-
-	private ToolBar toolBar = new ToolBar();
-	private Dimension windowSize = new Dimension();
-
-	private final BorderPane root = new BorderPane();
-	@Nullable private DistanceLabelPane distanceLabelPane;
-
-	protected RepaintListener listener = this::updateUI;
-	
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		
@@ -150,16 +205,15 @@ public class MapView implements InitializingBean {
 		mapRuler.setRepaintCallback(() -> listener.repaint());
 		getLayers().add(mapRuler);
 
-		getLayers().add(settingsView);
-
-		getLayers().add(zoomButtonLayer);
-
 		initImageView();
-		
 	}
-	
+
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
+		if (!isGpsPresent()) {
+			return;
+		}
+
 		if (changed.isJustdraw()) {
 			updateUI();
 		}
@@ -196,9 +250,9 @@ public class MapView implements InitializingBean {
 			
 			Point2D p = getLocalCoords(event.getSceneX(), event.getSceneY());
 			LatLon ll = model.getMapField().screenTolatLon(p);
-			
-	    	double increment = event.getDeltaY() > 0 ? 0.1 : -0.1;
-			double zoom = model.getMapField().getZoom() + increment;
+
+			double zoomDelta = 0.1 * Math.clamp(event.getDeltaY(), -3, 3);
+	    	double zoom = model.getMapField().getZoom() + zoomDelta;
 			model.getMapField().setZoom(zoom);
 	    	
 	    	Point2D p2 = model.getMapField().latLonToScreen(ll);
@@ -208,7 +262,7 @@ public class MapView implements InitializingBean {
 			model.getMapField().setSceneCenter(sceneCenter);
 
 			eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
-	    });
+	    });		
 	
 		imageView.setOnMouseClicked(mouseClickHandler);
 		imageView.setOnMousePressed(mousePressHandler);
@@ -231,26 +285,11 @@ public class MapView implements InitializingBean {
 			}
 		});
 	}
-	
-	protected EventHandler<MouseEvent> mouseClickHandler = new EventHandler<MouseEvent>() {
-        @Override
-        public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}        	
-        	
-        	if (event.getClickCount() == 2) {
-        		Point2D p = getLocalCoords(event);
-        		LatLon location = model.getMapField().screenTolatLon(p);
-				model.selectNearestTrace(location);
-			}
-		}
-	};
 
 	public Node getCenter() {
 		
 		toolBar.setDisable(true);
-		toolBar.getItems().addAll(settingsView.buildToolNodes());
+		toolBar.getItems().addAll(settingsView.getToolNodes());
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
 		toolBar.getItems().addAll(mapRuler.buildToolNodes());
 		toolBar.getItems().add(getSpacer());
@@ -263,7 +302,6 @@ public class MapView implements InitializingBean {
 			this.setSize((int) (sp1.getWidth()), (int) (sp1.getHeight()));
 		};
 		
-		
 		Node n1 = imageView;
 		sp1.getChildren().add(n1);
 		sp1.getChildren().add(toolBar);
@@ -274,21 +312,16 @@ public class MapView implements InitializingBean {
 		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
 		updateDistanceLabelPaneVisibility();
 
-		sp1.getChildren().add(zoomButtonLayer.getNode());
-		zoomButtonLayer.getNode().setManaged(false);
-		zoomButtonLayer.getNode().setLayoutX(
-				sp1.getWidth() - zoomButtonLayer.getNode().prefWidth(-1) - 5
-		);
-		zoomButtonLayer.getNode().setLayoutY(
-				sp1.getHeight() - zoomButtonLayer.getNode().prefHeight(-1) + 5
-		);
-
 		sp1.widthProperty().addListener((obs, oldVal, newVal) -> {
-			zoomButtonLayer.getNode().setLayoutX(newVal.doubleValue() - zoomButtonLayer.getNode().prefWidth(-1) - 5);
+			zoomControlsView.adjustX(newVal.doubleValue());
 		});
 		sp1.heightProperty().addListener((obs, oldVal, newVal) -> {
-			zoomButtonLayer.getNode().setLayoutY(newVal.doubleValue() - zoomButtonLayer.getNode().prefHeight(-1) + 5);
+			zoomControlsView.adjustY(newVal.doubleValue());
 		});
+		zoomControlsView.adjustX(sp1.getWidth());
+		zoomControlsView.adjustY(sp1.getHeight());
+		sp1.getChildren().add(zoomControlsView.getNode());
+
 		root.setCenter(sp1);
 		
 		return root;
@@ -320,11 +353,7 @@ public class MapView implements InitializingBean {
 		return lst;
 	}
 
-	
-	private static final String NO_GPS_TEXT = "There are no coordinates in files";
-	
-	
-	protected BufferedImage draw(int width,	int height) {
+	private BufferedImage draw(int width, int height) {
 		if (width <= 0 || height <= 0) {
 			return null;
 		}
@@ -344,14 +373,12 @@ public class MapView implements InitializingBean {
 			try {
 				l.draw(g2, fixedField);
 			} catch (Exception e) {
-				log.error("Error drawing layer {}", l, e);
+				log.error("Error drawing layer", e);
 			}
 		}
 		
 		return bi;
 	}
-
-	private static AtomicInteger entercount = new AtomicInteger(0);
 
 	protected void updateUI() {
 		if (windowSize.width <= 0 || windowSize.height <= 0) {
@@ -370,15 +397,6 @@ public class MapView implements InitializingBean {
 			}
 			toImageView();
 			entercount.decrementAndGet();
-		});
-	}
-
-	protected void updateWindow() {
-		Platform.runLater(new Runnable() {
-			@Override
-			public void run() {
-				toImageView();
-			}
 		});
 	}
 
@@ -422,60 +440,6 @@ public class MapView implements InitializingBean {
 		r3.setPrefWidth(7);
 		return r3;
 	}
-
-	protected EventHandler<MouseEvent> mousePressHandler = new EventHandler<MouseEvent>() {
-		@Override
-		public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}
-
-			Point2D p = getLocalCoords(event);
-
-			for (int i = getLayers().size() - 1; i >= 0; i--) {
-				Layer layer = getLayers().get(i);
-				try {
-					if (layer.mousePressed(p)) {
-						return;
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	};
-
-	private EventHandler<MouseEvent> mouseReleaseHandler = new EventHandler<MouseEvent>() {
-		@Override
-		public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}
-			Point2D p = getLocalCoords(event);
-			for (int i = getLayers().size() - 1; i >= 0; i--) {
-				Layer layer = getLayers().get(i);
-				if (layer.mouseRelease(p)) {
-					return;
-				}
-			}
-		}
-	};
-
-	private EventHandler<MouseEvent> mouseMoveHandler = new EventHandler<MouseEvent>() {
-		@Override
-		public void handle(MouseEvent event) {
-			if (!isGpsPresent()) {
-				return;
-			}
-			Point2D p = getLocalCoords(event);
-			for (int i = getLayers().size() - 1; i >= 0; i--) {
-				Layer layer = getLayers().get(i);
-				if (layer.mouseMove(p)) {
-					return;
-				}
-			}
-		}
-	};
 
 	private Point2D getLocalCoords(MouseEvent event) {
 		return getLocalCoords(event.getSceneX(), event.getSceneY());

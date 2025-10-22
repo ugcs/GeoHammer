@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.app;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -9,7 +9,7 @@ import java.util.List;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
-import com.ugcs.gprvisualizer.app.TraceUnit;
+import com.ugcs.gprvisualizer.draw.Layer;
 import com.ugcs.gprvisualizer.gpr.Model;
 import javafx.geometry.Point2D;
 import javafx.scene.Node;
@@ -300,8 +300,9 @@ public class MapRuler implements Layer {
 		}
 		double totalDistanceMeters = 0.0;
 		for (int i = 0; i < points.size() - 1; i++) {
-			totalDistanceMeters += mapField.latLonDistance(
-					points.get(i).getLocation(), points.get(i + 1).getLocation());
+			LatLon p1 = points.get(i).getLocation();
+			LatLon p2 = points.get(i + 1).getLocation();
+			totalDistanceMeters += p1.getDistance(p2);
 		}
 		double value = TraceUnit.convert(
 				totalDistanceMeters,

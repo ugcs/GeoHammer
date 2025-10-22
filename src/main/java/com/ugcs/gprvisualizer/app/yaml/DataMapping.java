@@ -162,6 +162,10 @@ public class DataMapping {
             dataValues = new ArrayList<>(1);
         }
         dataValues.add(sensorData);
+        dataValuesBySemantic.put(semantic, sensorData);
+        if (!Strings.isNullOrEmpty(header)) {
+            dataValuesByHeader.put(header, sensorData);
+        }
         return true;
     }
 

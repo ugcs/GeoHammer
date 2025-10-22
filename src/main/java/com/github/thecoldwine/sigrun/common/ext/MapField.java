@@ -8,9 +8,9 @@ public class MapField {
 
 	private static final double R = 6378137;
 
-	private static final double MIN_ZOOM = 2.0;
+	public static final double MIN_ZOOM = 2.0;
 
-	private static final double MAX_ZOOM = 30.0;
+	public static final double MAX_ZOOM = 30.0;
 
 	@Nullable
 	private LatLon pathCenter;

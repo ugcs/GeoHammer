@@ -20,6 +20,7 @@ import com.ugcs.gprvisualizer.draw.QualityLayer;
 import com.ugcs.gprvisualizer.draw.RadarMap;
 import com.ugcs.gprvisualizer.draw.RepaintListener;
 import com.ugcs.gprvisualizer.draw.SatelliteMap;
+import com.ugcs.gprvisualizer.draw.ZoomControlsView;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
 import javafx.embed.swing.SwingFXUtils;
@@ -27,8 +28,6 @@ import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -80,6 +79,9 @@ public class MapView implements InitializingBean {
 
 	@Autowired
 	private GpsTrack gpsTrackMap;
+
+	@Autowired
+	private ZoomControlsView zoomControlsView;
 	
 	//@Autowired
 	private Dimension wndSize = new Dimension();
@@ -147,7 +149,6 @@ public class MapView implements InitializingBean {
 		getLayers().add(settingsView);
 
 		initImageView();
-		
 	}
 	
 	@EventListener
@@ -259,7 +260,6 @@ public class MapView implements InitializingBean {
 			this.setSize((int) (sp1.getWidth()), (int) (sp1.getHeight()));
 		};
 		
-		
 		Node n1 = imageView;
 		sp1.getChildren().add(n1);
 		sp1.getChildren().add(toolBar);
@@ -269,6 +269,17 @@ public class MapView implements InitializingBean {
 
 		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
 		updateDistanceLabelPaneVisibility();
+
+		sp1.widthProperty().addListener((obs, oldVal, newVal) -> {
+			zoomControlsView.adjustX(newVal.doubleValue());
+		});
+		sp1.heightProperty().addListener((obs, oldVal, newVal) -> {
+			zoomControlsView.adjustY(newVal.doubleValue());
+		});
+		zoomControlsView.adjustX(sp1.getWidth());
+		zoomControlsView.adjustY(sp1.getHeight());
+		sp1.getChildren().add(zoomControlsView.getNode());
+
 		root.setCenter(sp1);
 		
 		return root;

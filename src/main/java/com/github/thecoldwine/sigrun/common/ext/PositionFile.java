@@ -180,7 +180,7 @@ public class PositionFile {
 			if (Strings.isNullOrEmpty(traceHeader)) {
 				continue;
 			}
-			SensorData column = mapping.getDataColumnByHeader(traceHeader);
+			SensorData column = mapping.getDataValueByHeader(traceHeader);
 			if (column != null && column.getIndex() != -1) {
 				traceHeaders.add(traceHeader);
 			}

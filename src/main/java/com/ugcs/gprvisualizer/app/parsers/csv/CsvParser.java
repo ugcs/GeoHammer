@@ -68,10 +68,6 @@ public class CsvParser extends Parser {
 
         DataMapping mapping = template.getDataMapping();
 
-        // add system columns
-        mapping.addDataColumn(Semantic.MARK.getName(), Semantic.MARK.getName(), null);
-        mapping.addDataColumn(Semantic.LINE.getName(), Semantic.LINE.getName(), null);
-
         // date from filename
         if (mapping.getDate() != null && mapping.getDate().getSource() == Source.FileName) {
             parseDateFromFilename(file.getName());
@@ -167,7 +163,7 @@ public class CsvParser extends Parser {
             if (semantic.endsWith(Semantic.ANOMALY_SUFFIX)) {
                 String sourceSemantic = semantic.substring(
                         0, semantic.length() - Semantic.ANOMALY_SUFFIX.length());
-                SensorData sourceColumn = template.getDataMapping().getDataColumnBySemantic(sourceSemantic);
+                SensorData sourceColumn = template.getDataMapping().getDataValueBySemantic(sourceSemantic);
                 if (sourceColumn != null && headers.containsKey(sourceColumn.getHeader())) {
                     dataHeaders.add(header);
                 }
@@ -211,7 +207,7 @@ public class CsvParser extends Parser {
 
         // list of data headers to load
         var dataHeaders = getDataHeaders(headers, data);
-        var dataColumns = template.getDataMapping().getDataColumns();
+        var dataColumns = template.getDataMapping().getDataValuesByHeader();
 
         List<GeoCoordinates> coordinates = new ArrayList<>();
 
@@ -255,7 +251,7 @@ public class CsvParser extends Parser {
             }
 
             boolean marked = false;
-            BaseData markColumn = mapping.getDataColumnBySemantic(Semantic.MARK.getName());
+            BaseData markColumn = mapping.getDataValueBySemantic(Semantic.MARK.getName());
             if (valuesContainColumn(values, markColumn)) {
                 marked = parseInt(markColumn, values[markColumn.getIndex()]) instanceof Integer i && i == 1;
             }
@@ -290,7 +286,7 @@ public class CsvParser extends Parser {
     }
 
     protected void initColumnIndices(Map<String, Integer> headers) {
-        List<BaseData> columns = template.getDataMapping().getAllColumns();
+        List<BaseData> columns = template.getDataMapping().getAllValues();
         for (BaseData column : columns) {
             updateColumnIndex(column, headers);
         }

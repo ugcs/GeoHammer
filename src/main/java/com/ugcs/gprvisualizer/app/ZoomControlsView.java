@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.draw;
+package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.ugcs.gprvisualizer.event.WhatChanged;

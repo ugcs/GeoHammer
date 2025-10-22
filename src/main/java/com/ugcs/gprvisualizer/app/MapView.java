@@ -20,7 +20,6 @@ import com.ugcs.gprvisualizer.draw.QualityLayer;
 import com.ugcs.gprvisualizer.draw.RadarMap;
 import com.ugcs.gprvisualizer.draw.RepaintListener;
 import com.ugcs.gprvisualizer.draw.SatelliteMap;
-import com.ugcs.gprvisualizer.draw.ZoomControlsView;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 
 import javafx.embed.swing.SwingFXUtils;
@@ -146,8 +145,6 @@ public class MapView implements InitializingBean {
 		mapRuler.setRepaintCallback(() -> listener.repaint());
 		getLayers().add(mapRuler);
 
-		getLayers().add(settingsView);
-
 		initImageView();
 	}
 	
@@ -247,7 +244,7 @@ public class MapView implements InitializingBean {
 	public Node getCenter() {
 		
 		toolBar.setDisable(true);
-		toolBar.getItems().addAll(settingsView.buildToolNodes());
+		toolBar.getItems().addAll(settingsView.getToolNodes());
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
 		toolBar.getItems().addAll(mapRuler.buildToolNodes());
 		toolBar.getItems().add(getSpacer());

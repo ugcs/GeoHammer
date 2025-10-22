@@ -1,9 +1,8 @@
 package com.ugcs.gprvisualizer.app;
 
-import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.app.scripts.PythonConfig;
-import com.ugcs.gprvisualizer.draw.Layer;
+import com.ugcs.gprvisualizer.draw.ToolProducer;
 import com.ugcs.gprvisualizer.utils.PythonLocator;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -21,10 +20,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Component;
 
-import java.awt.Graphics2D;
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -34,7 +31,7 @@ import java.util.concurrent.Future;
 import javax.annotation.Nullable;
 
 @Component
-public class SettingsView implements Layer, InitializingBean {
+public class SettingsView implements ToolProducer {
 
 	private final PythonConfig pythonConfig;
 
@@ -45,15 +42,11 @@ public class SettingsView implements Layer, InitializingBean {
 
 	private final ToggleButton toggleButton =
 			ResourceImageHolder.setButtonImage(ResourceImageHolder.SETTINGS, new ToggleButton());
-	{
-		toggleButton.setTooltip(new Tooltip("Settings"));
-	}
 
 	public SettingsView(PythonConfig pythonConfig) {
 		this.pythonConfig = pythonConfig;
-	}
 
-	public List<Node> buildToolNodes() {
+		toggleButton.setTooltip(new Tooltip("Settings"));
 		toggleButton.setSelected(false);
 		toggleButton.setOnAction(event -> {
 			if (toggleButton.isSelected()) {
@@ -62,6 +55,10 @@ public class SettingsView implements Layer, InitializingBean {
 				hideSettingsWindow();
 			}
 		});
+	}
+
+	@Override
+	public List<Node> getToolNodes() {
 		return List.of(toggleButton);
 	}
 
@@ -94,7 +91,6 @@ public class SettingsView implements Layer, InitializingBean {
 		stage.setScene(scene);
 		return stage;
 	}
-
 
 	private Node createPythonPathPane(Stage settingsStage) {
 		Label pythonLabel = new Label("Python Executor Path:");
@@ -151,15 +147,5 @@ public class SettingsView implements Layer, InitializingBean {
 			pythonPathField.setText(path);
 			pythonConfig.setPythonExecutorPath(path);
 		}
-	}
-
-	@Override
-	public void afterPropertiesSet() throws Exception {
-		// No initialization needed
-	}
-
-	@Override
-	public void draw(Graphics2D g2, MapField field) {
-		// No drawing needed for settings
 	}
 }

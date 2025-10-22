@@ -6,9 +6,9 @@ import com.github.thecoldwine.sigrun.common.ext.MapField;
 
 public class ThrFront {
 	
-	private BufferedImage img;
+	private final BufferedImage img;
 	
-	private MapField field;
+	private final MapField field;
 
 	public ThrFront(BufferedImage img, MapField field) {
 		if (img == null) {

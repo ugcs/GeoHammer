@@ -9,6 +9,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.MapField;
 import com.ugcs.gprvisualizer.app.MapView;
 import com.ugcs.gprvisualizer.gpr.Model;
@@ -111,8 +112,9 @@ public abstract class ThrQueue {
             return;
         }
 
-        Point2D offset = front.getField().getSceneCenter() != null
-                ? currentField.latLonToScreen(front.getField().getSceneCenter())
+        LatLon frontCenter = front.getField().getSceneCenter();
+        Point2D offset = frontCenter != null
+                ? currentField.latLonToScreen(frontCenter)
                 : new Point2D(0, 0);
 
         double scale = Math.pow(2, currentField.getZoom() - front.getField().getZoom());

@@ -34,7 +34,7 @@
       - header: "Total field [nT]"
         semantic: "TMI"
         units: "nT"
-      - header: "TMI anomaly"
+      - header: "TMI_anomaly"
         semantic: "TMI_anomaly"
         units: "nT"
       - header: "Track ID"
@@ -64,5 +64,6 @@
       - header: "Line"
         semantic: "Line"
         units: ""
+
 
 

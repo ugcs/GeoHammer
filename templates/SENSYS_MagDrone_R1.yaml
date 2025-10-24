@@ -52,6 +52,7 @@
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
-      - header: "TMI anomaly"
+      - header: "TMI_anomaly"
         semantic: "TMI_anomaly"
         units: "nT"
+

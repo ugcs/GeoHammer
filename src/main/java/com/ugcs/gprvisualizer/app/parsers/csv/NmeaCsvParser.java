@@ -61,7 +61,7 @@ public class NmeaCsvParser extends CsvParser {
                 String[] data = line.split(getTemplate().getFileFormat().getSeparator());
                 LocalDateTime date = parseDateTime(data);
                 NmeaCoordinates nmeaCoordinate = new NmeaCoordinates(format);
-                nmeaCoordinate.parseNMEAMessage(data[getTemplate().getDataMapping().getLongitude().getIndex()]);
+                nmeaCoordinate.parseNMEAMessage(getString(data, getTemplate().getDataMapping().getLongitude()));
                 nmeaCoordinate.setTraceNumber(traceCount);
                 nmeaCoordinate.setDateTime(date);
                 traceCount++;

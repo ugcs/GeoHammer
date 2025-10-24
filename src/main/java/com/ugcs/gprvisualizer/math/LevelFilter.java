@@ -209,17 +209,22 @@ public class LevelFilter implements ToolProducer {
 
     private void initTraceColumnSelector(TraceFile traceFile) {
         traceColumnSelector.setDisable(!isGroundProfileExists(traceFile));
-        traceColumnSelector.getItems().clear();
+        traceColumnSelector.setOnAction(null); // clear change listener
 
         PositionFile positionFile = traceFile != null
                 ? traceFile.getGroundProfileSource()
                 : null;
+
         if (positionFile != null) {
-            traceColumnSelector.getItems().addAll(positionFile.getAvailableTraceHeaders());
+            traceColumnSelector.getItems().setAll(positionFile.getAvailableTraceHeaders());
             traceColumnSelector.setValue(traceFile.getGroundProfileTraceHeader());
         } else {
+            traceColumnSelector.getItems().clear();
             traceColumnSelector.setValue(null);
         }
+
+        // restore change listener
+        traceColumnSelector.setOnAction(this::traceColumnSelected);
     }
 
     private void traceColumnSelected(ActionEvent event) {

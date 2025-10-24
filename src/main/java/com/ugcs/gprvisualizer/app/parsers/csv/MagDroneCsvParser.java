@@ -52,7 +52,7 @@ public class MagDroneCsvParser extends CsvParser {
                 Check.notNull(line, "No header found");
 
                 headers = parseHeaders(line);
-                initColumnIndices(headers);
+                requireLocationHeaders();
             }
 
             int traceCount = 0;
@@ -67,25 +67,28 @@ public class MagDroneCsvParser extends CsvParser {
                 String[] data = line.split(getTemplate().getFileFormat().getSeparator());
                 DataMapping mapping = getTemplate().getDataMapping();
 
-                double lat = parseDouble(mapping.getLatitude(), data[mapping.getLatitude().getIndex()]);
-                double lon = parseDouble(mapping.getLongitude(), data[mapping.getLongitude().getIndex()]);
-                double alt = mapping.getAltitude() != null
-                        && mapping.getAltitude().getIndex() != null
-                        && mapping.getAltitude().getIndex() != -1
-                        ? parseDouble(mapping.getAltitude(), data[mapping.getAltitude().getIndex()])
-                        : 0.00;
-                long timestamp = parseLong(mapping.getTimestamp(), data[mapping.getTimestamp().getIndex()]);
-                int traceNumber = mapping.getTraceNumber() != null
-                        && mapping.getTraceNumber().getIndex() != null
-                        && mapping.getTraceNumber().getIndex() != -1
-                        ? parseInt(mapping.getTraceNumber(), data[mapping.getTraceNumber().getIndex()])
-                        : traceCount;
-            
+                Double lat = parseLatitude(data);
+                Double lon = parseLongitude(data);
+                if (lat == null || lon == null) {
+                    continue;
+                }
+
+                Double alt = parseAltitude(data);
+                long timestamp = parseLong(getString(data, mapping.getTimestamp()));
+                Integer traceNumber = parseTraceNumber(data);
+                if (traceNumber == null) {
+                    traceNumber = traceCount;
+                }
+
                 List<SensorValue> sensorValues = new ArrayList<>();
                 if (template.getDataMapping().getDataValues() != null) {
-                    for (SensorData sensor : template.getDataMapping().getDataValues()) {
-                        String sensorData = (sensor.getIndex() != null && sensor.getIndex() != -1 && sensor.getIndex() < data.length) ? data[sensor.getIndex()] : null;
-                        sensorValues.add(new SensorValue(sensor.getHeader(), sensor.getUnits(), parseNumber(sensor, sensorData)));
+                    for (SensorData column : template.getDataMapping().getDataValues()) {
+                        Number number = parseNumber(getString(data, column));
+                        SensorValue sensorValue = new SensorValue(
+                                column.getHeader(),
+                                column.getUnits(),
+                                number);
+                        sensorValues.add(sensorValue);
                     }    
                 }
 
@@ -98,8 +101,8 @@ public class MagDroneCsvParser extends CsvParser {
                 SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
                 boolean isRowHasTime = false;
                 try {
-                    if (mapping.getTime() != null && mapping.getTime().getIndex() != -1) {
-                        sdf.parse(data[mapping.getTime().getIndex()]);
+                    if (hasHeader(mapping.getTime())) {
+                        sdf.parse(getString(data, mapping.getTime()));
                         isRowHasTime = true;
                     }
                 } catch (ParseException e) {

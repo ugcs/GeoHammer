@@ -130,10 +130,11 @@ public class GeoData extends GeoCoordinates {
     }
 
     public static String getHeader(String semantic, Template template) {
-        Check.notNull(template);
-        DataMapping mapping = template.getDataMapping();
-        if (mapping != null) {
-            return mapping.getHeaderBySemantic(semantic);
+        if (template != null) {
+            DataMapping mapping = template.getDataMapping();
+            if (mapping != null) {
+                return mapping.getHeaderBySemantic(semantic);
+            }
         }
         // use semantic name as a header when no template
         return semantic;

@@ -11,7 +11,6 @@ import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
-import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 
@@ -34,14 +33,20 @@ public class PositionFile {
 	private FileTemplates templates;
 
 	@Nullable
-	private File positionFile;
+	private CsvParser parser;
 
-	private Template template;
+	@Nullable
+	private File positionFile;
 
 	private List<GeoCoordinates> coordinates;
 
 	public PositionFile(FileTemplates templates) {
 		this.templates = templates;
+	}
+
+	@Nullable
+	public Template getTemplate() {
+		return parser != null ? parser.getTemplate() : null;
 	}
 
 	@Nullable
@@ -106,13 +111,13 @@ public class PositionFile {
 		Check.notNull(file);
 
 		String path = file.getAbsolutePath();
-		template = templates.findTemplate(templates.getTemplates(), path);
+		Template template = templates.findTemplate(templates.getTemplates(), path);
 		if (template == null) {
 			throw new RuntimeException("Can`t find template for file " + file.getName());
 		}
 
 		log.info("Using position file template: {}", template.getName());
-		CsvParser parser = new CsvParsersFactory().createCsvParser(template);
+		parser = new CsvParsersFactory().createCsvParser(template);
         return parser.parse(path);
 	}
 
@@ -132,7 +137,7 @@ public class PositionFile {
 		int numTraces = traceFile.traces.size();
 		int[] depths = new int[numTraces];
 
-		String altitudeAglHeader = GeoData.getHeader(Semantic.ALTITUDE_AGL, template);
+		String altitudeAglHeader = GeoData.getHeader(Semantic.ALTITUDE_AGL, getTemplate());
 		for (GeoCoordinates c : Nulls.toEmpty(coordinates)) {
 			if (c instanceof GeoData geoData) {
 				Integer traceIndex = geoData.getInt(traceHeader).orElse(null);
@@ -166,6 +171,7 @@ public class PositionFile {
 	}
 
 	public List<String> getAvailableTraceHeaders() {
+		Template template = getTemplate();
 		if (template == null) {
 			return List.of();
 		}
@@ -180,8 +186,7 @@ public class PositionFile {
 			if (Strings.isNullOrEmpty(traceHeader)) {
 				continue;
 			}
-			SensorData column = mapping.getDataValueByHeader(traceHeader);
-			if (column != null && column.getIndex() != -1) {
+			if (parser != null && parser.hasHeader(traceHeader)) {
 				traceHeaders.add(traceHeader);
 			}
 		}

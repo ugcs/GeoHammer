@@ -31,7 +31,7 @@
       - header: "magneticTotal"
         semantic: "TMI"
         units: "nT"
-      - header: "TMI anomaly"
+      - header: "TMI_anomaly"
         semantic: "TMI_anomaly"
         units: "nT"
       - header: "altitude"

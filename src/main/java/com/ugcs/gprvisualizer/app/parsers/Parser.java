@@ -9,8 +9,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,6 +21,9 @@ import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.data.Date;
+import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
 
 import com.ugcs.gprvisualizer.app.yaml.Template;
@@ -27,6 +33,8 @@ import com.ugcs.gprvisualizer.app.yaml.data.DateTime;
 public abstract class Parser {
 
     protected final Template template;
+
+    protected Map<String, Integer> headers = new HashMap<>();
 
     // contains lines that were skipped during parsing
     protected StringBuilder skippedLines;
@@ -39,6 +47,10 @@ public abstract class Parser {
 
     public Template getTemplate() {
         return template;
+    }
+
+    public Map<String, Integer> getHeaders() {
+        return headers;
     }
 
     public String getSkippedLines() {
@@ -94,159 +106,125 @@ public abstract class Parser {
         return line;
     }
 
-    public void parseDateFromFilename(String filename) {
-        DataMapping mapping = template.getDataMapping();
-
-        Pattern pattern = Pattern.compile(mapping.getDate().getRegex());
-        Matcher matcher = pattern.matcher(filename);
-
-        if (!matcher.find()) {
-            throw new IncorrectDateFormatException("Incorrect file name. Set date of logging.");
-        }
-
-        List<String> formats = mapping.getDate().getFormat() != null
-                ? List.of(mapping.getDate().getFormat())
-                : mapping.getDate().getFormats();
-        dateFromFilename = parseDate(matcher.group(), formats);
+    public boolean hasHeader(BaseData column) {
+        return column != null && headers.containsKey(column.getHeader());
     }
 
-    private LocalDate parseDate(String date, List<String> formats) {
-        for (String format : formats) {
-            try {
-                return LocalDate.parse(date, DateTimeFormatter.ofPattern(format, Locale.US));
-            } catch (DateTimeParseException e) {
-                // do nothing
+    public boolean hasHeader(String header) {
+        return headers.containsKey(header);
+    }
+
+    public int getColumnIndex(BaseData column) {
+        return column != null
+                ? getColumnIndex(column.getHeader())
+                : -1;
+    }
+
+    public int getColumnIndex(String header) {
+        return headers.getOrDefault(header, -1);
+    }
+
+    public boolean hasValue(String[] values, BaseData column) {
+        return column != null && hasValue(values, column.getHeader());
+    }
+
+    public boolean hasValue(String[] values, String header) {
+        int columnIndex = getColumnIndex(header);
+        return values != null && columnIndex >= 0 && columnIndex < values.length;
+    }
+
+    public String matchPattern(String value, String regex) {
+        return matchPattern(value, regex, true);
+    }
+
+    public String matchPattern(String value, String regex, boolean fullMatch) {
+        if (Strings.isNullOrEmpty(value)) {
+            return value;
+        }
+        if (!Strings.isNullOrEmpty(regex)) {
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(value);
+
+            boolean matches = fullMatch ? matcher.matches() : matcher.find();
+            return matches ? matcher.group() : null;
+        }
+        return value;
+    }
+
+    public String getString(String[] values, String header) {
+        if (values == null) {
+            return null;
+        }
+        Integer columnIndex = headers.get(header);
+        if (columnIndex == null || columnIndex < 0 || columnIndex >= values.length) {
+            return null;
+        }
+        return values[columnIndex];
+    }
+
+    public String getString(String[] values, BaseData column) {
+        if (column == null) {
+            return null;
+        }
+        String value = getString(values, column.getHeader());
+        if (column.getRegex() != null) {
+            value = matchPattern(value, column.getRegex());
+        }
+        return value;
+    }
+
+    // column parsers
+
+    public Number parseNumber(String[] values, String header) {
+        String value = getString(values, header);
+        SensorData column = template.getDataMapping().getDataValueByHeader(header);
+        if (column != null) {
+            value = matchPattern(value, column.getRegex());
+        }
+        return parseNumber(value);
+    }
+
+    public Double parseLatitude(String[] values) {
+        BaseData latitudeColumn = template.getDataMapping().getLatitude();
+        return parseDouble(getString(values, latitudeColumn));
+    }
+
+    public Double parseLongitude(String[] values) {
+        BaseData longitudeColumn = template.getDataMapping().getLongitude();
+        return parseDouble(getString(values, longitudeColumn));
+    }
+
+    public Double parseAltitude(String[] values) {
+        BaseData altitudeColumn = template.getDataMapping().getAltitude();
+        return parseDouble(getString(values, altitudeColumn));
+    }
+
+    public Integer parseTraceNumber(String[] values) {
+        BaseData traceNumberColumn = template.getDataMapping().getTraceNumber();
+        return parseInt(getString(values, traceNumberColumn));
+    }
+
+    public LocalDate parseDateFromFilename(String filename) {
+        Date dateColumn = template.getDataMapping().getDate();
+        String value = matchPattern(filename, dateColumn.getRegex(), false);
+        if (Strings.isNullOrEmpty(value)) {
+            throw new IncorrectDateFormatException("Incorrect file name. Cannot match date pattern");
+        }
+
+        LocalDate date = null;
+        for (String format : Nulls.toEmpty(dateColumn.getAllFormats())) {
+            if (Strings.isNullOrEmpty(format)) {
+                continue;
+            }
+            date = parseDate(value, format);
+            if (date != null) {
+                break;
             }
         }
-        throw new IncorrectDateFormatException("Incorrect date formats");
-    }
-
-    public String matchString(BaseData column, String value) {
-        if (Strings.isNullOrEmpty(value)) {
-            return null;
+        if (date == null) {
+            throw new IncorrectDateFormatException("Incorrect date formats");
         }
-        String regex = column != null
-                ? Strings.trim(column.getRegex())
-                : null;
-        if (!Strings.isNullOrEmpty(regex)) {
-            var pattern = Pattern.compile(regex);
-            var matcher = pattern.matcher(value);
-            return matcher.matches() ? matcher.group() : null;
-        }
-        return Strings.emptyToNull(Strings.trim(value));
-    }
-
-    public Number parseNumber(BaseData column, String value) {
-        if (Strings.isNullOrBlank(value)) {
-            return null;
-        }
-
-        String decimalSeparator = template.getFileFormat().getDecimalSeparator();
-        if (value.indexOf(decimalSeparator) > 0) {
-            return parseDouble(column, value);
-        } else {
-            return parseInt(column, value);
-        }
-    }
-
-    public Double parseDouble(BaseData column, String value) {
-        value = matchString(column, value);
-        if (Strings.isNullOrEmpty(value)) {
-            return null;
-        }
-
-        try {
-            return Double.parseDouble(value);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    public Integer parseInt(BaseData column, String value) {
-        value = matchString(column, value);
-        if (Strings.isNullOrEmpty(value)) {
-            return null;
-        }
-
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    public Long parseLong(BaseData column, String value) {
-        value = matchString(column, value);
-        if (Strings.isNullOrEmpty(value)) {
-            return null;
-        }
-
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private LocalDate parseDate(DateTime column, String value) {
-        value = matchString(column, value);
-        if (Strings.isNullOrEmpty(value)) {
-            return null;
-        }
-
-        try {
-            return LocalDate.parse(value, DateTimeFormatter.ofPattern(column.getFormat()));
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    private LocalTime parseTime(DateTime column, String value) {
-        value = matchString(column, value);
-        if (Strings.isNullOrEmpty(value)) {
-            return null;
-        }
-
-        String format = column.getFormat().replaceAll("f", "S");
-        try {
-            return LocalTime.parse(value, DateTimeFormatter.ofPattern(format));
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    private LocalDateTime parseDateTime(DateTime column, String value) {
-        value = matchString(column, value);
-        if (Strings.isNullOrEmpty(value)) {
-            return null;
-        }
-
-        String format = column.getFormat().replaceAll("f", "S");
-        try {
-            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern(format));
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    private LocalDateTime parseGpsTime(String value) {
-        var tokens = value.split(" ");
-        var weeksInDays = Integer.parseInt(tokens[0]);
-        var secondsAndMs = (Double.parseDouble(tokens[1]) * 1000);
-        LocalDateTime datum = LocalDateTime.of(1980, 1, 6, 0, 0, 0);
-        LocalDateTime week = datum.plusDays(weeksInDays * 7L);
-        return week.plusSeconds((long) (secondsAndMs * 1000));
-    }
-
-    public boolean valuesContainColumn(String[] values, BaseData column) {
-        if (values == null) {
-            return false;
-        }
-        if (column == null) {
-            return false;
-        }
-        Integer index = column.getIndex();
-        return index != null && index >= 0 && index < values.length;
+        return date;
     }
 
     public LocalDateTime parseDateTime(String[] values) {
@@ -254,46 +232,159 @@ public abstract class Parser {
 
         // dateTime column
         DateTime dateTimeColumn = mapping.getDateTime();
-        if (valuesContainColumn(values, dateTimeColumn)) {
+        if (hasHeader(dateTimeColumn)) {
+            String value = getString(values, dateTimeColumn);
             if (dateTimeColumn.getType() == DateTime.Type.GPST) {
-                return parseGpsTime(values[dateTimeColumn.getIndex()]);
+                return parseGpsDateTime(value);
             } else {
-                return parseDateTime(dateTimeColumn, values[dateTimeColumn.getIndex()]);
+                return parseDateTime(value, dateTimeColumn.getFormat());
             }
         }
 
         // date + time columns
-        Date dateColumn = mapping.getDate();
+        // date from filename + time column
         DateTime timeColumn = mapping.getTime();
-        if (valuesContainColumn(values, dateColumn)
-                && valuesContainColumn(values, timeColumn)) {
-            var date = parseDate(dateColumn, values[dateColumn.getIndex()]);
-            if (date == null) {
-                throw new CsvParsingException(null, "Header 'date' not found in a data file");
-            }
-            var time = parseTime(timeColumn, values[timeColumn.getIndex()]);
+        if (hasHeader(timeColumn)) {
+            LocalTime time = parseTime(getString(values, timeColumn), timeColumn.getFormat());
             if (time == null) {
-                throw new CsvParsingException(null, "Header 'time' not found in a data file");
+                throw new CsvParsingException(null, "Time not found in a data file");
             }
-            return LocalDateTime.of(date, time);
-        }
 
-        // date from file name + time column
-        if (valuesContainColumn(values, timeColumn) && dateFromFilename != null) {
-            var time = parseTime(timeColumn, values[timeColumn.getIndex()]);
-            if (time == null) {
-                throw new CsvParsingException(null, "Header 'time' not found in a data file");
+            Date dateColumn = mapping.getDate();
+            if (hasHeader(dateColumn)) {
+                LocalDate date = parseDate(getString(values, dateColumn), dateColumn.getFormat());
+                if (date == null) {
+                    throw new CsvParsingException(null, "Date not found in a data file");
+                }
+                return LocalDateTime.of(date, time);
             }
-            return LocalDateTime.of(dateFromFilename, time);
+
+            if (dateFromFilename != null) {
+                return LocalDateTime.of(dateFromFilename, time);
+            }
         }
 
         // timestamp column
         BaseData timestampColumn = mapping.getTimestamp();
-        if (valuesContainColumn(values, timestampColumn)) {
-            long timestamp = parseLong(timestampColumn, values[timestampColumn.getIndex()]);
+        if (hasHeader(timestampColumn)) {
+            Long timestamp = parseLong(getString(values, timestampColumn));
+            if (timestamp == null) {
+                throw new CsvParsingException(null, "Timestamp not found in a data file");
+            }
             return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
         }
 
-        throw new RuntimeException("Cannot parse DateTime from file");
+        throw new CsvParsingException(null, "Cannot parse date and time from file");
+    }
+
+    public boolean parseMark(String[] values) {
+        BaseData markColumn = template.getDataMapping().getDataValueBySemantic(Semantic.MARK.getName());
+        Integer mark = parseInt(getString(values, markColumn));
+        return mark != null && mark == 1;
+    }
+
+    // primitive type parsers
+
+    public Number parseNumber(String value) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        String decimalSeparator = template.getFileFormat().getDecimalSeparator();
+        if (value.indexOf(decimalSeparator) > 0) {
+            return parseDouble(value);
+        } else {
+            return parseInt(value);
+        }
+    }
+
+    public Double parseDouble(String value) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public Integer parseInt(String value) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public Long parseLong(String value) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private LocalDate parseDate(String value, String format) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        Check.notNull(format);
+        try {
+            return LocalDate.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private LocalTime parseTime(String value, String format) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        Check.notNull(format);
+        format = format.replaceAll("f", "S");
+        try {
+            return LocalTime.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private LocalDateTime parseDateTime(String value, String format) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        Check.notNull(format);
+        format = format.replaceAll("f", "S");
+        try {
+            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private LocalDateTime parseGpsDateTime(String value) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        String[] tokens = value.split(" ");
+        if (tokens.length < 2) {
+            return null;
+        }
+        try {
+            int weeks = Integer.parseInt(tokens[0]);
+            double seconds = Double.parseDouble(tokens[1]);
+            LocalDateTime gpsEpoch = LocalDateTime.of(1980, 1, 6, 0, 0, 0);
+            return gpsEpoch
+                    .plusDays(weeks * 7L)
+                    .plus((long) (seconds * 1000), ChronoUnit.MILLIS);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

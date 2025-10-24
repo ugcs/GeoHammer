@@ -36,14 +36,8 @@ public class CsvParser extends Parser {
 
     private static final Logger log = LoggerFactory.getLogger(CsvParser.class);
 
-    protected Map<String, Integer> headers;
-
     public CsvParser(Template template) {
         super(template);
-    }
-
-    public Map<String, Integer> getHeaders() {
-        return headers;
     }
 
     @Override
@@ -56,6 +50,7 @@ public class CsvParser extends Parser {
         } catch (FileNotFoundException | CancellationException | IncorrectDateFormatException e) {
             throw e;
         } catch (Exception e) {
+            e.printStackTrace();
             String message = Strings.nullToEmpty(e.getMessage())
                     + ", used template: " + template.getName();
             throw new CsvParsingException(file, message);
@@ -70,7 +65,7 @@ public class CsvParser extends Parser {
 
         // date from filename
         if (mapping.getDate() != null && mapping.getDate().getSource() == Source.FileName) {
-            parseDateFromFilename(file.getName());
+            dateFromFilename = parseDateFromFilename(file.getName());
         }
 
         // header -> index
@@ -86,8 +81,7 @@ public class CsvParser extends Parser {
                 Check.notNull(line, "No header found");
 
                 headers = parseHeaders(line);
-                initColumnIndices(headers);
-                //updateColumnIndex(markColumn, headers);
+                requireLocationHeaders();
             }
 
             // read data lines
@@ -97,7 +91,6 @@ public class CsvParser extends Parser {
                 }
 
                 String[] values = splitLine(line);
-                // TODO check values.length == headers.length
                 data.add(values);
             }
         }
@@ -108,7 +101,7 @@ public class CsvParser extends Parser {
         List<GeoCoordinates> coordinates = parseData(headers, data);
 
         // timestamps could be in wrong order in the file
-        if (mapping.getTimestamp() != null && mapping.getTimestamp().getIndex() != -1) {
+        if (hasHeader(mapping.getTimestamp())) {
             coordinates.sort(Comparator.comparing(GeoCoordinates::getDateTime));
         }
 
@@ -207,7 +200,6 @@ public class CsvParser extends Parser {
 
         // list of data headers to load
         var dataHeaders = getDataHeaders(headers, data);
-        var dataColumns = template.getDataMapping().getDataValuesByHeader();
 
         List<GeoCoordinates> coordinates = new ArrayList<>();
 
@@ -221,52 +213,30 @@ public class CsvParser extends Parser {
                 continue;
             }
 
-            BaseData latitudeColumn = mapping.getLatitude();
-            Double latitude = valuesContainColumn(values, latitudeColumn)
-                    ? parseDouble(latitudeColumn, values[latitudeColumn.getIndex()])
-                    : null;
-
-            BaseData longitudeColumn = mapping.getLongitude();
-            Double longitude = valuesContainColumn(values, longitudeColumn)
-                    ? parseDouble(longitudeColumn, values[longitudeColumn.getIndex()])
-                    : null;
+            Double latitude = parseLatitude(values);
+            Double longitude = parseLongitude(values);
 
             if (latitude == null || longitude == null) {
                 continue;
             }
 
-            BaseData altitudeColumn = mapping.getAltitude();
-            Double altitude = valuesContainColumn(values, altitudeColumn)
-                    ? parseDouble(altitudeColumn, values[altitudeColumn.getIndex()])
-                    : null;
+            Double altitude = parseAltitude(values);
 
             LocalDateTime dateTime = parseDateTime(values);
 
-            BaseData traceNumberColumn = mapping.getTraceNumber();
-            Integer traceNumber = valuesContainColumn(values, traceNumberColumn)
-                    ? parseInt(traceNumberColumn, values[traceNumberColumn.getIndex()])
-                    : null;
+            Integer traceNumber = parseTraceNumber(values);
             if (traceNumber == null) {
                 traceNumber = traceCount;
             }
 
-            boolean marked = false;
-            BaseData markColumn = mapping.getDataValueBySemantic(Semantic.MARK.getName());
-            if (valuesContainColumn(values, markColumn)) {
-                marked = parseInt(markColumn, values[markColumn.getIndex()]) instanceof Integer i && i == 1;
-            }
+            boolean marked = parseMark(values);
 
             List<SensorValue> sensorValues = new ArrayList<>();
             for (String header : dataHeaders) {
-                // get column index
-                Integer columnIndex = headers.get(header);
-                if (columnIndex == null || columnIndex < 0 || columnIndex >= values.length) {
-                    continue;
-                }
-                // get column definition from the template
-                SensorData column = dataColumns.get(header);
                 // parse and add value
-                Number number = parseNumber(column, values[columnIndex]);
+                Number number = parseNumber(values, header);
+                // get column definition from the template
+                SensorData column = mapping.getDataValueByHeader(header);
                 SensorValue sensorValue = new SensorValue(
                         header,
                         column != null ? column.getUnits() : null,
@@ -285,31 +255,10 @@ public class CsvParser extends Parser {
         return coordinates;
     }
 
-    protected void initColumnIndices(Map<String, Integer> headers) {
-        List<BaseData> columns = template.getDataMapping().getAllValues();
-        for (BaseData column : columns) {
-            updateColumnIndex(column, headers);
-        }
-
-        // TODO extract from the method
-        validateColumns();
-    }
-
-    private void updateColumnIndex(BaseData column, Map<String, Integer> headers) {
-        if (column == null) {
-            return;
-        }
-        String header = column.getHeader();
-        if (!Strings.isNullOrBlank(header)) {
-            column.setIndex(headers.getOrDefault(header, -1));
-        }
-    }
-
-    protected void validateColumns() {
+    protected void requireLocationHeaders() {
         DataMapping mapping = template.getDataMapping();
 
-        if (mapping.getLatitude().getIndex() == -1
-                || mapping.getLongitude().getIndex() == -1) {
+        if (!hasHeader(mapping.getLatitude()) || !hasHeader(mapping.getLongitude())) {
             throw new ColumnsMatchingException("Column names for latitude and longitude are not matched");
         }
     }

@@ -20,7 +20,7 @@
   skip-lines-to:
     match-regex: Raw track data
     skip-matched-line: true
-  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp
   data-mapping:
     latitude:
       header: 'Latitude [°]'
@@ -30,13 +30,6 @@
       header: 'Altitude [m]'
     timestamp:
       header: 'Timestamp [ms]'
-    date:
-      # Source to parse date. Available values are FileName and Column. Column is default value
-      source: FileName
-      regex: '\d{4}-\d{2}-\d{2}|\d{4}\d{2}\d{2}'
-      formats:
-        - 'yyyy-MM-dd'
-        - 'yyyyMMdd'
     data-values:
       - header: "Total field [nT]"
         semantic: "TMI"
@@ -71,4 +64,5 @@
       - header: "Line"
         semantic: "Line"
         units: ""
+
 

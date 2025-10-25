@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 
 import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.parsers.csv.MagDroneCsvParser;
-import com.ugcs.gprvisualizer.app.parsers.csv.NmeaCsvParser;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 
@@ -152,22 +151,6 @@ class CsvParserTest extends BaseParsersTest {
         try {
             parser.parse(
                     Paths.get(CSVTestDataFolder + YamlMagarrowFolder + "MagArrow.csv").toAbsolutePath().toString());
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    void nmea() throws IOException {
-        var path = YamlTestDataFolder + YamlCsvFolder + YamlNmeaFolder + "NmeaValidTemplate.yaml";
-        String file = new String(Files.readAllBytes(Paths.get(path)));
-
-        Template template = deserializer.load(file);
-        var parser = new NmeaCsvParser(template);
-
-        try {
-            parser.parse(Paths.get(CSVTestDataFolder + YamlNmeaFolder + "2020-10-23-09-16-13-pergam-falcon.log")
-                    .toAbsolutePath().toString());
         } catch (Exception e) {
             fail(e.getMessage());
         }

@@ -111,7 +111,10 @@ public class MetaFile {
             int traceIndex = value.getTraceIndex();
             Trace trace = traces.get(traceIndex);
 
-            value.setLatLon(trace.getLatLon());
+            LatLon latLon = trace.getLatLon();
+            if (latLon != null) {
+                value.setLatLon(trace.getLatLon());
+            }
         }
     }
 

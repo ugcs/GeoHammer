@@ -280,12 +280,6 @@ public abstract class Parser {
         //throw new CsvParsingException(null, "Cannot parse date and time from file");
     }
 
-    public boolean parseMark(String[] values) {
-        BaseData markColumn = template.getDataMapping().getDataValueBySemantic(Semantic.MARK.getName());
-        Integer mark = parseInt(getString(values, markColumn));
-        return mark != null && mark == 1;
-    }
-
     // primitive type parsers
 
     public Number parseNumber(String value) {

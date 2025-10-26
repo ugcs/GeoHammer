@@ -19,8 +19,6 @@ public class GeoData extends GeoCoordinates {
      */
     private String[] sourceLine;
 
-    private boolean marked;
-
     private List<SensorValue> sensorValues;
 
     public GeoData(double latitude, double longitude) {
@@ -31,7 +29,6 @@ public class GeoData extends GeoCoordinates {
         super(other);
 
         this.sourceLine = other.sourceLine;
-        this.marked = other.marked;
         this.sensorValues = new ArrayList<>();
         for (SensorValue sensorValue : other.sensorValues) {
             sensorValues.add(new SensorValue(sensorValue));
@@ -45,14 +42,6 @@ public class GeoData extends GeoCoordinates {
 	public void setSourceLine(String[] sourceLine) {
 		this.sourceLine = sourceLine;
 	}
-
-    public boolean isMarked() {
-        return marked;
-    }
-
-    public void setMarked(boolean marked) {
-        this.marked = marked;
-    }
 
     public List<SensorValue> getSensorValues() {
         return sensorValues;

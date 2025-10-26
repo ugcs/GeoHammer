@@ -220,7 +220,6 @@ public class CsvParser extends Parser {
             GeoData geoData = new GeoData(latitude, longitude);
             geoData.setAltitude(parseAltitude(values));
             geoData.setDateTime(parseDateTime(values));
-            geoData.setMarked(parseMark(values));
 
             List<SensorValue> sensorValues = new ArrayList<>();
             for (String header : dataHeaders) {

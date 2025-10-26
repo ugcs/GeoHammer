@@ -79,13 +79,16 @@ public class CsvFile extends SgyFile {
             setFile(csvFile);
         }
 
+        String markHeader = GeoData.getHeader(Semantic.MARK, getTemplate());
         for (GeoCoordinates coord : coordinates) {
             // Added points if lat and lon are not 0 and point is close to the first point
-            if (coord.getLatitude().intValue() != 0) {
+            if (coord.getLatitude() != 0.0 && coord.getLongitude() != 0.0) {
                 if (coord instanceof GeoData value) {
                     int traceIndex = geoData.size();
                     geoData.add(value);
-                    if (value.isMarked()) {
+                    // create mark
+                    boolean marked = value.getInt(markHeader).orElse(0) == 1;
+                    if (marked) {
                         TraceKey traceKey = new TraceKey(this, traceIndex);
                         getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
                     }
@@ -126,12 +129,12 @@ public class CsvFile extends SgyFile {
                 .collect(Collectors.toSet());
         String markHeader = GeoData.getHeader(Semantic.MARK, getTemplate());
         for (int i = 0; i < geoData.size(); i++) {
-            GeoData gd = geoData.get(i);
-            boolean marked = gd.isMarked() || foundPlaces.contains(i);
-            gd.setSensorValue(markHeader, marked ? 1 : 0);
+            GeoData value = geoData.get(i);
+            boolean marked = foundPlaces.contains(i);
+            value.setSensorValue(markHeader, marked ? 1 : 0);
         }
 
-        String separator = parser.getTemplate().getFileFormat().getSeparator();
+        String separator = getTemplate().getFileFormat().getSeparator();
         String skippedLines = parser.getSkippedLines();
 
         Map<String, Integer> headers = parser.getHeaders();

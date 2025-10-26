@@ -134,9 +134,14 @@ public class SensorLineChart extends Chart {
     public List<PlotData> generatePlotData(CsvFile csvFile) {
         // header -> unit
         Map<String, String> headers = new LinkedHashMap<>();
+        String markHeader = GeoData.getHeader(Semantic.MARK, csvFile.getTemplate());
         for (GeoData data : csvFile.getGeoData()) {
             for (SensorValue value : data.getSensorValues()) {
-                headers.putIfAbsent(value.header(), Strings.nullToEmpty(value.unit()));
+                String header = value.header();
+                if (Objects.equals(header, markHeader)) {
+                    continue; // skip mark series
+                }
+                headers.putIfAbsent(header, Strings.nullToEmpty(value.unit()));
             }
         }
 

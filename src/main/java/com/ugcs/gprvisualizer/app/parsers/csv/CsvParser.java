@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,11 +16,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.parsers.*;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
+import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
+import com.ugcs.gprvisualizer.app.yaml.data.Date;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
@@ -27,9 +31,7 @@ import com.ugcs.gprvisualizer.utils.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ugcs.gprvisualizer.app.parsers.exceptions.ColumnsMatchingException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
-import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.app.yaml.data.Date.Source;
 
 public class CsvParser extends Parser {
@@ -63,11 +65,6 @@ public class CsvParser extends Parser {
 
         DataMapping mapping = template.getDataMapping();
 
-        // date from filename
-        if (mapping.getDate() != null && mapping.getDate().getSource() == Source.FileName) {
-            dateFromFilename = parseDateFromFilename(file.getName());
-        }
-
         // header -> index
         this.headers = new HashMap<>();
         List<String[]> data = new ArrayList<>();
@@ -98,10 +95,13 @@ public class CsvParser extends Parser {
             throw new CancellationException();
         }
 
+        // date from filename
+        dateFromFilename = getDateFromFilename(file.getName());
+
         List<GeoCoordinates> coordinates = parseData(headers, data);
 
         // timestamps could be in wrong order in the file
-        if (hasHeader(mapping.getTimestamp())) {
+        if (template.isReorderByTime()) {
             coordinates.sort(Comparator.comparing(GeoCoordinates::getDateTime));
         }
 
@@ -129,65 +129,65 @@ public class CsvParser extends Parser {
         return headers;
     }
 
-    private List<String> getDataHeaders(Map<String, Integer> headers, List<String[]> data) {
-        Check.notNull(headers);
+    private List<String> getDataHeaders(List<String[]> data) {
+        DataMapping mapping = template.getDataMapping();
 
         List<String> dataHeaders = new ArrayList<>();
 
-        // columns declared in template:
-        // - present in a file
-        // - is line or mark column
-        // - is anomaly column
-        for (SensorData column : Nulls.toEmpty(template.getDataMapping().getDataValues())) {
+        // data columns declared in template
+        for (SensorData column : Nulls.toEmpty(mapping.getDataValues())) {
             if (column == null) {
                 continue;
             }
             String header = column.getHeader();
-            if (headers.containsKey(header)) {
+            // present in a file
+            if (hasHeader(header)) {
                 dataHeaders.add(header);
                 continue;
             }
+            // is line or mark column
             String semantic = column.getSemantic();
             if (Objects.equals(semantic, Semantic.LINE.getName()) ||
                     Objects.equals(semantic, Semantic.MARK.getName())) {
                 dataHeaders.add(header);
                 continue;
             }
+            // is anomaly column
             if (semantic.endsWith(Semantic.ANOMALY_SUFFIX)) {
                 String sourceSemantic = semantic.substring(
                         0, semantic.length() - Semantic.ANOMALY_SUFFIX.length());
-                SensorData sourceColumn = template.getDataMapping().getDataValueBySemantic(sourceSemantic);
-                if (sourceColumn != null && headers.containsKey(sourceColumn.getHeader())) {
+                SensorData sourceColumn = mapping.getDataValueBySemantic(sourceSemantic);
+                if (hasHeader(sourceColumn)) {
                     dataHeaders.add(header);
                 }
             }
         }
 
         // non-empty columns with numbers
-        Set<String> templateHeaders = new HashSet<>(dataHeaders);
-        List<String> nonTemplateHeaders = new ArrayList<>();
-        for (Map.Entry<String, Integer> e : headers.entrySet()) {
-            String header = e.getKey();
+        Set<String> templateHeaders = Nulls.toEmpty(mapping.getAllValues()).stream()
+                .filter(Objects::nonNull)
+                .map(BaseData::getHeader)
+                .filter(h -> !Strings.isNullOrBlank(h))
+                .collect(Collectors.toSet());
+
+        for (String header : headers.keySet()) {
             if (templateHeaders.contains(header)) {
                 continue;
             }
-            Integer columnIndex = e.getValue();
-            if (isNonEmptyNumericColumn(data, columnIndex)) {
-                nonTemplateHeaders.add(header);
+            if (isNonEmptyNumericColumn(data, header)) {
+                dataHeaders.add(header);
             }
         }
-        nonTemplateHeaders.sort(Comparator.naturalOrder());
-        dataHeaders.addAll(nonTemplateHeaders);
 
         return dataHeaders;
     }
 
-    private boolean isNonEmptyNumericColumn(List<String[]> data, int columnIndex) {
+    private boolean isNonEmptyNumericColumn(List<String[]> data, String header) {
+        if (!hasHeader(header)) {
+            return false;
+        }
         for (String[] values : Nulls.toEmpty(data)) {
-            if (columnIndex < 0 || columnIndex >= values.length) {
-                continue;
-            }
-            Number number = parseNumber(null, values[columnIndex]);
+            Number number = parseNumber(values, header);
             if (number != null) {
                 return true;
             }
@@ -199,7 +199,7 @@ public class CsvParser extends Parser {
         DataMapping mapping = template.getDataMapping();
 
         // list of data headers to load
-        var dataHeaders = getDataHeaders(headers, data);
+        var dataHeaders = getDataHeaders(data);
 
         List<GeoCoordinates> coordinates = new ArrayList<>();
 
@@ -223,6 +223,9 @@ public class CsvParser extends Parser {
             Double altitude = parseAltitude(values);
 
             LocalDateTime dateTime = parseDateTime(values);
+            if (dateTime == null) {
+                continue;
+            }
 
             Integer traceNumber = parseTraceNumber(values);
             if (traceNumber == null) {
@@ -259,7 +262,15 @@ public class CsvParser extends Parser {
         DataMapping mapping = template.getDataMapping();
 
         if (!hasHeader(mapping.getLatitude()) || !hasHeader(mapping.getLongitude())) {
-            throw new ColumnsMatchingException("Column names for latitude and longitude are not matched");
+            throw new CsvParsingException(null, "Column names for latitude and longitude are not matched");
         }
+    }
+
+    private LocalDate getDateFromFilename(String filename) {
+        Date dateColumn = template.getDataMapping().getDate();
+        if (dateColumn != null && dateColumn.getSource() == Source.FileName) {
+            return parseDateFromFilename(filename);
+        }
+        return null;
     }
 }

@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.csv.CsvParsersFactory;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParserFactory;
 import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 
@@ -71,7 +71,7 @@ public class CsvFile extends SgyFile {
 
         log.debug("template: {}", fileTemplate.getName());
 
-        parser = new CsvParsersFactory().createCsvParser(fileTemplate);
+        parser = new CsvParserFactory().createCsvParser(fileTemplate);
 
         List<GeoCoordinates> coordinates = parser.parse(csvFileAbsolutePath);
 

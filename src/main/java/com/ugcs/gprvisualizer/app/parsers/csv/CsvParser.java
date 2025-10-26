@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,7 +18,7 @@ import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.parsers.*;
-import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.ParseException;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
@@ -52,10 +51,9 @@ public class CsvParser extends Parser {
         } catch (FileNotFoundException | CancellationException | IncorrectDateFormatException e) {
             throw e;
         } catch (Exception e) {
-            e.printStackTrace();
             String message = Strings.nullToEmpty(e.getMessage())
                     + ", used template: " + template.getName();
-            throw new CsvParsingException(file, message);
+            throw new ParseException(message, e);
         }
     }
 
@@ -262,7 +260,7 @@ public class CsvParser extends Parser {
         DataMapping mapping = template.getDataMapping();
 
         if (!hasHeader(mapping.getLatitude()) || !hasHeader(mapping.getLongitude())) {
-            throw new CsvParsingException(null, "Column names for latitude and longitude are not matched");
+            throw new ParseException("Column names for latitude and longitude are not matched");
         }
     }
 

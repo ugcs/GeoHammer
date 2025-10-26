@@ -1,6 +1,6 @@
 package com.ugcs.gprvisualizer.app.parsers;
 
-import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
+import com.ugcs.gprvisualizer.app.parsers.exceptions.ParseException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,7 +57,7 @@ class CsvParserTest extends BaseParsersTest {
         Template template = deserializer.load(file);
         CsvParser parser = new CsvParser(template);
 
-        assertThrows(CsvParsingException.class, () -> {
+        assertThrows(ParseException.class, () -> {
             parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-missed-headers.csv")
                     .toAbsolutePath().toString());
         });

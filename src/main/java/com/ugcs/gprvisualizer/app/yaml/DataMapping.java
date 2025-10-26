@@ -119,26 +119,26 @@ public class DataMapping {
     }
 
     public List<BaseData> getAllValues() {
-        List<BaseData> columns = new ArrayList<>();
+        List<BaseData> values = new ArrayList<>();
 
-        Nulls.ifPresent(latitude, columns::add);
-        Nulls.ifPresent(longitude, columns::add);
-        Nulls.ifPresent(altitude, columns::add);
-        Nulls.ifPresent(date, columns::add);
-        Nulls.ifPresent(time, columns::add);
-        Nulls.ifPresent(dateTime, columns::add);
-        Nulls.ifPresent(timestamp, columns::add);
-        Nulls.ifPresent(traceNumber, columns::add);
-
-        for (BaseData column : Nulls.toEmpty(dataValues)) {
-            Nulls.ifPresent(column, columns::add);
-        }
+        Nulls.ifPresent(latitude, values::add);
+        Nulls.ifPresent(longitude, values::add);
+        Nulls.ifPresent(altitude, values::add);
+        Nulls.ifPresent(date, values::add);
+        Nulls.ifPresent(time, values::add);
+        Nulls.ifPresent(dateTime, values::add);
+        Nulls.ifPresent(timestamp, values::add);
+        Nulls.ifPresent(traceNumber, values::add);
 
         for (BaseData column : Nulls.toEmpty(sgyTraces)) {
-            Nulls.ifPresent(column, columns::add);
+            Nulls.ifPresent(column, values::add);
         }
 
-        return columns;
+        for (BaseData column : Nulls.toEmpty(dataValues)) {
+            Nulls.ifPresent(column, values::add);
+        }
+
+        return values;
     }
 
     public boolean addDataValue(SensorData sensorData) {

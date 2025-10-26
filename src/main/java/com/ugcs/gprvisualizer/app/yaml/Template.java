@@ -22,6 +22,7 @@ public class Template {
     private String dataValidation;
     private DataMapping dataMapping;
     private SkipLinesTo skipLinesTo;
+    private boolean reorderByTime = false;
 
     /**
      * Initialize template on load
@@ -231,6 +232,14 @@ public class Template {
      */
     public void setSkipLinesTo(SkipLinesTo skipLinesTo) {
         this.skipLinesTo = skipLinesTo;
+    }
+
+    public boolean isReorderByTime() {
+        return reorderByTime;
+    }
+
+    public void setReorderByTime(boolean reorderByTime) {
+        this.reorderByTime = reorderByTime;
     }
 
     /**

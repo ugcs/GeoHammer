@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
-import com.ugcs.gprvisualizer.app.parsers.csv.MagDroneCsvParser;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 
@@ -116,7 +115,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        Parser parser = new MagDroneCsvParser(template);
+        Parser parser = new CsvParser(template);
 
         try {
             parser.parse(
@@ -132,7 +131,7 @@ class CsvParserTest extends BaseParsersTest {
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = deserializer.load(file);
-        var parser = new MagDroneCsvParser(template);
+        var parser = new CsvParser(template);
 
         Assertions.assertThrows(Exception.class, () -> {
             parser.parse(

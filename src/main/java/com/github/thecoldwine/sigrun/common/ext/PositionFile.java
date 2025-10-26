@@ -16,7 +16,7 @@ import com.ugcs.gprvisualizer.utils.FileTypes;
 
 import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.csv.CsvParsersFactory;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParserFactory;
 import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.math.HorizontalProfile;
@@ -117,7 +117,7 @@ public class PositionFile {
 		}
 
 		log.info("Using position file template: {}", template.getName());
-		parser = new CsvParsersFactory().createCsvParser(template);
+		parser = new CsvParserFactory().createCsvParser(template);
         return parser.parse(path);
 	}
 

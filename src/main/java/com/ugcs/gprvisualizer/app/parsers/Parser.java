@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.ugcs.gprvisualizer.app.parsers.exceptions.CsvParsingException;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.data.Date;
@@ -230,15 +229,20 @@ public abstract class Parser {
     public LocalDateTime parseDateTime(String[] values) {
         DataMapping mapping = template.getDataMapping();
 
+        LocalDateTime dateTime = null;
+
         // dateTime column
         DateTime dateTimeColumn = mapping.getDateTime();
         if (hasHeader(dateTimeColumn)) {
             String value = getString(values, dateTimeColumn);
             if (dateTimeColumn.getType() == DateTime.Type.GPST) {
-                return parseGpsDateTime(value);
+                dateTime = parseGpsDateTime(value);
             } else {
-                return parseDateTime(value, dateTimeColumn.getFormat());
+                dateTime = parseDateTime(value, dateTimeColumn.getFormat());
             }
+        }
+        if (dateTime != null) {
+            return dateTime;
         }
 
         // date + time columns
@@ -246,35 +250,34 @@ public abstract class Parser {
         DateTime timeColumn = mapping.getTime();
         if (hasHeader(timeColumn)) {
             LocalTime time = parseTime(getString(values, timeColumn), timeColumn.getFormat());
-            if (time == null) {
-                throw new CsvParsingException(null, "Time not found in a data file");
-            }
-
-            Date dateColumn = mapping.getDate();
-            if (hasHeader(dateColumn)) {
-                LocalDate date = parseDate(getString(values, dateColumn), dateColumn.getFormat());
-                if (date == null) {
-                    throw new CsvParsingException(null, "Date not found in a data file");
+            if (time != null) {
+                Date dateColumn = mapping.getDate();
+                if (hasHeader(dateColumn)) {
+                    LocalDate date = parseDate(getString(values, dateColumn), dateColumn.getFormat());
+                    if (date != null) {
+                        dateTime = LocalDateTime.of(date, time);
+                    }
                 }
-                return LocalDateTime.of(date, time);
-            }
-
-            if (dateFromFilename != null) {
-                return LocalDateTime.of(dateFromFilename, time);
+                if (dateTime == null && dateFromFilename != null) {
+                    dateTime = LocalDateTime.of(dateFromFilename, time);
+                }
             }
         }
+        if (dateTime != null) {
+            return dateTime;
+        }
 
-        // timestamp column
+        // timestamp columns
         BaseData timestampColumn = mapping.getTimestamp();
         if (hasHeader(timestampColumn)) {
             Long timestamp = parseLong(getString(values, timestampColumn));
-            if (timestamp == null) {
-                throw new CsvParsingException(null, "Timestamp not found in a data file");
+            if (timestamp != null) {
+                dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"));
             }
-            return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
         }
 
-        throw new CsvParsingException(null, "Cannot parse date and time from file");
+        return dateTime;
+        //throw new CsvParsingException(null, "Cannot parse date and time from file");
     }
 
     public boolean parseMark(String[] values) {

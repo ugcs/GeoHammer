@@ -1,26 +1,27 @@
 package com.ugcs.gprvisualizer.app;
 
-import javafx.geometry.HPos;
-import javafx.geometry.Insets;
-import javafx.scene.input.MouseButton;
-import org.springframework.stereotype.Component;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.intf.Status;
-
+import com.ugcs.gprvisualizer.ui.Toast;
 import javafx.application.Platform;
+import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.stream.Collectors;
+import org.springframework.stereotype.Component;
 
 @Component
 public class StatusBar extends GridPane implements Status {
@@ -143,6 +144,16 @@ public class StatusBar extends GridPane implements Status {
 		listView.setPrefHeight(Math.min(messageHistory.size() * 48, 400));
 		listView.setPrefWidth(800);
 
+		listView.setOnMouseClicked(me -> {
+			if (!listView.getSelectionModel().isEmpty() && MouseButton.PRIMARY.equals(me.getButton())) {
+				String selected = listView.getSelectionModel().getSelectedItem();
+				if (selected != null && !selected.isEmpty()) {
+					copyToClipboard(selected);
+					Toast.show("Copied to clipboard", textField, me.getScreenX(), me.getScreenY());
+				}
+			}
+		});
+
 		// Create a VBox to hold the ListView
 		VBox vbox = new VBox(listView);
 		//vbox.setPadding(new Insets(2));
@@ -153,5 +164,11 @@ public class StatusBar extends GridPane implements Status {
 		historyPopup.getContent().add(vbox);
 		historyPopup.setAutoHide(true);
 		historyPopup.show(textField, event.getScreenX(), event.getScreenY());
+	}
+
+	private void copyToClipboard(String text) {
+		ClipboardContent content = new ClipboardContent();
+		content.putString(text);
+		Clipboard.getSystemClipboard().setContent(content);
 	}
 }

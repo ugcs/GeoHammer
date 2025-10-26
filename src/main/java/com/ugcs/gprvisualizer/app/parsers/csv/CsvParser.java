@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -100,7 +99,9 @@ public class CsvParser extends Parser {
 
         // timestamps could be in wrong order in the file
         if (template.isReorderByTime()) {
-            coordinates.sort(Comparator.comparing(GeoCoordinates::getDateTime));
+            coordinates.sort(Comparator.comparing(
+                    GeoCoordinates::getDateTime,
+                    Comparator.nullsFirst(Comparator.naturalOrder())));
         }
 
         return coordinates;
@@ -201,7 +202,6 @@ public class CsvParser extends Parser {
 
         List<GeoCoordinates> coordinates = new ArrayList<>();
 
-        var traceCount = 0;
         for (String[] values : data) {
             if (Thread.currentThread().isInterrupted()) {
                 break;
@@ -213,24 +213,14 @@ public class CsvParser extends Parser {
 
             Double latitude = parseLatitude(values);
             Double longitude = parseLongitude(values);
-
             if (latitude == null || longitude == null) {
                 continue;
             }
 
-            Double altitude = parseAltitude(values);
-
-            LocalDateTime dateTime = parseDateTime(values);
-            if (dateTime == null) {
-                continue;
-            }
-
-            Integer traceNumber = parseTraceNumber(values);
-            if (traceNumber == null) {
-                traceNumber = traceCount;
-            }
-
-            boolean marked = parseMark(values);
+            GeoData geoData = new GeoData(latitude, longitude);
+            geoData.setAltitude(parseAltitude(values));
+            geoData.setDateTime(parseDateTime(values));
+            geoData.setMarked(parseMark(values));
 
             List<SensorValue> sensorValues = new ArrayList<>();
             for (String header : dataHeaders) {
@@ -244,12 +234,8 @@ public class CsvParser extends Parser {
                         number);
                 sensorValues.add(sensorValue);
             }
-
-            traceCount++;
-
-            var geoCoordinates = new GeoCoordinates(dateTime, latitude, longitude, altitude, traceNumber);
-            var geoData = new GeoData(marked, values, sensorValues, geoCoordinates);
-
+            geoData.setSensorValues(sensorValues);
+            geoData.setSourceLine(values);
             coordinates.add(geoData);
         }
 

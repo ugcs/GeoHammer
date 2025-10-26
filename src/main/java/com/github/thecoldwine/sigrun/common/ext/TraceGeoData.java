@@ -1,40 +1,17 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
-import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class TraceGeoData extends GeoData {
 
     private int traceIndex;
 
-    private static List<SensorValue> newSensorValues() {
-        return new ArrayList<>();
-    }
-
-    private static GeoCoordinates newGeoCoordinates(double latitude, double longitude) {
-        return new GeoCoordinates(
-                latitude,
-                longitude,
-                null,
-                null,
-                0,
-                null
-        );
-    }
-
     public TraceGeoData(int traceIndex) {
-        super(
-                false,
-                null,
-                newSensorValues(),
-                newGeoCoordinates(0, 0)
+        super(0, 0);
 
-        );
-
+        setSensorValues(new ArrayList<>());
         this.traceIndex = traceIndex;
     }
 

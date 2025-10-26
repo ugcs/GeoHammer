@@ -1,50 +1,45 @@
 package com.ugcs.gprvisualizer.app.parsers;
 
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
+import com.ugcs.gprvisualizer.utils.Check;
 
 import java.time.LocalDateTime;
 
 public class GeoCoordinates {
 
-    private Double latitude;
-    private Double longitude;
+    private double latitude;
+
+    private double longitude;
+
     private Double altitude;
-    private Double timeInMs;
-    private Integer traceNumber;
+
     private LocalDateTime dateTime;
 
-    protected GeoCoordinates() {
+    public GeoCoordinates() {
+        this(0,0);
     }
 
-    public GeoCoordinates(double latitude, double longitude, Double altitude, Double timeInMs, int traceNumber,
-            LocalDateTime dateTime) {
+    public GeoCoordinates(double latitude, double longitude) {
         this.latitude = latitude;
         this.longitude = longitude;
-        this.altitude = altitude;
-        this.timeInMs = timeInMs;
-        this.traceNumber = traceNumber;
-        this.dateTime = dateTime;
     }
 
-    public GeoCoordinates(LocalDateTime dateTime, double lat, double lon, Double alt, int traceNumber) {
-        this(lat, lon, alt, null, traceNumber, dateTime);
+    public GeoCoordinates(GeoCoordinates other) {
+        this.latitude = other.latitude;
+        this.longitude = other.longitude;
+        this.altitude = other.altitude;
+        this.dateTime = other.dateTime;
     }
 
     public LatLon getLatLon() {
-        if (latitude == null || longitude == null) {
-            return null;
-        }
         return new LatLon(latitude, longitude);
     }
 
     public void setLatLon(LatLon latLon) {
-        if (latLon != null) {
-            latitude = latLon.getLatDgr();
-            longitude = latLon.getLonDgr();
-        } else {
-            latitude = null;
-            longitude = null;
-        }
+        Check.notNull(latLon);
+
+        latitude = latLon.getLatDgr();
+        longitude = latLon.getLonDgr();
     }
 
     public Double getLatitude() {
@@ -67,24 +62,8 @@ public class GeoCoordinates {
         return altitude;
     }
 
-    public void setAltitude(double altitude) {
+    public void setAltitude(Double altitude) {
         this.altitude = altitude;
-    }
-
-    public Double getTimeInMs() {
-        return timeInMs;
-    }
-
-    public void setTimeInMs(double timeInMs) {
-        this.timeInMs = timeInMs;
-    }
-
-    public Integer getTraceNumber() {
-        return traceNumber;
-    }
-
-    public void setTraceNumber(int traceNumber) {
-        this.traceNumber = traceNumber;
     }
 
     public LocalDateTime getDateTime() {

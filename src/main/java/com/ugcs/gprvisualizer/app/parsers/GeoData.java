@@ -14,30 +14,28 @@ import java.util.Optional;
 
 public class GeoData extends GeoCoordinates {
 
-    private final List<SensorValue> sensorValues;
-
     /**
      * Original line from source file
      */
     private String[] sourceLine;
 
-    private final boolean marked;
+    private boolean marked;
 
-    public GeoData(boolean marked, String[] sourceLine, List<SensorValue> sensorValues, GeoCoordinates geoCoordinates) {
-        super(geoCoordinates.getLatitude(), geoCoordinates.getLongitude(), geoCoordinates.getAltitude(), geoCoordinates.getTimeInMs(), geoCoordinates.getTraceNumber(), geoCoordinates.getDateTime());
-        this.sensorValues = sensorValues;
-        this.sourceLine = sourceLine;
-        this.marked = marked;
+    private List<SensorValue> sensorValues;
+
+    public GeoData(double latitude, double longitude) {
+        super(latitude, longitude);
     }
 
-    public GeoData(GeoData geoData) {
-        super(geoData.getLatitude(), geoData.getLongitude(), geoData.getAltitude(), geoData.getTimeInMs(), geoData.getTraceNumber(), geoData.getDateTime());
+    public GeoData(GeoData other) {
+        super(other);
+
+        this.sourceLine = other.sourceLine;
+        this.marked = other.marked;
         this.sensorValues = new ArrayList<>();
-        for (SensorValue sensorValue : geoData.sensorValues) {
+        for (SensorValue sensorValue : other.sensorValues) {
             sensorValues.add(new SensorValue(sensorValue));
         }
-        this.sourceLine = geoData.sourceLine;
-        this.marked = geoData.marked;
     }
 
 	public String[] getSourceLine() {
@@ -47,6 +45,14 @@ public class GeoData extends GeoCoordinates {
 	public void setSourceLine(String[] sourceLine) {
 		this.sourceLine = sourceLine;
 	}
+
+    public boolean isMarked() {
+        return marked;
+    }
+
+    public void setMarked(boolean marked) {
+        this.marked = marked;
+    }
 
     public List<SensorValue> getSensorValues() {
         return sensorValues;
@@ -64,6 +70,10 @@ public class GeoData extends GeoCoordinates {
             }
         }
         return result;
+    }
+
+    public void setSensorValues(List<SensorValue> sensorValues) {
+        this.sensorValues = sensorValues;
     }
 
     public void setSensorValue(String header, Number value) {
@@ -107,9 +117,7 @@ public class GeoData extends GeoCoordinates {
                 : Optional.empty();
     }
 
-    public boolean isMarked() {
-        return marked;
-    }
+    // static utility helpers
 
     public static String getHeaderInFile(Semantic semantic, SgyFile file) {
         return getHeaderInFile(semantic.getName(), file);

@@ -4,14 +4,14 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
+from scipy.signal import find_peaks
 
 
 def markExtremes(
     df: pd.DataFrame,
     column: str,
     threshold: float,
-    window_width: int,
-    equality_tolerance: float = 0.0,
+    window_width: int
 ) -> Dict[int, float]:
     """
     Return a dict mapping positional row index -> amplitude (signed deviation from window median)
@@ -27,40 +27,18 @@ def markExtremes(
     if W <= 0:
         raise ValueError("window_width must be > 0")
 
-    column_data = pd.to_numeric(df[column], errors="coerce").to_numpy()
-    n = column_data.size
-    mapping: Dict[int, float] = {}
+    series = pd.to_numeric(df[column], errors="coerce")
 
-    if n == 0:
-        return mapping
+    roll_median = series.rolling(W, center=True, min_periods=1).median()
+    deviation = series - roll_median
 
-    half_w = W // 2
+    peaks_max, _ = find_peaks(series.fillna(-np.inf), distance=1, prominence=threshold)
+    peaks_min, _ = find_peaks(-series.fillna(np.inf), distance=1, prominence=threshold)
 
-    for i in range(n):
-        start = max(0, i - half_w)
-        end = min(n, i + half_w + 1)
-        
-        window = column_data[start:end]
-        window_min = np.nanmin(window)
-        window_max = np.nanmax(window)
-        window_median = np.nanmedian(window)
-        
-        if np.isnan(window_min) or np.isnan(window_max) or np.isnan(window_median):
-            continue
-            
-        value = column_data[i]
-        if np.isnan(value):
-            continue
-        
-        is_min = (np.abs(value - window_min) <= equality_tolerance)
-        is_max = (np.abs(value - window_max) <= equality_tolerance)
-        
-        if is_min or is_max:
-            deviation = value - window_median
-            if np.abs(deviation) > threshold:
-                mapping[i] = float(deviation)
+    all_extrema = np.concatenate([peaks_max, peaks_min])
+    mask = deviation.iloc[all_extrema].abs() > threshold
     
-    return mapping
+    return deviation.iloc[all_extrema[mask]].to_dict()
 
 def _latlon_to_webmercator(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     """Convert WGS84 lat/lon (degrees) to Web Mercator X,Y (meters)."""
@@ -155,7 +133,6 @@ def main():
     parser.add_argument("-w", "--window", required=True, type=int, help="Window (samples)")
     parser.add_argument("-r", "--radius", required=True, type=float, help="Clustering radius (meters)")
     parser.add_argument("--clear-marks", action="store_true", default=False, help="Clear all previous Mark values before writing new marks")
-    parser.add_argument("-e", "--tolerance", type=float, default=0.0, help="Equality tolerance for min/max")
     parser.add_argument("--lat-col", default="Latitude", help="Latitude column name")
     parser.add_argument("--lon-col", default="Longitude", help="Longitude column name")
     args = parser.parse_args()
@@ -167,8 +144,7 @@ def main():
         df,
         column=args.column,
         threshold=args.threshold,
-        window_width=args.window,
-        equality_tolerance=args.tolerance,
+        window_width=args.window
     )
 
     clustered_map = cluster_by_radius_2d(

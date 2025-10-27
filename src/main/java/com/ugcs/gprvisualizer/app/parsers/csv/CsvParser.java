@@ -2,7 +2,6 @@ package com.ugcs.gprvisualizer.app.parsers.csv;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.time.Instant;
@@ -80,7 +79,7 @@ public class CsvParser extends Parser {
     }
 
     @Override
-    public List<GeoCoordinates> parse(String path) throws FileNotFoundException {
+    public List<GeoCoordinates> parse(String path) throws IOException {
         Check.notEmpty(path);
 
         File file = new File(path);
@@ -107,12 +106,12 @@ public class CsvParser extends Parser {
             }
 
             return coordinates;
-        } catch (FileNotFoundException | CancellationException | IncorrectDateFormatException e) {
+        } catch (IOException | CancellationException e) {
             throw e;
         } catch (Exception e) {
-            String message = Strings.nullToEmpty(e.getMessage())
-                    + ", used template: " + template.getName();
-            throw new ParseException(message, e);
+            throw new ParseException("Failed to parse " + file.getName()
+                    + " with template '" + template.getName() + "': "
+                    + Strings.nullToEmpty(e.getMessage()), e);
         }
     }
 

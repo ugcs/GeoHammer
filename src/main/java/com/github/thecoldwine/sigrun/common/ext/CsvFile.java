@@ -6,11 +6,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.ugcs.gprvisualizer.app.AppContext;
@@ -18,6 +18,7 @@ import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
+import com.ugcs.gprvisualizer.app.yaml.FileFormat;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
@@ -61,19 +62,16 @@ public class CsvFile extends SgyFile {
 
     @Override
     public void open(File csvFile) throws IOException {
-
-        String csvFileAbsolutePath = csvFile.getAbsolutePath();
-        var fileTemplate = fileTemplates.findTemplate(fileTemplates.getTemplates(), csvFileAbsolutePath);
-
-        if (fileTemplate == null) {
+        String path = csvFile.getAbsolutePath();
+        Template template = fileTemplates.findTemplate(fileTemplates.getTemplates(), path);
+        if (template == null) {
             throw new RuntimeException("Can`t find template for file " + csvFile.getName());
         }
 
-        log.debug("template: {}", fileTemplate.getName());
+        log.debug("template: {}", template.getName());
 
-        parser = new CsvParserFactory().createCsvParser(fileTemplate);
-
-        List<GeoCoordinates> coordinates = parser.parse(csvFileAbsolutePath);
+        parser = new CsvParserFactory().createCsvParser(template);
+        List<GeoCoordinates> coordinates = parser.parse(path);
 
         if (getFile() == null) {
             setFile(csvFile);
@@ -123,95 +121,88 @@ public class CsvFile extends SgyFile {
     public void save(File file) throws IOException {
         Check.notNull(file);
 
-        var foundPlaces = getAuxElements().stream()
+        var marks = getAuxElements().stream()
                 .filter(bo -> bo instanceof FoundPlace)
                 .map(bo -> ((FoundPlace) bo).getTraceIndex())
                 .collect(Collectors.toSet());
         String markHeader = GeoData.getHeader(Semantic.MARK, getTemplate());
         for (int i = 0; i < geoData.size(); i++) {
             GeoData value = geoData.get(i);
-            boolean marked = foundPlaces.contains(i);
+            boolean marked = marks.contains(i);
             value.setSensorValue(markHeader, marked ? 1 : 0);
         }
 
-        String separator = getTemplate().getFileFormat().getSeparator();
-        String skippedLines = parser.getSkippedLines();
+        FileFormat fileFormat = getTemplate().getFileFormat();
 
-        Map<String, Integer> headers = parser.getHeaders();
-        Set<String> dataHeaders = getDataHeaders();
-
-        // update headers
-        for (String header : dataHeaders) {
-            if (!skippedLines.contains(header)) {
-                skippedLines = skippedLines.replaceAll(
-                        System.lineSeparator() + "$",
-                        separator + header + System.lineSeparator());
-                parser.getHeaders().put(header, headers.size());
-            }
-        }
+        Map<String, Integer> newHeaders = getHeadersToSave();
 
         try (BufferedWriter writer = Files.newBufferedWriter(file.toPath())) {
-            writer.write(skippedLines);
+            // skipped lines
+            for (String line : Nulls.toEmpty(parser.getSkippedLines())) {
+                writer.write(line);
+                writer.newLine();
+            }
 
-            for (GeoData gd : geoData) {
-                if (gd == null) {
+            // headers
+            if (fileFormat.isHasHeader()) {
+                writer.write(String.join(fileFormat.getSeparator(), orderHeaders(newHeaders)));
+                writer.newLine();
+            }
+
+            // data lines
+            for (GeoData value : geoData) {
+                if (value == null) {
                     continue;
                 }
                 // copy source line
-                String[] sourceLine = gd.getSourceLine();
-                String[] line = Arrays.copyOf(sourceLine, headers.size());
-                for (int i = sourceLine.length; i < line.length; i++) {
-                    line[i] = Strings.empty();
-                }
-
-                for (var sensorValue : gd.getSensorValues()) {
+                String[] line = Arrays.copyOf(value.getSourceLine(), newHeaders.size());
+                for (var sensorValue : value.getSensorValues()) {
                     String header = sensorValue.header();
-                    Integer columnIndex = headers.get(header);
+                    Integer columnIndex = newHeaders.get(header);
                     if (columnIndex == null || columnIndex < 0 || columnIndex >= line.length) {
                         continue;
                     }
-
-                    String sourceValue = columnIndex < sourceLine.length
-                            ? sourceLine[columnIndex]
-                            : null;
-                    Number sourceNumber = parser.parseNumber(null, sourceValue);
-                    if (columnIndex >= sourceLine.length || !Objects.equals(sensorValue.data(), sourceNumber)) {
-                        String value = sensorValue.data() != null
+                    line[columnIndex] = sensorValue.data() != null
                                 ? String.format("%s", sensorValue.data())
                                 : Strings.empty();
-
-                        line[columnIndex] = value;
-                    }
                 }
-                gd.setSourceLine(line);
-                writer.write(String.join(separator, line));
+                writer.write(String.join(fileFormat.getSeparator(), line));
                 writer.newLine();
+
+                value.setSourceLine(line);
             }
+
+            parser.setHeaders(newHeaders);
         }
     }
 
-    private Set<String> getDataHeaders() {
-        Map<String, Integer> headers = parser.getHeaders();
-        Set<String> dataHeaders = new HashSet<>();
-
+    private Map<String, Integer> getHeadersToSave() {
+        Map<String, Integer> newHeaders = new HashMap<>(parser.getHeaders());
         for (GeoData value : Nulls.toEmpty(geoData)) {
             if (value == null) {
                 continue;
             }
             for (SensorValue sensorValue : Nulls.toEmpty(value.getSensorValues())) {
-                if (sensorValue == null) {
+                if (sensorValue == null || sensorValue.data() == null) {
                     continue;
                 }
                 String header = sensorValue.header();
                 if (Strings.isNullOrEmpty(header)) {
                     continue;
                 }
-                if (headers.containsKey(header) || sensorValue.data() != null) {
-                    dataHeaders.add(header);
+                if (!newHeaders.containsKey(header)) {
+                    newHeaders.put(header, newHeaders.size());
                 }
             }
         }
-        return dataHeaders;
+        return newHeaders;
+    }
+
+    private List<String> orderHeaders(Map<String, Integer> headers) {
+        headers = Nulls.toEmpty(headers);
+        List<String> ordered = new ArrayList<>(Collections.nCopies(headers.size(), Strings.empty()));
+        headers.forEach((header, index) -> ordered.set(index, header));
+        return ordered;
     }
 
     @Override

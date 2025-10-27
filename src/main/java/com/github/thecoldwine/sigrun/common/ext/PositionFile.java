@@ -2,7 +2,7 @@ package com.github.thecoldwine.sigrun.common.ext;
 
 import java.awt.Color;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -93,7 +93,7 @@ public class PositionFile {
 		}
 	}
 
-	private void load(TraceFile traceFile, File positionFile) throws FileNotFoundException {
+	private void load(TraceFile traceFile, File positionFile) throws IOException {
 		Check.notNull(traceFile);
 		Check.notNull(positionFile);
 
@@ -107,7 +107,7 @@ public class PositionFile {
 		}
 	}
 
-	private List<GeoCoordinates> parsePositionFile(File file) throws FileNotFoundException {
+	private List<GeoCoordinates> parsePositionFile(File file) throws IOException {
 		Check.notNull(file);
 
 		String path = file.getAbsolutePath();

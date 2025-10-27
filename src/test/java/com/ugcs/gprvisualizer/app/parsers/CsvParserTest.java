@@ -25,7 +25,7 @@ class CsvParserTest extends BaseParsersTest {
 
     @BeforeEach
     void setUp() {
-        csvParser = new CsvParser(null);
+        csvParser = null;
         oldFile = "path/to/oldFile";
         newFile = "path/to/newFile";
         coordinates = new ArrayList<>();

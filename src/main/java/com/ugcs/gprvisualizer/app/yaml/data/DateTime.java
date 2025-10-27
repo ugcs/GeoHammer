@@ -2,7 +2,6 @@ package com.ugcs.gprvisualizer.app.yaml.data;
 
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
-import org.checkerframework.checker.units.qual.A;
 import org.jspecify.annotations.NullUnmarked;
 
 import java.util.ArrayList;

@@ -20,7 +20,11 @@ import java.util.concurrent.CancellationException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import com.ugcs.gprvisualizer.app.parsers.*;
+import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
+import com.ugcs.gprvisualizer.app.parsers.Parser;
+import com.ugcs.gprvisualizer.app.parsers.Semantic;
+import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.ParseException;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;

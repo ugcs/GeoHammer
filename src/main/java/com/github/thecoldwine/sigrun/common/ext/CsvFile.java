@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -145,7 +144,7 @@ public class CsvFile extends SgyFile {
 
             // headers
             if (fileFormat.isHasHeader()) {
-                writer.write(String.join(fileFormat.getSeparator(), orderHeaders(newHeaders)));
+                writer.write(String.join(fileFormat.getSeparator(), buildHeadersLine(newHeaders)));
                 writer.newLine();
             }
 
@@ -154,22 +153,11 @@ public class CsvFile extends SgyFile {
                 if (value == null) {
                     continue;
                 }
-                // copy source line
-                String[] line = Arrays.copyOf(value.getSourceLine(), newHeaders.size());
-                for (var sensorValue : value.getSensorValues()) {
-                    String header = sensorValue.header();
-                    Integer columnIndex = newHeaders.get(header);
-                    if (columnIndex == null || columnIndex < 0 || columnIndex >= line.length) {
-                        continue;
-                    }
-                    line[columnIndex] = sensorValue.data() != null
-                                ? String.format("%s", sensorValue.data())
-                                : Strings.empty();
-                }
-                writer.write(String.join(fileFormat.getSeparator(), line));
+                String[] newLine = buildDataLine(value, newHeaders);
+                writer.write(String.join(fileFormat.getSeparator(), newLine));
                 writer.newLine();
 
-                value.setSourceLine(line);
+                value.setSourceLine(newLine);
             }
 
             parser.setHeaders(newHeaders);
@@ -198,11 +186,36 @@ public class CsvFile extends SgyFile {
         return newHeaders;
     }
 
-    private List<String> orderHeaders(Map<String, Integer> headers) {
+    private String[] buildHeadersLine(Map<String, Integer> headers) {
         headers = Nulls.toEmpty(headers);
-        List<String> ordered = new ArrayList<>(Collections.nCopies(headers.size(), Strings.empty()));
-        headers.forEach((header, index) -> ordered.set(index, header));
-        return ordered;
+
+        String[] line = new String[headers.size()];
+        Arrays.fill(line, Strings.empty());
+        headers.forEach((header, index) -> line[index] = header);
+        return line;
+    }
+
+    private String[] buildDataLine(GeoData value, Map<String, Integer> headers) {
+        Check.notNull(value);
+        headers = Nulls.toEmpty(headers);
+
+        String[] sourceLine = value.getSourceLine();
+        String[] line = Arrays.copyOf(sourceLine, headers.size());
+        for (int i = sourceLine.length; i < line.length; i++) {
+            line[i] = Strings.empty();
+        }
+
+        for (SensorValue sensorValue : value.getSensorValues()) {
+            String header = sensorValue.header();
+            Integer columnIndex = headers.get(header);
+            if (columnIndex == null || columnIndex < 0 || columnIndex >= line.length) {
+                continue;
+            }
+            line[columnIndex] = sensorValue.data() != null
+                    ? String.format("%s", sensorValue.data())
+                    : Strings.empty();
+        }
+        return line;
     }
 
     @Override

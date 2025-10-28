@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -19,9 +18,9 @@ import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectImpl;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
+import com.ugcs.gprvisualizer.utils.Templates;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
-import org.apache.commons.io.FilenameUtils;
 
 import javax.annotation.Nullable;
 
@@ -34,54 +33,33 @@ public class HorizontalRulerController {
     public static Stroke STROKE = new BasicStroke(1.0f);
 
     private final Model model;
-    private final TraceFile file;
+
     private final TemplateSettingsModel templateSettingsModel;
+
+    private final TraceFile file;
 
     public HorizontalRulerController(Model model, TraceFile file, TemplateSettingsModel templateSettingsModel) {
         this.model = model;
         this.file = file;
         this.templateSettingsModel = templateSettingsModel;
-
-        initializeUnitFromTemplate();
-    }
-
-    private void initializeUnitFromTemplate() {
-        File currentFile = file.getFile();
-        if (currentFile != null) {
-            String extension = getFileExtension(currentFile);
-            if (templateSettingsModel.hasUnitForTemplate(extension)) {
-                this.traceUnit = templateSettingsModel.getUnitForTemplate(extension);
-            }
-        }
     }
 
     public BaseObject getTB() {
         return tb;
     }
 
-    @Nullable
-    private TraceUnit traceUnit;
-
     public TraceUnit getUnit() {
-        File currentFile = file.getFile();
-        if (currentFile != null) {
-            String extension = getFileExtension(currentFile);
-            TraceUnit templateTraceUnit = templateSettingsModel.getUnitForTemplate(extension);
-            if (templateTraceUnit != null) {
-                return templateTraceUnit;
-            }
-        }
-        return traceUnit != null ? traceUnit : TraceUnit.getDefault();
+        String templateName = Templates.getTemplateName(file);
+        return templateSettingsModel.getTraceUnit(templateName);
     }
 
     public void setUnit(TraceUnit traceUnit) {
-        this.traceUnit = traceUnit;
-
-        File currentFile = file.getFile();
-        if (currentFile != null) {
-            String extension = getFileExtension(currentFile);
-            templateSettingsModel.setUnitForTemplate(extension, traceUnit);
+        if (traceUnit == null ) {
+            return;
         }
+
+        String templateName = Templates.getTemplateName(file);
+        templateSettingsModel.setTraceUnit(templateName, traceUnit);
     }
 
     private final BaseObject tb = new BaseObjectImpl() {
@@ -148,27 +126,18 @@ public class HorizontalRulerController {
 
                 int nextIndex = (getUnit().ordinal() + 1) % allUnits.length;
                 TraceUnit nextTraceUnit = traceUnits.get(nextIndex);
-                File currentFile = file.getFile();
-                if (currentFile == null) {
-                    return false;
-                }
-                String extension = getFileExtension(currentFile);
-                templateSettingsModel.setUnitForTemplate(extension, nextTraceUnit);
-                traceUnit = nextTraceUnit;
-                notifyTemplateUnitChange(extension, nextTraceUnit);
+                setUnit(nextTraceUnit);
+
+                notifyTemplateUnitChange(nextTraceUnit);
                 return true;
             }
             return false;
         }
 
-        private void notifyTemplateUnitChange(String templateName, TraceUnit newTraceUnit) {
+        private void notifyTemplateUnitChange(TraceUnit newTraceUnit) {
             Platform.runLater(() ->
-                    model.publishEvent(new TemplateUnitChangedEvent(this, file, templateName, newTraceUnit))
+                    model.publishEvent(new TemplateUnitChangedEvent(this, file, newTraceUnit))
             );
         }
     };
-
-    private String getFileExtension(File file) {
-        return FilenameUtils.getExtension(file.getName());
-    }
 }

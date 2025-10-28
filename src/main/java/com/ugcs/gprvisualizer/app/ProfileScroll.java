@@ -135,7 +135,6 @@ public final class ProfileScroll extends Canvas {
 	@Override
 	public void resize(double width, double height) {
 		if (width >= 0 && Math.abs(getWidth() - width) > 1) {
-			System.out.println("ProfileScroll.resize = " + width + " " + height);
 			setWidth(width);
 			setHeight(height);
 			recalc();

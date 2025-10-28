@@ -1,23 +1,21 @@
 package com.ugcs.gprvisualizer.app.service;
 
+import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.analytics.EventSender;
 import com.ugcs.gprvisualizer.analytics.EventsFactory;
 import com.ugcs.gprvisualizer.event.FileOpenErrorEvent;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
-import com.ugcs.gprvisualizer.utils.FileTemplate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Templates;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Nullable;
 import java.io.File;
 
 @Service
 public class FileOpenEventsAnalytics {
 
-    private static final Logger log = LoggerFactory.getLogger(FileOpenEventsAnalytics.class);
     private final EventSender eventSender;
     private final Model model;
     private final EventsFactory eventsFactory;
@@ -30,38 +28,34 @@ public class FileOpenEventsAnalytics {
 
     @EventListener
     public void onFileOpened(FileOpenedEvent event) {
-        for (File file : event.getFiles()) {
-            if (file == null || !file.exists()) {
-                continue;
+        for (File file : Nulls.toEmpty(event.getFiles())) {
+            if (file != null) {
+                String fileType = getFileType(file);
+                eventSender.send(eventsFactory.createFileOpenedEvent(fileType));
             }
-            sendFileAnalyticsEvent(file, null);
         }
     }
 
     @EventListener
     public void onFileOpenError(FileOpenErrorEvent event) {
         File file = event.getFile();
-        if (file == null || !file.exists()) {
-            log.warn("File does not exist or is null: {}", file);
+        if (file == null) {
             return;
         }
+        String fileType = getFileType(file);
         String errorMessage = event.getException() != null
                 ? event.getException().getMessage()
                 : "Unknown error";
-        sendFileAnalyticsEvent(file, errorMessage);
+        eventSender.send(eventsFactory.createFileOpenErrorEvent(fileType, errorMessage));
     }
 
-    private void sendFileAnalyticsEvent(File file, @Nullable String errorMessage) {
-        String fileType = FileTemplate.getTemplateName(model, file);
-        if (fileType == null) {
-            log.warn("Unsupported file type: {}", file.getName());
-            return;
+    private String getFileType(File file) {
+        SgyFile sgyFile = model.getFileManager().getFile(file);
+        // use template name when possible
+        if (sgyFile != null) {
+            return Templates.getTemplateName(sgyFile);
         }
-
-        if (errorMessage == null) {
-            eventSender.send(eventsFactory.createFileOpenedEvent(fileType));
-        } else {
-            eventSender.send(eventsFactory.createFileOpenErrorEvent(fileType, errorMessage));
-        }
+        // or fallback to file name
+        return file.getName();
     }
 }

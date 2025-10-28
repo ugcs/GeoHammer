@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.*;
 import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -78,4 +79,16 @@ public class FileManager {
 		clear();
 		files.addAll(slicedSgyFiles);
     }
+
+	public SgyFile getFile(File file) {
+		if (file == null) {
+			return null;
+		}
+		for (SgyFile sgyFile : files) {
+			if (Objects.equals(file, sgyFile.getFile())) {
+				return sgyFile;
+			}
+		}
+		return null;
+	}
 }

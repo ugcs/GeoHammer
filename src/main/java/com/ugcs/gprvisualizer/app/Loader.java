@@ -356,7 +356,7 @@ public class Loader {
 	private void notifyFileChanged(SgyFile sgyFile) {
 		Check.notNull(sgyFile);
 
-		sgyFile.rebuildLineRanges();
+		sgyFile.tracesChanged();
 
 		Chart chart = model.getFileChart(sgyFile);
 		if (chart != null) {

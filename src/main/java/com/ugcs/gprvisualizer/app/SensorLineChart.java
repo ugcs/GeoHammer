@@ -79,6 +79,7 @@ public class SensorLineChart extends Chart {
 
     private final ApplicationEventPublisher eventPublisher;
     private final TemplateSettingsModel templateSettingsModel;
+    private ValueAxis<Number> xAxis;
     @Nullable
     private LineChartWithMarkers lastLineChart = null;
     private Map<String, LineChartWithMarkers> charts = new HashMap<>();
@@ -213,10 +214,10 @@ public class SensorLineChart extends Chart {
         // Using StackPane to overlay charts
         this.chartsContainer = new StackPane();
 
-        for (PlotData plotData : plotDataList) {
-            ValueAxis<Number> xAxis = createXAxis();
-            ValueAxis<Number> yAxis = createYAxis(plotData);
+        xAxis = createXAxis();
 
+        for (PlotData plotData : plotDataList) {
+            ValueAxis<Number> yAxis = createYAxis(plotData);
             createLineChart(plotData, xAxis, yAxis);
         }
 
@@ -225,20 +226,10 @@ public class SensorLineChart extends Chart {
         if (lastLineChart != null) {
             lastLineChart.setMouseTransparent(false);
 
-            // show x-axis
-            Axis<Number> xAxis = lastLineChart.getXAxis();
-            xAxis.setVisible(true);
-            xAxis.setTickLabelsVisible(true);
-            xAxis.setTickMarkVisible(true);
-
             setSelectionHandlers(lastLineChart);
             setScrollHandlers(lastLineChart);
 
             lastLineChart.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickHandler);
-
-            lastLineChart.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-                log.debug("MouseClicked: " + event.getX() + ", " + event.getY());
-            });
 
             initLineMarkers();
         }
@@ -411,10 +402,6 @@ public class SensorLineChart extends Chart {
         xAxis.setLowerBound(lowerBound);
         xAxis.setUpperBound(upperBound);
 
-        xAxis.setVisible(false);
-        xAxis.setTickLabelsVisible(false);
-        xAxis.setTickMarkVisible(false);
-
         return xAxis;
     }
 
@@ -446,9 +433,7 @@ public class SensorLineChart extends Chart {
         for (PlotData plotData : plotDataList) {
             LineChartWithMarkers lineChart = charts.get(plotData.header());
             if (lineChart == null) {
-				ValueAxis<Number> xAxis = createXAxis();
 				ValueAxis<Number> yAxis = createYAxis(plotData);
-
 				lineChart = createLineChart(plotData, xAxis, yAxis);
 
 				if (lineChart == null) {
@@ -500,12 +485,8 @@ public class SensorLineChart extends Chart {
     }
 
     public void updateXAxisUnits(TraceUnit traceUnit) {
-        for (LineChartWithMarkers chart : charts.values()) {
-            if (chart.getXAxis() instanceof SensorLineChartXAxis xAxis) {
-                Platform.runLater(() -> {
-                    xAxis.setUnit(traceUnit);
-                });
-            }
+        if (xAxis instanceof SensorLineChartXAxis axisWithUnits) {
+            Platform.runLater(() -> axisWithUnits.setUnit(traceUnit));
         }
     }
 
@@ -1684,7 +1665,6 @@ public class SensorLineChart extends Chart {
                         chart.plotData.color,
                         filtered
                 );
-                ValueAxis<Number> xAxis = createXAxis();
                 ValueAxis<Number> yAxis = createYAxis(filteredData);
                 createLineChart(filteredData, xAxis, yAxis);
             } else {

@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
+import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.*;
@@ -24,7 +25,7 @@ import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
-import com.ugcs.gprvisualizer.utils.FileTemplate;
+import com.ugcs.gprvisualizer.utils.Templates;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Traces;
@@ -581,37 +582,27 @@ public class Model implements InitializingBean {
 
 	@EventListener
 	public void onTemplateUnitChanged(TemplateUnitChangedEvent event) {
-		if (event.getUnit() == null || event.getTemplateName() == null || event.getFile() == null) {
+		if (event.getUnit() == null || event.getFile() == null) {
 			return;
 		}
-		File eventFile = event.getFile().getFile();
-		if (FileTypes.isCsvFile(eventFile)) {
-			for (Map.Entry<CsvFile, SensorLineChart> entry : csvFiles.entrySet()) {
-				CsvFile csvFile = entry.getKey();
-				SensorLineChart chart = entry.getValue();
-				File file = csvFile.getFile();
-				if (file == null || Objects.equals(csvFile, event.getFile())) {
-					continue;
-				}
-				if (Objects.equals(FileTemplate.getTemplateName(this, file), event.getTemplateName())) {
+		SgyFile file = event.getFile();
+		String templateName = Templates.getTemplateName(file);
+		if (file instanceof CsvFile) {
+			for (SensorLineChart chart : csvFiles.values()) {
+				CsvFile chartFile = chart.getFile();
+				if (!Objects.equals(file, chartFile)
+						&& Objects.equals(templateName, Templates.getTemplateName(chartFile))) {
 					chart.updateXAxisUnits(event.getUnit());
-					Platform.runLater(chart::reload);
 				}
 			}
-			return;
 		}
-		if (FileTypes.isGprFile(eventFile)) {
-			for (Map.Entry<TraceFile, GPRChart> entry : gprCharts.entrySet()) {
-				TraceFile traceFile = entry.getKey();
-				GPRChart chart = entry.getValue();
-				File file = traceFile.getFile();
-				if (file == null || Objects.equals(traceFile, event.getFile())) {
-					continue;
-				}
-				if (Objects.equals(FileTemplate.getTemplateName(this, file), event.getTemplateName())) {
-					HorizontalRulerController controller = chart.getHorizontalRulerController();
-					controller.setUnit(event.getUnit());
-					Platform.runLater(chart::repaint);
+		if (file instanceof GprFile) {
+			for (GPRChart chart : gprCharts.values()) {
+				TraceFile chartFile = chart.getFile();
+				if (!Objects.equals(file, chartFile)
+						&& Objects.equals(templateName, Templates.getTemplateName(chartFile))) {
+					HorizontalRulerController xRuler = chart.getHorizontalRulerController();
+					xRuler.setUnit(event.getUnit());
 				}
 			}
 		}

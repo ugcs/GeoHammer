@@ -4,7 +4,6 @@ import com.github.thecoldwine.sigrun.common.ext.CsvConfig;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.gpr.Model;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -14,7 +13,7 @@ import org.springframework.context.annotation.Import;
 public class AxisConfig {
 
     @Bean
-    public SensorLineChartXAxis sensorLineChartXAxis(Model model, ApplicationEventPublisher eventPublisher, TemplateSettingsModel templateSettingsModel, CsvFile file) {
+    public SensorLineChartXAxis sensorLineChartXAxis(Model model, TemplateSettingsModel templateSettingsModel, CsvFile file) {
         return new SensorLineChartXAxis(model, templateSettingsModel, file, 10);
     }
 }

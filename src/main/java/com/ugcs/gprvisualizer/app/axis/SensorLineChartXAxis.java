@@ -1,15 +1,16 @@
 package com.ugcs.gprvisualizer.app.axis;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
-import com.ugcs.gprvisualizer.utils.FileTemplate;
+import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Strings;
+import com.ugcs.gprvisualizer.utils.Templates;
 import javafx.application.Platform;
 import javafx.scene.Cursor;
 import javafx.scene.chart.ValueAxis;
@@ -25,9 +26,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Component
@@ -35,25 +34,37 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private static final Logger log = LoggerFactory.getLogger(SensorLineChartXAxis.class);
 
-    private static final DateTimeFormatter TIME_FORMATTER_SECONDS = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final DateTimeFormatter TIME_FORMATTER_MILLISECONDS = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+    private static final DateTimeFormatter SECONDS_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    private static final DateTimeFormatter MILLISECONDS_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
     private final Model model;
+
     private final TemplateSettingsModel templateSettingsModel;
+
     private final DecimalFormat formatter = new DecimalFormat();
+
     private final CsvFile file;
+
     private final int numTicks;
-    @Nonnull
-    private final List<Double> cumulativeDistances = new ArrayList<>();
+
     @Nullable
     private Button labelButton = null;
 
     public SensorLineChartXAxis(Model model, TemplateSettingsModel templateSettingsModel, CsvFile file, int numTicks) {
+        Check.notNull(file);
+
         this.model = model;
         this.templateSettingsModel = templateSettingsModel;
         this.file = file;
         this.numTicks = numTicks;
+
         setLabel(getUnit().getLabel());
+    }
+
+    public TraceUnit getUnit() {
+        String templateName = Templates.getTemplateName(file);
+        return templateSettingsModel.getTraceUnit(templateName);
     }
 
     public void setUnit(TraceUnit traceUnit) {
@@ -61,8 +72,8 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
             return;
         }
 
-        String templateName = FileTemplate.getTemplateName(model, file.getFile());
-        templateSettingsModel.setUnitForTemplate(templateName, traceUnit);
+        String templateName = Templates.getCsvTemplateName(file);
+        templateSettingsModel.setTraceUnit(templateName, traceUnit);
 
         setLabel(traceUnit.getLabel());
 
@@ -75,101 +86,42 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         invalidateRange();
     }
 
-    public TraceUnit getUnit() {
-        if (file == null || file.getFile() == null) {
-            return TraceUnit.getDefault();
-        }
-
-        String templateName = FileTemplate.getTemplateName(model, file.getFile());
-        if (templateName == null) {
-            return TraceUnit.getDefault();
-        }
-
-        if (!templateSettingsModel.hasUnitForTemplate(templateName)) {
-            return TraceUnit.getDefault();
-        } else {
-            return templateSettingsModel.getUnitForTemplate(templateName);
-        }
-    }
-
     @Override
     protected String getTickMarkLabel(Number value) {
-        if (file == null || file.getGeoData().isEmpty()) {
-            log.warn("No geo data available in the file.");
-            return "";
-        }
+        List<GeoData> values = Nulls.toEmpty(file.getGeoData());
 
         int traceIndex = value.intValue();
+        if (traceIndex < 0 || traceIndex >= values.size()) {
+            return Strings.empty();
+        }
+
         TraceUnit traceUnit = getUnit();
         switch (traceUnit) {
             case METERS, KILOMETERS, MILES, FEET -> {
-                double distance = getDistanceAtTrace(traceIndex, traceUnit);
-                return formatter.format(distance);
+                double distance = file.getDistanceAtTrace(traceIndex);
+                return formatter.format(TraceUnit.convert(distance, traceUnit));
             }
             case TIME -> {
-                LocalDateTime dt = file.getGeoData().get(traceIndex).getDateTime();
+                LocalDateTime dt = values.get(traceIndex).getDateTime();
                 if (dt == null) {
-                    return "";
+                    return Strings.empty();
                 }
 
                 double visibleRange = getUpperBound() - getLowerBound();
                 boolean showMilliseconds = visibleRange < (double) file.numTraces() / numTicks;
 
-                DateTimeFormatter formatter = showMilliseconds ?
-                        TIME_FORMATTER_MILLISECONDS : TIME_FORMATTER_SECONDS;
+                DateTimeFormatter formatter = showMilliseconds
+                        ? MILLISECONDS_FORMATTER
+                        : SECONDS_FORMATTER;
                 return dt.format(formatter);
             }
             case TRACES -> {
                 return String.format("%1$3s", traceIndex);
             }
             default -> {
-                return "";
+                return Strings.empty();
             }
         }
-    }
-
-    private void initializeCumulativeDistances() {
-        List<GeoData> geoData = file.getGeoData();
-        cumulativeDistances.clear();
-
-        if (geoData.isEmpty()) {
-            return;
-        }
-
-        cumulativeDistances.add(0.0);
-
-        String lineHeader = GeoData.getHeader(Semantic.LINE, file.getTemplate());
-        for (int i = 1; i < geoData.size(); i++) {
-            LatLon previousLocation = geoData.get(i - 1).getLatLon();
-            LatLon currentLocation = geoData.get(i).getLatLon();
-
-            Optional<Integer> previousLineIndex = geoData.get(i - 1).getInt(lineHeader);
-            Optional<Integer> currentLineIndex = geoData.get(i).getInt(lineHeader);
-
-            // For different lines, reset distance to 0
-            if (previousLineIndex.isPresent() && currentLineIndex.isPresent()) {
-                if (!previousLineIndex.get().equals(currentLineIndex.get())) {
-                    cumulativeDistances.add(0.0);
-                    continue;
-                }
-            }
-
-            double previousDistance = cumulativeDistances.get(i - 1);
-            double segmentDistance = previousLocation.getDistance(currentLocation);
-            cumulativeDistances.add(previousDistance + segmentDistance);
-        }
-    }
-
-    private double getDistanceAtTrace(int traceIndex, TraceUnit distanceTraceUnit) {
-        List<GeoData> geoData = file.getGeoData();
-        if (cumulativeDistances.size() != geoData.size()) {
-            initializeCumulativeDistances();
-        }
-
-        if (geoData.isEmpty() || traceIndex < 0 || traceIndex >= geoData.size()) {
-            return 0.0;
-        }
-        return TraceUnit.convert(cumulativeDistances.get(traceIndex), distanceTraceUnit);
     }
 
     @Override
@@ -195,9 +147,8 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     }
 
     @EventListener
-    public void onGeoDataChanged(WhatChanged event) {
+    public void onTraceCut(WhatChanged event) {
         if (event.isTraceCut()) {
-            cumulativeDistances.clear();
             Platform.runLater(this::requestAxisLayout);
         }
     }
@@ -237,7 +188,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
             labelButton.setCursor(Cursor.HAND);
             labelButton.setVisible(this.isVisible() && this.isTickLabelsVisible());
 
-            labelButton.setOnAction(event -> handleLabelClick());
+            labelButton.setOnAction(event -> onLabelClick());
 
             getChildren().add(labelButton);
         } else if (labelButton != null) {
@@ -254,27 +205,29 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     // Change "traces" to "measurements" for better clarity
     private String getUnitLabel(TraceUnit unit) {
+        if (unit == null) {
+            return Strings.empty();
+        }
         if (unit == TraceUnit.TRACES) {
             return "measurements";
         }
         return unit.getLabel();
     }
 
-    private void handleLabelClick() {
-        TraceUnit currentTraceUnit = getUnit();
+    private void onLabelClick() {
+        TraceUnit traceUnit = getUnit();
         TraceUnit[] traceUnits = TraceUnit.values();
 
-        int nextIndex = (currentTraceUnit.ordinal() + 1) % traceUnits.length;
+        int nextIndex = (traceUnit.ordinal() + 1) % traceUnits.length;
         TraceUnit nextTraceUnit = traceUnits[nextIndex];
         setUnit(nextTraceUnit);
 
-        String templateName = FileTemplate.getTemplateName(model, file.getFile());
-        notifyTemplateUnitChange(templateName, nextTraceUnit);
+        notifyTemplateUnitChange(nextTraceUnit);
     }
 
-    private void notifyTemplateUnitChange(String templateName, TraceUnit newTraceUnit) {
+    private void notifyTemplateUnitChange(TraceUnit traceUnit) {
         Platform.runLater(() ->
-                model.publishEvent(new TemplateUnitChangedEvent(this, file, templateName, newTraceUnit))
+                model.publishEvent(new TemplateUnitChangedEvent(this, file, traceUnit))
         );
     }
 }

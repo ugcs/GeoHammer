@@ -5,6 +5,7 @@ import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Strings;
 
@@ -76,7 +77,7 @@ public class GeoData extends GeoCoordinates {
                 return;
             }
         }
-        sensorValues.add(new SensorValue(header, "", value, value));
+        sensorValues.add(new SensorValue(header, value, value));
     }
 
     public void undoSensorValue(String header) {
@@ -135,5 +136,16 @@ public class GeoData extends GeoCoordinates {
         }
         // use semantic name as a header when no template
         return semantic;
+    }
+
+    public static String getUnit(String header, Template template) {
+        if (template == null) {
+            return Strings.empty();
+        }
+        DataMapping mapping = template.getDataMapping();
+        SensorData column = mapping.getDataValueByHeader(header);
+        return column != null
+                ? Strings.nullToEmpty(column.getUnits())
+                : Strings.empty();
     }
 }

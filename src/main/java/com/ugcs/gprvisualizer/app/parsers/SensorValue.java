@@ -1,16 +1,16 @@
 package com.ugcs.gprvisualizer.app.parsers;
 
-public record SensorValue(String header, String unit, Number data, Number originalData) {
+public record SensorValue(String header, Number data, Number originalData) {
     
-    public SensorValue(String header, String unit, Number data) {
-        this(header, unit, data, data);
+    public SensorValue(String header, Number data) {
+        this(header, data, data);
     }
 
     public SensorValue(SensorValue other) {
-        this(other.header, other.unit, other.data, other.originalData);
+        this(other.header, other.data, other.originalData);
     }
 
     public SensorValue withValue(Number data) {
-        return new SensorValue(header, unit, data, originalData);
+        return new SensorValue(header, data, originalData);
     }
 }

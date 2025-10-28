@@ -17,6 +17,7 @@ import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
+import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
@@ -133,8 +134,7 @@ public class SensorLineChart extends Chart {
 	};
 
     public List<PlotData> generatePlotData(CsvFile csvFile) {
-        // header -> unit
-        Map<String, String> headers = new LinkedHashMap<>();
+        Set<String> headers = new LinkedHashSet<>();
         String markHeader = GeoData.getHeader(Semantic.MARK, csvFile.getTemplate());
         for (GeoData data : csvFile.getGeoData()) {
             for (SensorValue value : data.getSensorValues()) {
@@ -142,15 +142,12 @@ public class SensorLineChart extends Chart {
                 if (Objects.equals(header, markHeader)) {
                     continue; // skip mark series
                 }
-                headers.putIfAbsent(header, Strings.nullToEmpty(value.unit()));
+                headers.add(header);
             }
         }
 
         List<PlotData> plotDataList = new ArrayList<>(headers.size());
-        for (Map.Entry<String, String> e : headers.entrySet()) {
-            String header = e.getKey();
-            String unit = e.getValue();
-
+        for (String header : headers) {
             List<Number> headerValues = new ArrayList<>(csvFile.getGeoData().size());
             for (GeoData data : csvFile.getGeoData()) {
                 SensorValue sensorValue = data.getSensorValue(header);
@@ -159,7 +156,7 @@ public class SensorLineChart extends Chart {
 
             PlotData plotData = new PlotData(
                     header,
-                    unit,
+                    GeoData.getUnit(header, csvFile.getTemplate()),
                     getColor(header),
                     headerValues);
             plotDataList.add(plotData);

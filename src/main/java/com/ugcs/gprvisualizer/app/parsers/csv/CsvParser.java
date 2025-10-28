@@ -242,12 +242,7 @@ public class CsvParser extends Parser {
             for (String header : dataHeaders) {
                 // parse and add value
                 Number number = parseNumber(values, header);
-                // get column definition from the template
-                SensorData column = mapping.getDataValueByHeader(header);
-                SensorValue sensorValue = new SensorValue(
-                        header,
-                        column != null ? column.getUnits() : null,
-                        number);
+                SensorValue sensorValue = new SensorValue(header, number);
                 sensorValues.add(sensorValue);
             }
             geoData.setSensorValues(sensorValues);

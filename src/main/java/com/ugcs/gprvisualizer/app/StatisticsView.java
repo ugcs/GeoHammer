@@ -138,8 +138,9 @@ public class StatisticsView extends VBox {
                 SensorValue sensorValue = findNearestSensorValue(values, series, index);
                 if (hasData(sensorValue)) {
                     valueText = formatValue(sensorValue.data().doubleValue());
-                    if (!Strings.isNullOrEmpty(sensorValue.unit())) {
-                        valueText += " " + sensorValue.unit();
+                    String unit = GeoData.getUnit(sensorValue.header(), chart.getFile().getTemplate());
+                    if (!Strings.isNullOrEmpty(unit)) {
+                        valueText += " " + unit;
                     }
                 }
             }

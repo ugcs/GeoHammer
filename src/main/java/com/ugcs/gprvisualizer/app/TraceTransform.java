@@ -234,7 +234,7 @@ public class TraceTransform {
         Check.notNull(file);
 
         file.setUnsaved(true);
-        file.rebuildLineRanges();
+        file.tracesChanged();
 
         // update aux elements in model and charts,
         // as they are copies of elements stored in a file

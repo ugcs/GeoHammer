@@ -8,10 +8,12 @@ import java.util.Objects;
 import java.util.SortedMap;
 
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
+import com.ugcs.gprvisualizer.app.axis.DistanceEstimator;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.quality.LineSchema;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import org.jspecify.annotations.Nullable;
 
@@ -26,6 +28,9 @@ public abstract class SgyFile {
 
 	@Nullable
 	private SortedMap<Integer, Range> lineRanges;
+
+	@Nullable
+	private DistanceEstimator distanceEstimator;
 	
 	public abstract List<GeoData> getGeoData();
 
@@ -37,8 +42,29 @@ public abstract class SgyFile {
 		return lineRanges;
 	}
 
-	public void rebuildLineRanges() {
-		lineRanges = null; // would be rebuilt on next access
+	public DistanceEstimator getDistanceEstimator() {
+		if (distanceEstimator == null) {
+			distanceEstimator = DistanceEstimator.build(this);
+		}
+		return distanceEstimator;
+	}
+
+	public double getDistanceAtTrace(int traceIndex) {
+		List<GeoData> values = Nulls.toEmpty(getGeoData());
+		if (traceIndex < 0 || traceIndex >= values.size()) {
+			return Double.NaN;
+		}
+		GeoData value = values.get(traceIndex);
+		if (value == null) {
+			return Double.NaN;
+		}
+		DistanceEstimator distanceEstimator = getDistanceEstimator();
+		return distanceEstimator.getDistanceAtTrace(traceIndex, value.getLatLon());
+	}
+
+	public void tracesChanged() {
+		lineRanges = null;
+		distanceEstimator = null;
 	}
 
 	public abstract int numTraces();

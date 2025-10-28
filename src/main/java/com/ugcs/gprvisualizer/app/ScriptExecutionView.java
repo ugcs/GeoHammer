@@ -23,7 +23,7 @@ import com.ugcs.gprvisualizer.app.scripts.ScriptMetadataLoader;
 import com.ugcs.gprvisualizer.app.scripts.ScriptExecutor;
 import com.ugcs.gprvisualizer.app.service.task.TaskService;
 import com.ugcs.gprvisualizer.gpr.Model;
-import com.ugcs.gprvisualizer.utils.FileTemplate;
+import com.ugcs.gprvisualizer.utils.Templates;
 import com.ugcs.gprvisualizer.utils.Strings;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -187,13 +187,11 @@ public class ScriptExecutionView extends VBox {
 
 	private List<SgyFile> getFilesToProcess(Model model) {
 		SgyFile sgyFile = this.selectedFile;
-		String template = sgyFile != null
-				? FileTemplate.getTemplateName(model, sgyFile.getFile())
-				: null;
+		String template = Templates.getTemplateName(sgyFile);
 		List<SgyFile> filesToProcess = model.getFileManager().getFiles();
 		if (template != null) {
 			filesToProcess = filesToProcess.stream().filter(file -> {
-				String fileTemplate = FileTemplate.getTemplateName(model, file.getFile());
+				String fileTemplate = Templates.getTemplateName(file);
 				return template.equals(fileTemplate);
 			}).toList();
 		}
@@ -223,7 +221,7 @@ public class ScriptExecutionView extends VBox {
 	}
 
 	private List<ScriptMetadata> filterScriptsByTemplate(@Nullable SgyFile sgyFile, List<ScriptMetadata> scriptsMetadata) {
-		String fileTemplate = sgyFile != null ? FileTemplate.getTemplateName(model, sgyFile.getFile()) : null;
+		String fileTemplate = Templates.getTemplateName(sgyFile);
 		if (fileTemplate == null) {
 			return scriptsMetadata;
 		} else {

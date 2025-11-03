@@ -27,6 +27,8 @@ import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -287,44 +289,55 @@ public class MapView implements InitializingBean {
 	}
 
 	public Node getCenter() {
-		
+		configureToolBar();
+
+		Pane mainPane = createMainPane();
+
+		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
+		updateDistanceLabelPaneVisibility();
+
+		initZoomControls(mainPane);
+
+		root.setTop(toolBar);
+		root.setCenter(mainPane);
+
+		return root;
+	}
+
+	private void configureToolBar() {
 		toolBar.setDisable(true);
+
 		toolBar.getItems().addAll(settingsView.getToolNodes());
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
 		toolBar.getItems().addAll(mapRuler.buildToolNodes());
 		toolBar.getItems().add(getSpacer());
 
 		toolBar.getItems().addAll(getToolNodes());
-		
-		Pane sp1 = new Pane();
-		
-		ChangeListener<Number> sp1SizeListener = (observable, oldValue, newValue) -> {
-			this.setSize((int) (sp1.getWidth()), (int) (sp1.getHeight()));
-		};
-		
-		Node n1 = imageView;
-		sp1.getChildren().add(n1);
-		sp1.getChildren().add(toolBar);
-		
-		sp1.widthProperty().addListener(sp1SizeListener);
-		sp1.heightProperty().addListener(sp1SizeListener);
+	}
 
-		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
-		updateDistanceLabelPaneVisibility();
+	private Pane createMainPane() {
+		Pane pane = new Pane();
+		pane.getChildren().add(imageView);
 
-		sp1.widthProperty().addListener((obs, oldVal, newVal) -> {
-			zoomControlsView.adjustX(newVal.doubleValue());
-		});
-		sp1.heightProperty().addListener((obs, oldVal, newVal) -> {
-			zoomControlsView.adjustY(newVal.doubleValue());
-		});
-		zoomControlsView.adjustX(sp1.getWidth());
-		zoomControlsView.adjustY(sp1.getHeight());
-		sp1.getChildren().add(zoomControlsView.getNode());
+		ChangeListener<Number> sizeListener = (obs, oldVal, newVal) ->
+				setSize((int) pane.getWidth(), (int) pane.getHeight());
 
-		root.setCenter(sp1);
-		
-		return root;
+		pane.widthProperty().addListener(sizeListener);
+		pane.heightProperty().addListener(sizeListener);
+
+		return pane;
+	}
+
+	private void initZoomControls(Pane pane) {
+		pane.widthProperty().addListener((obs, oldVal, newVal) ->
+				zoomControlsView.adjustX(newVal.doubleValue()));
+		pane.heightProperty().addListener((obs, oldVal, newVal) ->
+				zoomControlsView.adjustY(newVal.doubleValue()));
+
+		zoomControlsView.adjustX(pane.getWidth());
+		zoomControlsView.adjustY(pane.getHeight());
+
+		pane.getChildren().add(zoomControlsView.getNode());
 	}
 
 	private void updateDistanceLabelPaneVisibility() {
@@ -435,10 +448,10 @@ public class MapView implements InitializingBean {
 		return noGpsImg;
 	}
 
-	private Region getSpacer() {
-		Region r3 = new Region();
-		r3.setPrefWidth(7);
-		return r3;
+	private Node getSpacer() {
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		return spacer;
 	}
 
 	private Point2D getLocalCoords(MouseEvent event) {

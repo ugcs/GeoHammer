@@ -1,37 +1,28 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import com.ugcs.gprvisualizer.app.AppContext;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
-import com.ugcs.gprvisualizer.app.parsers.SensorValue;
+import com.ugcs.gprvisualizer.app.parsers.ColumnSchema;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvParserFactory;
+import com.ugcs.gprvisualizer.app.parsers.csv.CsvWriter;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
-import com.ugcs.gprvisualizer.app.yaml.FileFormat;
+import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
-import com.ugcs.gprvisualizer.utils.Strings;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
-import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.csv.CsvParserFactory;
-import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
-import com.ugcs.gprvisualizer.app.yaml.FileTemplates;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class CsvFile extends SgyFile {
 
@@ -70,26 +61,20 @@ public class CsvFile extends SgyFile {
         log.debug("template: {}", template.getName());
 
         parser = new CsvParserFactory().createCsvParser(template);
-        List<GeoCoordinates> coordinates = parser.parse(path);
+        geoData = parser.parse(path);
 
         if (getFile() == null) {
             setFile(csvFile);
         }
 
-        String markHeader = GeoData.getHeader(Semantic.MARK, getTemplate());
-        for (GeoCoordinates coord : coordinates) {
-            // Added points if lat and lon are not 0 and point is close to the first point
-            if (coord.getLatitude() != 0.0 && coord.getLongitude() != 0.0) {
-                if (coord instanceof GeoData value) {
-                    int traceIndex = geoData.size();
-                    geoData.add(value);
-                    // create mark
-                    boolean marked = value.getInt(markHeader).orElse(0) == 1;
-                    if (marked) {
-                        TraceKey traceKey = new TraceKey(this, traceIndex);
-                        getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
-                    }
-                }
+        // create marks
+        for (int i = 0; i < geoData.size(); i++) {
+            GeoData value = geoData.get(i);
+            boolean marked = value.getMarkOrDefault(false);
+            if (marked) {
+                // create mark
+                TraceKey traceKey = new TraceKey(this, i);
+                getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
             }
         }
 
@@ -99,20 +84,16 @@ public class CsvFile extends SgyFile {
     }
 
     private void reorderLines() {
-        if (geoData == null) {
-            return;
-        }
-        String lineHeader = GeoData.getHeader(Semantic.LINE, getTemplate());
-        Integer prevLineIndex = null;
+        Integer prevLine = null;
         int sequence = 0;
         for (int i = 0; i < geoData.size(); i++) {
             GeoData value = geoData.get(i);
-            Integer lineIndex = value.getInt(lineHeader).orElse(null);
-            if (i > 0 && !Objects.equals(lineIndex, prevLineIndex)) {
+            Integer line = value.getLine();
+            if (i > 0 && !Objects.equals(line, prevLine)) {
                 sequence++;
             }
-            value.setSensorValue(lineHeader, sequence);
-            prevLineIndex = lineIndex;
+            value.setLine(sequence);
+            prevLine = line;
         }
     }
 
@@ -124,98 +105,13 @@ public class CsvFile extends SgyFile {
                 .filter(bo -> bo instanceof FoundPlace)
                 .map(bo -> ((FoundPlace) bo).getTraceIndex())
                 .collect(Collectors.toSet());
-        String markHeader = GeoData.getHeader(Semantic.MARK, getTemplate());
         for (int i = 0; i < geoData.size(); i++) {
             GeoData value = geoData.get(i);
-            boolean marked = marks.contains(i);
-            value.setSensorValue(markHeader, marked ? 1 : 0);
+            value.setMark(marks.contains(i));
         }
 
-        FileFormat fileFormat = getTemplate().getFileFormat();
-
-        Map<String, Integer> newHeaders = getHeadersToSave();
-
-        try (BufferedWriter writer = Files.newBufferedWriter(file.toPath())) {
-            // skipped lines
-            for (String line : Nulls.toEmpty(parser.getSkippedLines())) {
-                writer.write(line);
-                writer.newLine();
-            }
-
-            // headers
-            if (fileFormat.isHasHeader()) {
-                writer.write(String.join(fileFormat.getSeparator(), buildHeadersLine(newHeaders)));
-                writer.newLine();
-            }
-
-            // data lines
-            for (GeoData value : geoData) {
-                if (value == null) {
-                    continue;
-                }
-                String[] newLine = buildDataLine(value, newHeaders);
-                writer.write(String.join(fileFormat.getSeparator(), newLine));
-                writer.newLine();
-
-                value.setSourceLine(newLine);
-            }
-
-            parser.setHeaders(newHeaders);
-        }
-    }
-
-    private Map<String, Integer> getHeadersToSave() {
-        Map<String, Integer> newHeaders = new HashMap<>(parser.getHeaders());
-        for (GeoData value : Nulls.toEmpty(geoData)) {
-            if (value == null) {
-                continue;
-            }
-            for (SensorValue sensorValue : Nulls.toEmpty(value.getSensorValues())) {
-                if (sensorValue == null || sensorValue.data() == null) {
-                    continue;
-                }
-                String header = sensorValue.header();
-                if (Strings.isNullOrEmpty(header)) {
-                    continue;
-                }
-                if (!newHeaders.containsKey(header)) {
-                    newHeaders.put(header, newHeaders.size());
-                }
-            }
-        }
-        return newHeaders;
-    }
-
-    private String[] buildHeadersLine(Map<String, Integer> headers) {
-        headers = Nulls.toEmpty(headers);
-
-        String[] line = new String[headers.size()];
-        Arrays.fill(line, Strings.empty());
-        headers.forEach((header, index) -> line[index] = header);
-        return line;
-    }
-
-    private String[] buildDataLine(GeoData value, Map<String, Integer> headers) {
-        Check.notNull(value);
-        headers = Nulls.toEmpty(headers);
-
-        String[] sourceLine = value.getSourceLine();
-        String[] line = Arrays.copyOf(sourceLine, headers.size());
-        for (int i = sourceLine.length; i < line.length; i++) {
-            line[i] = Strings.empty();
-        }
-
-        for (SensorValue sensorValue : value.getSensorValues()) {
-            String header = sensorValue.header();
-            Integer columnIndex = headers.get(header);
-            if (columnIndex == null || columnIndex < 0 || columnIndex >= line.length) {
-                continue;
-            }
-            line[columnIndex] = sensorValue.data() != null
-                    ? String.format("%s", sensorValue.data())
-                    : Strings.empty();
-        }
-        return line;
+        CsvWriter writer = new CsvWriter(this);
+        writer.write(file);
     }
 
     @Override
@@ -272,8 +168,12 @@ public class CsvFile extends SgyFile {
         private static List<GeoData> copyValues(CsvFile file) {
             List<GeoData> values = Nulls.toEmpty(file.getGeoData());
             List<GeoData> snapshot = new ArrayList<>(values.size());
+            ColumnSchema copySchema = ColumnSchema.copy(GeoData.getSchema(values));
             for (GeoData value : values) {
-                snapshot.add(new GeoData(value));
+                GeoData copy = value != null
+                        ? new GeoData(copySchema, value)
+                        : null;
+                snapshot.add(copy);
             }
             return snapshot;
         }

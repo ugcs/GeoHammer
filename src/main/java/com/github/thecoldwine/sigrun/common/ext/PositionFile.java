@@ -14,7 +14,6 @@ import com.ugcs.gprvisualizer.app.yaml.data.BaseData;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileTypes;
 
-import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.app.parsers.csv.CsvParserFactory;
 import com.ugcs.gprvisualizer.app.parsers.csv.CsvParser;
@@ -38,7 +37,7 @@ public class PositionFile {
 	@Nullable
 	private File positionFile;
 
-	private List<GeoCoordinates> coordinates;
+	private List<GeoData> geoData;
 
 	public PositionFile(FileTemplates templates) {
 		this.templates = templates;
@@ -97,7 +96,7 @@ public class PositionFile {
 		Check.notNull(traceFile);
 		Check.notNull(positionFile);
 
-		this.coordinates = parsePositionFile(positionFile);
+		this.geoData = parsePositionFile(positionFile);
 		this.positionFile = positionFile;
 
 		traceFile.setGroundProfileSource(this);
@@ -107,7 +106,7 @@ public class PositionFile {
 		}
 	}
 
-	private List<GeoCoordinates> parsePositionFile(File file) throws IOException {
+	private List<GeoData> parsePositionFile(File file) throws IOException {
 		Check.notNull(file);
 
 		String path = file.getAbsolutePath();
@@ -137,18 +136,15 @@ public class PositionFile {
 		int numTraces = traceFile.traces.size();
 		int[] depths = new int[numTraces];
 
-		String altitudeAglHeader = GeoData.getHeader(Semantic.ALTITUDE_AGL, getTemplate());
-		for (GeoCoordinates c : Nulls.toEmpty(coordinates)) {
-			if (c instanceof GeoData geoData) {
-				Integer traceIndex = geoData.getInt(traceHeader).orElse(null);
-				if (traceIndex == null || traceIndex < 0 || traceIndex >= numTraces) {
-					continue;
-				}
-				Optional<Double> altitudeAgl = geoData.getDouble(altitudeAglHeader);
-				if (altitudeAgl.isPresent()) {
-					double altitudeSamples = samplesPerMeter * altitudeAgl.get();
-					depths[traceIndex] = (int)altitudeSamples;
-				}
+		for (GeoData value : Nulls.toEmpty(geoData)) {
+			Number traceIndex = value.getNumber(traceHeader);
+			if (traceIndex == null || traceIndex.intValue() < 0 || traceIndex.intValue() >= numTraces) {
+				continue;
+			}
+			Number altitudeAgl = value.getNumberBySemantic(Semantic.ALTITUDE_AGL.getName());
+			if (altitudeAgl != null) {
+				double altitudeSamples = samplesPerMeter * altitudeAgl.doubleValue();
+				depths[traceIndex.intValue()] = (int)altitudeSamples;
 			}
 		}
 

@@ -17,7 +17,7 @@ import com.ugcs.gprvisualizer.utils.Strings;
 
 public abstract class Parser {
 
-    public abstract List<GeoCoordinates> parse(String path) throws IOException;
+    public abstract List<GeoData> parse(String path) throws IOException;
 
     public String matchPattern(String value, String regex) {
         return matchPattern(value, regex, true);

@@ -1,151 +1,155 @@
 package com.ugcs.gprvisualizer.app.parsers;
 
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
-import com.github.thecoldwine.sigrun.common.ext.SgyFile;
-import com.github.thecoldwine.sigrun.common.ext.TraceFile;
-import com.ugcs.gprvisualizer.app.yaml.DataMapping;
-import com.ugcs.gprvisualizer.app.yaml.Template;
-import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class GeoData extends GeoCoordinates {
 
-    /**
-     * Original line from source file
-     */
-    private String[] sourceLine;
+    // values layout schema
+    private final ColumnSchema schema;
 
-    private List<SensorValue> sensorValues;
+    // contains numbers for parsed data values
+    // and strings for unparsed values
+    private final Object[] values;
 
-    public GeoData(double latitude, double longitude) {
-        super(latitude, longitude);
+    public GeoData(ColumnSchema schema) {
+        Check.notNull(schema);
+
+        this.schema = schema;
+        this.values = new Object[schema.numColumns()];
     }
 
-    public GeoData(GeoData other) {
+    public GeoData(ColumnSchema schema, GeoData other) {
         super(other);
 
-        this.sourceLine = other.sourceLine;
-        this.sensorValues = new ArrayList<>();
-        for (SensorValue sensorValue : other.sensorValues) {
-            sensorValues.add(new SensorValue(sensorValue));
+        Check.notNull(schema);
+        Check.notNull(other);
+
+        this.schema = schema;
+        this.values = new Object[schema.numColumns()];
+
+        // copy values based on a new schema
+        for (Column column : schema) {
+            String header = column.getHeader();
+            setValue(header, other.getValue(header));
         }
     }
 
-	public String[] getSourceLine() {
-		return sourceLine;
-	}
-
-	public void setSourceLine(String[] sourceLine) {
-		this.sourceLine = sourceLine;
-	}
-
-    public List<SensorValue> getSensorValues() {
-        return sensorValues;
+    public ColumnSchema getSchema() {
+        return schema;
     }
 
-    public SensorValue getSensorValue(String header) {
-        if (Strings.isNullOrEmpty(header)) {
+    public static ColumnSchema getSchema(List<GeoData> values) {
+        if (Nulls.isNullOrEmpty(values)) {
             return null;
         }
-        SensorValue result = null;
-        for (SensorValue sensorValue : sensorValues) {
-            if (header.equals(sensorValue.header())) {
-                result = sensorValue;
-                break;
-            }
+        return values.getFirst().getSchema();
+    }
+
+    // access by index
+
+    public Object getValue(int index) {
+        return index >= 0 && index < values.length ? values[index] : null;
+    }
+
+    public String getString(int index) {
+        return getValue(index) instanceof String s ? s : null;
+    }
+
+    public Number getNumber(int index) {
+        return getValue(index) instanceof Number n ? n : null;
+    }
+
+    public void setValue(int index, Object value) {
+        Check.condition(index >= 0 && index < values.length,
+                "Index out of bounds");
+        values[index] = value;
+    }
+
+    // access by header
+
+    public int getValueIndex(String header) {
+        if (schema == null) {
+            return -1;
         }
-        return result;
+        return schema.getColumnIndex(header);
     }
 
-    public void setSensorValues(List<SensorValue> sensorValues) {
-        this.sensorValues = sensorValues;
+    public Object getValue(String header) {
+        return getValue(getValueIndex(header));
     }
 
-    public void setSensorValue(String header, Number value) {
-        if (Strings.isNullOrEmpty(header)) {
-            return;
+    public String getString(String header) {
+        return getString(getValueIndex(header));
+    }
+
+    public Number getNumber(String header) {
+        return getNumber(getValueIndex(header));
+    }
+
+    public void setValue(String header, Object value) {
+        setValue(getValueIndex(header), value);
+    }
+
+    // access by semantic
+
+    public int getValueIndexBySemantic(String semantic) {
+        if (schema == null) {
+            return -1;
         }
-        for(SensorValue sensorValue : sensorValues) {
-            if (header.equals(sensorValue.header())) {
-                sensorValues.add(sensorValue.withValue(value));
-                sensorValues.remove(sensorValue);
-                return;
-            }
-        }
-        sensorValues.add(new SensorValue(header, value, value));
+        String header = schema.getHeaderBySemantic(semantic);
+        return schema.getColumnIndex(header);
     }
 
-    public void undoSensorValue(String header) {
-        if (Strings.isNullOrEmpty(header)) {
-            return;
-        }
-        for (SensorValue sensorValue : sensorValues) {
-            if (header.equals(sensorValue.header())) {
-                sensorValues.add(sensorValue.withValue(sensorValue.originalData()));
-                sensorValues.remove(sensorValue);
-                break;
-            }
-        }
+    public Object getValueBySemantic(String semantic) {
+        return getValue(getValueIndexBySemantic(semantic));
     }
 
-    public Optional<Integer> getInt(String header) {
-        SensorValue sensorValue = getSensorValue(header);
-        return sensorValue != null && sensorValue.data() != null
-                ? Optional.of(sensorValue.data().intValue())
-                : Optional.empty();
+    public String getStringBySemantic(String semantic) {
+        return getString(getValueIndexBySemantic(semantic));
     }
 
-    public Optional<Double> getDouble(String header) {
-        SensorValue sensorValue = getSensorValue(header);
-        return sensorValue != null && sensorValue.data() != null
-                ? Optional.of(sensorValue.data().doubleValue())
-                : Optional.empty();
+    public Number getNumberBySemantic(String semantic) {
+        return getNumber(getValueIndexBySemantic(semantic));
     }
 
-    // static utility helpers
-
-    public static String getHeaderInFile(Semantic semantic, SgyFile file) {
-        return getHeaderInFile(semantic.getName(), file);
+    public void setValueBySemantic(String semantic, Object value) {
+        setValue(getValueIndexBySemantic(semantic), value);
     }
 
-    public static String getHeaderInFile(String semantic, SgyFile file) {
-        if (file instanceof TraceFile traceFile) {
-            return getHeader(semantic, null);
-        }
-        if (file instanceof CsvFile csvFile) {
-            return getHeader(semantic, Check.notNull(csvFile.getTemplate()));
-        }
-        return null;
+    // common semantics
+
+    public Integer getLine() {
+        Number line = getNumberBySemantic(Semantic.LINE.getName());
+        return line != null ? line.intValue() : null;
     }
 
-    public static String getHeader(Semantic semantic, Template template) {
-        return getHeader(semantic.getName(), template);
+    public int getLineOrDefault(int defaultLine) {
+        Integer line = getLine();
+        return line != null ? line : defaultLine;
     }
 
-    public static String getHeader(String semantic, Template template) {
-        if (template != null) {
-            DataMapping mapping = template.getDataMapping();
-            if (mapping != null) {
-                return mapping.getHeaderBySemantic(semantic);
-            }
-        }
-        // use semantic name as a header when no template
-        return semantic;
+    public void setLine(Integer line) {
+        setValueBySemantic(Semantic.LINE.getName(), line);
     }
 
-    public static String getUnit(String header, Template template) {
-        if (template == null) {
-            return Strings.empty();
-        }
-        DataMapping mapping = template.getDataMapping();
-        SensorData column = mapping.getDataValueByHeader(header);
-        return column != null
-                ? Strings.nullToEmpty(column.getUnits())
-                : Strings.empty();
+    public Boolean getMark() {
+        Number mark = getNumberBySemantic(Semantic.MARK.getName());
+        return mark != null ? mark.intValue() != 0 : null;
+    }
+
+    public boolean getMarkOrDefault(boolean defaultMark) {
+        Boolean mark = getMark();
+        return mark != null ? mark : defaultMark;
+    }
+
+    public void setMark(Boolean mark) {
+        Number value = mark != null
+                ? mark ? 1 : 0
+                : null;
+        setValueBySemantic(Semantic.MARK.getName(), value);
     }
 }

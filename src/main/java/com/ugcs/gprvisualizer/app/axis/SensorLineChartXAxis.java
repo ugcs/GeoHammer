@@ -32,8 +32,6 @@ import javax.annotation.Nullable;
 @Component
 public class SensorLineChartXAxis extends ValueAxis<Number> {
 
-    private static final Logger log = LoggerFactory.getLogger(SensorLineChartXAxis.class);
-
     private static final DateTimeFormatter SECONDS_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private static final DateTimeFormatter MILLISECONDS_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
@@ -63,7 +61,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     }
 
     public TraceUnit getUnit() {
-        String templateName = Templates.getTemplateName(file);
+        String templateName = Templates.getCsvTemplateName(file);
         return templateSettingsModel.getTraceUnit(templateName);
     }
 

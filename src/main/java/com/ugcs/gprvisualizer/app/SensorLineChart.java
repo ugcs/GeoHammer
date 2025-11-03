@@ -142,20 +142,20 @@ public class SensorLineChart extends Chart {
         }
 	};
 
-    public List<PlotData> generatePlots(CsvFile csvFile) {
+    public List<Plot> generatePlots(CsvFile csvFile) {
         List<GeoData> values = Nulls.toEmpty(csvFile.getGeoData());
         ColumnSchema schema = GeoData.getSchema(values);
         if (schema == null) {
             return List.of();
         }
 
-        List<PlotData> plots = new ArrayList<>(schema.numDisplayColumns());
+        List<Plot> plots = new ArrayList<>(schema.numDisplayColumns());
         for (Column column : schema) {
             if (!column.isDisplay()) {
                 continue;
             }
             String header = column.getHeader();
-            PlotData plot = new PlotData(
+            Plot plot = new Plot(
                     header,
                     Strings.nullToEmpty(column.getUnit()),
                     getColor(header),
@@ -179,10 +179,10 @@ public class SensorLineChart extends Chart {
         eventPublisher.publishEvent(new FileSelectedEvent(this, file));
     }
 
-    public record PlotData(String header, String unit, Color color, List<Number> data) {
+    public record Plot(String header, String unit, Color color, List<Number> data) {
 
-        public PlotData withData(List<Number> data) {
-            return new PlotData(header, unit, color, data);
+        public Plot withData(List<Number> data) {
+            return new Plot(header, unit, color, data);
         }
 
         public String getPlotStyle() {
@@ -190,7 +190,7 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    public VBox createChartWithMultipleYAxes(CsvFile file, List<PlotData> plotDataList) {
+    public VBox createChartWithMultipleYAxes(CsvFile file, List<Plot> plots) {
         this.file = file;
 
         // lookup line header
@@ -202,8 +202,8 @@ public class SensorLineChart extends Chart {
         // Using StackPane to overlay charts
         this.chartsContainer = new StackPane();
 
-        for (PlotData plotData : plotDataList) {
-            createLineChart(plotData);
+        for (Plot plot : plots) {
+            createLineChart(plot);
         }
         if (interactiveChart != null) {
             setSelectionHandlers(interactiveChart);
@@ -319,35 +319,35 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    private @Nullable LineChartWithMarkers createLineChart(PlotData plotData) {
-        var data = plotData.data();
+    private @Nullable LineChartWithMarkers createLineChart(Plot plot) {
+        var data = plot.data();
         if (data.isEmpty()) {
             return null;
         }
 
         Series<Number, Number> series = new Series<>();
-        series.setName(plotData.header());
+        series.setName(plot.header());
 
         // Add data to chart
-        setSeriesData(series, plotData, 0, data.size() - 1);
+        setSeriesData(series, plot, 0, data.size() - 1);
         if (series.getData().isEmpty()) {
             return null;
         }
 
         Series<Number, Number> filtered = new Series<>();
-        filtered.setName(plotData.header() + FILTERED_SERIES_SUFFIX);
+        filtered.setName(plot.header() + FILTERED_SERIES_SUFFIX);
 
         // Creating chart
         boolean isInteractive = charts.isEmpty(); // first chart will be an intercative chart
 
         // Create axes
         ValueAxis<Number> xAxis = isInteractive ? createXAxis() : createHiddenXAxis();
-        ValueAxis<Number> yAxis = createYAxis(plotData);
+        ValueAxis<Number> yAxis = createYAxis(plot);
 
-        Range valueRange = getValueRange(data, plotData.header);
+        Range valueRange = getValueRange(data, plot.header);
         ZoomRect outZoomRect = new ZoomRect(0, Math.max(0, data.size() - 1),
                 valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
-        LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, outZoomRect, plotData);
+        LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, outZoomRect, plot);
         chart.resetZoomRect();
 
         chart.setLegendVisible(false); // Hide legend
@@ -357,10 +357,10 @@ public class SensorLineChart extends Chart {
 
         // Set random color for series
         chart.getData().add(series);
-        setStyleForSeries(series, plotData.getPlotStyle());
+        setStyleForSeries(series, plot.getPlotStyle());
 
         chart.getData().add(filtered);
-        setStyleForSeries(filtered, plotData.getPlotStyle());
+        setStyleForSeries(filtered, plot.getPlotStyle());
 
         showChartAxes(chart, false);
         showChart(chart, false);
@@ -403,14 +403,14 @@ public class SensorLineChart extends Chart {
         return xAxis;
     }
 
-    private ValueAxis<Number> createYAxis(PlotData plotData) {
+    private ValueAxis<Number> createYAxis(Plot plot) {
         SensorLineChartYAxis yAxis = new SensorLineChartYAxis(10);
-        yAxis.setLabel(plotData.unit());
+        yAxis.setLabel(plot.unit());
         yAxis.setSide(Side.RIGHT); // Y-axis on the right
         yAxis.setPrefWidth(70);
         yAxis.setMinorTickVisible(false);
 
-        Range valueRange = getValueRange(plotData.data, plotData.header);
+        Range valueRange = getValueRange(plot.data, plot.header);
         yAxis.setLowerBound(valueRange.getMin().doubleValue());
         yAxis.setUpperBound(valueRange.getMax().doubleValue());
 
@@ -427,31 +427,31 @@ public class SensorLineChart extends Chart {
             interactiveChart.clearVerticalValueMarkers();
         }
 
-        List<PlotData> plotDataList = generatePlots(file);
-        for (PlotData plotData : plotDataList) {
-            LineChartWithMarkers lineChart = charts.get(plotData.header());
+        List<Plot> plots = generatePlots(file);
+        for (Plot plot : plots) {
+            LineChartWithMarkers lineChart = charts.get(plot.header());
             if (lineChart == null) {
-				lineChart = createLineChart(plotData);
+				lineChart = createLineChart(plot);
 
 				if (lineChart == null) {
 					continue;
 				}
             }
 
-            Range valueRange = getValueRange(plotData.data, plotData.header);
+            Range valueRange = getValueRange(plot.data, plot.header);
 
             lineChart.outZoomRect = new ZoomRect(
-                    0, Math.max(0, plotData.data.size() - 1),
+                    0, Math.max(0, plot.data.size() - 1),
                     valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
-            lineChart.plotData = plotData;
-            lineChart.filteredData = null;
+            lineChart.plot = plot;
+            lineChart.filteredPlot = null;
             // update zoom
             lineChart.setZoomRect(lineChart.zoomRect);
         }
 
 		// remove charts for headers that are no longer present
-		Set<String> currentHeaders = plotDataList.stream()
-				.map(PlotData::header)
+		Set<String> currentHeaders = plots.stream()
+				.map(Plot::header)
 				.collect(Collectors.toSet());
 
 		for (Iterator<Map.Entry<String, LineChartWithMarkers>> it = charts.entrySet().iterator(); it.hasNext(); ) {
@@ -600,7 +600,7 @@ public class SensorLineChart extends Chart {
     }
 
     private void setSeriesData(Series<Number, Number> series,
-            PlotData plot, int lowerIndex, int upperIndex) {
+                               Plot plot, int lowerIndex, int upperIndex) {
 
         XYChart<Number, Number> chart = series.getChart();
         Axis<Number> xAxis = chart != null ? chart.getXAxis() : null;
@@ -1066,12 +1066,12 @@ public class SensorLineChart extends Chart {
         private ZoomRect outZoomRect;
         private ZoomRect zoomRect;
 
-        private PlotData plotData;
-        private PlotData filteredData;
+        private Plot plot;
+        private Plot filteredPlot;
 
         private FilterOptions filterOptions = new FilterOptions();
 
-        public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, ZoomRect outZoomRect, PlotData plotData) {
+        public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, ZoomRect outZoomRect, Plot plot) {
             super(xAxis, yAxis);
 
             this.outZoomRect = outZoomRect;
@@ -1081,15 +1081,15 @@ public class SensorLineChart extends Chart {
             verticalMarkers = FXCollections.observableArrayList(data -> new Observable[] {data.XValueProperty()});
             verticalMarkers.addListener((InvalidationListener)observable -> layoutPlotChildren());
 
-            this.plotData = plotData;
+            this.plot = plot;
         }
 
         public void rescaleY() {
             Range oldYRange = new Range(outZoomRect.yMin, outZoomRect.yMax);
-            Range newYRange = getValueRange(plotData.data, plotData.header);
+            Range newYRange = getValueRange(plot.data, plot.header);
 
             outZoomRect = new ZoomRect(
-                    0, Math.max(0, plotData.data.size() - 1),
+                    0, Math.max(0, plot.data.size() - 1),
                     newYRange.getMin(), newYRange.getMax());
 
             if (zoomRect != null) {
@@ -1237,18 +1237,18 @@ public class SensorLineChart extends Chart {
         }
 
         private void updateLineChartData() {
-            int lowerIndex = Math.clamp(zoomRect.xMin.intValue(), 0, plotData.data().size() - 1);
-            int upperIndex = Math.clamp(zoomRect.xMax.intValue(), lowerIndex, plotData.data().size() - 1);
+            int lowerIndex = Math.clamp(zoomRect.xMin.intValue(), 0, plot.data().size() - 1);
+            int upperIndex = Math.clamp(zoomRect.xMax.intValue(), lowerIndex, plot.data().size() - 1);
 
             getData().forEach(series -> {
-                PlotData plot;
-                String style = plotData.getPlotStyle();
+                Plot plot;
+                String style = this.plot.getPlotStyle();
                 if (series.getName().endsWith(FILTERED_SERIES_SUFFIX)) {
-                    plot = filteredData;
+                    plot = filteredPlot;
                     style = emphasizeStyle(style);
                 } else {
-                    plot = plotData;
-                    style = filteredData != null ? dashStyle(style) : style;
+                    plot = this.plot;
+                    style = filteredPlot != null ? dashStyle(style) : style;
                 }
 
                 setSeriesData(series, plot, lowerIndex, upperIndex);
@@ -1470,16 +1470,16 @@ public class SensorLineChart extends Chart {
         List<GeoData> geoData = Nulls.toEmpty(file.getGeoData());
         if (!filterOptions.hasAny()) {
             // undo all
-            chart.filteredData = null;
-            if (chart.plotData != null) {
+            chart.filteredPlot = null;
+            if (chart.plot != null) {
                 for (int i = 0; i < geoData.size(); i++) {
-                    geoData.get(i).setValue(chart.plotData.header, chart.plotData.data.get(i));
+                    geoData.get(i).setValue(chart.plot.header, chart.plot.data.get(i));
                 }
             }
             return;
         }
 
-        List<Number> values = chart.plotData.data;
+        List<Number> values = chart.plot.data;
         List<Number> filtered = new ArrayList<>(values.size());
         for (Range range : file.getLineRanges().values()) {
             int from = range.getMin().intValue();
@@ -1512,16 +1512,16 @@ public class SensorLineChart extends Chart {
         //  if plot uses a view to reference file values
         //  this will be removed after updating the series filtering
         //  workflow
-        if (chart.plotData.data instanceof ColumnView) {
+        if (chart.plot.data instanceof ColumnView) {
             List<Number> copy = new ArrayList<>(geoData.size());
             for (GeoData value : geoData) {
-                copy.add(value.getNumber(chart.plotData.header));
+                copy.add(value.getNumber(chart.plot.header));
             }
-            chart.plotData = chart.plotData.withData(copy);
+            chart.plot = chart.plot.withData(copy);
         }
-        chart.filteredData = chart.plotData.withData(filtered);
+        chart.filteredPlot = chart.plot.withData(filtered);
         for (int i = 0; i < geoData.size(); i++) {
-            geoData.get(i).setValue(chart.plotData.header, filtered.get(i));
+            geoData.get(i).setValue(chart.plot.header, filtered.get(i));
         }
         file.setUnsaved(true);
         Platform.runLater(this::updateChartName);
@@ -1643,9 +1643,9 @@ public class SensorLineChart extends Chart {
         if (chart == null) {
             return;
         }
-        PlotData data = chart.filteredData != null && !chart.filteredData.data().isEmpty()
-                ? chart.filteredData
-                : chart.plotData;
+        Plot data = chart.filteredPlot != null && !chart.filteredPlot.data().isEmpty()
+                ? chart.filteredPlot
+                : chart.plot;
 
         List<Number> values = data.data;
         List<Number> filtered = new ArrayList<>(values.size());
@@ -1669,16 +1669,16 @@ public class SensorLineChart extends Chart {
         Platform.runLater(() -> {
             LineChartWithMarkers filteredChart = charts.get(filteredSeriesName);
             if (filteredChart == null) {
-                PlotData filteredData = new PlotData(
+                Plot filteredData = new Plot(
                         filteredSeriesName,
-                        chart.plotData.unit,
-                        chart.plotData.color,
+                        chart.plot.unit,
+                        chart.plot.color,
                         filtered
                 );
                 createLineChart(filteredData);
             } else {
-                filteredChart.plotData = filteredChart.plotData.withData(filtered);
-                filteredChart.filteredData = null;
+                filteredChart.plot = filteredChart.plot.withData(filtered);
+                filteredChart.filteredPlot = null;
                 filteredChart.rescaleY();
                 filteredChart.updateLineChartData();
             }
@@ -1731,7 +1731,7 @@ public class SensorLineChart extends Chart {
             return;
         }
         ValueAxis<Number> xAxis = (ValueAxis<Number>) interactiveChart.getXAxis();
-        var dataSize = interactiveChart.plotData.data().size();
+        var dataSize = interactiveChart.plot.data().size();
 
         if (selectedX < 0 || selectedX > dataSize) {
             log.error("Selected trace index: {} is out of range: {}", selectedX, dataSize);

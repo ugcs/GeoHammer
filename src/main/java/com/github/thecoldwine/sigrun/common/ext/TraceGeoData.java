@@ -1,17 +1,28 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
+import com.ugcs.gprvisualizer.app.parsers.Column;
+import com.ugcs.gprvisualizer.app.parsers.ColumnSchema;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-
-import java.util.ArrayList;
+import com.ugcs.gprvisualizer.app.parsers.Semantic;
 
 public class TraceGeoData extends GeoData {
 
+    private static final ColumnSchema SCHEMA = getTraceSchema();
+
     private int traceIndex;
 
-    public TraceGeoData(int traceIndex) {
-        super(0, 0);
+    private static ColumnSchema getTraceSchema() {
+        ColumnSchema schema = new ColumnSchema();
+        // line
+        schema.addColumn(new Column(Semantic.LINE.getName())
+                .withSemantic(Semantic.LINE.getName())
+                .withDisplay(true));
+        return schema;
+    }
 
-        setSensorValues(new ArrayList<>());
+    public TraceGeoData(int traceIndex) {
+        super(SCHEMA);
+
         this.traceIndex = traceIndex;
     }
 

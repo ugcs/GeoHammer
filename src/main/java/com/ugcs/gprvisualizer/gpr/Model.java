@@ -26,7 +26,6 @@ import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Templates;
-import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Traces;
 import javafx.scene.layout.*;
@@ -121,7 +120,7 @@ public class Model implements InitializingBean {
 
 	private final PrefSettings prefSettings;
 
-	private final Map<String, Color> headerColors = new HashMap<>();
+	private final Map<String, Color> colors = new HashMap<>();
 
 	private final AuxElementEditHandler auxEditHandler;
 
@@ -288,7 +287,7 @@ public class Model implements InitializingBean {
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		AppContext.model = this;
-		loadColorSettings(headerColors);
+		loadColorSettings(colors);
 	}
 
 	/**
@@ -301,7 +300,7 @@ public class Model implements InitializingBean {
 			return;
 		}
 		var sensorLineChart = createSensorLineChart(csvFile);
-		saveColorSettings(headerColors);
+		saveColorSettings(colors);
 
 		Platform.runLater(() -> selectAndScrollToChart(sensorLineChart));
 	}
@@ -335,7 +334,7 @@ public class Model implements InitializingBean {
 
 		// Create and add the new chart
 		SensorLineChart newChart = createSensorLineChart(csvFile);
-		saveColorSettings(headerColors);
+		saveColorSettings(colors);
 		getFileManager().addFile(csvFile);
 
 		Platform.runLater(() -> selectAndScrollToChart(newChart));
@@ -359,7 +358,7 @@ public class Model implements InitializingBean {
 		csvFiles.put(csvFile, chart);
 
 		// create new chart contents
-		var plotData = chart.generatePlotData(csvFile);
+		var plotData = chart.generatePlots(csvFile);
 		var newChartBox = chart.createChartWithMultipleYAxes(csvFile, plotData);
 
 		// add to container keeping position
@@ -438,12 +437,12 @@ public class Model implements InitializingBean {
 		var colors = prefSettings.getAllSettings().get("colors");
 		if (colors != null)
 			colors.forEach((key, value) -> {
-				headerColors.put(key, Color.web(value));
+				this.colors.put(key, Color.web(value));
 			});
 	}
 
-	public Color getColorByHeader(String header) {
-		return headerColors.computeIfAbsent(header, k -> generateRandomColor());
+	public Color getColor(String key) {
+		return colors.computeIfAbsent(key, k -> generateRandomColor());
 	}
 
 	// Generate random color

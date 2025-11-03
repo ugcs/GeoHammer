@@ -5,7 +5,6 @@ import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
-import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
@@ -16,10 +15,6 @@ import javafx.scene.Cursor;
 import javafx.scene.chart.ValueAxis;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
@@ -29,10 +24,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-@Component
 public class SensorLineChartXAxis extends ValueAxis<Number> {
-
-    private static final Logger log = LoggerFactory.getLogger(SensorLineChartXAxis.class);
 
     private static final DateTimeFormatter SECONDS_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -40,7 +32,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private final Model model;
 
-    private final TemplateSettingsModel templateSettingsModel;
+    private final TemplateSettingsModel templateSettings;
 
     private final DecimalFormat formatter = new DecimalFormat();
 
@@ -51,20 +43,33 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     @Nullable
     private Button labelButton = null;
 
-    public SensorLineChartXAxis(Model model, TemplateSettingsModel templateSettingsModel, CsvFile file, int numTicks) {
+    public SensorLineChartXAxis(Model model, TemplateSettingsModel templateSettings, CsvFile file, int numTicks) {
         Check.notNull(file);
 
         this.model = model;
-        this.templateSettingsModel = templateSettingsModel;
+        this.templateSettings = templateSettings;
         this.file = file;
         this.numTicks = numTicks;
 
+        initLabelButton();
         setLabel(getUnit().getLabel());
     }
 
+    private void initLabelButton() {
+        Label axisLabel = (Label) lookup(".axis-label");
+        if (axisLabel != null) {
+            axisLabel.setVisible(false);
+        }
+
+        labelButton = new Button();
+        labelButton.setCursor(Cursor.HAND);
+        labelButton.setOnAction(event -> onLabelClick());
+        getChildren().add(labelButton);
+    }
+
     public TraceUnit getUnit() {
-        String templateName = Templates.getTemplateName(file);
-        return templateSettingsModel.getTraceUnit(templateName);
+        String templateName = Templates.getCsvTemplateName(file);
+        return templateSettings.getTraceUnit(templateName);
     }
 
     public void setUnit(TraceUnit traceUnit) {
@@ -73,7 +78,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
 
         String templateName = Templates.getCsvTemplateName(file);
-        templateSettingsModel.setTraceUnit(templateName, traceUnit);
+        templateSettings.setTraceUnit(templateName, traceUnit);
 
         setLabel(traceUnit.getLabel());
 
@@ -146,13 +151,6 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         return tickValues;
     }
 
-    @EventListener
-    public void onTraceCut(WhatChanged event) {
-        if (event.isTraceCut()) {
-            Platform.runLater(this::requestAxisLayout);
-        }
-    }
-
     @Override
     protected Object getRange() {
         return new AxisRange(getLowerBound(), getUpperBound());
@@ -179,27 +177,12 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     protected void layoutChildren() {
         super.layoutChildren();
 
-        Label axisLabel = (Label) lookup(".axis-label");
-        if (axisLabel != null && !axisLabel.getStyleClass().contains("clickable-label") && labelButton == null) {
-            axisLabel.setVisible(false);
-
-            labelButton = new Button(axisLabel.getText());
-            labelButton.getStyleClass().add("clickable-label");
-            labelButton.setCursor(Cursor.HAND);
+        if (labelButton != null) {
             labelButton.setVisible(this.isVisible() && this.isTickLabelsVisible());
-
-            labelButton.setOnAction(event -> onLabelClick());
-
-            getChildren().add(labelButton);
-        } else if (labelButton != null) {
-            labelButton.setVisible(this.isVisible() && this.isTickLabelsVisible());
-            getChildren().remove(labelButton);
             labelButton.setText(getUnitLabel(getUnit()));
             labelButton.autosize();
-
             labelButton.setLayoutX((getWidth() - labelButton.getWidth()) / 2);
             labelButton.setLayoutY(getHeight() - labelButton.getHeight() + 5);
-            getChildren().add(labelButton);
         }
     }
 

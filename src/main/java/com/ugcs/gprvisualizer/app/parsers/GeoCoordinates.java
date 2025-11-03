@@ -3,7 +3,9 @@ package com.ugcs.gprvisualizer.app.parsers;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.ugcs.gprvisualizer.utils.Check;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 public class GeoCoordinates {
 
@@ -11,24 +13,18 @@ public class GeoCoordinates {
 
     private double longitude;
 
-    private Double altitude;
-
-    private LocalDateTime dateTime;
+    // -1 for empty value
+    private long timestamp = -1;
 
     public GeoCoordinates() {
-        this(0,0);
-    }
-
-    public GeoCoordinates(double latitude, double longitude) {
-        this.latitude = latitude;
-        this.longitude = longitude;
     }
 
     public GeoCoordinates(GeoCoordinates other) {
+        Check.notNull(other);
+
         this.latitude = other.latitude;
         this.longitude = other.longitude;
-        this.altitude = other.altitude;
-        this.dateTime = other.dateTime;
+        this.timestamp = other.timestamp;
     }
 
     public LatLon getLatLon() {
@@ -37,7 +33,6 @@ public class GeoCoordinates {
 
     public void setLatLon(LatLon latLon) {
         Check.notNull(latLon);
-
         latitude = latLon.getLatDgr();
         longitude = latLon.getLonDgr();
     }
@@ -58,19 +53,15 @@ public class GeoCoordinates {
         this.longitude = longitude;
     }
 
-    public Double getAltitude() {
-        return altitude;
-    }
-
-    public void setAltitude(Double altitude) {
-        this.altitude = altitude;
-    }
-
     public LocalDateTime getDateTime() {
-        return dateTime;
+        return timestamp != -1
+                ? LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
+                : null;
     }
 
     public void setDateTime(LocalDateTime dateTime) {
-        this.dateTime = dateTime;
+        timestamp = dateTime != null
+                ? dateTime.toInstant(ZoneOffset.UTC).toEpochMilli()
+                : -1;
     }
 }

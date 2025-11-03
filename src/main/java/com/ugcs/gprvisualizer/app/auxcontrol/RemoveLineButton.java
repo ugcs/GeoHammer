@@ -54,8 +54,7 @@ public class RemoveLineButton extends PositionalObject {
 				if (lineRanges.size() == 1) {
 					gprChart.close();
 				} else {
-					String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, file);
-					int lineIndex = file.getGeoData().get(trace.getIndex()).getInt(lineHeader).orElse(0);
+					int lineIndex = file.getGeoData().get(trace.getIndex()).getLineOrDefault(0);
 					TraceTransform traceTransform = AppContext.getInstance(TraceTransform.class);
 					traceTransform.removeLine(file, lineIndex);
 				}

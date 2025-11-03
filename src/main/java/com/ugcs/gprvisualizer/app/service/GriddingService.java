@@ -220,8 +220,8 @@ public class GriddingService {
 
     private List<DataPoint> getDataPoints(CsvFile csvFile, String seriesName) {
         return csvFile.getGeoData().stream()
-                .filter(gd -> gd.getSensorValue(seriesName) != null && gd.getSensorValue(seriesName).data() != null)
-                .map(gd -> new DataPoint(gd.getLatitude(), gd.getLongitude(), gd.getSensorValue(seriesName).data().doubleValue()))
+                .filter(gd -> gd.getNumber(seriesName) != null)
+                .map(gd -> new DataPoint(gd.getLatitude(), gd.getLongitude(), gd.getNumber(seriesName).doubleValue()))
                 .toList();
     }
 

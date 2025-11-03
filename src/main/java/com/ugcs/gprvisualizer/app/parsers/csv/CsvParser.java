@@ -11,20 +11,20 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-import com.ugcs.gprvisualizer.app.parsers.GeoCoordinates;
+import com.ugcs.gprvisualizer.app.parsers.Column;
+import com.ugcs.gprvisualizer.app.parsers.ColumnSchema;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.app.parsers.Parser;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
-import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.ParseException;
 import com.ugcs.gprvisualizer.app.parsers.exceptions.IncorrectDateFormatException;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
@@ -45,11 +45,12 @@ public class CsvParser extends Parser {
     private final Template template;
 
     // contains lines that were skipped during parsing
-    private List<String> skippedLines;
+    private List<String> skippedLines = List.of();
 
     // header -> index in a file headers line
-    protected Map<String, Integer> headers = new HashMap<>();
+    protected Map<String, Integer> headers = Map.of();
 
+    // date and time parsed from the filename
     protected LocalDate dateFromFilename;
 
     public CsvParser(Template template) {
@@ -66,27 +67,27 @@ public class CsvParser extends Parser {
         return skippedLines;
     }
 
-    public Map<String, Integer> getHeaders() {
-        return headers;
+    public List<String> getHeaders() {
+        return new ArrayList<>(Nulls.toEmpty(headers).keySet());
     }
 
-    public void setHeaders(Map<String, Integer> headers) {
-        this.headers = headers;
-    }
-
-    public boolean hasHeader(BaseData column) {
-        return column != null && headers.containsKey(column.getHeader());
+    public void setHeaders(List<String> headers) {
+        this.headers = new LinkedHashMap<>();
+        Nulls.toEmpty(headers).forEach(header
+                -> this.headers.put(Objects.requireNonNull(header), headers.size()));
     }
 
     public boolean hasHeader(String header) {
         return headers.containsKey(header);
     }
 
-    @Override
-    public List<GeoCoordinates> parse(String path) throws IOException {
-        Check.notEmpty(path);
+    private boolean hasHeader(BaseData column) {
+        return column != null && headers.containsKey(column.getHeader());
+    }
 
-        File file = new File(path);
+    @Override
+    public List<GeoData> parse(File file) throws IOException {
+        Check.notNull(file);
 
         // set date from filename
         dateFromFilename = null;
@@ -96,20 +97,17 @@ public class CsvParser extends Parser {
         }
 
         try {
-            // read headers and data lines
-            List<String[]> data = readLines(file);
-
             // parse data lines
-            List<GeoCoordinates> coordinates = parseLines(data);
+            List<GeoData> values = parseFile(file);
 
             // timestamps could be in wrong order in the file
             if (template.isReorderByTime()) {
-                coordinates.sort(Comparator.comparing(
-                        GeoCoordinates::getDateTime,
+                values.sort(Comparator.comparing(
+                        GeoData::getDateTime,
                         Comparator.nullsFirst(Comparator.naturalOrder())));
             }
 
-            return coordinates;
+            return values;
         } catch (IOException | CancellationException e) {
             throw e;
         } catch (Exception e) {
@@ -119,10 +117,13 @@ public class CsvParser extends Parser {
         }
     }
 
-    private List<String[]> readLines(File file) throws IOException {
+    private List<GeoData> parseFile(File file) throws IOException {
+        Check.notNull(file);
+
         DataMapping mapping = template.getDataMapping();
 
-        List<String[]> dataLines = new ArrayList<>();
+        ColumnSchema columns;
+        List<GeoData> values = new ArrayList<>();
         try (var r = new BufferedReader(new FileReader(file))) {
             String line = skipLines(r);
 
@@ -138,19 +139,31 @@ public class CsvParser extends Parser {
                 // read next line
                 line = r.readLine();
             } else {
-                headers = new HashMap<>();
+                headers = Map.of();
             }
+
+            columns = buildColumnSchema();
 
             // read data lines
             while (line != null) {
+                if (Thread.currentThread().isInterrupted()) {
+                    break;
+                }
                 if (!isBlankOrCommented(line)) {
-                    String[] values = splitLine(line);
-                    dataLines.add(values);
+                    GeoData value = parseLine(line, columns);
+                    if (value != null) {
+                        values.add(value);
+                    }
                 }
                 line = r.readLine();
             }
         }
-        return dataLines;
+
+        // decide which columns to display
+        // based on loaded data values
+        setColumnDisplay(columns, values);
+
+        return values;
     }
 
     private String skipLines(BufferedReader r) throws IOException {
@@ -206,78 +219,45 @@ public class CsvParser extends Parser {
 
     private Map<String, Integer> splitHeaders(String line) {
         String[] tokens = splitLine(line);
-        Map<String, Integer> headers = new HashMap<>(tokens.length);
+        Map<String, Integer> headers = new LinkedHashMap<>(tokens.length);
         for (int i = 0; i < tokens.length; i++) {
             headers.put(tokens[i], i);
         }
         return headers;
     }
 
-    private List<GeoCoordinates> parseLines(List<String[]> data) {
+    private ColumnSchema buildColumnSchema() {
         DataMapping mapping = template.getDataMapping();
 
-        // list of data headers to load
-        List<String> dataHeaders = getDataHeaders(data);
-        List<GeoCoordinates> coordinates = new ArrayList<>();
+        ColumnSchema columns = new ColumnSchema();
 
-        for (String[] values : data) {
-            if (Thread.currentThread().isInterrupted()) {
-                break;
+        // add all file columns
+        for (String header : headers.keySet()) {
+            Column column = new Column(header);
+            SensorData dataValue = mapping.getDataValueByHeader(header);
+            if (dataValue != null) {
+                column.setSemantic(Strings.emptyToNull(dataValue.getSemantic()));
+                column.setUnit(Strings.emptyToNull(dataValue.getUnits()));
             }
-            if (values == null || values.length == 0) {
-                continue;
-            }
-
-            Double latitude = parseLatitude(values);
-            Double longitude = parseLongitude(values);
-            if (latitude == null || longitude == null) {
-                continue;
-            }
-
-            GeoData geoData = new GeoData(latitude, longitude);
-            geoData.setAltitude(parseAltitude(values));
-            geoData.setDateTime(parseDateTime(values));
-
-            List<SensorValue> sensorValues = new ArrayList<>();
-            for (String header : dataHeaders) {
-                // parse and add value
-                Number number = parseNumber(values, header);
-                // get column definition from the template
-                SensorData column = mapping.getDataValueByHeader(header);
-                SensorValue sensorValue = new SensorValue(
-                        header,
-                        column != null ? column.getUnits() : null,
-                        number);
-                sensorValues.add(sensorValue);
-            }
-            geoData.setSensorValues(sensorValues);
-            geoData.setSourceLine(values);
-            coordinates.add(geoData);
+            columns.addColumn(column);
         }
-        return coordinates;
-    }
 
-    private List<String> getDataHeaders(List<String[]> data) {
-        DataMapping mapping = template.getDataMapping();
-        List<String> dataHeaders = new ArrayList<>();
-
-        // data columns declared in template
-        for (SensorData column : Nulls.toEmpty(mapping.getDataValues())) {
-            if (column == null) {
+        // add columns declared in template but not present in a file
+        for (SensorData dataValue : Nulls.toEmpty(mapping.getDataValues())) {
+            if (dataValue == null) {
                 continue;
             }
-            String header = column.getHeader();
+            String header = dataValue.getHeader();
             // present in a file
             if (hasHeader(header)) {
-                dataHeaders.add(header);
                 continue;
             }
+            String semantic = dataValue.getSemantic();
+            boolean addColumn = false;
             // is line or mark column
-            String semantic = column.getSemantic();
             if (Objects.equals(semantic, Semantic.LINE.getName()) ||
                     Objects.equals(semantic, Semantic.MARK.getName())) {
-                dataHeaders.add(header);
-                continue;
+                addColumn = true;
             }
             // is anomaly column
             if (semantic.endsWith(Semantic.ANOMALY_SUFFIX)) {
@@ -285,47 +265,86 @@ public class CsvParser extends Parser {
                         0, semantic.length() - Semantic.ANOMALY_SUFFIX.length());
                 SensorData sourceColumn = mapping.getDataValueBySemantic(sourceSemantic);
                 if (hasHeader(sourceColumn)) {
-                    dataHeaders.add(header);
+                    addColumn = true;
                 }
             }
-        }
-
-        // non-empty columns with numbers
-        Set<String> templateHeaders = Nulls.toEmpty(mapping.getAllValues()).stream()
-                .filter(Objects::nonNull)
-                .map(BaseData::getHeader)
-                .filter(h -> !Strings.isNullOrBlank(h))
-                .collect(Collectors.toSet());
-
-        for (String header : headers.keySet()) {
-            if (templateHeaders.contains(header)) {
-                continue;
-            }
-            if (isNonEmptyNumericColumn(data, header)) {
-                dataHeaders.add(header);
+            if (addColumn) {
+                Column column = new Column(header)
+                        .withSemantic(semantic)
+                        .withUnit(Strings.emptyToNull(dataValue.getUnits()));
+                columns.addColumn(column);
             }
         }
 
-        return dataHeaders;
+        return columns;
     }
 
-    private boolean isNonEmptyNumericColumn(List<String[]> data, String header) {
-        if (!hasHeader(header)) {
-            return false;
+    private void setColumnDisplay(ColumnSchema columns, List<GeoData> values) {
+        DataMapping mapping = template.getDataMapping();
+
+        Set<String> excludeHeaders = new HashSet<>();
+        for (BaseData metaValue : mapping.getMetaValues()) {
+            excludeHeaders.add(metaValue.getHeader());
         }
-        for (String[] values : Nulls.toEmpty(data)) {
-            Number number = parseNumber(values, header);
-            if (number != null) {
+        // explicitly exclude mark column
+        String markHeader = mapping.getHeaderBySemantic(Semantic.MARK.getName());
+        if (markHeader != null) {
+            excludeHeaders.add(markHeader);
+        }
+
+        for (Column column : columns) {
+            String header = column.getHeader();
+            // data column declared in template or having numeric values
+            boolean display = !excludeHeaders.contains(header)
+                    && (mapping.getDataValueByHeader(header) != null || hasNumbers(values, header));
+            column.setDisplay(display);
+        }
+    }
+
+    private boolean hasNumbers(List<GeoData> values, String header) {
+        for (GeoData value : values) {
+            if (value.getNumber(header) != null) {
                 return true;
             }
         }
         return false;
     }
 
+    private GeoData parseLine(String line, ColumnSchema columns) {
+        String[] tokens = splitLine(line);
+
+        Double latitude = parseLatitude(tokens);
+        Double longitude = parseLongitude(tokens);
+        if (latitude == null || longitude == null) {
+            return null;
+        }
+        if (latitude == 0.0 && longitude == 0.0) {
+            return null;
+        }
+
+        GeoData geoData = new GeoData(columns);
+        geoData.setLatitude(latitude);
+        geoData.setLongitude(longitude);
+        geoData.setDateTime(parseDateTime(tokens));
+
+        for (Column column : columns) {
+            String header = column.getHeader();
+            if (hasHeader(header)) {
+                String str = Strings.emptyToNull(getString(tokens, header));
+                if (str != null) {
+                    Number number = parseNumber(str);
+                    geoData.setValue(header, Objects.requireNonNullElse(number, str));
+                }
+            }
+        }
+
+        return geoData;
+    }
+
     // value parsers
 
     public String getString(String[] values, String header) {
-        if (values == null) {
+        if (values == null || header == null) {
             return null;
         }
         Integer columnIndex = headers.get(header);
@@ -375,11 +394,6 @@ public class CsvParser extends Parser {
     public Double parseLongitude(String[] values) {
         BaseData longitudeColumn = template.getDataMapping().getLongitude();
         return parseDouble(getString(values, longitudeColumn));
-    }
-
-    public Double parseAltitude(String[] values) {
-        BaseData altitudeColumn = template.getDataMapping().getAltitude();
-        return parseDouble(getString(values, altitudeColumn));
     }
 
     public LocalDate parseDateFromFilename(String filename) {

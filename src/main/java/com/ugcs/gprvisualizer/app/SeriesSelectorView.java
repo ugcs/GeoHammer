@@ -296,7 +296,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
         return new SeriesMeta(
                 seriesName,
-                model.getColorByHeader(seriesName),
+                model.getColor(seriesName),
                 createVisibleProperty(template, seriesName));
     }
 

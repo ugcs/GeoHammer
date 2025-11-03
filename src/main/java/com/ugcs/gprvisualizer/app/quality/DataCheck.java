@@ -7,8 +7,6 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
-import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.utils.Check;
 import org.locationtech.jts.geom.Coordinate;
@@ -47,10 +45,10 @@ public class DataCheck extends FileQualityCheck {
             return List.of();
         }
 
-        return checkValues(file.getGeoData(), template, validation);
+        return checkValues(file.getGeoData(), validation);
     }
 
-    private List<QualityIssue> checkValues(List<GeoData> values, Template template, DataValidation validation) {
+    private List<QualityIssue> checkValues(List<GeoData> values, DataValidation validation) {
         if (values == null) {
             return List.of();
         }
@@ -64,7 +62,7 @@ public class DataCheck extends FileQualityCheck {
         Expression expression = new Expression(validation.getExpression());
         Map<String, Number> varValues = new HashMap<>();
         for (GeoData value : values) {
-            if (isInRange(value, lastProblem, template)) {
+            if (isInRange(value, lastProblem)) {
                 // skip sample
                 continue;
             }
@@ -74,12 +72,12 @@ public class DataCheck extends FileQualityCheck {
                 for (Map.Entry<String, String> e : validation.getVarHeaders().entrySet()) {
                     String varName = e.getKey();
                     String varHeader = e.getValue();
-                    SensorValue sensorValue = value.getSensorValue(varHeader);
-                    if (sensorValue == null || sensorValue.data() == null) {
+                    Number varValue = value.getNumber(varHeader);
+                    if (varValue == null) {
                         varMissing = true;
                         break;
                     }
-                    varValues.put(varName, sensorValue.data());
+                    varValues.put(varName, varValue);
                 }
                 if (varMissing) {
                     // some of the data validation columns are missing;
@@ -103,12 +101,11 @@ public class DataCheck extends FileQualityCheck {
         return issues;
     }
 
-    private boolean isInRange(GeoData value, GeoData last, Template template) {
+    private boolean isInRange(GeoData value, GeoData last) {
         if (last == null) {
             return false;
         }
-        String lineHeader = GeoData.getHeader(Semantic.LINE, template);
-        if (!Objects.equals(value.getInt(lineHeader), last.getInt(lineHeader))) {
+        if (!Objects.equals(value.getLine(), last.getLine())) {
             return false;
         }
         LatLon latlon = new LatLon(value.getLatitude(), value.getLongitude());

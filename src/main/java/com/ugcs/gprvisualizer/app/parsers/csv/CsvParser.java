@@ -86,10 +86,8 @@ public class CsvParser extends Parser {
     }
 
     @Override
-    public List<GeoData> parse(String path) throws IOException {
-        Check.notEmpty(path);
-
-        File file = new File(path);
+    public List<GeoData> parse(File file) throws IOException {
+        Check.notNull(file);
 
         // set date from filename
         dateFromFilename = null;

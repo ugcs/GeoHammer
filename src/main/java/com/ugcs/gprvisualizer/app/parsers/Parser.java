@@ -1,5 +1,6 @@
 package com.ugcs.gprvisualizer.app.parsers;
 
+import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,7 +18,7 @@ import com.ugcs.gprvisualizer.utils.Strings;
 
 public abstract class Parser {
 
-    public abstract List<GeoData> parse(String path) throws IOException;
+    public abstract List<GeoData> parse(File file) throws IOException;
 
     public String matchPattern(String value, String regex) {
         return matchPattern(value, regex, true);

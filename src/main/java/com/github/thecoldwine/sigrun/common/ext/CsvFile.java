@@ -52,8 +52,7 @@ public class CsvFile extends SgyFile {
 
     @Override
     public void open(File csvFile) throws IOException {
-        String path = csvFile.getAbsolutePath();
-        Template template = fileTemplates.findTemplate(fileTemplates.getTemplates(), path);
+        Template template = fileTemplates.findTemplate(fileTemplates.getTemplates(), csvFile);
         if (template == null) {
             throw new RuntimeException("Can`t find template for file " + csvFile.getName());
         }
@@ -61,7 +60,7 @@ public class CsvFile extends SgyFile {
         log.debug("template: {}", template.getName());
 
         parser = new CsvParserFactory().createCsvParser(template);
-        geoData = parser.parse(path);
+        geoData = parser.parse(csvFile);
 
         if (getFile() == null) {
             setFile(csvFile);

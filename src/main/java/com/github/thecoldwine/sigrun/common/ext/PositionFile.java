@@ -109,15 +109,14 @@ public class PositionFile {
 	private List<GeoData> parsePositionFile(File file) throws IOException {
 		Check.notNull(file);
 
-		String path = file.getAbsolutePath();
-		Template template = templates.findTemplate(templates.getTemplates(), path);
+		Template template = templates.findTemplate(templates.getTemplates(), file);
 		if (template == null) {
 			throw new RuntimeException("Can`t find template for file " + file.getName());
 		}
 
 		log.info("Using position file template: {}", template.getName());
 		parser = new CsvParserFactory().createCsvParser(template);
-        return parser.parse(path);
+        return parser.parse(file);
 	}
 
 	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceHeader) {

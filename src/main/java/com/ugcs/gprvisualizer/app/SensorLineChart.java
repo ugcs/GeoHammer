@@ -203,7 +203,6 @@ public class SensorLineChart extends Chart {
         this.chartsContainer = new StackPane();
 
         for (PlotData plotData : plotDataList) {
-            ValueAxis<Number> yAxis = createYAxis(plotData);
             createLineChart(plotData);
         }
         if (interactiveChart != null) {
@@ -432,7 +431,6 @@ public class SensorLineChart extends Chart {
         for (PlotData plotData : plotDataList) {
             LineChartWithMarkers lineChart = charts.get(plotData.header());
             if (lineChart == null) {
-				ValueAxis<Number> yAxis = createYAxis(plotData);
 				lineChart = createLineChart(plotData);
 
 				if (lineChart == null) {
@@ -677,12 +675,16 @@ public class SensorLineChart extends Chart {
 
     private void updateProfileScroll() {
         String seriesName = getSelectedSeriesName();
-        LineChartWithMarkers selectedChart = charts.get(seriesName);
-        if (selectedChart == null) {
+        LineChartWithMarkers chart = charts.get(seriesName);
+        // fallback to interactive chart when nothing selected
+        if (chart == null) {
+            chart = interactiveChart;
+        }
+        if (chart == null) {
             return;
         }
 
-        ZoomRect zoomRect = selectedChart.zoomRect;
+        ZoomRect zoomRect = chart.zoomRect;
         int xMin = zoomRect.xMin.intValue();
         int xMax = zoomRect.xMax.intValue();
 
@@ -1673,7 +1675,6 @@ public class SensorLineChart extends Chart {
                         chart.plotData.color,
                         filtered
                 );
-                ValueAxis<Number> yAxis = createYAxis(filteredData);
                 createLineChart(filteredData);
             } else {
                 filteredChart.plotData = filteredChart.plotData.withData(filtered);

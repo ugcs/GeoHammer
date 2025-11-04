@@ -41,8 +41,10 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -277,36 +279,56 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         return orderedSeriesNames;
     }
 
+    private Map<String, Boolean> getVisibilitySettings(Template template, List<String> seriesNames) {
+        Check.notNull(template);
+        Check.notNull(seriesNames);
+
+        Map<String, Boolean> visibilitySettings = new HashMap<>();
+        for (String seriesName : seriesNames) {
+            Boolean seriesVisible = templateSettings.isSeriesVisible(template, seriesName);
+            if (seriesVisible == null) {
+                continue;
+            }
+            visibilitySettings.put(seriesName, seriesVisible);
+        }
+        // if no settings defined for template, make first series visible
+        if (visibilitySettings.isEmpty() && !seriesNames.isEmpty()) {
+            visibilitySettings.put(seriesNames.getFirst(), true);
+        }
+        return visibilitySettings;
+    }
+
     private List<SeriesMeta> getSeriesMetas(@Nullable Template template) {
         if (template == null) {
             return Collections.emptyList();
         }
 
         List<String> seriesNames = orderSeriesNames(template, getSeriesNames(template));
+        Map<String, Boolean> visibilitySettings = getVisibilitySettings(template, seriesNames);
+
         List<SeriesMeta> seriesMetas = new ArrayList<>(seriesNames.size());
         for (String seriesName : seriesNames) {
-            seriesMetas.add(toSeriesMeta(template, seriesName));
+            boolean seriesVisible = visibilitySettings.getOrDefault(seriesName, false);
+            seriesMetas.add(toSeriesMeta(template, seriesName, seriesVisible));
         }
         return seriesMetas;
     }
 
-    private SeriesMeta toSeriesMeta(Template template, String seriesName) {
+    private SeriesMeta toSeriesMeta(Template template, String seriesName, boolean seriesVisible) {
         Check.notNull(template);
         Check.notEmpty(seriesName);
 
         return new SeriesMeta(
                 seriesName,
                 model.getColor(seriesName),
-                createVisibleProperty(template, seriesName));
+                createVisibleProperty(template, seriesName, seriesVisible));
     }
 
-    private BooleanProperty createVisibleProperty(Template template, String seriesName) {
+    private BooleanProperty createVisibleProperty(Template template, String seriesName, boolean seriesVisible) {
         Check.notNull(template);
         Check.notEmpty(seriesName);
 
-        boolean visible = templateSettings.isSeriesVisible(template, seriesName);
-        BooleanProperty visibleProperty = new SimpleBooleanProperty(visible);
-
+        BooleanProperty visibleProperty = new SimpleBooleanProperty(seriesVisible);
         visibleProperty.addListener((observable, oldValue, newValue) -> {
             showChart(template, seriesName, newValue);
             templateSettings.setSeriesVisible(template, seriesName, newValue);

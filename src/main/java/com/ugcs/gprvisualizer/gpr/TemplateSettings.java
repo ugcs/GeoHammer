@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.gpr;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Strings;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,6 +16,7 @@ public class TemplateSettings {
         this.settings = settings;
     }
 
+    @Nullable
     public String getSelectedSeriesName(Template template) {
         return settings.getSetting(template.getName(),"selected");
     }
@@ -23,9 +25,10 @@ public class TemplateSettings {
         settings.saveSetting(template.getName(), "selected", seriesName);
     }
 
-    public boolean isSeriesVisible(Template template, String seriesName) {
+    @Nullable
+    public Boolean isSeriesVisible(Template template, String seriesName) {
         String s = settings.getSetting(template.getName() + "." + seriesName, "visible");
-        return Strings.isNullOrEmpty(s) || Boolean.parseBoolean(s);
+        return !Strings.isNullOrEmpty(s) ? Boolean.parseBoolean(s) : null;
     }
 
     public void setSeriesVisible(Template template, String seriesName, boolean visible) {

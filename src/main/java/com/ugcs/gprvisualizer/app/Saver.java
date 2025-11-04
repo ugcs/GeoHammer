@@ -9,6 +9,7 @@ import java.util.SortedMap;
 import java.util.concurrent.Callable;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
@@ -18,7 +19,14 @@ import com.ugcs.gprvisualizer.utils.FileTypes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Strings;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.layout.VBox;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,11 +54,16 @@ public class Saver implements ToolProducer, InitializingBean {
 	public static final String SAVER_SETTINGS_GROUP_KEY = "saver";
 
 	private static final Logger log = LoggerFactory.getLogger(Saver.class);
+	private static final int MAX_HEIGHT_CONFIRM_LIST = 200;
+	private static final int ITEM_HEIGHT_CONFIRM_LIST = 24;
+	private static final int PADDING_CONFIRM_LIST = 16;
+	private static final int SPACING_CONFIRM_LIST = 8;
 
 	private final Button buttonOpen = ResourceImageHolder.setButtonImage(ResourceImageHolder.OPEN, new Button());
 	private final Button buttonSave = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE, new Button());
 	private final Button buttonSaveTo = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_TO, new Button());
 	private final Button buttonSaveAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_ALL, new Button());
+	private final Button buttonCloseAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.CLOSE_ALL, new Button());
 
 	@Autowired
 	private Model model;
@@ -81,11 +94,14 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		buttonSaveAll.setTooltip(new Tooltip("Save all"));
 		buttonSaveAll.setOnAction(this::onSaveAll);
+
+		buttonCloseAll.setTooltip(new Tooltip("Close all"));
+		buttonCloseAll.setOnAction(this::onCloseAll);
 	}
 
 	@Override
 	public List<Node> getToolNodes() {		
-		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll);
+		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll, buttonCloseAll);
 	}
 
 	private void onOpen(ActionEvent event) {
@@ -309,6 +325,63 @@ public class Saver implements ToolProducer, InitializingBean {
 			}
 			return null;
 		});
+	}
+
+	private void onCloseAll(ActionEvent event) {
+		List<SgyFile> files = model.getFileManager().getFiles();
+		if (files.isEmpty()) {
+			return;
+		}
+		String actionName = "Closing all opened files";
+		runAction(actionName, () -> {
+			if (!confirmUnsavedChanges(files)) {
+				return null;
+			}
+			for (SgyFile file : files.toArray(new SgyFile[0])) {
+				model.publishEvent(new FileClosedEvent(this, file));
+			}
+			return null;
+		});
+	}
+
+	/**
+	 * Confirm unsaved changes in the given files.
+	 * @return true if user confirmed to proceed, false to cancel the operation
+	 */
+	private boolean confirmUnsavedChanges(List<SgyFile> sgyFiles) {
+		List<SgyFile> unsavedFiles = sgyFiles.stream()
+				.filter(SgyFile::isUnsaved)
+				.toList();
+		if (unsavedFiles.isEmpty()) {
+			return true;
+		}
+		List<String> names = unsavedFiles.stream()
+				.filter(file -> file.getFile() != null)
+				.map(file -> file.getFile().getName())
+				.toList();
+
+		Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+		alert.setTitle("Warning");
+		alert.setHeaderText("Some files have unsaved changes. Continue?");
+
+		ObservableList<String> items = FXCollections.observableArrayList(names);
+		ListView<String> listView = new ListView<>(items);
+		listView.setPrefHeight(Math.min(MAX_HEIGHT_CONFIRM_LIST, names.size() * ITEM_HEIGHT_CONFIRM_LIST + PADDING_CONFIRM_LIST));
+
+
+		VBox content = new VBox(
+				new Label("The following files have unsaved changes:"),
+				listView
+		);
+		content.setSpacing(SPACING_CONFIRM_LIST);
+		alert.getDialogPane().setContent(content);
+		alert.setResizable(true);
+		alert.getButtonTypes().setAll(
+				ButtonType.CANCEL,
+				ButtonType.OK);
+
+		Optional<ButtonType> result = alert.showAndWait();
+		return result.isPresent() && result.get().equals(ButtonType.OK);
 	}
 
 	private void runAction(String actionName, Callable<Void> action) {

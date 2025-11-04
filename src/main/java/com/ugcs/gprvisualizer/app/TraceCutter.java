@@ -119,11 +119,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		this.listener = listener;
 	}
 
-	public List<Node> getToolNodes() {
-		return Arrays.asList();
-	}
-
-	public List<Node> getToolNodes2() {
+	public List<Node> getTraceCutButtons() {
 
 		initButtons();
 
@@ -141,15 +137,18 @@ public class TraceCutter implements Layer, InitializingBean {
 			applySplitLine();
 		});
 
-		buttonUndo.setOnAction(e -> {
+		return Arrays.asList(buttonCutMode, buttonCrop, buttonSplit);
+	}
+
+	public Button getUndoButton() {
+		buttonUndo.setOnAction(event -> {
 			undo();
 
 			buttonCutMode.setSelected(false);
 			updateCutMode();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
-
-		return Arrays.asList(buttonCutMode, buttonCrop, buttonSplit, buttonUndo);
+		return buttonUndo;
 	}
 
 	@Override

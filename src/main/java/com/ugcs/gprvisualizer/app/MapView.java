@@ -308,11 +308,10 @@ public class MapView implements InitializingBean {
 		toolBar.setDisable(true);
 
 		toolBar.getItems().addAll(settingsView.getToolNodes());
-		toolBar.getItems().add(traceCutter.getUndoButton());
 
 		toolBar.getItems().add(createFixedWidthSpacer());
 
-		toolBar.getItems().addAll(traceCutter.getTraceCutButtons());
+		toolBar.getItems().addAll(traceCutter.getToolNodes2());
 		toolBar.getItems().addAll(mapRuler.buildToolNodes());
 
 		toolBar.getItems().add(createFlexibleSpacer());

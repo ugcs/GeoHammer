@@ -36,8 +36,7 @@ public abstract class SgyFile {
 
 	public SortedMap<Integer, Range> getLineRanges() {
 		if (lineRanges == null) {
-			String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, this);
-			lineRanges = LineSchema.getLineRanges(getGeoData(), lineHeader);
+			lineRanges = LineSchema.getLineRanges(getGeoData());
 		}
 		return lineRanges;
 	}

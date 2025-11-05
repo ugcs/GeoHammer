@@ -76,12 +76,11 @@ public class TraceTransform {
         List<GeoData> values = file.getGeoData();
         int numRemoved = 0;
 
-        String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, file);
         for (int i = 0; i < values.size(); i++) {
             GeoData value = values.get(i);
 
             boolean inside = isGeoDataInsideSelection(field, cropArea, value);
-            int lineIndex = value.getInt(lineHeader).orElse(0);
+            int lineIndex = value.getLineOrDefault(0);
 
             if (!inside && prevInside || lineIndex != prevLineIndex) {
                 if (cutIndexUsed) {
@@ -90,7 +89,7 @@ public class TraceTransform {
                 }
             }
             if (inside) {
-                value.setSensorValue(lineHeader, cutLineIndex);
+                value.setLine(cutLineIndex);
                 cutIndexUsed = true;
                 if (numRemoved > 0) {
                     values.set(i - numRemoved, value);
@@ -136,10 +135,9 @@ public class TraceTransform {
             return true;
         }
         List<GeoData> values = file.getGeoData();
-        String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, file);
         return !Objects.equals(
-                values.get(traceIndex).getInt(lineHeader),
-                values.get(traceIndex - 1).getInt(lineHeader));
+                values.get(traceIndex).getLine(),
+                values.get(traceIndex - 1).getLine());
     }
 
     public void splitLine(SgyFile file, int splitIndex) {
@@ -149,17 +147,16 @@ public class TraceTransform {
         undoModel.saveSnapshot(file);
 
         List<GeoData> values = file.getGeoData();
-        String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, file);
 
         // shift lines after a split trace
-        int splitLine = values.get(splitIndex).getInt(lineHeader).orElse(0);
+        int splitLine = values.get(splitIndex).getLineOrDefault(0);
         Set<Integer> linesToShift = new HashSet<>();
         linesToShift.add(splitLine);
         for (int i = splitIndex; i < values.size(); i++) {
             GeoData value = values.get(i);
-            int lineIndex = value.getInt(lineHeader).orElse(0);
+            int lineIndex = value.getLineOrDefault(0);
             if (linesToShift.contains(lineIndex)) {
-                value.setSensorValue(lineHeader, lineIndex + 1);
+                value.setLine(lineIndex + 1);
                 linesToShift.add(lineIndex + 1);
             }
         }
@@ -187,15 +184,14 @@ public class TraceTransform {
         Set<PositionalObject> toRemove = new HashSet<>();
 
         List<GeoData> values = file.getGeoData();
-        String lineHeader = GeoData.getHeaderInFile(Semantic.LINE, file);
         int numRemoved = 0;
 
         for (int i = 0; i < values.size(); i++) {
             GeoData value = values.get(i);
-            int valueLineIndex = value.getInt(lineHeader).orElse(0);
+            int valueLineIndex = value.getLineOrDefault(0);
             if (valueLineIndex != lineIndex) {
                 if (valueLineIndex > lineIndex) {
-                    value.setSensorValue(lineHeader, valueLineIndex - 1);
+                    value.setLine(valueLineIndex - 1);
                 }
                 if (numRemoved > 0) {
                     values.set(i - numRemoved, value);

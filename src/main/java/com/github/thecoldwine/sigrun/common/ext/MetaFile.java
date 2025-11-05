@@ -181,8 +181,7 @@ public class MetaFile {
         meta.setSampleRange(sampleRange);
 
         // lines
-        String lineHeader = GeoData.getHeader(Semantic.LINE, null);
-        TreeMap<Integer, Range> lineRanges = LineSchema.getLineRanges(values, lineHeader);
+        TreeMap<Integer, Range> lineRanges = LineSchema.getLineRanges(values);
         List<TraceLine> lines = new ArrayList<>();
         for (Map.Entry<Integer, Range> e : lineRanges.entrySet()) {
             Integer lineIndex = e.getKey();
@@ -238,13 +237,12 @@ public class MetaFile {
             numValues += line.getTo() - line.getFrom();
         }
 
-        String lineHeader = GeoData.getHeader(Semantic.LINE, null);
         int lineIndex = 0;
         List<TraceGeoData> values = new ArrayList<>(numValues);
         for (TraceLine line : lines) {
             for (int i = line.getFrom(); i < line.getTo(); i++) {
                 TraceGeoData value = new TraceGeoData(i);
-                value.setSensorValue(lineHeader, lineIndex);
+                value.setLine(lineIndex);
                 values.add(value);
             }
             lineIndex++;

@@ -1,5 +1,6 @@
 package com.ugcs.gprvisualizer.app.yaml;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
@@ -204,8 +205,8 @@ public class FileTemplates implements InitializingBean {
         return templates;
     }
 
-    public Template findTemplate(List<Template> templates, String fileName) {
-        if (fileName.endsWith(".sgy")) {
+    public Template findTemplate(List<Template> templates, File file) {
+        if (file.getName().endsWith(".sgy")) {
             var ot = templates.stream()
                     .filter(t -> FileType.Segy.equals(t.getFileType()))
                     .findFirst();
@@ -213,7 +214,7 @@ public class FileTemplates implements InitializingBean {
         }
 
         String firstNonEmptyLines = "";
-        try (Stream<String> lines = Files.lines(Paths.get(fileName))) {
+        try (Stream<String> lines = Files.lines(file.toPath())) {
             List<String> firstTenLines = lines.limit(lineThreshold).collect(Collectors.toList());
             firstNonEmptyLines = String.join(System.lineSeparator(), firstTenLines);
             logger.debug(firstNonEmptyLines);

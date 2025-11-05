@@ -118,7 +118,7 @@ public class DataMapping {
         this.traceNumber = traceNumber;
     }
 
-    public List<BaseData> getAllValues() {
+    public List<BaseData> getMetaValues() {
         List<BaseData> values = new ArrayList<>();
 
         Nulls.ifPresent(latitude, values::add);
@@ -129,14 +129,6 @@ public class DataMapping {
         Nulls.ifPresent(dateTime, values::add);
         Nulls.ifPresent(timestamp, values::add);
         Nulls.ifPresent(traceNumber, values::add);
-
-        for (BaseData column : Nulls.toEmpty(sgyTraces)) {
-            Nulls.ifPresent(column, values::add);
-        }
-
-        for (BaseData column : Nulls.toEmpty(dataValues)) {
-            Nulls.ifPresent(column, values::add);
-        }
 
         return values;
     }

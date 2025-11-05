@@ -42,7 +42,7 @@ class CsvParserTest extends BaseParsersTest {
         CsvParser parser = new CsvParser(template);
 
         try {
-            parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position.csv").toAbsolutePath().toString());
+            parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position.csv").toFile());
         } catch (Exception e) {
             fail(e.getMessage());
         }
@@ -58,8 +58,7 @@ class CsvParserTest extends BaseParsersTest {
         CsvParser parser = new CsvParser(template);
 
         assertThrows(ParseException.class, () -> {
-            parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-missed-headers.csv")
-                    .toAbsolutePath().toString());
+            parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-missed-headers.csv").toFile());
         });
     }
 
@@ -72,7 +71,7 @@ class CsvParserTest extends BaseParsersTest {
         CsvParser parser = new CsvParser(template);
 
         assertThrows(IncorrectDateFormatException.class, () -> {
-            parser.parse(Paths.get(CSVTestDataFolder + "Missed-date-position.csv").toAbsolutePath().toString());
+            parser.parse(Paths.get(CSVTestDataFolder + "Missed-date-position.csv").toFile());
         });
     }
 
@@ -85,8 +84,7 @@ class CsvParserTest extends BaseParsersTest {
         CsvParser parser = new CsvParser(template);
 
         try {
-            parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-no-headers.csv").toAbsolutePath()
-                    .toString());
+            parser.parse(Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-no-headers.csv").toFile());
         } catch (Exception e) {
             fail(e.getMessage());
         }
@@ -103,7 +101,7 @@ class CsvParserTest extends BaseParsersTest {
         // invalid csv also parcing if possible
         try {
             parser.parse(
-                Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-invalid.csv").toAbsolutePath().toString());
+                Paths.get(CSVTestDataFolder + "2020-07-29-14-37-42-position-invalid.csv").toFile());
         } catch (Exception e) {
             fail(e.getMessage());
         }        
@@ -119,7 +117,7 @@ class CsvParserTest extends BaseParsersTest {
 
         try {
             parser.parse(
-                    Paths.get(CSVTestDataFolder + YamlMagdroneFolder + "Magdrone.csv").toAbsolutePath().toString());
+                    Paths.get(CSVTestDataFolder + YamlMagdroneFolder + "Magdrone.csv").toFile());
         } catch (Exception e) {
             fail(e.getMessage());
         }
@@ -135,7 +133,7 @@ class CsvParserTest extends BaseParsersTest {
 
         Assertions.assertThrows(Exception.class, () -> {
             parser.parse(
-                    Paths.get(CSVTestDataFolder + YamlMagdroneFolder + "Magdrone.csv").toAbsolutePath().toString());
+                    Paths.get(CSVTestDataFolder + YamlMagdroneFolder + "Magdrone.csv").toFile());
         });
     }
 
@@ -149,7 +147,7 @@ class CsvParserTest extends BaseParsersTest {
 
         try {
             parser.parse(
-                    Paths.get(CSVTestDataFolder + YamlMagarrowFolder + "MagArrow.csv").toAbsolutePath().toString());
+                    Paths.get(CSVTestDataFolder + YamlMagarrowFolder + "MagArrow.csv").toFile());
         } catch (Exception e) {
             fail(e.getMessage());
         }

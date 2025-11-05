@@ -3,8 +3,8 @@ package com.ugcs.gprvisualizer.app;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
+import com.ugcs.gprvisualizer.app.parsers.ColumnSchema;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.SensorValue;
 import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
@@ -30,11 +30,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
+import javax.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.List;
 import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 public class StatisticsView extends VBox {
 
@@ -135,11 +134,13 @@ public class StatisticsView extends VBox {
             if (selectedTrace != null) {
                 int index = selectedTrace.getIndex();
                 List<GeoData> values = chart.getFile().getGeoData();
-                SensorValue sensorValue = findNearestSensorValue(values, series, index);
-                if (hasData(sensorValue)) {
-                    valueText = formatValue(sensorValue.data().doubleValue());
-                    if (!Strings.isNullOrEmpty(sensorValue.unit())) {
-                        valueText += " " + sensorValue.unit();
+                Number nearestValue = findNearestValue(values, series, index);
+                if (nearestValue != null) {
+                    valueText = formatValue(nearestValue.doubleValue());
+                    ColumnSchema schema = GeoData.getSchema(values);
+                    String unit = schema != null ? schema.getColumnUnit(series) : null;
+                    if (!Strings.isNullOrEmpty(unit)) {
+                        valueText += " " + unit;
                     }
                 }
             }
@@ -152,18 +153,20 @@ public class StatisticsView extends VBox {
     }
 
     @Nullable
-    private SensorValue findNearestSensorValue(List<GeoData> values, String header, int index) {
+    private Number findNearestValue(List<GeoData> values, String header, int index) {
         if (values == null) {
             return null;
         }
-        int size = values != null ? values.size() : 0;
+        int size = values.size();
         if (values.isEmpty() || index < 0 || index >= size) {
             return null;
         }
 
-        SensorValue sensorValue = values.get(index) != null ? values.get(index).getSensorValue(header) : null;
-        if (hasData(sensorValue)) {
-            return sensorValue;
+        Number value = values.get(index) != null
+                ? values.get(index).getNumber(header)
+                : null;
+        if (value != null) {
+            return value;
         }
 
         int leftIndex = index - 1;
@@ -171,26 +174,22 @@ public class StatisticsView extends VBox {
         while (leftIndex >= 0 || rightIndex < size) {
             if (leftIndex >= 0) {
                 GeoData geoData = values.get(leftIndex);
-                SensorValue leftSensorValue = geoData != null ? geoData.getSensorValue(header) : null;
-                if (hasData(leftSensorValue)) {
-                    return leftSensorValue;
+                Number leftValue = geoData != null ? geoData.getNumber(header) : null;
+                if (leftValue != null) {
+                    return leftValue;
                 }
                 leftIndex--;
             }
             if (rightIndex < size) {
                 GeoData geoData = values.get(rightIndex);
-                SensorValue rightSensorValue = geoData != null ? geoData.getSensorValue(header) : null;
-                if (hasData(rightSensorValue)) {
-                    return rightSensorValue;
+                Number rightValue = geoData != null ? geoData.getNumber(header) : null;
+                if (rightValue != null) {
+                    return rightValue;
                 }
                 rightIndex++;
             }
         }
         return null;
-    }
-
-    private boolean hasData(@Nullable SensorValue sensorValue) {
-        return sensorValue != null && sensorValue.data() != null;
     }
 
     private String formatValue(double value) {
@@ -467,8 +466,11 @@ public class StatisticsView extends VBox {
         @Override
         public Double get(int index) {
             GeoData value = values.get(index);
-            return value != null
-                    ? value.getDouble(header).orElse(Double.NaN)
+            Number number = value != null
+                    ? value.getNumber(header)
+                    : null;
+            return number != null
+                    ? number.doubleValue()
                     : Double.NaN;
         }
 

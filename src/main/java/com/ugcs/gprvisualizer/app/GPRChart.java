@@ -916,8 +916,7 @@ public class GPRChart extends Chart {
         }
         // correct out of range values to point to the first or last trace
         index = Math.clamp(index, 0, values.size() - 1);
-        String lineHeader = GeoData.getHeader(Semantic.LINE, null);
-        return values.get(index).getInt(lineHeader).orElse(0);
+        return values.get(index).getLineOrDefault(0);
     }
 
     private void zoomToLine(int lineIndex) {

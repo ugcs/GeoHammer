@@ -34,7 +34,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private final TemplateSettingsModel templateSettings;
 
-    private final DecimalFormat formatter = new DecimalFormat();
+    private final DecimalFormat formatter = new DecimalFormat("#0.00");
 
     private final CsvFile file;
 

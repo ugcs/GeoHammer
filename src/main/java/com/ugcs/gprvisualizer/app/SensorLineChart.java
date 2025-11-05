@@ -81,10 +81,6 @@ public class SensorLineChart extends Chart {
 
     private static final Color LINE_COLOR = Color.web("0xdf818eff");
 
-    private static final int DEFAULT_VIEW_SAMPLES = 500;
-
-    private static final int MAX_VIEW_SAMPLES = 1000;
-
     private static final Logger log = LoggerFactory.getLogger(SensorLineChart.class);
 
     private final ApplicationEventPublisher eventPublisher;
@@ -102,8 +98,6 @@ public class SensorLineChart extends Chart {
     private VBox root;
     private StackPane chartsContainer;
     private CsvFile file;
-    private Map<String, Double> seriesMinValues = new HashMap<>();
-    private Map<String, Double> seriesMaxValues = new HashMap<>();
     private Map<FoundPlace, Data<Number, Number>> foundPlaces = new HashMap<>();
 
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -177,17 +171,6 @@ public class SensorLineChart extends Chart {
     @Override
     public void selectFile() {
         eventPublisher.publishEvent(new FileSelectedEvent(this, file));
-    }
-
-    public record Plot(String header, String unit, Color color, List<Number> data) {
-
-        public Plot withData(List<Number> data) {
-            return new Plot(header, unit, color, data);
-        }
-
-        public String getPlotStyle() {
-            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 0.6px;";
-        }
     }
 
     public VBox createChartWithMultipleYAxes(CsvFile file, List<Plot> plots) {
@@ -275,7 +258,7 @@ public class SensorLineChart extends Chart {
 
             Pane icon = createRemoveLineIcon(lineIndex);
             if (interactiveChart != null) {
-                interactiveChart.addVerticalValueMarker(
+                interactiveChart.addMarker(
                         verticalMarker,
                         line,
                         null,
@@ -325,18 +308,6 @@ public class SensorLineChart extends Chart {
             return null;
         }
 
-        Series<Number, Number> series = new Series<>();
-        series.setName(plot.header());
-
-        // Add data to chart
-        setSeriesData(series, plot, 0, data.size() - 1);
-        if (series.getData().isEmpty()) {
-            return null;
-        }
-
-        Series<Number, Number> filtered = new Series<>();
-        filtered.setName(plot.header() + FILTERED_SERIES_SUFFIX);
-
         // Creating chart
         boolean isInteractive = charts.isEmpty(); // first chart will be an intercative chart
 
@@ -344,30 +315,12 @@ public class SensorLineChart extends Chart {
         ValueAxis<Number> xAxis = isInteractive ? createXAxis() : createHiddenXAxis();
         ValueAxis<Number> yAxis = createYAxis(plot);
 
-        Range valueRange = getValueRange(data, plot.header);
-        ZoomRect outZoomRect = new ZoomRect(0, Math.max(0, data.size() - 1),
-                valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
-        LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, outZoomRect, plot);
-        chart.resetZoomRect();
-
-        chart.setLegendVisible(false); // Hide legend
-        chart.setCreateSymbols(false); // Disable symbols
+        LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, plot);
         chart.setMouseTransparent(!isInteractive);
-        chart.lookup(".chart-plot-background").setStyle("-fx-background-color: transparent;");
-
-        // Set random color for series
-        chart.getData().add(series);
-        setStyleForSeries(series, plot.getPlotStyle());
-
-        chart.getData().add(filtered);
-        setStyleForSeries(filtered, plot.getPlotStyle());
-
-        showChartAxes(chart, false);
-        showChart(chart, false);
 
         // Add chart to container
         chartsContainer.getChildren().add(chart);
-        charts.put(series.getName(), chart);
+        charts.put(plot.header(), chart);
         if (isInteractive) {
             interactiveChart = chart;
         }
@@ -410,7 +363,7 @@ public class SensorLineChart extends Chart {
         yAxis.setPrefWidth(70);
         yAxis.setMinorTickVisible(false);
 
-        Range valueRange = getValueRange(plot.data, plot.header);
+        Range valueRange = plot.getValueRange();
         yAxis.setLowerBound(valueRange.getMin().doubleValue());
         yAxis.setUpperBound(valueRange.getMax().doubleValue());
 
@@ -424,7 +377,7 @@ public class SensorLineChart extends Chart {
         // clear flags and markers
         clearFlags();
         if (interactiveChart != null) {
-            interactiveChart.clearVerticalValueMarkers();
+            interactiveChart.clearMarkers();
         }
 
         List<Plot> plots = generatePlots(file);
@@ -438,7 +391,7 @@ public class SensorLineChart extends Chart {
 				}
             }
 
-            Range valueRange = getValueRange(plot.data, plot.header);
+            Range valueRange = plot.getValueRange();
 
             lineChart.outZoomRect = new ZoomRect(
                     0, Math.max(0, plot.data.size() - 1),
@@ -524,7 +477,7 @@ public class SensorLineChart extends Chart {
 
         foundPlaces.put(fp, verticalMarker);
         if (interactiveChart != null) {
-            interactiveChart.addVerticalValueMarker(
+            interactiveChart.addMarker(
                     verticalMarker,
                     line,
                     null,
@@ -563,70 +516,6 @@ public class SensorLineChart extends Chart {
         }
         ZoomRect zoomRect = selectedChart.outZoomRect;
         return zoomRect.xMax.intValue() - zoomRect.xMin.intValue() + 1;
-    }
-
-    private List<Data<Number, Number>> getSamplesInRange(List<Number> data,
-            int lowerIndex, int upperIndex, int numSamples) {
-        int numValues = upperIndex - lowerIndex + 1;
-        int limit = Math.min(numValues, numSamples);
-
-        double step = Math.max(1, limit > 1 ? (double)(numValues - 1) / (limit - 1) : 1);
-        int hw = (int)(step / 2);
-
-        List<Data<Number, Number>> samples = new ArrayList<>(limit);
-        for (int k = 0; k < limit; k++) {
-            int i = lowerIndex + (int)Math.round(k * step);
-            if (data.get(i) == null) {
-                continue;
-            }
-            int line = getValueLineIndex(i);
-            double sum = 0.0;
-            int count = 0;
-            for (int j = i - hw; j <= i + hw; j++) {
-                if (j < 0 || j >= data.size()) {
-                    continue;
-                }
-                Number v = data.get(j);
-                if (v != null && getValueLineIndex(j) == line) {
-                    sum += v.doubleValue();
-                    count++;
-                }
-            }
-            if (count > 0) {
-                samples.add(new Data<>(i, sum / count));
-            }
-        }
-        return samples;
-    }
-
-    private void setSeriesData(Series<Number, Number> series,
-                               Plot plot, int lowerIndex, int upperIndex) {
-
-        XYChart<Number, Number> chart = series.getChart();
-        Axis<Number> xAxis = chart != null ? chart.getXAxis() : null;
-        int numSamples = xAxis != null
-                ? Math.min((int) xAxis.getLayoutBounds().getWidth(), MAX_VIEW_SAMPLES)
-                : DEFAULT_VIEW_SAMPLES;
-
-        List<Data<Number, Number>> samples = plot != null
-                ? getSamplesInRange(plot.data, lowerIndex, upperIndex, numSamples)
-                : List.of();
-
-        // clear current points
-        if (chart != null) {
-            chart.setAnimated(false);
-        }
-        series.getData().clear();
-
-        if (samples.isEmpty()) {
-            series.getData().add(new Data<>(0, 0));
-        } else {
-            series.getData().addAll(samples);
-        }
-
-        if (chart != null) {
-            chart.setAnimated(true);
-        }
     }
 
     @Override
@@ -813,7 +702,7 @@ public class SensorLineChart extends Chart {
 
     private void updateChartData() {
         for (LineChartWithMarkers chart : charts.values()) {
-            chart.updateLineChartData();
+            chart.updateChart();
         }
     }
 
@@ -925,7 +814,7 @@ public class SensorLineChart extends Chart {
      */
     public void clearSelectionMarker() {
         if (interactiveChart != null && selectionMarker != null) {
-            interactiveChart.removeVerticalValueMarker(selectionMarker);
+            interactiveChart.removeMarker(selectionMarker);
             selectionMarker = null;
         }
     }
@@ -937,61 +826,21 @@ public class SensorLineChart extends Chart {
     public void putSelectionMarker(int x) {
         if (interactiveChart != null) {
             if (selectionMarker != null) {
-                interactiveChart.removeVerticalValueMarker(selectionMarker);
+                interactiveChart.removeMarker(selectionMarker);
             }
             selectionMarker = new Data<>(x, 0);
-            interactiveChart.addVerticalValueMarker(selectionMarker);
+            interactiveChart.addMarker(selectionMarker);
         }
     }
 
     public double getSeriesMinValue() {
-        return seriesMinValues.getOrDefault(getSelectedSeriesName(), 0.0);
+        LineChartWithMarkers chart = charts.get(getSelectedSeriesName());
+        return chart != null ? chart.plot.getMin() : 0.0;
     }
 
     public double getSeriesMaxValue() {
-        return seriesMaxValues.getOrDefault(getSelectedSeriesName(), 0.0);
-    }
-
-    private double getScaleFactor(double value) {
-        int base = (int)Math.clamp(Math.floor(Math.log10(Math.abs(value))), 0, 3);
-        return Math.pow(10, base);
-    }
-
-    private Range getValueRange(List<Number> data, String header) {
-        Double min = null;
-        Double max = null;
-        for (Number value : data) {
-            if (value == null) {
-                continue;
-            }
-            double unboxed = value.doubleValue();
-            if (min == null || unboxed < min) {
-                min = unboxed;
-            }
-            if (max == null || unboxed > max) {
-                max = unboxed;
-            }
-        }
-        if (min == null) {
-            min = 0.0;
-        }
-        if (max == null) {
-            max = 0.0;
-        }
-
-        seriesMinValues.put(header, min);
-        seriesMaxValues.put(header, max);
-
-        // get scale factor and align min max to it
-        double f = Math.max(getScaleFactor(min), getScaleFactor(max));
-        double minAligned = f * Math.floor(min / f);
-        double maxAligned = f * Math.ceil(max / f);
-        if (Math.abs(maxAligned - minAligned) < 1e-6) {
-            minAligned -= f;
-            maxAligned += f;
-        }
-
-        return new Range(minAligned, maxAligned);
+        LineChartWithMarkers chart = charts.get(getSelectedSeriesName());
+        return chart != null ? chart.plot.getMax() : 0.0;
     }
 
     public void selectChart(@Nullable String seriesName) {
@@ -1000,13 +849,15 @@ public class SensorLineChart extends Chart {
         }
         // clear current selection
         LineChartWithMarkers selectedChart = charts.get(selectedSeriesName);
-        showChartAxes(selectedChart, false);
+        if (selectedChart != null) {
+            selectedChart.showAxes(false);
+        }
         selectedSeriesName = null;
         // select chart
         if (seriesName != null) {
             LineChartWithMarkers chart = charts.get(seriesName);
             if (chart != null) {
-                showChartAxes(chart, true);
+                chart.showAxes(true);
                 selectedSeriesName = seriesName;
             }
         }
@@ -1015,21 +866,11 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    private void showChartAxes(@Nullable LineChartWithMarkers chart, boolean show) {
-        if (chart == null) {
-            return;
-        }
-
-        chart.setVerticalGridLinesVisible(show);
-        chart.setHorizontalGridLinesVisible(show);
-        chart.setHorizontalZeroLineVisible(show);
-        chart.setVerticalZeroLineVisible(show);
-
-        chart.getYAxis().setOpacity(show ? 1 : 0);
-    }
-
     public void showChart(String seriesName, boolean show) {
-        showChart(charts.get(seriesName), show);
+        LineChartWithMarkers chart = charts.get(seriesName);
+        if (chart != null) {
+            chart.showData(show);
+        }
     }
 
     public void showChart(@Nullable LineChartWithMarkers chart, boolean show) {
@@ -1039,377 +880,6 @@ public class SensorLineChart extends Chart {
 
         for (Series<Number, Number> series : chart.getData()) {
             series.getNode().setVisible(show);
-        }
-    }
-
-    // Apply color to data series
-    private void setStyleForSeries(Series<Number, Number> series, String plotStyle) {
-        //String colorString = getColorString(color);
-        //System.out.println("Color: " + colorString);
-        // Apply style to series
-        series.getNode().lookup(".chart-series-line").setStyle(plotStyle);
-        //.setStyle("-fx-stroke: " + colorString + ";" + "-fx-stroke-width: 0.6px;");
-    }
-
-    private record ZoomRect(Number xMin, Number xMax, Number yMin, Number yMax) {}
-
-    /**
-     * Line chart with markers
-     */
-    private class LineChartWithMarkers extends LineChart<Number, Number> {
-
-        private final ObservableList<Data<Number, Number>> horizontalMarkers;
-        private final ObservableList<Data<Number, Number>> verticalMarkers;
-        //private final List<Data<Number, Number>> buttonMarkers;
-        //private final List<Data<Number, Number>> flagMarkers;
-
-        private ZoomRect outZoomRect;
-        private ZoomRect zoomRect;
-
-        private Plot plot;
-        private Plot filteredPlot;
-
-        private FilterOptions filterOptions = new FilterOptions();
-
-        public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, ZoomRect outZoomRect, Plot plot) {
-            super(xAxis, yAxis);
-
-            this.outZoomRect = outZoomRect;
-
-            horizontalMarkers = FXCollections.observableArrayList(data -> new Observable[] {data.YValueProperty()});
-            horizontalMarkers.addListener((InvalidationListener)observable -> layoutPlotChildren());
-            verticalMarkers = FXCollections.observableArrayList(data -> new Observable[] {data.XValueProperty()});
-            verticalMarkers.addListener((InvalidationListener)observable -> layoutPlotChildren());
-
-            this.plot = plot;
-        }
-
-        public void rescaleY() {
-            Range oldYRange = new Range(outZoomRect.yMin, outZoomRect.yMax);
-            Range newYRange = getValueRange(plot.data, plot.header);
-
-            outZoomRect = new ZoomRect(
-                    0, Math.max(0, plot.data.size() - 1),
-                    newYRange.getMin(), newYRange.getMax());
-
-            if (zoomRect != null) {
-                double widthRate = newYRange.getWidth() / oldYRange.getWidth();
-                Number newYMin = newYRange.getMin().doubleValue()
-                        + widthRate * (zoomRect.yMin.doubleValue() - oldYRange.getMin().doubleValue());
-                Number newYMax = newYRange.getMin().doubleValue()
-                        + widthRate * (zoomRect.yMax.doubleValue() - oldYRange.getMin().doubleValue());
-                setZoomRect(new ZoomRect(zoomRect.xMin, zoomRect.xMax, newYMin, newYMax));
-            }
-        }
-
-        public ZoomRect createZoomRectForArea(Point2D start, Point2D end) {
-            // start and end are in chart coordinates
-            Node plot = lookup(".chart-plot-background");
-            Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
-            // translate coordinates to a plot space
-            Point2D plotStart = new Point2D(
-                    Math.clamp(start.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
-                    Math.clamp(start.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
-            Point2D plotEnd = new Point2D(
-                    Math.clamp(end.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
-                    Math.clamp(end.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
-
-            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
-            Number xMin = xAxis.getValueForDisplay(plotStart.getX());
-            Number xMax = xAxis.getValueForDisplay(plotEnd.getX());
-
-            ValueAxis<Number> yAxis = (ValueAxis<Number>)getYAxis();
-            Number yMax = yAxis.getValueForDisplay(plotStart.getY());
-            Number yMin = yAxis.getValueForDisplay(plotEnd.getY());
-
-            return new ZoomRect(xMin, xMax, yMin, yMax);
-        }
-
-        public ZoomRect createZoomRectForXRange(Range range) {
-            return createZoomRectForXRange(range, false);
-        }
-
-        public ZoomRect createZoomRectForXRange(Range range, boolean keepYScale) {
-            if (range == null) {
-                return outZoomRect;
-            }
-            ZoomRect yRect = keepYScale ? zoomRect : outZoomRect;
-            return new ZoomRect(range.getMin(), range.getMax(), yRect.yMin, yRect.yMax);
-        }
-
-        public ZoomRect scaleZoomRect(ZoomRect zoomRect, double xScale, double yScale, Point2D scaleCenter) {
-            if (zoomRect == null)
-                return null;
-
-            // scale center is in chart coordinates
-            // translate chart coordinates to plot coordinates
-            Node plot = lookup(".chart-plot-background");
-            Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
-            Point2D plotScaleCenter = null;
-            if (scaleCenter != null ) {
-                plotScaleCenter = new Point2D(
-                        scaleCenter.getX() - plotBounds.getMinX(),
-                        scaleCenter.getY() - plotBounds.getMinY());
-            }
-
-            // convert center coordinates to x and y ratios [0, 1]
-            // when scale center is null zoom at plot center
-            double xCenterRatio = plotScaleCenter != null && plotBounds.getWidth() > 1e-9
-                    ? Math.clamp(plotScaleCenter.getX() / plotBounds.getWidth(), 0, 1)
-                    : 0.5;
-            double yCenterRatio = plotScaleCenter != null && plotBounds.getHeight() > 1e-9
-                    ? Math.clamp(1 - plotScaleCenter.getY() / plotBounds.getHeight(), 0, 1)
-                    : 0.5;
-
-            Range xRange = new Range(zoomRect.xMin, zoomRect.xMax)
-                    .scale(xScale, xCenterRatio);
-            Range yRange = new Range(zoomRect.yMin, zoomRect.yMax)
-                    .scale(yScale, yCenterRatio);
-
-            return new ZoomRect(
-                    xRange.getMin(), xRange.getMax(),
-                    yRange.getMin(), yRange.getMax());
-        }
-
-        public ZoomRect cropZoomRect(ZoomRect zoomRect, ZoomRect cropRect) {
-            if (zoomRect == null || cropRect == null)
-                return zoomRect;
-
-            return new ZoomRect(
-                    Math.max(zoomRect.xMin.doubleValue(), cropRect.xMin.doubleValue()),
-                    Math.min(zoomRect.xMax.doubleValue(), cropRect.xMax.doubleValue()),
-                    Math.max(zoomRect.yMin.doubleValue(), cropRect.yMin.doubleValue()),
-                    Math.min(zoomRect.yMax.doubleValue(), cropRect.yMax.doubleValue()));
-        }
-
-        public void setZoomRect(ZoomRect zoomRect) {
-            this.zoomRect = zoomRect != outZoomRect
-                    ? cropZoomRect(zoomRect, outZoomRect)
-                    : zoomRect;
-            applyZoom();
-        }
-
-        public void resetZoomRect() {
-            setZoomRect(outZoomRect);
-        }
-
-        private void applyZoom() {
-            int lineIndexBefore = getSelectedLineIndex();
-
-            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
-            xAxis.setAutoRanging(false);
-            xAxis.setLowerBound(zoomRect.xMin.doubleValue());
-            xAxis.setUpperBound(zoomRect.xMax.doubleValue());
-
-            ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();
-            yAxis.setAutoRanging(false);
-            yAxis.setLowerBound(zoomRect.yMin.doubleValue());
-            yAxis.setUpperBound(zoomRect.yMax.doubleValue());
-
-            int lineIndexAfter = getSelectedLineIndex();
-            if (lineIndexBefore != lineIndexAfter) {
-                // request redraw on selected line index update
-                eventPublisher.publishEvent(new WhatChanged(
-                        SensorLineChart.this,
-                        WhatChanged.Change.justdraw
-                ));
-            }
-        }
-
-        private static String emphasizeStyle(String style) {
-            return style + "-fx-stroke-width: 2.0px;";
-        }
-
-        private static String dashStyle(String style) {
-            return style + "-fx-stroke-dash-array: 1 5 1 5;";
-        }
-
-        private void setSeriesStyle(Series<Number, Number> series, String style) {
-            Check.notNull(series);
-
-            Node seriesNode = series.getNode();
-            Node lineNode = seriesNode != null
-                    ? seriesNode.lookup(".chart-series-line")
-                    : null;
-            if (lineNode != null) {
-                lineNode.setStyle(style);
-            }
-        }
-
-        private void updateLineChartData() {
-            int lowerIndex = Math.clamp(zoomRect.xMin.intValue(), 0, plot.data().size() - 1);
-            int upperIndex = Math.clamp(zoomRect.xMax.intValue(), lowerIndex, plot.data().size() - 1);
-
-            getData().forEach(series -> {
-                Plot plot;
-                String style = this.plot.getPlotStyle();
-                if (series.getName().endsWith(FILTERED_SERIES_SUFFIX)) {
-                    plot = filteredPlot;
-                    style = emphasizeStyle(style);
-                } else {
-                    plot = this.plot;
-                    style = filteredPlot != null ? dashStyle(style) : style;
-                }
-
-                setSeriesData(series, plot, lowerIndex, upperIndex);
-                setSeriesStyle(series, style);
-            });
-        }
-
-        /**
-         * Add horizontal value marker.
-         *
-         * @param marker horizontal value marker.
-         */
-        public void addHorizontalValueMarker(Data<Number, Number> marker) {
-            Objects.requireNonNull(marker, "the marker must not be null");
-            if (horizontalMarkers.contains(marker)) return;
-            Line line = new Line();
-            marker.setNode(line );
-            getPlotChildren().add(line);
-            horizontalMarkers.add(marker);
-        }
-
-        /**
-         * Remove horizontal value marker.
-         *
-         * @param marker horizontal value marker.
-         */
-        public void removeHorizontalValueMarker(Data<Number, Number> marker) {
-            Objects.requireNonNull(marker, "the marker must not be null");
-            if (marker.getNode() != null) {
-                getPlotChildren().remove(marker.getNode());
-                marker.setNode(null);
-            }
-            horizontalMarkers.remove(marker);
-        }
-
-        public void addVerticalValueMarker(Data<Number, Number> marker) {
-            Line line = new Line();
-            line.setStroke(Color.RED); // Bright color for white background
-            line.setStrokeWidth(1);
-            line.setTranslateY(15);
-
-            ImageView imageView = ResourceImageHolder.getImageView("gps32.png");
-            imageView.setTranslateY(17);
-
-            addVerticalValueMarker(marker, line, imageView, null, true);
-        }
-
-        /**
-         * Add a vertical value marker to the chart.
-         *
-         * @param marker    the data point to be marked
-         * @param line      the line to be used for the marker
-         * @param imageView the image to be displayed at the marker
-         */
-        public void addVerticalValueMarker(Data<Number, Number> marker, Line line, ImageView imageView, Pane flag, boolean mouseTransparent) {
-            Objects.requireNonNull(marker, "the marker must not be null");
-            if (verticalMarkers.contains(marker)) return;
-
-            VBox markerBox = new VBox();
-            markerBox.setAlignment(Pos.TOP_CENTER);
-            markerBox.setMouseTransparent(mouseTransparent);
-
-            VBox imageContainer = new VBox();
-            imageContainer.setAlignment(Pos.TOP_CENTER);
-
-            if (imageView != null) {
-                imageContainer.getChildren().add(imageView);
-            }
-
-            if (flag != null) {
-                imageContainer.getChildren().add(flag);
-            }
-
-            markerBox.getChildren().add(imageContainer);
-
-            markerBox.getChildren().add(line);
-
-            marker.setNode(markerBox);
-            getPlotChildren().add(markerBox);
-
-            verticalMarkers.add(marker);
-        }
-
-        /**
-         * Remove vertical value marker.
-         *
-         * @param marker vertical value marker.
-         */
-        public void removeVerticalValueMarker(Data<Number, Number> marker) {
-            Objects.requireNonNull(marker, "the marker must not be null");
-            if (marker.getNode() != null) {
-                getPlotChildren().remove(marker.getNode());
-                marker.setNode(null);
-            }
-            verticalMarkers.remove(marker);
-        }
-
-        private void clearVerticalValueMarkers() {
-            for (Data<Number, Number> marker : new ArrayList<>(verticalMarkers)) {
-                removeVerticalValueMarker(marker);
-            }
-        }
-
-        @Override
-        protected void layoutPlotChildren() {
-            super.layoutPlotChildren();
-
-            for (Data<Number, Number> horizontalMarker : horizontalMarkers) {
-                Line line = (Line) horizontalMarker.getNode();
-                line.setStartX(0);
-                line.setEndX(getBoundsInLocal().getWidth());
-                line.setStartY(getYAxis().getDisplayPosition(horizontalMarker.getYValue()) + 0.5); // 0.5 for crispness
-                line.setEndY(line.getStartY());
-                line.toFront();
-            }
-
-            for (Data<Number, Number> verticalMarker : verticalMarkers) {
-                VBox markerBox = (VBox) verticalMarker.getNode();
-                markerBox.setLayoutX(getXAxis().getDisplayPosition(verticalMarker.getXValue()));
-
-                VBox imageContainer = (VBox) markerBox.getChildren().get(0);
-                double imageHeight = imageContainer.getChildren().stream()
-                    .mapToDouble(node -> node.getBoundsInLocal().getHeight())
-                    .sum();
-
-                Line line = (Line) markerBox.getChildren().get(1);
-                line.setStartY(imageHeight);
-                line.setEndY(getBoundsInLocal().getHeight());
-
-                markerBox.setLayoutY(0d);
-                markerBox.setMinHeight(getBoundsInLocal().getHeight());
-                markerBox.toFront();
-            }
-        }
-
-        public FilterOptions getFilterOptions() {
-            return filterOptions;
-        }
-
-        public void setFilterOptions(FilterOptions filterOptions) {
-            Check.notNull(filterOptions);
-            this.filterOptions = filterOptions;
-        }
-    }
-
-    private record FilterOptions(int lowPassOrder, int timeLagShift) {
-
-        public FilterOptions() {
-            this(0, 0);
-        }
-
-        public FilterOptions withLowPassOrder(int lowPassOrder) {
-            return new FilterOptions(lowPassOrder, this.timeLagShift);
-        }
-
-        public FilterOptions withTimeLagShift(int timeLagShift) {
-            return new FilterOptions(this.lowPassOrder, timeLagShift);
-        }
-
-        public boolean hasAny() {
-            return lowPassOrder != 0 || timeLagShift != 0;
         }
     }
 
@@ -1448,7 +918,7 @@ public class SensorLineChart extends Chart {
         chart.setFilterOptions(chart.getFilterOptions().withTimeLagShift(timeLagShift));
         applyFilters(chart);
 
-        Platform.runLater(chart::updateLineChartData);
+        Platform.runLater(chart::updateChart);
     }
 
     public void lowPassFilter(String seriesName, int lowPassOrder) {
@@ -1460,7 +930,7 @@ public class SensorLineChart extends Chart {
         chart.setFilterOptions(chart.getFilterOptions().withLowPassOrder(lowPassOrder));
         applyFilters(chart);
 
-        Platform.runLater(chart::updateLineChartData);
+        Platform.runLater(chart::updateChart);
     }
 
     private void applyFilters(LineChartWithMarkers chart) {
@@ -1680,7 +1150,7 @@ public class SensorLineChart extends Chart {
                 filteredChart.plot = filteredChart.plot.withData(filtered);
                 filteredChart.filteredPlot = null;
                 filteredChart.rescaleY();
-                filteredChart.updateLineChartData();
+                filteredChart.updateChart();
             }
             updateChartName();
         });
@@ -1751,7 +1221,7 @@ public class SensorLineChart extends Chart {
 
                 ZoomRect zoomRect = new ZoomRect(lowerIndex, upperIndex, yAxis.getLowerBound(), yAxis.getUpperBound());
                 chart.setZoomRect(zoomRect);
-                chart.updateLineChartData();
+                chart.updateChart();
             }
 
             model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
@@ -1806,7 +1276,7 @@ public class SensorLineChart extends Chart {
     public void removeFlag(FoundPlace flag) {
         Data<Number, Number> marker = foundPlaces.remove(flag);
         if (marker != null && interactiveChart != null) {
-            interactiveChart.removeVerticalValueMarker(marker);
+            interactiveChart.removeMarker(marker);
         }
     }
 
@@ -1814,9 +1284,498 @@ public class SensorLineChart extends Chart {
     public void clearFlags() {
         if (interactiveChart != null) {
             for (Data<Number, Number> marker : foundPlaces.values()) {
-                interactiveChart.removeVerticalValueMarker(marker);
+                interactiveChart.removeMarker(marker);
             }
         }
         foundPlaces.clear();
+    }
+
+    // chart
+
+    class LineChartWithMarkers extends LineChart<Number, Number> {
+
+        private static final int DEFAULT_VIEW_SAMPLES = 500;
+
+        private static final int MIN_VIEW_SAMPLES = 200;
+
+        private static final int MAX_VIEW_SAMPLES = 1000;
+
+        private final ObservableList<Data<Number, Number>> markers;
+
+        private ZoomRect outZoomRect;
+
+        private ZoomRect zoomRect;
+
+        private Plot plot;
+
+        private Plot filteredPlot;
+
+        private FilterOptions filterOptions = new FilterOptions();
+
+        public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, Plot plot) {
+            super(xAxis, yAxis);
+
+            initView();
+
+            markers = FXCollections.observableArrayList(data -> new Observable[] {data.XValueProperty()});
+            markers.addListener((InvalidationListener) observable -> layoutPlotChildren());
+
+            Check.notNull(plot);
+            this.plot = plot;
+
+            Series<Number, Number> series = new Series<>();
+            series.setName(plot.header());
+            getData().add(series);
+
+            Series<Number, Number> filteredSeries = new Series<>();
+            filteredSeries.setName(plot.header() + FILTERED_SERIES_SUFFIX);
+            getData().add(filteredSeries);
+
+            // update zoom
+
+            Range valueRange = plot.getValueRange();
+            this.outZoomRect = new ZoomRect(0, Math.max(0, plot.data.size() - 1),
+                    valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
+
+            resetZoomRect();
+            updateChart();
+        }
+
+        private void initView() {
+            setLegendVisible(false); // Hide legend
+            setCreateSymbols(false); // Disable symbols
+            lookup(".chart-plot-background").setStyle("-fx-background-color: transparent;");
+
+            showAxes(false);
+            showData(false);
+        }
+
+        public FilterOptions getFilterOptions() {
+            return filterOptions;
+        }
+
+        public void setFilterOptions(FilterOptions filterOptions) {
+            Check.notNull(filterOptions);
+            this.filterOptions = filterOptions;
+        }
+
+        public void showAxes(boolean show) {
+            setVerticalGridLinesVisible(show);
+            setHorizontalGridLinesVisible(show);
+            setHorizontalZeroLineVisible(show);
+            setVerticalZeroLineVisible(show);
+            getYAxis().setOpacity(show ? 1 : 0);
+        }
+
+        public void showData(boolean show) {
+            for (Series<Number, Number> series : getData()) {
+                series.getNode().setVisible(show);
+            }
+        }
+
+        public void rescaleY() {
+            Range oldYRange = new Range(outZoomRect.yMin, outZoomRect.yMax);
+            Range newYRange = plot.getValueRange();
+
+            outZoomRect = new ZoomRect(
+                    0, Math.max(0, plot.data.size() - 1),
+                    newYRange.getMin(), newYRange.getMax());
+
+            if (zoomRect != null) {
+                double widthRate = newYRange.getWidth() / oldYRange.getWidth();
+                Number newYMin = newYRange.getMin().doubleValue()
+                        + widthRate * (zoomRect.yMin.doubleValue() - oldYRange.getMin().doubleValue());
+                Number newYMax = newYRange.getMin().doubleValue()
+                        + widthRate * (zoomRect.yMax.doubleValue() - oldYRange.getMin().doubleValue());
+                setZoomRect(new ZoomRect(zoomRect.xMin, zoomRect.xMax, newYMin, newYMax));
+            }
+        }
+
+        public ZoomRect createZoomRectForArea(Point2D start, Point2D end) {
+            // start and end are in chart coordinates
+            Node plot = lookup(".chart-plot-background");
+            Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
+            // translate coordinates to a plot space
+            Point2D plotStart = new Point2D(
+                    Math.clamp(start.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
+                    Math.clamp(start.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
+            Point2D plotEnd = new Point2D(
+                    Math.clamp(end.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
+                    Math.clamp(end.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
+
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
+            Number xMin = xAxis.getValueForDisplay(plotStart.getX());
+            Number xMax = xAxis.getValueForDisplay(plotEnd.getX());
+
+            ValueAxis<Number> yAxis = (ValueAxis<Number>)getYAxis();
+            Number yMax = yAxis.getValueForDisplay(plotStart.getY());
+            Number yMin = yAxis.getValueForDisplay(plotEnd.getY());
+
+            return new ZoomRect(xMin, xMax, yMin, yMax);
+        }
+
+        public ZoomRect createZoomRectForXRange(Range range) {
+            return createZoomRectForXRange(range, false);
+        }
+
+        public ZoomRect createZoomRectForXRange(Range range, boolean keepYScale) {
+            if (range == null) {
+                return outZoomRect;
+            }
+            ZoomRect yRect = keepYScale ? zoomRect : outZoomRect;
+            return new ZoomRect(range.getMin(), range.getMax(), yRect.yMin, yRect.yMax);
+        }
+
+        public ZoomRect scaleZoomRect(ZoomRect zoomRect, double xScale, double yScale, Point2D scaleCenter) {
+            if (zoomRect == null)
+                return null;
+
+            // scale center is in chart coordinates
+            // translate chart coordinates to plot coordinates
+            Node plot = lookup(".chart-plot-background");
+            Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
+            Point2D plotScaleCenter = null;
+            if (scaleCenter != null ) {
+                plotScaleCenter = new Point2D(
+                        scaleCenter.getX() - plotBounds.getMinX(),
+                        scaleCenter.getY() - plotBounds.getMinY());
+            }
+
+            // convert center coordinates to x and y ratios [0, 1]
+            // when scale center is null zoom at plot center
+            double xCenterRatio = plotScaleCenter != null && plotBounds.getWidth() > 1e-9
+                    ? Math.clamp(plotScaleCenter.getX() / plotBounds.getWidth(), 0, 1)
+                    : 0.5;
+            double yCenterRatio = plotScaleCenter != null && plotBounds.getHeight() > 1e-9
+                    ? Math.clamp(1 - plotScaleCenter.getY() / plotBounds.getHeight(), 0, 1)
+                    : 0.5;
+
+            Range xRange = new Range(zoomRect.xMin, zoomRect.xMax)
+                    .scale(xScale, xCenterRatio);
+            Range yRange = new Range(zoomRect.yMin, zoomRect.yMax)
+                    .scale(yScale, yCenterRatio);
+
+            return new ZoomRect(
+                    xRange.getMin(), xRange.getMax(),
+                    yRange.getMin(), yRange.getMax());
+        }
+
+        public ZoomRect cropZoomRect(ZoomRect zoomRect, ZoomRect cropRect) {
+            if (zoomRect == null || cropRect == null)
+                return zoomRect;
+
+            return new ZoomRect(
+                    Math.max(zoomRect.xMin.doubleValue(), cropRect.xMin.doubleValue()),
+                    Math.min(zoomRect.xMax.doubleValue(), cropRect.xMax.doubleValue()),
+                    Math.max(zoomRect.yMin.doubleValue(), cropRect.yMin.doubleValue()),
+                    Math.min(zoomRect.yMax.doubleValue(), cropRect.yMax.doubleValue()));
+        }
+
+        public void setZoomRect(ZoomRect zoomRect) {
+            this.zoomRect = zoomRect != outZoomRect
+                    ? cropZoomRect(zoomRect, outZoomRect)
+                    : zoomRect;
+            applyZoom();
+        }
+
+        public void resetZoomRect() {
+            setZoomRect(outZoomRect);
+        }
+
+        private void applyZoom() {
+            int lineIndexBefore = getSelectedLineIndex();
+
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
+            xAxis.setAutoRanging(false);
+            xAxis.setLowerBound(zoomRect.xMin.doubleValue());
+            xAxis.setUpperBound(zoomRect.xMax.doubleValue());
+
+            ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();
+            yAxis.setAutoRanging(false);
+            yAxis.setLowerBound(zoomRect.yMin.doubleValue());
+            yAxis.setUpperBound(zoomRect.yMax.doubleValue());
+
+            int lineIndexAfter = getSelectedLineIndex();
+            if (lineIndexBefore != lineIndexAfter) {
+                // request redraw on selected line index update
+                eventPublisher.publishEvent(new WhatChanged(
+                        SensorLineChart.this,
+                        WhatChanged.Change.justdraw
+                ));
+            }
+        }
+
+        private static String emphasizeStyle(String style) {
+            return style + "-fx-stroke-width: 2.0px;";
+        }
+
+        private static String dashStyle(String style) {
+            return style + "-fx-stroke-dash-array: 1 5 1 5;";
+        }
+
+        private void setSeriesStyle(Series<Number, Number> series, String style) {
+            Check.notNull(series);
+
+            Node seriesNode = series.getNode();
+            Node lineNode = seriesNode != null
+                    ? seriesNode.lookup(".chart-series-line")
+                    : null;
+            if (lineNode != null) {
+                lineNode.setStyle(style);
+            }
+        }
+
+        private void setSeriesData(Series<Number, Number> series, Plot plot, int lowerIndex, int upperIndex) {
+            Axis<Number> xAxis = getXAxis() ;
+            int numSamples = Math.clamp((int) xAxis.getLayoutBounds().getWidth(), MIN_VIEW_SAMPLES, MAX_VIEW_SAMPLES);
+            List<Data<Number, Number>> samples = plot != null
+                    ? getSamplesInRange(plot.data, lowerIndex, upperIndex, numSamples)
+                    : List.of();
+
+            // clear current points
+            setAnimated(false);
+            series.getData().clear();
+
+            if (samples.isEmpty()) {
+                series.getData().add(new Data<>(0, 0));
+            } else {
+                series.getData().addAll(samples);
+            }
+
+            setAnimated(true);
+        }
+
+        private List<Data<Number, Number>> getSamplesInRange(List<Number> data, int lowerIndex, int upperIndex, int numSamples) {
+            int numValues = upperIndex - lowerIndex + 1;
+            int limit = Math.min(numValues, numSamples);
+
+            double step = Math.max(1, limit > 1 ? (double)(numValues - 1) / (limit - 1) : 1);
+            int hw = (int)(step / 2);
+
+            List<Data<Number, Number>> samples = new ArrayList<>(limit);
+            for (int k = 0; k < limit; k++) {
+                int i = lowerIndex + (int)Math.round(k * step);
+                if (data.get(i) == null) {
+                    continue;
+                }
+                int line = getValueLineIndex(i);
+                double sum = 0.0;
+                int count = 0;
+                for (int j = i - hw; j <= i + hw; j++) {
+                    if (j < 0 || j >= data.size()) {
+                        continue;
+                    }
+                    Number v = data.get(j);
+                    if (v != null && getValueLineIndex(j) == line) {
+                        sum += v.doubleValue();
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    samples.add(new Data<>(i, sum / count));
+                }
+            }
+            return samples;
+        }
+
+        private void updateChart() {
+            int lowerIndex = Math.clamp(zoomRect.xMin.intValue(), 0, plot.data().size() - 1);
+            int upperIndex = Math.clamp(zoomRect.xMax.intValue(), lowerIndex, plot.data().size() - 1);
+
+            for (Series<Number, Number> series : getData()) {
+                Plot targetPlot;
+                String style = plot.getPlotStyle();
+                if (series.getName().endsWith(FILTERED_SERIES_SUFFIX)) {
+                    targetPlot = filteredPlot;
+                    style = emphasizeStyle(style);
+                } else {
+                    targetPlot = plot;
+                    style = filteredPlot != null ? dashStyle(style) : style;
+                }
+
+                setSeriesData(series, targetPlot, lowerIndex, upperIndex);
+                setSeriesStyle(series, style);
+            }
+        }
+
+        public void addMarker(Data<Number, Number> marker) {
+            Line line = new Line();
+            line.setStroke(Color.RED); // Bright color for white background
+            line.setStrokeWidth(1);
+            line.setTranslateY(15);
+
+            ImageView imageView = ResourceImageHolder.getImageView("gps32.png");
+            imageView.setTranslateY(17);
+
+            addMarker(marker, line, imageView, null, true);
+        }
+
+        /**
+         * Add a vertical value marker to the chart.
+         *
+         * @param marker    the data point to be marked
+         * @param line      the line to be used for the marker
+         * @param imageView the image to be displayed at the marker
+         */
+        public void addMarker(Data<Number, Number> marker, Line line, ImageView imageView, Pane flag, boolean mouseTransparent) {
+            Objects.requireNonNull(marker, "the marker must not be null");
+            if (markers.contains(marker)) return;
+
+            VBox markerBox = new VBox();
+            markerBox.setAlignment(Pos.TOP_CENTER);
+            markerBox.setMouseTransparent(mouseTransparent);
+
+            VBox imageContainer = new VBox();
+            imageContainer.setAlignment(Pos.TOP_CENTER);
+
+            if (imageView != null) {
+                imageContainer.getChildren().add(imageView);
+            }
+
+            if (flag != null) {
+                imageContainer.getChildren().add(flag);
+            }
+
+            markerBox.getChildren().add(imageContainer);
+
+            markerBox.getChildren().add(line);
+
+            marker.setNode(markerBox);
+            getPlotChildren().add(markerBox);
+
+            markers.add(marker);
+        }
+
+        /**
+         * Remove vertical value marker.
+         *
+         * @param marker vertical value marker.
+         */
+        public void removeMarker(Data<Number, Number> marker) {
+            Objects.requireNonNull(marker, "the marker must not be null");
+            if (marker.getNode() != null) {
+                getPlotChildren().remove(marker.getNode());
+                marker.setNode(null);
+            }
+            markers.remove(marker);
+        }
+
+        private void clearMarkers() {
+            for (Data<Number, Number> marker : new ArrayList<>(markers)) {
+                removeMarker(marker);
+            }
+        }
+
+        @Override
+        protected void layoutPlotChildren() {
+            super.layoutPlotChildren();
+
+            for (Data<Number, Number> verticalMarker : markers) {
+                VBox markerBox = (VBox) verticalMarker.getNode();
+                markerBox.setLayoutX(getXAxis().getDisplayPosition(verticalMarker.getXValue()));
+
+                VBox imageContainer = (VBox) markerBox.getChildren().get(0);
+                double imageHeight = imageContainer.getChildren().stream()
+                        .mapToDouble(node -> node.getBoundsInLocal().getHeight())
+                        .sum();
+
+                Line line = (Line) markerBox.getChildren().get(1);
+                line.setStartY(imageHeight);
+                line.setEndY(getBoundsInLocal().getHeight());
+
+                markerBox.setLayoutY(0d);
+                markerBox.setMinHeight(getBoundsInLocal().getHeight());
+                markerBox.toFront();
+            }
+        }
+    }
+
+    // data classes
+
+    record ZoomRect(Number xMin, Number xMax, Number yMin, Number yMax) {}
+
+    record FilterOptions(int lowPassOrder, int timeLagShift) {
+
+        public FilterOptions() {
+            this(0, 0);
+        }
+
+        public FilterOptions withLowPassOrder(int lowPassOrder) {
+            return new FilterOptions(lowPassOrder, this.timeLagShift);
+        }
+
+        public FilterOptions withTimeLagShift(int timeLagShift) {
+            return new FilterOptions(this.lowPassOrder, timeLagShift);
+        }
+
+        public boolean hasAny() {
+            return lowPassOrder != 0 || timeLagShift != 0;
+        }
+    }
+
+    record Plot(String header, String unit, Color color, List<Number> data, Range dataRange) {
+
+        public Plot(String header, String unit, Color color, List<Number> data) {
+            this(header, unit, color, data, buildValueRange(data));
+        }
+
+        public Plot withData(List<Number> data) {
+            return new Plot(header, unit, color, data);
+        }
+
+        public String getPlotStyle() {
+            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 0.6px;";
+        }
+
+        private static double getScaleFactor(double value) {
+            int base = (int)Math.clamp(Math.floor(Math.log10(Math.abs(value))), 0, 3);
+            return Math.pow(10, base);
+        }
+
+        public double getMin() {
+            return dataRange.getMin().doubleValue();
+        }
+
+        public double getMax() {
+            return dataRange.getMax().doubleValue();
+        }
+
+        public Range getValueRange() {
+            double min = getMin();
+            double max = getMax();
+            // get scale factor and align min max to it
+            double f = Math.max(getScaleFactor(min), getScaleFactor(max));
+            double minAligned = f * Math.floor(min / f);
+            double maxAligned = f * Math.ceil(max / f);
+            if (Math.abs(maxAligned - minAligned) < 1e-6) {
+                minAligned -= f;
+                maxAligned += f;
+            }
+            return new Range(minAligned, maxAligned);
+        }
+
+        private static Range buildValueRange(List<Number> data) {
+            Double min = null;
+            Double max = null;
+            for (Number value : Nulls.toEmpty(data)) {
+                if (value == null) {
+                    continue;
+                }
+                double unboxed = value.doubleValue();
+                if (min == null || unboxed < min) {
+                    min = unboxed;
+                }
+                if (max == null || unboxed > max) {
+                    max = unboxed;
+                }
+            }
+            if (min == null) {
+                min = 0.0;
+            }
+            if (max == null) {
+                max = 0.0;
+            }
+            return new Range(min, max);
+        }
     }
 }

@@ -308,9 +308,13 @@ public class MapView implements InitializingBean {
 		toolBar.setDisable(true);
 
 		toolBar.getItems().addAll(settingsView.getToolNodes());
+
+		toolBar.getItems().add(createFixedWidthSpacer());
+
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
 		toolBar.getItems().addAll(mapRuler.buildToolNodes());
-		toolBar.getItems().add(getSpacer());
+
+		toolBar.getItems().add(createFlexibleSpacer());
 
 		toolBar.getItems().addAll(getToolNodes());
 	}
@@ -448,7 +452,13 @@ public class MapView implements InitializingBean {
 		return noGpsImg;
 	}
 
-	private Node getSpacer() {
+	private Node createFixedWidthSpacer() {
+		Region spacer = new Region();
+		spacer.setPrefWidth(7);
+		return spacer;
+	}
+
+	private Node createFlexibleSpacer() {
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 		return spacer;

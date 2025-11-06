@@ -9,6 +9,7 @@ import java.util.SortedMap;
 import java.util.concurrent.Callable;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
+import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.event.FileRenameEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.PrefSettings;
@@ -51,6 +52,7 @@ public class Saver implements ToolProducer, InitializingBean {
 	private final Button buttonSave = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE, new Button());
 	private final Button buttonSaveTo = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_TO, new Button());
 	private final Button buttonSaveAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_ALL, new Button());
+	private final Button buttonCloseAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.CLOSE_ALL, new Button());
 
 	@Autowired
 	private Model model;
@@ -81,11 +83,14 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		buttonSaveAll.setTooltip(new Tooltip("Save all"));
 		buttonSaveAll.setOnAction(this::onSaveAll);
+
+		buttonCloseAll.setTooltip(new Tooltip("Close all"));
+		buttonCloseAll.setOnAction(this::onCloseAll);
 	}
 
 	@Override
 	public List<Node> getToolNodes() {		
-		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll);
+		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll, buttonCloseAll);
 	}
 
 	private void onOpen(ActionEvent event) {
@@ -306,6 +311,24 @@ public class Saver implements ToolProducer, InitializingBean {
 				} else if (file instanceof CsvFile csvFile) {
 					saveCsv(csvFile);
 				}
+			}
+			return null;
+		});
+	}
+
+	private void onCloseAll(ActionEvent event) {
+		List<SgyFile> files = model.getFileManager().getFiles();
+		if (files.isEmpty()) {
+			return;
+		}
+		String actionName = "Closing all opened files";
+		runAction(actionName, () -> {
+			if (model.stopUnsaved()) {
+				return null;
+			}
+			// Make a copy to avoid concurrent modification
+			for (SgyFile file : files.toArray(new SgyFile[0])) {
+				model.publishEvent(new FileClosedEvent(this, file));
 			}
 			return null;
 		});

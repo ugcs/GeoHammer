@@ -87,6 +87,7 @@ public class GpsTrack extends BaseLayer {
 			return;
 		}
 
+		// Make a copy to avoid concurrent modification
 		SgyFile[] files = model.getFileManager().getFiles().toArray(new SgyFile[0]);
 		for (SgyFile sgyFile : files) {
 			drawTraceLines(g2, field, sgyFile);

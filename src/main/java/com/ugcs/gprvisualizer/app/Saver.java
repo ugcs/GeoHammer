@@ -326,6 +326,7 @@ public class Saver implements ToolProducer, InitializingBean {
 			if (model.stopUnsaved()) {
 				return null;
 			}
+			// Make a copy to avoid concurrent modification
 			for (SgyFile file : files.toArray(new SgyFile[0])) {
 				model.publishEvent(new FileClosedEvent(this, file));
 			}

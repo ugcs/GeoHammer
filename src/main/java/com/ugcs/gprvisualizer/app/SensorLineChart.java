@@ -103,6 +103,8 @@ public class SensorLineChart extends Chart {
 
     private final Rectangle selectionRect = new Rectangle();
 
+    private Viewport viewport = new Viewport(0, 1, 0, 1);
+
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private @Nullable ScheduledFuture<?> updateTask;
@@ -331,21 +333,25 @@ public class SensorLineChart extends Chart {
             double endX = startX + selectionRect.getWidth();
             double endY = startY + selectionRect.getHeight();
 
-            zoomToArea(new Point2D(startX, startY), new Point2D(endX, endY));
+            // y axis is reversed in a zoom space
+            Point2D zoomStart = chart.normalizeToBounds(new Point2D(startX, endY));
+            Point2D zoomEnd = chart.normalizeToBounds(new Point2D(endX, startY));
+            Viewport selectionViewport = new Viewport(zoomStart.getX(), zoomEnd.getX(), zoomStart.getY(), zoomEnd.getY());
+            setZoom(viewport.fit(selectionViewport));
             updateOnZoom(false);
         });
     }
 
     private void setScrollHandlers(LineChartWithMarkers chart) {
         chart.setOnScroll((ScrollEvent event) -> {
-            Point2D scaleCenter = new Point2D(event.getX(), event.getY());
             boolean scaleY = !event.isControlDown();
             double scaleFactor = 1.1;
             if (event.getDeltaY() > 0) {
                 scaleFactor = 1 / scaleFactor;
             }
 
-            zoom(scaleFactor, scaleY ? scaleFactor : 1, scaleCenter);
+            Point2D scaleCenter = chart.normalizeToBounds(new Point2D(event.getX(), event.getY()));
+            setZoom(viewport.scale(scaleFactor, scaleY ? scaleFactor : 1, scaleCenter));
             updateOnZoom(true);
 
             event.consume(); // don't scroll parent pane
@@ -596,26 +602,17 @@ public class SensorLineChart extends Chart {
     // zoom
 
     private void updateProfileScroll() {
-        LineChartWithMarkers chart = getSelectedChart();
-        // fallback to interactive chart when nothing selected
-        if (chart == null) {
-            chart = interactiveChart;
-        }
-        if (chart == null) {
-            return;
-        }
+        int numTraces = numTraces();
+        int xMin = (int)(viewport.xMin * numTraces);
+        int xMax = (int)(viewport.xMax * numTraces);
 
-        ZoomRect zoomRect = chart.zoomRect;
-        int xMin = zoomRect.xMin.intValue();
-        int xMax = zoomRect.xMax.intValue();
-
-        // num  visible traces
-        int numTraces = xMax - xMin + 1;
-        setMiddleTrace(xMin + numTraces / 2);
+        // num visible traces
+        int numVisibleTraces = xMax - xMin + 1;
+        setMiddleTrace(xMin + numVisibleTraces / 2);
 
         // hScale = scroll width / num visible traces
         // aspect ratio = hScale / vScale
-        double hScale = getProfileScroll().getWidth() / numTraces;
+        double hScale = getProfileScroll().getWidth() / numVisibleTraces;
         double aspectRatio = hScale / getVScale();
         setRealAspect(aspectRatio);
 
@@ -625,34 +622,38 @@ public class SensorLineChart extends Chart {
 
     private void zoomToProfileScroll() {
         // num visible traces = scroll width / hscale
-        int numTraces = (int)(getProfileScroll().getWidth() / getHScale());
-        int numTracesTotal = numTraces();
+        int numVisibleTraces = (int)(getProfileScroll().getWidth() / getHScale());
+        int numTraces = numTraces();
 
         int middle = getMiddleTrace();
-        int w = numTraces / 2;
+        int w = numVisibleTraces / 2;
 
         // adjust visible range to the
         // full range bounds
         if (middle - w < 0) {
             middle = w;
         }
-        if (middle + w >= numTracesTotal) {
-            middle = numTracesTotal - w - 1;
+        if (middle + w >= numTraces) {
+            middle = numTraces - w - 1;
         }
 
         Range range = new Range(middle - w, middle + w);
-        for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.createZoomRectForXRange(range, true);
-            chart.setZoomRect(zoomRect);
-        }
+        setZoom(new Viewport(
+                (double)(middle - w) / numTraces,
+                (double)(middle + w) / numTraces,
+                viewport.yMin(),
+                viewport.yMax()));
     }
 
     private void zoomToLine(int lineIndex) {
         Range range = file.getLineRanges().get(lineIndex);
-        for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.createZoomRectForXRange(range);
-            chart.setZoomRect(zoomRect);
-        }
+        int numTraces = numTraces();
+        setZoom(new Viewport(
+                range.getMin().doubleValue() / numTraces,
+                range.getMax().doubleValue() / numTraces,
+                0,
+                1
+        ));
     }
 
     @Override
@@ -682,35 +683,30 @@ public class SensorLineChart extends Chart {
 
     @Override
     public void zoomToFit() {
-        for (LineChartWithMarkers chart : charts.values()) {
-            chart.resetZoomRect();
-        }
+        setZoom(new Viewport(0, 1, 0, 1));
         updateOnZoom(false);
     }
 
     @Override
     public void zoomIn() {
-        zoom(1.0 / ZOOM_STEP, 1.0, null);
+        setZoom(viewport.scale(1.0 / ZOOM_STEP, 1.0, null));
         updateOnZoom(false);
     }
 
     @Override
     public void zoomOut() {
-        zoom(ZOOM_STEP, 1.0, null);
+        setZoom(viewport.scale(ZOOM_STEP, 1.0, null));
         updateOnZoom(false);
     }
 
-    private void zoomToArea(Point2D start, Point2D end) {
-        for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.createZoomRectForArea(start, end);
-            chart.setZoomRect(zoomRect);
-        }
+    private void setZoom(Viewport viewport) {
+        this.viewport = viewport;
+        applyZoomToCharts();
     }
 
-    private void zoom(double scaleX, double scaleY, @Nullable Point2D scaleCenter) {
+    private void applyZoomToCharts() {
         for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.scaleZoomRect(chart.zoomRect, scaleX, scaleY, scaleCenter);
-            chart.setZoomRect(zoomRect);
+            chart.zoomTo(viewport);
         }
     }
 
@@ -742,41 +738,19 @@ public class SensorLineChart extends Chart {
             return;
         }
 
-        // TODO focus does not affect behavior
-
-        int selectedX = trace.getIndex();
-
-        if (interactiveChart == null) {
-            return;
-        }
-        ValueAxis<Number> xAxis = (ValueAxis<Number>) interactiveChart.getXAxis();
-        var dataSize = interactiveChart.plot.data().size();
-
-        if (selectedX < 0 || selectedX > dataSize) {
-            log.error("Selected trace index: {} is out of range: {}", selectedX, dataSize);
+        int traceIndex = trace.getIndex();
+        int numTraces = numTraces();
+        if (traceIndex < 0 || traceIndex >= numTraces) {
+            log.error("Selected trace index {} is out of range: {}", traceIndex, numTraces);
             return;
         }
 
-        if (xAxis.getLowerBound() > selectedX || xAxis.getUpperBound() < selectedX) {
-            int delta = (int)(xAxis.getUpperBound() - xAxis.getLowerBound());
-
-            int lowerIndex = Math.clamp(selectedX - delta / 2, 0, dataSize - delta);
-            int upperIndex = Math.clamp(selectedX + delta / 2, delta, dataSize);
-
-            log.debug("Shifted charts, lowerIndex: {} upperIndex: {} size: {}", lowerIndex, upperIndex, dataSize);
-
-            for (LineChartWithMarkers chart : charts.values()) {
-                var yAxis = (ValueAxis<Number>) chart.getYAxis();
-
-                ZoomRect zoomRect = new ZoomRect(lowerIndex, upperIndex, yAxis.getLowerBound(), yAxis.getUpperBound());
-                chart.setZoomRect(zoomRect);
-                chart.updateChart();
-            }
-
-            model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
+        double x = numTraces > 0 ? (double)traceIndex / numTraces : 0;
+        if (x < viewport.xMin() || x > viewport.xMax()) {
+            setZoom(viewport.moveToX(x));
+            updateOnZoom(false);
         }
-        createSelectionMarker(selectedX);
-        updateProfileScroll();
+        createSelectionMarker(traceIndex);
     }
 
     public void createSelectionMarker(int traceIndex) {
@@ -1022,7 +996,6 @@ public class SensorLineChart extends Chart {
             if (filteredChart == null) {
                 Plot plot = createPlot(filteredSeriesName, file.getGeoData());
                 filteredChart = createChart(plot);
-                filteredChart.setZoomRect(chart.zoomRect);
                 model.publishEvent(new SeriesAddedEvent(this, file, filteredSeriesName));
             }
             filteredChart.updateChart();
@@ -1083,18 +1056,17 @@ public class SensorLineChart extends Chart {
 
         private static final int MAX_VIEW_SAMPLES = 1000;
 
+        private final Series<Number, Number> series;
+
         private final ObservableList<Data<Number, Number>> markers;
-
-        private ZoomRect outZoomRect;
-
-        private ZoomRect zoomRect;
 
         private Plot plot;
 
+        // loaded x range
+        private Range sampleRange;
+
         public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, Plot plot) {
             super(xAxis, yAxis);
-
-            initView();
 
             markers = FXCollections.observableArrayList(data -> new Observable[] {data.XValueProperty()});
             markers.addListener((InvalidationListener) observable -> layoutPlotChildren());
@@ -1102,17 +1074,12 @@ public class SensorLineChart extends Chart {
             Check.notNull(plot);
             this.plot = plot;
 
-            Series<Number, Number> series = new Series<>();
+            series = new Series<>();
             getData().add(series);
 
-            // update zoom
+            initView();
 
-            Range valueRange = plot.valueRange();
-            this.outZoomRect = new ZoomRect(0, Math.max(0, plot.data.size() - 1),
-                    valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
-            this.zoomRect = outZoomRect;
-
-            applyZoom();
+            zoomTo(viewport);
             updateChart();
         }
 
@@ -1133,144 +1100,62 @@ public class SensorLineChart extends Chart {
             getYAxis().setOpacity(show ? 1 : 0);
         }
 
+        public boolean isDataVisible() {
+            return series.getNode().isVisible();
+        }
+
         public void showData(boolean show) {
-            for (Series<Number, Number> series : getData()) {
-                series.getNode().setVisible(show);
-            }
+            series.getNode().setVisible(show);
         }
 
         public void setPlot(Plot plot) {
             this.plot = Check.notNull(plot);
-
-            // TODO replace with rescale Y
-            Range valueRange = plot.valueRange();
-            outZoomRect = new ZoomRect(
-                    0, Math.max(0, plot.data.size() - 1),
-                    valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
-
-            // update zoom
-            setZoomRect(zoomRect);
         }
 
-        public void rescaleY() {
-            Range oldYRange = new Range(outZoomRect.yMin, outZoomRect.yMax);
-            Range newYRange = plot.valueRange();
-
-            outZoomRect = new ZoomRect(
-                    0, Math.max(0, plot.data.size() - 1),
-                    newYRange.getMin(), newYRange.getMax());
-
-            double widthRate = newYRange.getWidth() / oldYRange.getWidth();
-            Number newYMin = newYRange.getMin().doubleValue()
-                    + widthRate * (zoomRect.yMin.doubleValue() - oldYRange.getMin().doubleValue());
-            Number newYMax = newYRange.getMin().doubleValue()
-                    + widthRate * (zoomRect.yMax.doubleValue() - oldYRange.getMin().doubleValue());
-            setZoomRect(new ZoomRect(zoomRect.xMin, zoomRect.xMax, newYMin, newYMax));
-        }
-
-        public ZoomRect createZoomRectForArea(Point2D start, Point2D end) {
-            // start and end are in chart coordinates
-            Node plot = lookup(".chart-plot-background");
-            Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
-            // translate coordinates to a plot space
-            Point2D plotStart = new Point2D(
-                    Math.clamp(start.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
-                    Math.clamp(start.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
-            Point2D plotEnd = new Point2D(
-                    Math.clamp(end.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
-                    Math.clamp(end.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
-
-            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
-            Number xMin = xAxis.getValueForDisplay(plotStart.getX());
-            Number xMax = xAxis.getValueForDisplay(plotEnd.getX());
-
-            ValueAxis<Number> yAxis = (ValueAxis<Number>)getYAxis();
-            Number yMax = yAxis.getValueForDisplay(plotStart.getY());
-            Number yMin = yAxis.getValueForDisplay(plotEnd.getY());
-
-            return new ZoomRect(xMin, xMax, yMin, yMax);
-        }
-
-        public ZoomRect createZoomRectForXRange(Range range) {
-            return createZoomRectForXRange(range, false);
-        }
-
-        public ZoomRect createZoomRectForXRange(Range range, boolean keepYScale) {
-            ZoomRect yRect = keepYScale ? zoomRect : outZoomRect;
-            return new ZoomRect(range.getMin(), range.getMax(), yRect.yMin, yRect.yMax);
-        }
-
-        public ZoomRect scaleZoomRect(ZoomRect zoomRect, double xScale, double yScale, @Nullable Point2D scaleCenter) {
-            // scale center is in chart coordinates
+        public Point2D normalizeToBounds(Point2D chartPoint) {
+            // point is in chart coordinates
             // translate chart coordinates to plot coordinates
             Node plot = lookup(".chart-plot-background");
             Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
-            Point2D plotScaleCenter = null;
-            if (scaleCenter != null ) {
-                plotScaleCenter = new Point2D(
-                        scaleCenter.getX() - plotBounds.getMinX(),
-                        scaleCenter.getY() - plotBounds.getMinY());
-            }
+            Point2D plotPoint = new Point2D(
+                    chartPoint.getX() - plotBounds.getMinX(),
+                    chartPoint.getY() - plotBounds.getMinY());
 
-            // convert center coordinates to x and y ratios [0, 1]
-            // when scale center is null zoom at plot center
-            double xCenterRatio = plotScaleCenter != null && plotBounds.getWidth() > 1e-9
-                    ? Math.clamp(plotScaleCenter.getX() / plotBounds.getWidth(), 0, 1)
-                    : 0.5;
-            double yCenterRatio = plotScaleCenter != null && plotBounds.getHeight() > 1e-9
-                    ? Math.clamp(1 - plotScaleCenter.getY() / plotBounds.getHeight(), 0, 1)
-                    : 0.5;
-
-            Range xRange = new Range(zoomRect.xMin, zoomRect.xMax)
-                    .scale(xScale, xCenterRatio);
-            Range yRange = new Range(zoomRect.yMin, zoomRect.yMax)
-                    .scale(yScale, yCenterRatio);
-
-            return new ZoomRect(
-                    xRange.getMin(), xRange.getMax(),
-                    yRange.getMin(), yRange.getMax());
+            // convert point coordinates to x and y ratios [0, 1]
+            double x = plotBounds.getWidth() > 1e-9
+                    ? Math.clamp(plotPoint.getX() / plotBounds.getWidth(), 0, 1)
+                    : 0;
+            double y = plotBounds.getHeight() > 1e-9
+                    ? Math.clamp(1 - plotPoint.getY() / plotBounds.getHeight(), 0, 1)
+                    : 0;
+            return new Point2D(x, y);
         }
 
-        public ZoomRect cropZoomRect(ZoomRect zoomRect, ZoomRect cropRect) {
-            return new ZoomRect(
-                    Math.max(zoomRect.xMin.doubleValue(), cropRect.xMin.doubleValue()),
-                    Math.min(zoomRect.xMax.doubleValue(), cropRect.xMax.doubleValue()),
-                    Math.max(zoomRect.yMin.doubleValue(), cropRect.yMin.doubleValue()),
-                    Math.min(zoomRect.yMax.doubleValue(), cropRect.yMax.doubleValue()));
-        }
-
-        public void setZoomRect(ZoomRect zoomRect) {
-            this.zoomRect = zoomRect != outZoomRect
-                    ? cropZoomRect(zoomRect, outZoomRect)
-                    : zoomRect;
-            applyZoom();
-        }
-
-        public void resetZoomRect() {
-            setZoomRect(outZoomRect);
-        }
-
-        private void applyZoom() {
+        private void zoomTo(Viewport viewport) {
             int lineIndexBefore = getSelectedLineIndex();
 
+            int xWidth = plot.data.size();
             ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             xAxis.setAutoRanging(false);
-            xAxis.setLowerBound(zoomRect.xMin.doubleValue());
-            xAxis.setUpperBound(zoomRect.xMax.doubleValue());
+            xAxis.setLowerBound(viewport.xMin * xWidth);
+            xAxis.setUpperBound(viewport.xMax * xWidth);
 
+            Range yRange = plot.dataRange;
             ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();
             yAxis.setAutoRanging(false);
-            yAxis.setLowerBound(zoomRect.yMin.doubleValue());
-            yAxis.setUpperBound(zoomRect.yMax.doubleValue());
+            yAxis.setLowerBound(yRange.getMin().doubleValue() + viewport.yMin * yRange.getWidth());
+            yAxis.setUpperBound(yRange.getMin().doubleValue() + viewport.yMax * yRange.getWidth());
 
             int lineIndexAfter = getSelectedLineIndex();
             if (lineIndexBefore != lineIndexAfter) {
                 // request redraw on selected line index update
-                model.publishEvent(new WhatChanged(
-                        SensorLineChart.this,
-                        WhatChanged.Change.justdraw
-                ));
+                model.publishEvent(new WhatChanged(SensorLineChart.this, WhatChanged.Change.justdraw));
             }
+        }
+
+        private Range getXRange() {
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
+            return new Range(xAxis.getLowerBound(), xAxis.getUpperBound());
         }
 
         private static String emphasizeStyle(String style) {
@@ -1281,7 +1166,7 @@ public class SensorLineChart extends Chart {
             return style + "-fx-stroke-dash-array: 1 5 1 5;";
         }
 
-        private void setSeriesStyle(Series<Number, Number> series, String style) {
+        private void setSeriesStyle(String style) {
             Check.notNull(series);
 
             Node seriesNode = series.getNode();
@@ -1293,7 +1178,7 @@ public class SensorLineChart extends Chart {
             }
         }
 
-        private void setSeriesData(Series<Number, Number> series, int lowerIndex, int upperIndex) {
+        private void setSeriesData(int lowerIndex, int upperIndex) {
             Axis<Number> xAxis = getXAxis() ;
             int numSamples = Math.clamp((int) xAxis.getLayoutBounds().getWidth(), MIN_VIEW_SAMPLES, MAX_VIEW_SAMPLES);
             List<Data<Number, Number>> samples = getSamplesInRange(lowerIndex, upperIndex, numSamples);
@@ -1345,16 +1230,17 @@ public class SensorLineChart extends Chart {
         }
 
         private void updateChart() {
-            int lowerIndex = Math.clamp(zoomRect.xMin.intValue(), 0, plot.data().size() - 1);
-            int upperIndex = Math.clamp(zoomRect.xMax.intValue(), lowerIndex, plot.data().size() - 1);
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
+            int lowerIndex = Math.clamp((int)xAxis.getLowerBound(), 0, plot.data().size() - 1);
+            int upperIndex = Math.clamp((int)xAxis.getUpperBound(), lowerIndex, plot.data().size() - 1);
 
-            String style = plot.style();
-            if (Objects.equals(plot.seriesName(), selectedSeriesName)) {
-                style = emphasizeStyle(style);
-            }
-            for (Series<Number, Number> series : getData()) {
-                setSeriesData(series, lowerIndex, upperIndex);
-                setSeriesStyle(series, style);
+            if (isDataVisible()) {
+                String style = plot.style();
+                if (Objects.equals(plot.seriesName(), selectedSeriesName)) {
+                    style = emphasizeStyle(style);
+                }
+                setSeriesData(lowerIndex, upperIndex);
+                setSeriesStyle(style);
             }
         }
 
@@ -1445,7 +1331,55 @@ public class SensorLineChart extends Chart {
 
     // data classes
 
-    record ZoomRect(Number xMin, Number xMax, Number yMin, Number yMax) {}
+    // chart viewport relative to [0, 1] full-size view
+    record Viewport(double xMin, double xMax, double yMin, double yMax) {
+
+        Viewport(double xMin, double xMax, double yMin, double yMax) {
+            this.xMin = Math.clamp(xMin, 0, 1);
+            this.xMax = Math.clamp(xMax, 0, 1);
+            this.yMin = Math.clamp(yMin, 0, 1);
+            this.yMax = Math.clamp(yMax, 0, 1);
+        }
+
+        public double width() {
+            return xMax - xMin;
+        }
+
+        public double height() {
+            return yMax - yMin;
+        }
+
+        public Viewport scale(double xScale, double yScale, @Nullable Point2D scaleCenter) {
+            // when scale center is null zoom at center
+            double xCenterRatio = scaleCenter != null ? scaleCenter.getX() : 0.5;
+            double yCenterRatio = scaleCenter != null ? scaleCenter.getY() : 0.5;
+
+            Range xRange = new Range(xMin, xMax).scale(xScale, xCenterRatio);
+            Range yRange = new Range(yMin, yMax).scale(yScale, yCenterRatio);
+            return new Viewport(
+                    xRange.getMin().doubleValue(), xRange.getMax().doubleValue(),
+                    yRange.getMin().doubleValue(), yRange.getMax().doubleValue());
+        }
+
+        public Viewport fit(Viewport other) {
+            // other viewport in a space of the current viewport
+            // translate this viewport to match other but in its own
+            // coordinate space
+            return new Viewport(
+                    xMin + other.xMin * width(),
+                    xMin + other.xMax * width(),
+                    yMin + other.yMin * height(),
+                    yMin + other.yMax * height());
+        }
+
+        public Viewport moveToX(double x) {
+            if (x >= xMin && x <= xMax) {
+                return this;
+            }
+            double w = 0.5 * (xMax - xMin);
+            return new Viewport(x - w, x + w, yMin, yMax);
+        }
+    }
 
     public record Plot(String seriesName, @Nullable String unit, Color color,
                         List<@Nullable Number> data, Range dataRange) {

@@ -50,6 +50,3 @@
       - header: "Next WP"
         semantic: "Line"
         units: ""
-      - header: "nT_anomaly"
-        semantic: "TMI_anomaly"
-        units: "nT"

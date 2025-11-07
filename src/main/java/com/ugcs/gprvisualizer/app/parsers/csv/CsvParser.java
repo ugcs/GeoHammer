@@ -253,22 +253,9 @@ public class CsvParser extends Parser {
                 continue;
             }
             String semantic = dataValue.getSemantic();
-            boolean addColumn = false;
             // is line or mark column
             if (Objects.equals(semantic, Semantic.LINE.getName()) ||
                     Objects.equals(semantic, Semantic.MARK.getName())) {
-                addColumn = true;
-            }
-            // is anomaly column
-            if (semantic.endsWith(Semantic.ANOMALY_SUFFIX)) {
-                String sourceSemantic = semantic.substring(
-                        0, semantic.length() - Semantic.ANOMALY_SUFFIX.length());
-                SensorData sourceColumn = mapping.getDataValueBySemantic(sourceSemantic);
-                if (hasHeader(sourceColumn)) {
-                    addColumn = true;
-                }
-            }
-            if (addColumn) {
                 Column column = new Column(header)
                         .withSemantic(semantic)
                         .withUnit(Strings.emptyToNull(dataValue.getUnits()));

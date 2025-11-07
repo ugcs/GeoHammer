@@ -161,33 +161,6 @@
 					<linkXRef>false</linkXRef>
 				</configuration>
 			</plugin>
-
-			<!-- Configure Surefire for JavaFX tests -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<argLine>
-						--add-exports javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
-						--add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
-						--add-opens javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
-						--add-opens javafx.graphics/com.sun.glass.ui.delegate=ALL-UNNAMED
-						--add-opens java.base/java.lang.reflect=ALL-UNNAMED
-						--add-opens java.base/java.util=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
-						--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
-						--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED
-						--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED
-					</argLine>
-					<useModulePath>false</useModulePath>
-				</configuration>
-			</plugin>
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>exec-maven-plugin</artifactId>
@@ -531,20 +504,6 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- TestFX for JavaFX testing -->
-        <dependency>
-            <groupId>org.testfx</groupId>
-            <artifactId>testfx-core</artifactId>
-            <version>4.0.17</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testfx</groupId>
-            <artifactId>testfx-junit5</artifactId>
-            <version>4.0.17</version>
             <scope>test</scope>
         </dependency>
 	</dependencies>

@@ -3,7 +3,7 @@ package com.ugcs.gprvisualizer.app.axis;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
+import com.ugcs.gprvisualizer.app.service.TemplateSettings;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
@@ -32,8 +32,6 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private final Model model;
 
-    private final TemplateSettingsModel templateSettings;
-
     private final DecimalFormat formatter = new DecimalFormat();
 
     private final CsvFile file;
@@ -43,11 +41,10 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     @Nullable
     private Button labelButton = null;
 
-    public SensorLineChartXAxis(Model model, TemplateSettingsModel templateSettings, CsvFile file, int numTicks) {
+    public SensorLineChartXAxis(Model model, CsvFile file, int numTicks) {
         Check.notNull(file);
 
         this.model = model;
-        this.templateSettings = templateSettings;
         this.file = file;
         this.numTicks = numTicks;
 
@@ -69,6 +66,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     public TraceUnit getUnit() {
         String templateName = Templates.getCsvTemplateName(file);
+        TemplateSettings templateSettings = model.getTemplateSettings();
         return templateSettings.getTraceUnit(templateName);
     }
 
@@ -78,6 +76,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
         }
 
         String templateName = Templates.getCsvTemplateName(file);
+        TemplateSettings templateSettings = model.getTemplateSettings();
         templateSettings.setTraceUnit(templateName, traceUnit);
 
         setLabel(traceUnit.getLabel());

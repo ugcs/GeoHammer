@@ -98,7 +98,7 @@ public final class ProfileScroll extends Canvas {
 			centerPos = Math.min(Math.max(centerPos, 0), getWidth());
 			
 			//finish = barStart;
-			double tracesFull = scrollable.getTracesCount();
+			double tracesFull = scrollable.numTraces();
 			
 			double trCenter = centerPos * tracesFull / getWidth();
 			
@@ -251,7 +251,7 @@ public final class ProfileScroll extends Canvas {
 	
 	void recalc() {
 		
-		if (!model.isActive() || scrollable.getTracesCount() == 0) {
+		if (!model.isActive() || scrollable.numTraces() == 0) {
 		//	GraphicsContext gc = this.getGraphicsContext2D();
 		//	gc.clearRect(0, 0, getWidth(), getHeight());
 		//	return;
@@ -265,13 +265,13 @@ public final class ProfileScroll extends Canvas {
 		double tracesVisible;
 
 		//TODO: fix scroll
-		if (scrollable.getTracesCount() != 0) {
-			tracesFull = scrollable.getTracesCount();
+		if (scrollable.numTraces() != 0) {
+			tracesFull = scrollable.numTraces();
 			center = scrollable.getMiddleTrace();
-			tracesVisible = scrollable.getVisibleNumberOfTrace();
+			tracesVisible = scrollable.numVisibleTraces();
 		} else {
 			if (scrollable instanceof SensorLineChart) {
-				tracesFull = scrollable.getTracesCount();
+				tracesFull = scrollable.numTraces();
 			}
 			center = tracesFull / 2;
 			tracesVisible = tracesFull;
@@ -326,11 +326,11 @@ public final class ProfileScroll extends Canvas {
 		double scrWidth = (finish - start);
 		
 		double visibletracesCount = scrWidth / (double) getWidth() 
-				* (double) scrollable.getTracesCount();
+				* (double) scrollable.numTraces();
 		double hsc = getWidth() / visibletracesCount;
 		double aspect = hsc / scrollable.getVScale();
 		
-		double trCenter = scrCenter / (double) getWidth() * (double) scrollable.getTracesCount();
+		double trCenter = scrCenter / (double) getWidth() * (double) scrollable.numTraces();
 		scrollable.setMiddleTrace((int) trCenter);
 		scrollable.setRealAspect(aspect);
 	}

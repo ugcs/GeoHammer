@@ -16,13 +16,11 @@ import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObjectImpl;
-import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
+import com.ugcs.gprvisualizer.app.service.TemplateSettings;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
 import com.ugcs.gprvisualizer.utils.Templates;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
-
-import javax.annotation.Nullable;
 
 /**
  * Horizontal ruler controller that displays trace indices only (SEG‑Y traces).
@@ -34,14 +32,11 @@ public class HorizontalRulerController {
 
     private final Model model;
 
-    private final TemplateSettingsModel templateSettingsModel;
-
     private final TraceFile file;
 
-    public HorizontalRulerController(Model model, TraceFile file, TemplateSettingsModel templateSettingsModel) {
+    public HorizontalRulerController(Model model, TraceFile file) {
         this.model = model;
         this.file = file;
-        this.templateSettingsModel = templateSettingsModel;
     }
 
     public BaseObject getTB() {
@@ -50,7 +45,8 @@ public class HorizontalRulerController {
 
     public TraceUnit getUnit() {
         String templateName = Templates.getTemplateName(file);
-        return templateSettingsModel.getTraceUnit(templateName);
+        TemplateSettings templateSettings = model.getTemplateSettings();
+        return templateSettings.getTraceUnit(templateName);
     }
 
     public void setUnit(TraceUnit traceUnit) {
@@ -59,7 +55,8 @@ public class HorizontalRulerController {
         }
 
         String templateName = Templates.getTemplateName(file);
-        templateSettingsModel.setTraceUnit(templateName, traceUnit);
+        TemplateSettings templateSettings = model.getTemplateSettings();
+        templateSettings.setTraceUnit(templateName, traceUnit);
     }
 
     private final BaseObject tb = new BaseObjectImpl() {

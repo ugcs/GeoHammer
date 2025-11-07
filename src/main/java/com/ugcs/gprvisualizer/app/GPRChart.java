@@ -15,8 +15,6 @@ import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.auxcontrol.RemoveLineButton;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
-import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
 import com.ugcs.gprvisualizer.draw.PrismDrawer;
 import com.ugcs.gprvisualizer.draw.ShapeHolder;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
@@ -41,6 +39,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.jfree.fx.FXGraphics2D;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,13 +111,13 @@ public class GPRChart extends Chart {
     VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
     HorizontalRulerDrawer horizontalRulerDrawer = new HorizontalRulerDrawer(this);
 
-    public GPRChart(Model model, TraceFile traceFile, TemplateSettingsModel templateSettingsModel) {
+    public GPRChart(Model model, TraceFile traceFile) {
         super(model);
         this.model = model;
         this.auxEditHandler = model.getAuxEditHandler();
         this.profileField = new ProfileField(traceFile);
         this.leftRulerController = new LeftRulerController(profileField);
-        this.horizontalRulerController = new HorizontalRulerController(model, traceFile, templateSettingsModel);
+        this.horizontalRulerController = new HorizontalRulerController(model, traceFile);
 
         vbox.getChildren().addAll(canvas);
         vbox.setOnMouseClicked(event -> {
@@ -728,7 +727,7 @@ public class GPRChart extends Chart {
             };
 
     @Override
-    public int getTracesCount() {
+    public int numTraces() {
         return getField().getGprTracesCount();
     }
 
@@ -790,13 +789,13 @@ public class GPRChart extends Chart {
     public int getFirstVisibleTrace() {
         double x = -getField().getMainRect().width / 2.0;
         int trace = screenToTraceSample(new Point2D(x, 0)).getTrace();
-        return Math.clamp(trace, 0, getTracesCount() - 1);
+        return Math.clamp(trace, 0, numTraces() - 1);
     }
 
     public int getLastVisibleTrace() {
         double x = profileField.getMainRect().width / 2.0;
         int trace = screenToTraceSample(new Point2D(x, 0)).getTrace();
-        return Math.clamp(trace, 0, getTracesCount() - 1);
+        return Math.clamp(trace, 0, numTraces() - 1);
     }
 
     public int getLastVisibleSample() {
@@ -819,7 +818,7 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public int getVisibleNumberOfTrace() {
+    public int numVisibleTraces() {
         Point2D p = traceSampleToScreen(new TraceSample(0,0));
         Point2D p2 = new Point2D(p.getX() + getField().getMainRect().width, 0);
         TraceSample t2 = screenToTraceSample(p2);
@@ -854,7 +853,7 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public void selectTrace(TraceKey trace, boolean focus) {
+    public void selectTrace(@Nullable TraceKey trace, boolean focus) {
         if (trace != null && focus) {
             setMiddleTrace(trace.getIndex());
         }
@@ -873,7 +872,7 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public void selectFlag(FoundPlace flag) {
+    public void selectFlag(@Nullable FoundPlace flag) {
         getFlags().forEach(x ->
                 x.setSelected(Objects.equals(x, flag)));
     }

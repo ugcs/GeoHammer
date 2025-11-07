@@ -34,7 +34,7 @@ public class HorizontalRulerDrawer {
 
         int firstTrace = field.getFirstVisibleTrace();
         int lastTrace = field.getLastVisibleTrace();
-        int totalTraces = field.getVisibleNumberOfTrace();
+        int totalTraces = field.numVisibleTraces();
 
         Pair<Integer, Integer> pair;
         if (firstTrace <= lastTrace) {

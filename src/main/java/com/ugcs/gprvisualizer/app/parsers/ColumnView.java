@@ -9,11 +9,11 @@ public class ColumnView extends AbstractList<Number> {
 
     private final List<GeoData> values;
 
-    private final int columnIndex;
+    private final String header;
 
-    public ColumnView(List<GeoData> values, int columnIndex) {
+    public ColumnView(List<GeoData> values, String header) {
         this.values = Nulls.toEmpty(values);
-        this.columnIndex = columnIndex;
+        this.header = header;
     }
 
     @Override
@@ -22,7 +22,7 @@ public class ColumnView extends AbstractList<Number> {
         if (value == null) {
             return null;
         }
-        return value.getNumber(columnIndex);
+        return value.getNumber(header);
     }
 
     @Override

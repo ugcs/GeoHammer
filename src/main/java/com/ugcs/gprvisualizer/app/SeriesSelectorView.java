@@ -3,28 +3,27 @@ package com.ugcs.gprvisualizer.app;
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
-import com.ugcs.gprvisualizer.app.yaml.DataMapping;
 import com.ugcs.gprvisualizer.app.yaml.Template;
-import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
+import com.ugcs.gprvisualizer.event.SeriesAddedEvent;
+import com.ugcs.gprvisualizer.event.SeriesRemovedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
-import com.ugcs.gprvisualizer.gpr.TemplateSettings;
+import com.ugcs.gprvisualizer.app.service.TemplateSettings;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
-import com.ugcs.gprvisualizer.utils.Views;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.Skin;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.control.skin.ComboBoxListViewSkin;
@@ -62,6 +61,8 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
     private Label title;
 
+    private Button removeSeriesButton;
+
     private ObservableList<SeriesMeta> series = FXCollections.observableArrayList();
 
     private ComboBox<SeriesMeta> seriesSelector;
@@ -98,11 +99,21 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         title = new Label(DEFAULT_TITLE);
         title.setStyle("-fx-text-fill: #dddddd;");
 
+        removeSeriesButton = new Button("X");
+        removeSeriesButton.setOnAction(this::onRemoveSeries);
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        container.getChildren().addAll(title, spacer, seriesSelector);
+        container.getChildren().addAll(title, spacer, seriesSelector, removeSeriesButton);
         getChildren().addAll(container);
+    }
+
+    private void onRemoveSeries(ActionEvent event) {
+        SeriesMeta selectedSeries = seriesSelector.getValue();
+        if (selectedSeries != null) {
+            removeChart(selectedSeries.name);
+        }
     }
 
     private void initSeriesSelector() {
@@ -130,21 +141,6 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
                     setText(null);
                 } else {
                     setText(item.name);
-                    setStyle("-fx-text-fill: " + Views.toColorString(item.color()) + ";");
-                }
-            }
-        });
-
-        // style of item in a collapsed selector box
-        seriesSelector.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(SeriesMeta item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(item.name);
-                    setStyle("-fx-text-fill: " + Views.toColorString(item.color()) + ";");
                 }
             }
         });
@@ -261,21 +257,8 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
     }
 
     private List<String> orderSeriesNames(@Nullable Template template, Set<String> seriesNames) {
-        List<String> orderedSeriesNames = new ArrayList<>();
-        // put template columns in declaration order
-        if (template != null) {
-            DataMapping dataMapping = template.getDataMapping();
-            for (SensorData sensorData : Nulls.toEmpty(dataMapping.getDataValues())) {
-                String seriesName = sensorData.getHeader();
-                if (seriesNames.remove(seriesName)) {
-                    orderedSeriesNames.add(seriesName);
-                }
-            }
-        }
-        // sort undeclared columns alphabetically
-        List<String> undeclaredSeriesNames = new ArrayList<>(seriesNames);
-        Collections.sort(undeclaredSeriesNames);
-        orderedSeriesNames.addAll(undeclaredSeriesNames);
+        List<String> orderedSeriesNames = new ArrayList<>(seriesNames);
+        Collections.sort(orderedSeriesNames);
         return orderedSeriesNames;
     }
 
@@ -354,6 +337,14 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
     // chart updates
 
+    private void removeChart(String seriesName) {
+        if (model.getCurrentFile() instanceof CsvFile csvFile) {
+            model.getCsvChart(csvFile).ifPresent(chart -> {
+                chart.removeFileColumn(seriesName);
+            });
+        };
+    }
+
     private void selectChart(Template template, @Nullable String seriesName) {
         Check.notNull(template);
 
@@ -383,6 +374,23 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
     // events
 
+    private boolean reloadTemplateOnChange(SgyFile file) {
+        if (selectedTemplate == null) {
+            return false;
+        }
+        if (file instanceof CsvFile csvFile) {
+            Template template = csvFile.getTemplate();
+            if (templateEquals(template, selectedTemplate)) {
+                // reload template
+                Platform.runLater(() -> {
+                    selectTemplate(template);
+                });
+                return true;
+            }
+        }
+        return false;
+    }
+
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
         Template template = null;
@@ -410,12 +418,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         Set<File> openedFiles = new HashSet<>(event.getFiles());
         for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
             if (openedFiles.contains(csvFile.getFile())) {
-                Template template = csvFile.getTemplate();
-                if (templateEquals(template, selectedTemplate)) {
-                    // reload template
-                    Platform.runLater(() -> {
-                        selectTemplate(template);
-                    });
+                if (reloadTemplateOnChange(csvFile)) {
                     break;
                 }
             }
@@ -424,37 +427,29 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
 	@EventListener
 	private void onFileUpdated(FileUpdatedEvent event) {
-		if (selectedTemplate == null) {
-			return;
-		}
-
-		SgyFile sgyFile = event.getSgyFile();
-		if (!(sgyFile instanceof CsvFile csvFile)) {
-			return;
-		}
-		Template template = csvFile.getTemplate();
-		if (templateEquals(template, selectedTemplate)) {
-			// reload template
-			Platform.runLater(() -> {
-				selectTemplate(template);
-			});
-		}
+        reloadTemplateOnChange(event.getSgyFile());
 	}
 
     @EventListener
     private void onFileClosed(FileClosedEvent event) {
-        if (selectedTemplate == null) {
-            return;
-        }
+        reloadTemplateOnChange(event.getSgyFile());
+    }
 
-        if (event.getSgyFile() instanceof CsvFile csvFile) {
-            Template template = csvFile.getTemplate();
-            if (templateEquals(template, selectedTemplate)) {
-                // reload template
-                Platform.runLater(() -> {
-                    selectTemplate(template);
-                });
-            }
+    @EventListener
+    private void onSeriesAdded(SeriesAddedEvent event) {
+        if (reloadTemplateOnChange(event.getFile())) {
+            Platform.runLater(() -> {
+                SeriesMeta series = getSeriesByName(event.getSeriesName());
+                if (series != null) {
+                    series.visible.setValue(true);
+                    seriesSelector.setValue(series);
+                }
+            });
         }
+    }
+
+    @EventListener
+    private void onSeriesRemoved(SeriesRemovedEvent event) {
+        reloadTemplateOnChange(event.getFile());
     }
 }

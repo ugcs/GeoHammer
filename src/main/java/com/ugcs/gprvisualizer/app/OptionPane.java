@@ -187,9 +187,8 @@ public class OptionPane extends VBox implements InitializingBean {
 			int value = Integer.parseInt(i);
 			return value >= 0 && value < 10000;
 		};
-		lowPassActions.apply = i -> applyLowPassFilter(Integer.parseInt(i));
-		lowPassActions.applyAll = i -> applyLowPassFilterToAll(Integer.parseInt(i));
-		lowPassActions.undo = i -> applyLowPassFilter(0);
+		lowPassActions.apply = i -> applyLowPass(Integer.parseInt(i));
+		lowPassActions.applyAll = i -> applyLowPassToAll(Integer.parseInt(i));
 		StackPane lowPassOptions = createFilterOptions(
 				Filter.lowpass,
 				"Enter cutoff wavelength (fiducials)",
@@ -200,9 +199,8 @@ public class OptionPane extends VBox implements InitializingBean {
 			int value = Integer.parseInt(i);
 			return Math.abs(value) < 10000;
 		};
-		timeLagActions.apply = i -> applyGnssTimeLag(Integer.parseInt(i));
-		timeLagActions.applyAll = i -> applyGnssTimeLagToAll(Integer.parseInt(i));
-		timeLagActions.undo = i -> applyGnssTimeLag(0);
+		timeLagActions.apply = i -> applyTimeLag(Integer.parseInt(i));
+		timeLagActions.applyAll = i -> applyTimeLagToAll(Integer.parseInt(i));
 		StackPane timeLagOptions = createFilterOptions(
 				Filter.timelag,
 				"Enter time-lag (fiducials)",
@@ -213,8 +211,8 @@ public class OptionPane extends VBox implements InitializingBean {
 			int value = Integer.parseInt(i);
 			return value > 0;
 		};
-		medianCorrectionActions.apply = i -> applyMedianCorrection(Integer.parseInt(i));
-		medianCorrectionActions.applyAll = i -> applyMedianCorrectionToAll(Integer.parseInt(i));
+		medianCorrectionActions.apply = i -> applyRunningMedian(Integer.parseInt(i));
+		medianCorrectionActions.applyAll = i -> applyRunningMedianToAll(Integer.parseInt(i));
 		StackPane medianCorrectionOptions = createFilterOptions(
 				Filter.median_correction,
 				"Enter window size",
@@ -892,7 +890,6 @@ public class OptionPane extends VBox implements InitializingBean {
 		Predicate<String> constraint = v -> true;
 		Consumer<String> apply;
 		Consumer<String> applyAll;
-		Consumer<String> undo;
 
 		boolean hasApply() {
 			return apply != null;
@@ -900,10 +897,6 @@ public class OptionPane extends VBox implements InitializingBean {
 
 		boolean hasApplyAll() {
 			return applyAll != null;
-		}
-
-		boolean hasUndo() {
-			return undo != null;
 		}
 	}
 
@@ -925,24 +918,18 @@ public class OptionPane extends VBox implements InitializingBean {
 		applyAllButton.setVisible(actions.hasApplyAll());
 		applyAllButton.setDisable(true);
 
-		Button undoButton = new Button("Undo");
-		undoButton.setVisible(actions.hasUndo());
-		undoButton.setDisable(true);
-
 		Runnable disableAndShowIndicator = () -> {
 			progressIndicator.setVisible(true);
 			progressIndicator.setManaged(true);
 
 			filterInput.setDisable(true);
 			applyButton.setDisable(true);
-			undoButton.setDisable(true);
 			applyAllButton.setDisable(true);
 		};
 
 		Runnable enableAndHideIndicator = () -> {
 			filterInput.setDisable(false);
 			applyButton.setDisable(false);
-			undoButton.setDisable(false);
 			applyAllButton.setDisable(false);
 
 			progressIndicator.setVisible(false);
@@ -985,13 +972,6 @@ public class OptionPane extends VBox implements InitializingBean {
 			});
 		}
 
-		if (actions.hasUndo()) {
-			undoButton.setOnAction(e -> {
-				actions.undo.accept(filterInput.getText());
-				undoButton.setDisable(true);
-			});
-		}
-
 		filterInput.textProperty().addListener((observable, oldValue, newValue) -> {
 			boolean disable = true;
 			try {
@@ -1009,7 +989,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		HBox filterButtons = new HBox(5);
 		HBox rightBox = new HBox();
 		HBox leftBox = new HBox(5);
-		leftBox.getChildren().addAll(applyButton, undoButton);
+		leftBox.getChildren().addAll(applyButton);
 		HBox.setHgrow(leftBox, Priority.ALWAYS);
 		rightBox.getChildren().addAll(applyAllButton);
 
@@ -1037,56 +1017,56 @@ public class OptionPane extends VBox implements InitializingBean {
 		getNoImplementedDialog();
 	}
 
-	private void applyGnssTimeLag(int value) {
+	private void applyTimeLag(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
-		chart.ifPresent(c -> c.gnssTimeLag(c.getSelectedSeriesName(), value));
+		chart.ifPresent(c -> c.applyTimeLag(c.getSelectedSeriesName(), value));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
-	private void applyGnssTimeLagToAll(int value) {
+	private void applyTimeLagToAll(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCsvCharts().stream()
 					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
-					.forEach(c -> c.gnssTimeLag(seriesName, value));
+					.forEach(c -> c.applyTimeLag(seriesName, value));
 		});
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
 	}
 
-	private void applyLowPassFilter(int value) {
+	private void applyLowPass(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
-		chart.ifPresent(c -> c.lowPassFilter(c.getSelectedSeriesName(), value));
+		chart.ifPresent(c -> c.applyLowPass(c.getSelectedSeriesName(), value));
 		showGridInputDataChangedWarning(true);
 	}
 
-	private void applyLowPassFilterToAll(int value) {
+	private void applyLowPassToAll(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCsvCharts().stream()
 					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
-					.forEach(c -> c.lowPassFilter(seriesName, value));
+					.forEach(c -> c.applyLowPass(seriesName, value));
 		});
 		showGridInputDataChangedWarning(true);
 	}
 
-	private void applyMedianCorrection(int value) {
+	private void applyRunningMedian(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
 		var rangeBefore = getSelectedSeriesRange();
-		chart.ifPresent(c -> c.medianCorrection(c.getSelectedSeriesName(), value));
+		chart.ifPresent(c -> c.applyRunningMedian(c.getSelectedSeriesName(), value));
 		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
 		showGridInputDataChangedWarning(true);
 	}
 
-	private void applyMedianCorrectionToAll(int value) {
+	private void applyRunningMedianToAll(int value) {
 		var chart = model.getCsvChart((CsvFile) selectedFile);
 		var rangeBefore = getSelectedSeriesRange();
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCsvCharts().stream()
 					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
-					.forEach(c -> c.medianCorrection(seriesName, value));
+					.forEach(c -> c.applyRunningMedian(seriesName, value));
 		});
 		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
 		showGridInputDataChangedWarning(true);

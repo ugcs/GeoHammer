@@ -4,6 +4,7 @@ import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Strings;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class GeoData extends GeoCoordinates {
@@ -13,7 +14,7 @@ public class GeoData extends GeoCoordinates {
 
     // contains numbers for parsed data values
     // and strings for unparsed values
-    private final Object[] values;
+    private Object[] values;
 
     public GeoData(ColumnSchema schema) {
         Check.notNull(schema);
@@ -42,17 +43,27 @@ public class GeoData extends GeoCoordinates {
         return schema;
     }
 
-    public static ColumnSchema getSchema(List<GeoData> values) {
-        if (Nulls.isNullOrEmpty(values)) {
-            return null;
+    private void ensureCapacity() {
+        if (values.length < schema.numColumns()) {
+            values = Arrays.copyOf(values, schema.numColumns());
         }
-        return values.getFirst().getSchema();
+    }
+
+    private void removeValue(int index) {
+        int n = Math.min(values.length, schema.numColumns());
+        for (int i = index; i < n - 1; i++) {
+            values[i] = values[i + 1];
+        }
+        if (n > 0) {
+            values[n - 1] = null;
+        }
     }
 
     // access by index
 
     public Object getValue(int index) {
-        return index >= 0 && index < values.length ? values[index] : null;
+        int n = Math.min(values.length, schema.numColumns());
+        return index >= 0 && index < n ? values[index] : null;
     }
 
     public String getString(int index) {
@@ -64,7 +75,8 @@ public class GeoData extends GeoCoordinates {
     }
 
     public void setValue(int index, Object value) {
-        Check.condition(index >= 0 && index < values.length,
+        int n = Math.min(values.length, schema.numColumns());
+        Check.condition(index >= 0 && index < n,
                 "Index out of bounds");
         values[index] = value;
     }
@@ -151,5 +163,56 @@ public class GeoData extends GeoCoordinates {
                 ? mark ? 1 : 0
                 : null;
         setValueBySemantic(Semantic.MARK.getName(), value);
+    }
+
+    // columns modification
+
+    public static ColumnSchema getSchema(List<GeoData> values) {
+        if (Nulls.isNullOrEmpty(values)) {
+            return null;
+        }
+        return values.getFirst().getSchema();
+    }
+
+    public static Column getColumn(List<GeoData> values, String header) {
+        ColumnSchema schema = getSchema(values);
+        if (schema == null) {
+            return null;
+        }
+        return schema.getColumn(header);
+    }
+
+    public static Column addColumn(List<GeoData> values, String header) {
+        ColumnSchema schema = getSchema(values);
+        if (schema == null) {
+            return null;
+        }
+        Column column = schema.getColumn(header);
+        if (column != null) {
+            return null;
+        }
+        Column newColumn = new Column(header);
+        schema.addColumn(newColumn);
+        // resize values array if necessary
+        for (GeoData value : values) {
+            value.ensureCapacity();
+        }
+        return newColumn;
+    }
+
+    public static Column removeColumn(List<GeoData> values, String header) {
+        ColumnSchema schema = getSchema(values);
+        if (schema == null) {
+            return null;
+        }
+        int columnIndex = schema.getColumnIndex(header);
+        if (columnIndex == -1) {
+            return null;
+        }
+        // drop value in values array
+        for (GeoData value : values) {
+            value.removeValue(columnIndex);
+        }
+        return schema.removeColumn(header);
     }
 }

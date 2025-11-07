@@ -20,7 +20,7 @@ import com.ugcs.gprvisualizer.app.*;
 import com.ugcs.gprvisualizer.app.auxcontrol.*;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
+import com.ugcs.gprvisualizer.app.service.TemplateSettings;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
@@ -132,7 +132,7 @@ public class Model implements InitializingBean {
 
 	private final ApplicationEventPublisher eventPublisher;
 
-	private final TemplateSettingsModel templateSettingsModel;
+	private final TemplateSettings templateSettings;
 
 	@Nullable
 	private Node selectedDataNode;
@@ -140,16 +140,20 @@ public class Model implements InitializingBean {
 	@Nullable
 	private SgyFile currentFile;
 
-	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateSettingsModel templateSettingsModel) {
+	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateSettings templateSettings) {
 		this.prefSettings = prefSettings;
 		this.fileManager = fileManager;
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
-		this.templateSettingsModel = templateSettingsModel;
+		this.templateSettings = templateSettings;
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {
 		return auxEditHandler;
+	}
+
+	public ApplicationEventPublisher getEventPublisher() {
+		return eventPublisher;
 	}
 
 	public MapField getMapField() {
@@ -158,6 +162,14 @@ public class Model implements InitializingBean {
 
 	public FileManager getFileManager() {
 		return fileManager;
+	}
+
+	public PrefSettings getPrefSettings() {
+		return prefSettings;
+	}
+
+	public TemplateSettings getTemplateSettings() {
+		return templateSettings;
 	}
 
 	@Nullable
@@ -353,13 +365,12 @@ public class Model implements InitializingBean {
 			}
 		}
 
-		chart = new SensorLineChart(this, eventPublisher, templateSettingsModel);
+		chart = new SensorLineChart(this, csvFile);
 		csvFiles.remove(csvFile);
 		csvFiles.put(csvFile, chart);
 
 		// create new chart contents
-		var plotData = chart.generatePlots(csvFile);
-		var newChartBox = chart.createChartWithMultipleYAxes(csvFile, plotData);
+		var newChartBox = chart.getRootNode();
 
 		// add to container keeping position
 		if (index != -1) {
@@ -551,7 +562,7 @@ public class Model implements InitializingBean {
 		if (chart != null) {
 			return chart;
 		}
-		chart = new GPRChart(this, file, templateSettingsModel);
+		chart = new GPRChart(this, file);
 		gprCharts.put(file, chart);
 		return chart;
 	}

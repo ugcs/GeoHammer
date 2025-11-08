@@ -6,7 +6,7 @@ import com.github.thecoldwine.sigrun.common.ext.SphericalMercator;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.math.DouglasPeucker;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import javafx.geometry.Point2D;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineSegment;
@@ -47,13 +47,13 @@ public class AltitudeCheck extends FileQualityCheck {
         LineSchema lineSchema = new LineSchema(values);
 
         List<QualityIssue> issues = new ArrayList<>();
-        for (Map.Entry<Integer, Range> e : lineSchema.getRanges().entrySet()) {
+        for (Map.Entry<Integer, IndexRange> e : lineSchema.getRanges().entrySet()) {
             Integer lineIndex = e.getKey();
-            Range lineRange = e.getValue();
+            IndexRange lineRange = e.getValue();
             LineComponents lineComponents = lineSchema.getComponents().get(lineIndex);
 
             List<LatLon> issuePoints = new ArrayList<>();
-            for (int i = lineRange.getMin().intValue(); i <= lineRange.getMax().intValue(); i++) {
+            for (int i = lineRange.from(); i < lineRange.to(); i++) {
                 GeoData value = values.get(i);
                 Number sensorValue = value.getNumberBySemantic(Semantic.ALTITUDE_AGL.getName());
                 Double altitudeAgl = sensorValue != null

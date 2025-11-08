@@ -4,31 +4,32 @@ import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.SphericalMercator;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.math.PrincipalComponents;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import javafx.geometry.Point2D;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
 public class LineSchema {
 
-    private final TreeMap<Integer, Range> ranges;
+    private final NavigableMap<Integer, IndexRange> ranges;
 
-    private final TreeMap<Integer, LineComponents> components;
+    private final NavigableMap<Integer, LineComponents> components;
 
     public LineSchema(List<GeoData> values) {
         ranges = getLineRanges(values);
         components = getLineComponents(values, ranges);
     }
 
-    public SortedMap<Integer, Range> getRanges() {
+    public NavigableMap<Integer, IndexRange> getRanges() {
         return ranges;
     }
 
-    public SortedMap<Integer, LineComponents> getComponents() {
+    public NavigableMap<Integer, LineComponents> getComponents() {
         return components;
     }
 
@@ -40,9 +41,9 @@ public class LineSchema {
         return ranges.higherKey(lineIndex);
     }
 
-    public static TreeMap<Integer, Range> getLineRanges(List<? extends GeoData> values) {
-        // line index -> [first index, last index]
-        TreeMap<Integer, Range> ranges = new TreeMap<>();
+    public static NavigableMap<Integer, IndexRange> getLineRanges(List<? extends GeoData> values) {
+        // line index -> [first index, last index)
+        NavigableMap<Integer, IndexRange> ranges = new TreeMap<>();
         if (values == null) {
             return ranges;
         }
@@ -58,31 +59,31 @@ public class LineSchema {
             int valueLineIndex = value.getLineOrDefault(0);
             if (valueLineIndex != lineIndex) {
                 if (i > lineStart) {
-                    ranges.put(lineIndex, new Range(lineStart, i - 1));
+                    ranges.put(lineIndex, new IndexRange(lineStart, i));
                 }
                 lineIndex = valueLineIndex;
                 lineStart = i;
             }
         }
         if (values.size() > lineStart) {
-            ranges.put(lineIndex, new Range(lineStart, values.size() - 1));
+            ranges.put(lineIndex, new IndexRange(lineStart, values.size()));
         }
         return ranges;
     }
 
-    public static TreeMap<Integer, LineComponents> getLineComponents(
-            List<GeoData> values, SortedMap<Integer, Range> lineRanges) {
-        TreeMap<Integer, LineComponents> components = new TreeMap<>();
+    public static NavigableMap<Integer, LineComponents> getLineComponents(
+            List<GeoData> values, SortedMap<Integer, IndexRange> lineRanges) {
+        NavigableMap<Integer, LineComponents> components = new TreeMap<>();
         if (values == null) {
             return components;
         }
 
-        for (Map.Entry<Integer, Range> e : lineRanges.entrySet()) {
+        for (Map.Entry<Integer, IndexRange> e : lineRanges.entrySet()) {
             Integer lineIndex = e.getKey();
-            Range range = e.getValue();
+            IndexRange range = e.getValue();
 
             List<Point2D> points = new ArrayList<>();
-            for (int i = range.getMin().intValue(); i <= range.getMax().intValue(); i++) {
+            for (int i = range.from(); i < range.to(); i++) {
                 GeoData value = values.get(i);
                 LatLon latlon = new LatLon(value.getLatitude(), value.getLongitude());
                 Point2D projected = SphericalMercator.project(latlon);

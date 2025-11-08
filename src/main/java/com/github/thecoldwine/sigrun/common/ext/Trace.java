@@ -1,22 +1,20 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
 import com.github.thecoldwine.sigrun.common.TraceHeader;
-import com.ugcs.gprvisualizer.app.meta.SampleRange;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 
 public class Trace {
 
-    @Nullable
-    private final byte[] binHeader;
+    private final @Nullable byte[] binHeader;
 
-    @Nullable
-    private final TraceHeader header;
+    private final @Nullable TraceHeader header;
 
     private int index;
 
-    private SampleRange sampleRange;
+    private @Nullable IndexRange sampleRange;
 
     private float[] samples;
 
@@ -71,13 +69,11 @@ public class Trace {
         return copy;
     }
 
-    @Nullable
-    public byte[] getBinHeader() {
+    public @Nullable byte[] getBinHeader() {
         return binHeader;
     }
 
-    @Nullable
-    public TraceHeader getHeader() {
+    public @Nullable TraceHeader getHeader() {
         return header;
     }
 
@@ -89,11 +85,11 @@ public class Trace {
         this.index = index;
     }
 
-    public SampleRange getSampleRange() {
+    public @Nullable IndexRange getSampleRange() {
         return sampleRange;
     }
 
-    public void setSampleRange(SampleRange sampleRange) {
+    public void setSampleRange(IndexRange sampleRange) {
         this.sampleRange = sampleRange;
     }
 
@@ -103,14 +99,14 @@ public class Trace {
         if (sampleRange == null) {
             return index;
         }
-        return index + sampleRange.getFrom();
+        return index + sampleRange.from();
     }
 
     private int globalToLocal(int index) {
         if (sampleRange == null) {
             return index;
         }
-        return index - sampleRange.getFrom();
+        return index - sampleRange.from();
     }
 
     public int numSamples() {
@@ -118,8 +114,8 @@ public class Trace {
         if (sampleRange == null) {
             return totalSamples;
         }
-        return Math.clamp(sampleRange.getTo(), 0, totalSamples)
-                - Math.clamp(sampleRange.getFrom(), 0, totalSamples);
+        return Math.clamp(sampleRange.to(), 0, totalSamples)
+                - Math.clamp(sampleRange.from(), 0, totalSamples);
     }
 
     public float getSample(int index) {

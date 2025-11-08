@@ -1,15 +1,14 @@
 package com.github.thecoldwine.sigrun.common.ext;
 
-import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.meta.TraceLine;
 import com.ugcs.gprvisualizer.app.meta.TraceMark;
 import com.ugcs.gprvisualizer.app.meta.TraceMeta;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.quality.LineSchema;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
 import com.ugcs.gprvisualizer.utils.GsonConfig;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Strings;
@@ -27,7 +26,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 
 import javax.annotation.Nullable;
 
@@ -35,7 +33,7 @@ public class MetaFile {
 
     private static final String META_FILE_EXTENSION = ".geohammer";
 
-    private SampleRange sampleRange;
+    private @Nullable IndexRange sampleRange;
 
 	private @Nullable Double contrast;
 
@@ -46,11 +44,11 @@ public class MetaFile {
 
     private List<TraceGeoData> values = new ArrayList<>();
 
-    public SampleRange getSampleRange() {
+    public @Nullable IndexRange getSampleRange() {
         return sampleRange;
     }
 
-    public void setSampleRange(SampleRange sampleRange) {
+    public void setSampleRange(@Nullable IndexRange sampleRange) {
         this.sampleRange = sampleRange;
     }
 
@@ -149,7 +147,7 @@ public class MetaFile {
         TraceMeta meta = new TraceMeta();
 
         // sample range
-        SampleRange maxSampleRange = Traces.maxSampleRange(traces);
+        IndexRange maxSampleRange = Traces.maxSampleRange(traces);
         meta.setSampleRange(maxSampleRange);
 
         // lines
@@ -181,17 +179,17 @@ public class MetaFile {
         meta.setSampleRange(sampleRange);
 
         // lines
-        TreeMap<Integer, Range> lineRanges = LineSchema.getLineRanges(values);
+        var lineRanges = LineSchema.getLineRanges(values);
         List<TraceLine> lines = new ArrayList<>();
-        for (Map.Entry<Integer, Range> e : lineRanges.entrySet()) {
+        for (Map.Entry<Integer, IndexRange> e : lineRanges.entrySet()) {
             Integer lineIndex = e.getKey();
-            Range lineRange = e.getValue();
+            IndexRange lineRange = e.getValue();
 
             TraceLine line = new TraceLine();
             line.setLineIndex(lineIndex);
 
-            TraceGeoData lineStart = values.get(lineRange.getMin().intValue());
-            TraceGeoData lineEnd = values.get(lineRange.getMax().intValue());
+            TraceGeoData lineStart = values.get(lineRange.from());
+            TraceGeoData lineEnd = values.get(lineRange.to() - 1);
 
             line.setFrom(lineStart.getTraceIndex());
             line.setTo(lineEnd.getTraceIndex() + 1); // exclusive

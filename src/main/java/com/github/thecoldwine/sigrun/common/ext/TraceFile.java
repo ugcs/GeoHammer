@@ -6,7 +6,6 @@ import com.ugcs.gprvisualizer.app.commands.DistanceCalculator;
 import com.ugcs.gprvisualizer.app.commands.DistanceSmoother;
 import com.ugcs.gprvisualizer.app.commands.EdgeFinder;
 import com.ugcs.gprvisualizer.app.commands.SpreadCoordinates;
-import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.meta.TraceMeta;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
@@ -15,7 +14,7 @@ import com.ugcs.gprvisualizer.math.HorizontalProfile;
 import com.ugcs.gprvisualizer.math.ScanProfile;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Traces;
 import org.jspecify.annotations.Nullable;
 
@@ -82,7 +81,7 @@ public abstract class TraceFile extends SgyFile {
         Check.notNull(source);
 
         // update sample range
-        SampleRange sampleRange = Traces.maxSampleRange(getTraces());
+        IndexRange sampleRange = Traces.maxSampleRange(getTraces());
         metaFile.setSampleRange(sampleRange);
 
         // update marks
@@ -162,7 +161,7 @@ public abstract class TraceFile extends SgyFile {
         return r;
     }
 
-    public abstract void save(File file, Range range) throws IOException;
+    public abstract void save(File file, IndexRange range) throws IOException;
 
     @Override
     public abstract TraceFile copy();

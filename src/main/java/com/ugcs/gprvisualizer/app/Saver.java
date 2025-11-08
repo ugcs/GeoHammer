@@ -3,9 +3,9 @@ package com.ugcs.gprvisualizer.app;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.SortedMap;
 import java.util.concurrent.Callable;
 
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
@@ -15,8 +15,8 @@ import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
 import com.ugcs.gprvisualizer.utils.FileTypes;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nulls;
-import com.ugcs.gprvisualizer.utils.Range;
 import com.ugcs.gprvisualizer.utils.Strings;
 import javafx.event.ActionEvent;
 import org.jspecify.annotations.Nullable;
@@ -204,9 +204,9 @@ public class Saver implements ToolProducer, InitializingBean {
 		TraceFile copy = traceFile.copy();
 		copy.denormalize();
 
-		SortedMap<Integer, Range> lineRanges = traceFile.getLineRanges();
+		NavigableMap<Integer, IndexRange> lineRanges = traceFile.getLineRanges();
 		int lineSequence = 1;
-		for (Range range : lineRanges.values()) {
+		for (IndexRange range : lineRanges.values()) {
 			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
 			File rangeFile = new File(toFolder, rangeFileName);
 

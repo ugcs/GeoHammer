@@ -6,8 +6,8 @@ import com.github.thecoldwine.sigrun.common.ext.SphericalMercator;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.math.DouglasPeucker;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nulls;
-import com.ugcs.gprvisualizer.utils.Range;
 import javafx.geometry.Point2D;
 
 import java.util.ArrayList;
@@ -53,14 +53,14 @@ public class DistanceEstimator {
                 : 1.0;
 
         NavigableMap<Integer, Anchor> anchors = new TreeMap<>();
-        for (Range range : file.getLineRanges().values()) {
-            int from = range.getMin().intValue();
-            int to = range.getMax().intValue(); // inclusive
-            int numPoints = to - from + 1;
+        for (IndexRange range : file.getLineRanges().values()) {
+            int from = range.from();
+            int to = range.to();
+            int numPoints = range.size();
 
             // project
             List<Point2D> points = new ArrayList<>(numPoints);
-            for (int i = from; i <= to; i++) {
+            for (int i = from; i < to; i++) {
                 Point2D point = SphericalMercator.project(values.get(i).getLatLon());
                 points.add(point);
             }

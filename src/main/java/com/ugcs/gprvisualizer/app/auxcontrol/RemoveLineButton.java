@@ -2,7 +2,7 @@ package com.ugcs.gprvisualizer.app.auxcontrol;
 
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.util.SortedMap;
+import java.util.NavigableMap;
 
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
@@ -11,11 +11,9 @@ import com.ugcs.gprvisualizer.app.GPRChart;
 import com.ugcs.gprvisualizer.app.ScrollableData;
 import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.ugcs.gprvisualizer.app.TraceTransform;
-import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import javafx.geometry.Point2D;
 
 public class RemoveLineButton extends PositionalObject {
@@ -50,7 +48,7 @@ public class RemoveLineButton extends PositionalObject {
 		if (isPointInside(localPoint, profField)) {
 			if (profField instanceof GPRChart gprChart) {
 				SgyFile file = trace.getFile();
-				SortedMap<Integer, Range> lineRanges = file.getLineRanges();
+				NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
 				if (lineRanges.size() == 1) {
 					gprChart.close();
 				} else {

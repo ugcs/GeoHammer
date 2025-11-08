@@ -25,6 +25,7 @@ import com.ugcs.gprvisualizer.event.SeriesAddedEvent;
 import com.ugcs.gprvisualizer.event.SeriesRemovedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nodes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
@@ -38,8 +39,8 @@ import javafx.geometry.Side;
 import javafx.scene.Cursor;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ValueAxis;
-import javafx.scene.control.*;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
 
 import javafx.scene.layout.*;
@@ -427,23 +428,21 @@ public class SensorLineChart extends Chart {
 
     @Override
     public int numVisibleTraces() {
-        Range range = getVisibleXRange();
-        return range.getMax().intValue() - range.getMin().intValue() + 1;
+        return getVisibleRange().size();
     }
 
-    public Range getVisibleXRange() {
+    public IndexRange getVisibleRange() {
         LineChartWithMarkers selectedChart = getSelectedChart();
         if (selectedChart == null) {
-            return new Range(0, 0);
+            return new IndexRange(0, 0);
         }
-        // alternative is [zoomRect.xMin, zoomRect.xMax]
+        // TODO obtain from viewport
         ValueAxis<Number> xAxis = (ValueAxis<Number>) selectedChart.getXAxis();
-        return new Range(xAxis.getLowerBound(), xAxis.getUpperBound());
+        return new IndexRange((int)xAxis.getLowerBound(), (int)xAxis.getUpperBound() + 1);
     }
 
     private boolean isValueVisible(int index) {
-        Range range = getVisibleXRange();
-        return index >= range.getMin().intValue() && index <= range.getMax().intValue();
+        return getVisibleRange().contains(index);
     }
 
     public int getValueLineIndex(int index) {
@@ -464,7 +463,7 @@ public class SensorLineChart extends Chart {
             return getValueLineIndex(xCenter);
         }
         // default: first range key or 0
-        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
+        NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
         return !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
     }
 
@@ -637,7 +636,6 @@ public class SensorLineChart extends Chart {
             middle = numTraces - w - 1;
         }
 
-        Range range = new Range(middle - w, middle + w);
         setZoom(new Viewport(
                 (double)(middle - w) / numTraces,
                 (double)(middle + w) / numTraces,
@@ -646,11 +644,11 @@ public class SensorLineChart extends Chart {
     }
 
     private void zoomToLine(int lineIndex) {
-        Range range = file.getLineRanges().get(lineIndex);
+        IndexRange range = file.getLineRanges().get(lineIndex);
         int numTraces = numTraces();
         setZoom(new Viewport(
-                range.getMin().doubleValue() / numTraces,
-                range.getMax().doubleValue() / numTraces,
+                (double)range.from() / numTraces,
+                (double)range.to() / numTraces,
                 0,
                 1
         ));
@@ -666,7 +664,7 @@ public class SensorLineChart extends Chart {
     @Override
     public void zoomToPreviousLine() {
         int lineIndex = getViewLineIndex();
-        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
+        NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
         int firstLineIndex = !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
         zoomToLine(Math.max(lineIndex - 1, firstLineIndex));
         updateOnZoom(false);
@@ -675,7 +673,7 @@ public class SensorLineChart extends Chart {
     @Override
     public void zoomToNextLine() {
         int lineIndex = getViewLineIndex();
-        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
+        NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
         int lastLineIndex = !lineRanges.isEmpty() ? lineRanges.lastKey() : 0;
         zoomToLine(Math.min(lineIndex + 1, lastLineIndex));
         updateOnZoom(false);
@@ -772,7 +770,7 @@ public class SensorLineChart extends Chart {
 
     private void initRemoveLineMarkers() {
         file.getLineRanges().forEach((lineIndex, lineRange) -> {
-            createRemoveLineMarker(lineIndex, lineRange.getMin().intValue());
+            createRemoveLineMarker(lineIndex, lineRange.from());
         });
     }
 
@@ -971,11 +969,8 @@ public class SensorLineChart extends Chart {
 
         List<@Nullable Number> values = chart.plot.data;
         List<@Nullable Number> filtered = new ArrayList<>(values.size());
-        for (Range range : file.getLineRanges().values()) {
-            int from = range.getMin().intValue();
-            int to = range.getMax().intValue();
-
-            List<@Nullable Number> rangeValues = values.subList(from, to + 1);
+        for (IndexRange range : file.getLineRanges().values()) {
+            List<@Nullable Number> rangeValues = values.subList(range.from(), range.to());
             try {
                 rangeValues = filter.apply(rangeValues);
             } catch (Exception e) {
@@ -1151,11 +1146,6 @@ public class SensorLineChart extends Chart {
                 // request redraw on selected line index update
                 model.publishEvent(new WhatChanged(SensorLineChart.this, WhatChanged.Change.justdraw));
             }
-        }
-
-        private Range getXRange() {
-            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
-            return new Range(xAxis.getLowerBound(), xAxis.getUpperBound());
         }
 
         private static String emphasizeStyle(String style) {

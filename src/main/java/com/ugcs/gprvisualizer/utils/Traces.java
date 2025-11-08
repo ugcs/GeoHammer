@@ -4,7 +4,6 @@ import com.github.thecoldwine.sigrun.common.ext.LatLon;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.Trace;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
-import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 
 import java.util.ArrayList;
@@ -16,23 +15,23 @@ public final class Traces {
     private Traces() {
     }
 
-    public static SampleRange maxSampleRange(List<Trace> traces) {
+    public static IndexRange maxSampleRange(List<Trace> traces) {
         Integer from = null;
         Integer to = null;
         for (Trace trace : Nulls.toEmpty(traces)) {
-            SampleRange range = trace.getSampleRange();
+            IndexRange range = trace.getSampleRange();
             if (range == null) {
                 continue;
             }
             from = from != null
-                    ? Math.min(from, range.getFrom())
-                    : range.getFrom();
+                    ? Math.min(from, range.from())
+                    : range.from();
             to = to != null
-                    ? Math.max(to, range.getTo())
-                    : range.getTo();
+                    ? Math.max(to, range.to())
+                    : range.to();
         }
         if (from != null && to != null) {
-            return new SampleRange(from, to);
+            return new IndexRange(from, to);
         }
         return null;
     }

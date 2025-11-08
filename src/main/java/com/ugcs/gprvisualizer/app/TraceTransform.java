@@ -7,14 +7,13 @@ import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceFile;
 import com.github.thecoldwine.sigrun.common.ext.TraceKey;
 import com.ugcs.gprvisualizer.app.auxcontrol.PositionalObject;
-import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.undo.UndoModel;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import javafx.geometry.Point2D;
 import org.springframework.stereotype.Component;
@@ -286,8 +285,8 @@ public class TraceTransform {
         undoModel.saveSnapshot(file);
 
         length = Math.max(1, length);
-        SampleRange sampleRange = new SampleRange(offset, offset + length);
-        SampleRange currentSampleRange = metaFile.getSampleRange();
+        IndexRange sampleRange = new IndexRange(offset, offset + length);
+        IndexRange currentSampleRange = metaFile.getSampleRange();
         if (currentSampleRange != null) {
             sampleRange = currentSampleRange.subRange(sampleRange);
         }

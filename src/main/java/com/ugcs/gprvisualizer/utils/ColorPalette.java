@@ -18,7 +18,7 @@ public class ColorPalette {
 
     private static final double MAX_LIGHTNESS = 0.80;
 
-    private static final ColorPalette HIGH_CONTRAST = new ColorPalette(96, 2.8);
+    private static final ColorPalette HIGH_CONTRAST = new ColorPalette(96, 2.5);
 
     private final Color[] colors;
 

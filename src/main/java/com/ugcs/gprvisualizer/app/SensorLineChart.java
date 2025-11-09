@@ -187,7 +187,6 @@ public class SensorLineChart extends Chart {
 
         getProfileScroll().setChangeListener((observable, oldVal, newVal) -> {
             zoomToProfileScroll();
-            updateOnZoom(true);
         });
 
         updateProfileScroll();
@@ -225,6 +224,7 @@ public class SensorLineChart extends Chart {
 
         LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, plot);
         chart.setMouseTransparent(!isInteractive);
+        chart.zoomTo(viewport);
 
         // Add chart to container
         chartsContainer.getChildren().add(chart);
@@ -334,12 +334,11 @@ public class SensorLineChart extends Chart {
             double endX = startX + selectionRect.getWidth();
             double endY = startY + selectionRect.getHeight();
 
-            // y axis is reversed in a zoom space
+            // y-axis is reversed in a zoom space
             Point2D zoomStart = chart.normalizeToBounds(new Point2D(startX, endY));
             Point2D zoomEnd = chart.normalizeToBounds(new Point2D(endX, startY));
-            Viewport selectionViewport = new Viewport(zoomStart.getX(), zoomEnd.getX(), zoomStart.getY(), zoomEnd.getY());
-            setZoom(viewport.fit(selectionViewport));
-            updateOnZoom(false);
+            Viewport selected = new Viewport(zoomStart.getX(), zoomEnd.getX(), zoomStart.getY(), zoomEnd.getY());
+            setViewport(viewport.fit(selected), false);
         });
     }
 
@@ -351,9 +350,14 @@ public class SensorLineChart extends Chart {
                 scaleFactor = 1 / scaleFactor;
             }
 
-            Point2D scaleCenter = chart.normalizeToBounds(new Point2D(event.getX(), event.getY()));
-            setZoom(viewport.scale(scaleFactor, scaleY ? scaleFactor : 1, scaleCenter));
-            updateOnZoom(true);
+            Point2D scaleCenter = chart.normalizeToBounds(
+                    new Point2D(event.getX(), event.getY()));
+            Viewport scaled = viewport.scale(
+                    scaleFactor,
+                    scaleY ? scaleFactor : 1,
+                    scaleCenter.getX(),
+                    scaleCenter.getY());
+            setViewport(scaled, true);
 
             event.consume(); // don't scroll parent pane
         });
@@ -432,13 +436,18 @@ public class SensorLineChart extends Chart {
     }
 
     public IndexRange getVisibleRange() {
-        LineChartWithMarkers selectedChart = getSelectedChart();
-        if (selectedChart == null) {
+        int numTraces = numTraces();
+        if (numTraces == 0) {
             return new IndexRange(0, 0);
         }
-        // TODO obtain from viewport
-        ValueAxis<Number> xAxis = (ValueAxis<Number>) selectedChart.getXAxis();
-        return new IndexRange((int)xAxis.getLowerBound(), (int)xAxis.getUpperBound() + 1);
+
+        int xWidth = numTraces - 1;
+        int xMin = (int)Math.ceil(viewport.xMin * xWidth);
+        int xMax = (int)Math.floor(viewport.xMax * xWidth);
+        xMin = Math.clamp(xMin, 0, xWidth);
+        xMax = Math.clamp(xMax, xMin, xWidth);
+
+        return new IndexRange(xMin, xMax + 1);
     }
 
     private boolean isValueVisible(int index) {
@@ -492,27 +501,27 @@ public class SensorLineChart extends Chart {
         // clear current selection
         LineChartWithMarkers selectedChart = charts.get(selectedSeriesName);
         if (selectedChart != null) {
-            selectedChart.showAxes(false);
+            selectedChart.setAxesVisible(false);
         }
         selectedSeriesName = null;
         // select chart
         if (seriesName != null) {
             LineChartWithMarkers chart = charts.get(seriesName);
             if (chart != null) {
-                chart.showAxes(true);
+                chart.setAxesVisible(true);
                 selectedSeriesName = seriesName;
             }
         }
         if (model.isChartSelected(this)) {
             selectFile();
         }
-        Platform.runLater(this::updateChartData);
+        Platform.runLater(this::updateCharts);
     }
 
     public void showChart(String seriesName, boolean show) {
         LineChartWithMarkers chart = charts.get(seriesName);
         if (chart != null) {
-            chart.showData(show);
+            chart.setSeriesVisible(show);
         }
     }
 
@@ -523,7 +532,7 @@ public class SensorLineChart extends Chart {
         chartName.setText(fileName);
     }
 
-    private void updateChartData() {
+    private void updateCharts() {
         for (LineChartWithMarkers chart : charts.values()) {
             chart.updateChart();
         }
@@ -575,7 +584,7 @@ public class SensorLineChart extends Chart {
             selectTrace(selectedTrace, false);
         }
 
-        Platform.runLater(this::updateChartData);
+        Platform.runLater(this::updateCharts);
     }
 
     private void close() {
@@ -600,18 +609,46 @@ public class SensorLineChart extends Chart {
 
     // zoom
 
+    private void setViewport(Viewport viewport, boolean delayUpdate) {
+        this.viewport = viewport;
+
+        // update scroll control
+        updateProfileScroll();
+
+        // zoom all charts to viewport
+        for (LineChartWithMarkers chart : charts.values()) {
+            chart.zoomTo(viewport);
+        }
+
+        // update charts
+        if (delayUpdate) {
+            scheduleUpdate(() -> Platform.runLater(this::updateCharts), 300);
+        } else {
+            Platform.runLater(this::updateCharts);
+        }
+
+        // raise scroll event
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
+    }
+
+    private void scheduleUpdate(Runnable update, long delayMillis) {
+        if (updateTask != null) {
+            updateTask.cancel(false);
+        }
+        updateTask = scheduler.schedule(update, delayMillis, TimeUnit.MILLISECONDS);
+    }
+
     private void updateProfileScroll() {
-        int numTraces = numTraces();
-        int xMin = (int)(viewport.xMin * numTraces);
-        int xMax = (int)(viewport.xMax * numTraces);
+        IndexRange range = getVisibleRange();
 
         // num visible traces
-        int numVisibleTraces = xMax - xMin + 1;
-        setMiddleTrace(xMin + numVisibleTraces / 2);
+        int numVisibleTraces = range.size();
+        setMiddleTrace(range.from() + numVisibleTraces / 2);
 
         // hScale = scroll width / num visible traces
         // aspect ratio = hScale / vScale
-        double hScale = getProfileScroll().getWidth() / numVisibleTraces;
+        double hScale = getProfileScroll().getWidth()
+                / (numVisibleTraces != 0 ? numVisibleTraces : 1);
         double aspectRatio = hScale / getVScale();
         setRealAspect(aspectRatio);
 
@@ -627,38 +664,34 @@ public class SensorLineChart extends Chart {
         int middle = getMiddleTrace();
         int w = numVisibleTraces / 2;
 
-        // adjust visible range to the
-        // full range bounds
-        if (middle - w < 0) {
-            middle = w;
-        }
-        if (middle + w >= numTraces) {
-            middle = numTraces - w - 1;
-        }
-
-        setZoom(new Viewport(
-                (double)(middle - w) / numTraces,
-                (double)(middle + w) / numTraces,
+        // adjust visible range to the full range bounds
+        middle = Math.clamp(middle, w, numTraces - w - 1);
+        // x-axis width for a full scale
+        int xWidth = numTraces > 0 ? numTraces - 1 : 0;
+        Viewport scrolled = new Viewport(
+                xWidth > 0 ? (double)(middle - w) / xWidth : 0,
+                xWidth > 0 ? (double)(middle + w) / xWidth : 0,
                 viewport.yMin(),
-                viewport.yMax()));
+                viewport.yMax()
+        );
+        setViewport(scrolled, true);
     }
 
     private void zoomToLine(int lineIndex) {
         IndexRange range = file.getLineRanges().get(lineIndex);
         int numTraces = numTraces();
-        setZoom(new Viewport(
+        Viewport lineViewport = new Viewport(
                 (double)range.from() / numTraces,
                 (double)range.to() / numTraces,
                 0,
-                1
-        ));
+                1);
+        setViewport(lineViewport, false);
     }
 
     @Override
     public void zoomToCurrentLine() {
         int lineIndex = getSelectedLineIndex();
         zoomToLine(lineIndex);
-        updateOnZoom(false);
     }
 
     @Override
@@ -667,7 +700,6 @@ public class SensorLineChart extends Chart {
         NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
         int firstLineIndex = !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
         zoomToLine(Math.max(lineIndex - 1, firstLineIndex));
-        updateOnZoom(false);
     }
 
     @Override
@@ -676,54 +708,24 @@ public class SensorLineChart extends Chart {
         NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
         int lastLineIndex = !lineRanges.isEmpty() ? lineRanges.lastKey() : 0;
         zoomToLine(Math.min(lineIndex + 1, lastLineIndex));
-        updateOnZoom(false);
     }
 
     @Override
     public void zoomToFit() {
-        setZoom(new Viewport(0, 1, 0, 1));
-        updateOnZoom(false);
+        Viewport full = new Viewport(0, 1, 0, 1);
+        setViewport(full, false);
     }
 
     @Override
     public void zoomIn() {
-        setZoom(viewport.scale(1.0 / ZOOM_STEP, 1.0, null));
-        updateOnZoom(false);
+        Viewport scaled = viewport.scale(1.0 / ZOOM_STEP, 1.0);
+        setViewport(scaled, false);
     }
 
     @Override
     public void zoomOut() {
-        setZoom(viewport.scale(ZOOM_STEP, 1.0, null));
-        updateOnZoom(false);
-    }
-
-    private void setZoom(Viewport viewport) {
-        this.viewport = viewport;
-        applyZoomToCharts();
-    }
-
-    private void applyZoomToCharts() {
-        for (LineChartWithMarkers chart : charts.values()) {
-            chart.zoomTo(viewport);
-        }
-    }
-
-    private void updateOnZoom(boolean delayed) {
-        updateProfileScroll();
-        model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
-
-        if (delayed) {
-            scheduleUpdate(() -> Platform.runLater(this::updateChartData), 300);
-        } else {
-            Platform.runLater(this::updateChartData);
-        }
-    }
-
-    private void scheduleUpdate(Runnable update, long delayMillis) {
-        if (updateTask != null) {
-            updateTask.cancel(false);
-        }
-        updateTask = scheduler.schedule(update, delayMillis, TimeUnit.MILLISECONDS);
+        Viewport scaled = viewport.scale(ZOOM_STEP, 1.0);
+        setViewport(scaled, false);
     }
 
     // markers
@@ -745,8 +747,7 @@ public class SensorLineChart extends Chart {
 
         double x = numTraces > 0 ? (double)traceIndex / numTraces : 0;
         if (x < viewport.xMin() || x > viewport.xMax()) {
-            setZoom(viewport.moveToX(x));
-            updateOnZoom(false);
+            setViewport(viewport.moveToX(x), false);
         }
         createSelectionMarker(traceIndex);
     }
@@ -1057,9 +1058,6 @@ public class SensorLineChart extends Chart {
 
         private Plot plot;
 
-        // loaded x range
-        private Range sampleRange;
-
         public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, Plot plot) {
             super(xAxis, yAxis);
 
@@ -1083,24 +1081,28 @@ public class SensorLineChart extends Chart {
             setCreateSymbols(false); // Disable symbols
             lookup(".chart-plot-background").setStyle("-fx-background-color: transparent;");
 
-            showAxes(false);
-            showData(false);
+            setSeriesVisible(false);
+            setAxesVisible(false);
         }
 
-        public void showAxes(boolean show) {
-            setVerticalGridLinesVisible(show);
-            setHorizontalGridLinesVisible(show);
-            setHorizontalZeroLineVisible(show);
-            setVerticalZeroLineVisible(show);
-            getYAxis().setOpacity(show ? 1 : 0);
-        }
-
-        public boolean isDataVisible() {
+        public boolean isSeriesVisible() {
             return series.getNode().isVisible();
         }
 
-        public void showData(boolean show) {
-            series.getNode().setVisible(show);
+        public void setSeriesVisible(boolean visible) {
+            series.getNode().setVisible(visible);
+
+            if (visible) {
+                updateChart();
+            }
+        }
+
+        public void setAxesVisible(boolean visible) {
+            setVerticalGridLinesVisible(visible);
+            setHorizontalGridLinesVisible(visible);
+            setHorizontalZeroLineVisible(visible);
+            setVerticalZeroLineVisible(visible);
+            getYAxis().setOpacity(visible ? 1 : 0);
         }
 
         public void setPlot(Plot plot) {
@@ -1129,7 +1131,7 @@ public class SensorLineChart extends Chart {
         private void zoomTo(Viewport viewport) {
             int lineIndexBefore = getSelectedLineIndex();
 
-            int xWidth = plot.data.size();
+            int xWidth = !plot.data.isEmpty() ? plot.data.size() - 1 : 0;
             ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             xAxis.setAutoRanging(false);
             xAxis.setLowerBound(viewport.xMin * xWidth);
@@ -1148,35 +1150,38 @@ public class SensorLineChart extends Chart {
             }
         }
 
-        private static String emphasizeStyle(String style) {
-            return style + "-fx-stroke-width: 1.25px;";
-        }
-
-        private static String dashStyle(String style) {
-            return style + "-fx-stroke-dash-array: 1 5 1 5;";
-        }
-
-        private void setSeriesStyle(String style) {
-            Check.notNull(series);
-
-            Node seriesNode = series.getNode();
-            Node lineNode = seriesNode != null
-                    ? seriesNode.lookup(".chart-series-line")
-                    : null;
-            if (lineNode != null) {
-                lineNode.setStyle(style);
+        private void updateChart() {
+            if (!isSeriesVisible()) {
+                return; // don't update hidden charts
             }
+
+            // x range
+            // TODO num values == 0
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
+            int xMin = (int)Math.ceil(xAxis.getLowerBound());
+            int xMax = (int)Math.floor(xAxis.getUpperBound());
+            xMin = Math.clamp(xMin, 0, plot.data().size() - 1);
+            xMax = Math.clamp(xMax, xMin, plot.data().size() - 1);
+
+            IndexRange range = new IndexRange(xMin, xMax + 1);
+            setSeriesData(range);
+
+            String style = plot.style();
+            if (Objects.equals(plot.seriesName(), selectedSeriesName)) {
+                style = emphasizeStyle(style);
+            }
+            setSeriesStyle(style);
         }
 
-        private void setSeriesData(int lowerIndex, int upperIndex) {
+        private void setSeriesData(IndexRange range) {
             Axis<Number> xAxis = getXAxis() ;
-            int numSamples = Math.clamp((int) xAxis.getLayoutBounds().getWidth(), MIN_VIEW_SAMPLES, MAX_VIEW_SAMPLES);
-            List<Data<Number, Number>> samples = getSamplesInRange(lowerIndex, upperIndex, numSamples);
+            int numSamples = Math.clamp((int)xAxis.getLayoutBounds().getWidth(), MIN_VIEW_SAMPLES, MAX_VIEW_SAMPLES);
+            List<Data<Number, Number>> samples = sampleSeriesData(range, numSamples);
+
+            setAnimated(false);
 
             // clear current points
-            setAnimated(false);
             series.getData().clear();
-
             if (samples.isEmpty()) {
                 series.getData().add(new Data<>(0, 0));
             } else {
@@ -1186,16 +1191,14 @@ public class SensorLineChart extends Chart {
             setAnimated(true);
         }
 
-        private List<Data<Number, Number>> getSamplesInRange(int lowerIndex, int upperIndex, int numSamples) {
-            int numValues = upperIndex - lowerIndex + 1;
-            int limit = Math.min(numValues, numSamples);
-
-            double step = Math.max(1, limit > 1 ? (double)(numValues - 1) / (limit - 1) : 1);
+        private List<Data<Number, Number>> sampleSeriesData(IndexRange range, int numSamples) {
+            int limit = Math.min(range.size(), numSamples);
+            double step = Math.max(1, limit > 1 ? (double)(range.size() - 1) / (limit - 1) : 1);
             int hw = (int)(step / 2);
 
             List<Data<Number, Number>> samples = new ArrayList<>(limit);
             for (int k = 0; k < limit; k++) {
-                int i = lowerIndex + (int)Math.round(k * step);
+                int i = range.from() + (int)Math.round(k * step);
                 if (plot.data.get(i) == null) {
                     continue;
                 }
@@ -1219,19 +1222,24 @@ public class SensorLineChart extends Chart {
             return samples;
         }
 
-        private void updateChart() {
-            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
-            int lowerIndex = Math.clamp((int)xAxis.getLowerBound(), 0, plot.data().size() - 1);
-            int upperIndex = Math.clamp((int)xAxis.getUpperBound(), lowerIndex, plot.data().size() - 1);
+        private void setSeriesStyle(String style) {
+            Check.notNull(series);
 
-            if (isDataVisible()) {
-                String style = plot.style();
-                if (Objects.equals(plot.seriesName(), selectedSeriesName)) {
-                    style = emphasizeStyle(style);
-                }
-                setSeriesData(lowerIndex, upperIndex);
-                setSeriesStyle(style);
+            Node seriesNode = series.getNode();
+            Node lineNode = seriesNode != null
+                    ? seriesNode.lookup(".chart-series-line")
+                    : null;
+            if (lineNode != null) {
+                lineNode.setStyle(style);
             }
+        }
+
+        private static String emphasizeStyle(String style) {
+            return style + "-fx-stroke-width: 1.25px;";
+        }
+
+        private static String dashStyle(String style) {
+            return style + "-fx-stroke-dash-array: 1 5 1 5;";
         }
 
         public void addMarker(Data<Number, Number> marker) {
@@ -1339,13 +1347,14 @@ public class SensorLineChart extends Chart {
             return yMax - yMin;
         }
 
-        public Viewport scale(double xScale, double yScale, @Nullable Point2D scaleCenter) {
-            // when scale center is null zoom at center
-            double xCenterRatio = scaleCenter != null ? scaleCenter.getX() : 0.5;
-            double yCenterRatio = scaleCenter != null ? scaleCenter.getY() : 0.5;
+        public Viewport scale(double xScale, double yScale) {
+            // scale center is in the middle
+            return scale(xScale, yScale, 0.5, 0.5);
+        }
 
-            Range xRange = new Range(xMin, xMax).scale(xScale, xCenterRatio);
-            Range yRange = new Range(yMin, yMax).scale(yScale, yCenterRatio);
+        public Viewport scale(double xScale, double yScale, double xCenter, double yCenter) {
+            Range xRange = new Range(xMin, xMax).scale(xScale, xCenter);
+            Range yRange = new Range(yMin, yMax).scale(yScale, yCenter);
             return new Viewport(
                     xRange.getMin().doubleValue(), xRange.getMax().doubleValue(),
                     yRange.getMin().doubleValue(), yRange.getMax().doubleValue());
@@ -1367,6 +1376,7 @@ public class SensorLineChart extends Chart {
                 return this;
             }
             double w = 0.5 * (xMax - xMin);
+            x = Math.clamp(x, w, 1.0 - w);
             return new Viewport(x - w, x + w, yMin, yMax);
         }
     }

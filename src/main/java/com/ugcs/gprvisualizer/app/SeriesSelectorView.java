@@ -31,7 +31,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -69,7 +68,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
     private ChangeListener<SeriesMeta> seriesChangeListener;
 
-    public record SeriesMeta(String name, Color color, BooleanProperty visible) {
+    public record SeriesMeta(String name, BooleanProperty visible) {
 
         @Override
         public String toString() {
@@ -303,7 +302,6 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
         return new SeriesMeta(
                 seriesName,
-                model.getColor(seriesName),
                 createVisibleProperty(template, seriesName, seriesVisible));
     }
 

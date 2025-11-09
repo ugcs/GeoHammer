@@ -25,6 +25,7 @@ import com.ugcs.gprvisualizer.event.SeriesAddedEvent;
 import com.ugcs.gprvisualizer.event.SeriesRemovedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.ColorPalette;
 import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nodes;
 import com.ugcs.gprvisualizer.utils.Nulls;
@@ -202,7 +203,6 @@ public class SensorLineChart extends Chart {
         return new Plot(
                 seriesName,
                 column != null ? column.getUnit() : null,
-                model.getColor(seriesName),
                 new ColumnView(values, seriesName));
     }
 
@@ -210,7 +210,6 @@ public class SensorLineChart extends Chart {
         return new Plot(
                 seriesName,
                 Strings.empty(),
-                model.getColor(seriesName),
                 Collections.nCopies(numValues, null));
     }
 
@@ -228,7 +227,7 @@ public class SensorLineChart extends Chart {
 
         // Add chart to container
         chartsContainer.getChildren().add(chart);
-        charts.put(plot.seriesName(), chart);
+        charts.put(plot.getSeriesName(), chart);
         if (isInteractive) {
             interactiveChart = chart;
         }
@@ -276,12 +275,12 @@ public class SensorLineChart extends Chart {
 
     private ValueAxis<Number> createYAxis(Plot plot) {
         SensorLineChartYAxis yAxis = new SensorLineChartYAxis(10);
-        yAxis.setLabel(Strings.nullToEmpty(plot.unit()));
+        yAxis.setLabel(Strings.nullToEmpty(plot.getUnit()));
         yAxis.setSide(Side.RIGHT); // Y-axis on the right
         yAxis.setPrefWidth(70);
         yAxis.setMinorTickVisible(false);
 
-        Range valueRange = plot.valueRange();
+        Range valueRange = plot.getDataRange();
         yAxis.setLowerBound(valueRange.getMin().doubleValue());
         yAxis.setUpperBound(valueRange.getMax().doubleValue());
 
@@ -417,12 +416,12 @@ public class SensorLineChart extends Chart {
 
     public double getSeriesMinValue() {
         LineChartWithMarkers selectedChart = getSelectedChart();
-        return selectedChart != null ? selectedChart.plot.min() : 0.0;
+        return selectedChart != null ? selectedChart.plot.getDataMin() : 0.0;
     }
 
     public double getSeriesMaxValue() {
         LineChartWithMarkers selectedChart = getSelectedChart();
-        return selectedChart != null ? selectedChart.plot.max() : 0.0;
+        return selectedChart != null ? selectedChart.plot.getDataMax() : 0.0;
     }
 
     @Override
@@ -1160,16 +1159,15 @@ public class SensorLineChart extends Chart {
             ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             int xMin = (int)Math.ceil(xAxis.getLowerBound());
             int xMax = (int)Math.floor(xAxis.getUpperBound());
-            xMin = Math.clamp(xMin, 0, plot.data().size() - 1);
-            xMax = Math.clamp(xMax, xMin, plot.data().size() - 1);
+            xMin = Math.clamp(xMin, 0, plot.getData().size() - 1);
+            xMax = Math.clamp(xMax, xMin, plot.getData().size() - 1);
 
             IndexRange range = new IndexRange(xMin, xMax + 1);
             setSeriesData(range);
 
-            String style = plot.style();
-            if (Objects.equals(plot.seriesName(), selectedSeriesName)) {
-                style = emphasizeStyle(style);
-            }
+            String style = Objects.equals(plot.getSeriesName(), selectedSeriesName)
+                    ? plot.getSelectedStyle()
+                    : plot.getStyle();
             setSeriesStyle(style);
         }
 
@@ -1232,14 +1230,6 @@ public class SensorLineChart extends Chart {
             if (lineNode != null) {
                 lineNode.setStyle(style);
             }
-        }
-
-        private static String emphasizeStyle(String style) {
-            return style + "-fx-stroke-width: 1.25px;";
-        }
-
-        private static String dashStyle(String style) {
-            return style + "-fx-stroke-dash-array: 1 5 1 5;";
         }
 
         public void addMarker(Data<Number, Number> marker) {
@@ -1381,45 +1371,47 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    public record Plot(String seriesName, @Nullable String unit, Color color,
-                        List<@Nullable Number> data, Range dataRange) {
+    public static class Plot {
 
-        public Plot(String header, @Nullable String unit, Color color, List<@Nullable Number> data) {
-            this(header, unit, color, data, buildValueRange(data));
+        private final String seriesName;
+
+        private final @Nullable String unit;
+
+        private final Color color;
+
+        private List<@Nullable Number> data;
+
+        private Range dataRange;
+
+        public Plot(String seriesName, @Nullable String unit, List<@Nullable Number> data) {
+            this.seriesName = seriesName;
+            this.unit = unit;
+            this.color = ColorPalette.highContrast().getColor(this.seriesName);
+            this.data = data;
+            this.dataRange = buildDataRange(data);
         }
 
-        public static double getScaleFactor(double value) {
-            int base = (int)Math.clamp(Math.floor(Math.log10(Math.abs(value))), 0, 3);
-            return Math.pow(10, base);
+        public String getSeriesName() {
+            return seriesName;
         }
 
-        public String style() {
+        public @Nullable String getUnit() {
+            return unit;
+        }
+
+        public String getStyle() {
             return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 0.6px;";
         }
 
-        public double min() {
-            return dataRange.getMin().doubleValue();
+        public String getSelectedStyle() {
+            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 1.2px;";
         }
 
-        public double max() {
-            return dataRange.getMax().doubleValue();
+        public List<@Nullable Number> getData() {
+            return data;
         }
 
-        public Range valueRange() {
-            double min = min();
-            double max = max();
-            // get scale factor and align min max to it
-            double f = Math.max(getScaleFactor(min), getScaleFactor(max));
-            double minAligned = f * Math.floor(min / f);
-            double maxAligned = f * Math.ceil(max / f);
-            if (Math.abs(maxAligned - minAligned) < 1e-6) {
-                minAligned -= f;
-                maxAligned += f;
-            }
-            return new Range(minAligned, maxAligned);
-        }
-
-        private static Range buildValueRange(List<@Nullable Number> data) {
+        private static Range buildDataRange(List<@Nullable Number> data) {
             Double min = null;
             Double max = null;
             for (Number value : Nulls.toEmpty(data)) {
@@ -1441,6 +1433,33 @@ public class SensorLineChart extends Chart {
                 max = 0.0;
             }
             return new Range(min, max);
+        }
+
+        public Range getDataRange() {
+            double min = getDataMin();
+            double max = getDataMax();
+            // get scale factor and align min max to it
+            double f = Math.max(getScaleFactor(min), getScaleFactor(max));
+            double minAligned = f * Math.floor(min / f);
+            double maxAligned = f * Math.ceil(max / f);
+            if (Math.abs(maxAligned - minAligned) < 1e-6) {
+                minAligned -= f;
+                maxAligned += f;
+            }
+            return new Range(minAligned, maxAligned);
+        }
+
+        public static double getScaleFactor(double value) {
+            int base = (int)Math.clamp(Math.floor(Math.log10(Math.abs(value))), 0, 3);
+            return Math.pow(10, base);
+        }
+
+        public double getDataMin() {
+            return dataRange.getMin().doubleValue();
+        }
+
+        public double getDataMax() {
+            return dataRange.getMax().doubleValue();
         }
     }
 }

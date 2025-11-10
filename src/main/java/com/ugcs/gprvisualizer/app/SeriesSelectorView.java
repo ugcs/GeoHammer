@@ -12,7 +12,9 @@ import com.ugcs.gprvisualizer.event.SeriesRemovedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.app.service.TemplateSettings;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.ColorPalette;
 import com.ugcs.gprvisualizer.utils.Strings;
+import com.ugcs.gprvisualizer.utils.Views;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -24,6 +26,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.Skin;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.control.skin.ComboBoxListViewSkin;
@@ -31,6 +34,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -68,7 +72,11 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
     private ChangeListener<SeriesMeta> seriesChangeListener;
 
-    public record SeriesMeta(String name, BooleanProperty visible) {
+    public record SeriesMeta(String name, String style, BooleanProperty visible) {
+
+        public SeriesMeta(String name, Color color, BooleanProperty visible) {
+            this(name, "-fx-text-fill: " + Views.toColorString(color) + ";", visible);
+        }
 
         @Override
         public String toString() {
@@ -140,6 +148,21 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
                     setText(null);
                 } else {
                     setText(item.name);
+                    setStyle(item.style);
+                }
+            }
+        });
+
+        // style of item in a collapsed selector box
+        seriesSelector.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(SeriesMeta item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.name);
+                    setStyle(item.style);
                 }
             }
         });
@@ -302,6 +325,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
         return new SeriesMeta(
                 seriesName,
+                ColorPalette.highContrast().getColor(seriesName),
                 createVisibleProperty(template, seriesName, seriesVisible));
     }
 

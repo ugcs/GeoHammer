@@ -4,6 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
@@ -182,11 +183,19 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             // get selected series from settings
             String selectedSeriesName = templateSettings.getSelectedSeriesName(template);
             SeriesMeta selectedSeries = getSeriesByName(selectedSeriesName);
+            // select first visible item in the list
+            if (selectedSeries == null) {
+                for (SeriesMeta series : series) {
+                    if (series.visible.get()) {
+                        selectedSeries = series;
+                        break;
+                    }
+                }
+            }
+            // select first item in the list
             if (selectedSeries == null && !series.isEmpty()) {
-                // select first item in the list
                 selectedSeries = series.getFirst();
             }
-
             if (selectedSeries != null) {
                 seriesSelector.setValue(selectedSeries);
             }
@@ -278,13 +287,13 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         return seriesNames;
     }
 
-    private List<String> orderSeriesNames(@Nullable Template template, Set<String> seriesNames) {
+    private List<String> orderSeriesNames(Set<String> seriesNames) {
         List<String> orderedSeriesNames = new ArrayList<>(seriesNames);
         Collections.sort(orderedSeriesNames);
         return orderedSeriesNames;
     }
 
-    private Map<String, Boolean> getVisibilitySettings(Template template, List<String> seriesNames) {
+    private Map<String, Boolean> getVisibilitySettings(Template template, Set<String> seriesNames) {
         Check.notNull(template);
         Check.notNull(seriesNames);
 
@@ -298,7 +307,18 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         }
         // if no settings defined for template, make first series visible
         if (visibilitySettings.isEmpty() && !seriesNames.isEmpty()) {
-            visibilitySettings.put(seriesNames.getFirst(), true);
+            // try template-defined column
+            for (SensorData column : template.getDataMapping().getDataValues()) {
+                String seriesName = column.getHeader();
+                if (seriesNames.contains(seriesName)) {
+                    visibilitySettings.put(seriesName, true);
+                    break;
+                }
+            }
+            // peek first in order
+            if (visibilitySettings.isEmpty()) {
+                visibilitySettings.put(orderSeriesNames(seriesNames).getFirst(), true);
+            }
         }
         return visibilitySettings;
     }
@@ -308,11 +328,11 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             return Collections.emptyList();
         }
 
-        List<String> seriesNames = orderSeriesNames(template, getSeriesNames(template));
+        Set<String> seriesNames = getSeriesNames(template);
         Map<String, Boolean> visibilitySettings = getVisibilitySettings(template, seriesNames);
 
         List<SeriesMeta> seriesMetas = new ArrayList<>(seriesNames.size());
-        for (String seriesName : seriesNames) {
+        for (String seriesName : orderSeriesNames(seriesNames)) {
             boolean seriesVisible = visibilitySettings.getOrDefault(seriesName, false);
             seriesMetas.add(toSeriesMeta(template, seriesName, seriesVisible));
         }

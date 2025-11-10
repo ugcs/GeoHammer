@@ -285,6 +285,11 @@ public class CsvParser extends Parser {
             boolean display = !excludeHeaders.contains(header)
                     && (mapping.getDataValueByHeader(header) != null || hasNumbers(values, header));
             column.setDisplay(display);
+            // not a line or mark column
+            String semantic = column.getSemantic();
+            boolean readOnly = Objects.equals(semantic, Semantic.LINE.getName())
+                    || Objects.equals(semantic, Semantic.MARK.getName());
+            column.setReadOnly(readOnly);
         }
     }
 

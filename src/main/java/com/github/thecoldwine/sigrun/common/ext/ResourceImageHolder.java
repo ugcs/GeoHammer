@@ -144,28 +144,34 @@ public class ResourceImageHolder {
 	public static final String PASTE = """
 		M5.72114 3.92308H11.2788C11.5404 3.92308 11.7692 3.69423 11.7692 3.43269V1.96154C11.7692 1.24231 11.1808 0.653847 10.4615 0.653847H6.53845C5.81922 0.653847 5.23076 1.24231 5.23076 1.96154V3.43269C5.23076 3.69423 5.4596 3.92308 5.72114 3.92308ZM14.3846 1.96154H13.5673C13.3058 1.96154 13.0769 2.19039 13.0769 2.45192V3.92308C13.0769 4.64231 12.4884 5.23077 11.7692 5.23077H5.23076C4.51152 5.23077 3.92306 4.64231 3.92306 3.92308V2.45192C3.92306 2.19039 3.69422 1.96154 3.43268 1.96154H2.61537C1.89614 1.96154 1.30768 2.55 1.30768 3.26923V15.0385C1.30768 15.7577 1.89614 16.3462 2.61537 16.3462H14.3846C15.1038 16.3462 15.6923 15.7577 15.6923 15.0385V3.26923C15.6923 2.55 15.1038 1.96154 14.3846 1.96154ZM12.4231 13.4038C12.4231 13.6 12.2923 13.7308 12.0961 13.7308H4.90383C4.70768 13.7308 4.57691 13.6 4.57691 13.4038V12.75C4.57691 12.5538 4.70768 12.4231 4.90383 12.4231H12.0961C12.2923 12.4231 12.4231 12.5538 12.4231 12.75V13.4038ZM12.4231 10.7885C12.4231 10.9846 12.2923 11.1154 12.0961 11.1154H4.90383C4.70768 11.1154 4.57691 10.9846 4.57691 10.7885V10.1346C4.57691 9.93846 4.70768 9.80769 4.90383 9.80769H12.0961C12.2923 9.80769 12.4231 9.93846 12.4231 10.1346V10.7885ZM12.4231 8.17308C12.4231 8.36923 12.2923 8.5 12.0961 8.5H4.90383C4.70768 8.5 4.57691 8.36923 4.57691 8.17308V7.51923C4.57691 7.32308 4.70768 7.19231 4.90383 7.19231H12.0961C12.2923 7.19231 12.4231 7.32308 12.4231 7.51923V8.17308Z""";
 
-	private static final double BUTTON_HEIGHT = 28;	
+	public static final double DEFAULT_BUTTON_HEIGHT = 28;
 
-	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, Color svgColor, B button) {
+	public static final Color DEFAULT_ICON_COLOR = Color.valueOf("#272525");
+
+	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, Color svgColor,
+			double buttonHeight, B button) {
 		SVGPath svgPath = new SVGPath();
         svgPath.setContent(svgPathContent);
         svgPath.setFill(svgColor);
 
-		var scaleFactor = Math.min(1.2, (BUTTON_HEIGHT - 8) / svgPath.prefHeight(-1));	
+		var scaleFactor = Math.min(1.2, (buttonHeight - 12) / svgPath.prefHeight(-1));
 		svgPath.setScaleX(scaleFactor);
 		svgPath.setScaleY(scaleFactor);
 
 		button.setGraphic(svgPath);
-		button.setMinHeight(BUTTON_HEIGHT);
-        button.setPrefHeight(BUTTON_HEIGHT);
-        button.setMaxHeight(BUTTON_HEIGHT);
+		button.setMinHeight(buttonHeight);
+        button.setPrefHeight(buttonHeight);
+        button.setMaxHeight(buttonHeight);
 
 		return button;
 	}
 
+	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, Color svgColor, B button) {
+		return setButtonImage(svgPathContent, svgColor, DEFAULT_BUTTON_HEIGHT, button);
+	}
+
 	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, B button) {
-		Color defaultColor = Color.valueOf("#272525");
-		return setButtonImage(svgPathContent, defaultColor, button);
+		return setButtonImage(svgPathContent, DEFAULT_ICON_COLOR, button);
 	}
 
 	public static ImageView getImageView(javafx.scene.image.Image image) {

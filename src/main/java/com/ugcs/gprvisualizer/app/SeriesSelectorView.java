@@ -1,8 +1,12 @@
 package com.ugcs.gprvisualizer.app;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
+import com.github.thecoldwine.sigrun.common.ext.ResourceImageHolder;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.app.parsers.Column;
+import com.ugcs.gprvisualizer.app.parsers.ColumnSchema;
+import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
@@ -24,11 +28,15 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Skin;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.control.skin.ComboBoxListViewSkin;
 import javafx.scene.layout.HBox;
@@ -55,6 +63,12 @@ import java.util.Set;
 public class SeriesSelectorView extends VBox implements InitializingBean {
 
     private static final String DEFAULT_TITLE = "Select chart";
+
+    private static final ButtonType REMOVE_SERIES_IN_FILE
+            = new ButtonType("Current file", ButtonBar.ButtonData.LEFT);
+
+    private static final ButtonType REMOVE_SERIES_IN_TEMPLATE_FILES
+            = new ButtonType("All files", ButtonBar.ButtonData.LEFT);
 
     private final Model model;
 
@@ -103,11 +117,17 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
         HBox container = new HBox();
         container.setAlignment(Pos.CENTER_LEFT);
+        container.setSpacing(5);
 
         title = new Label(DEFAULT_TITLE);
         title.setStyle("-fx-text-fill: #dddddd;");
 
-        removeSeriesButton = new Button("X");
+        removeSeriesButton = ResourceImageHolder.setButtonImage(
+                ResourceImageHolder.DELETE,
+                Color.web("#666666"),
+                26,
+                new Button());
+        removeSeriesButton.setTooltip(new Tooltip("Remove selected column"));
         removeSeriesButton.setOnAction(this::onRemoveSeries);
 
         Region spacer = new Region();
@@ -117,10 +137,60 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         getChildren().addAll(container);
     }
 
+    private void updateSeriesRemovalButton() {
+        SeriesMeta selectedSeries = seriesSelector.getValue();
+        if (selectedSeries == null) {
+            removeSeriesButton.setDisable(true);
+            return;
+        }
+        // column should not be read-only
+        boolean disable = true;
+        if (model.getCurrentFile() instanceof CsvFile csvFile) {
+            ColumnSchema schema = GeoData.getSchema(csvFile.getGeoData());
+            if (schema != null) {
+                Column column = schema.getColumn(selectedSeries.name);
+                if (column != null && !column.isReadOnly()) {
+                    disable = false;
+                }
+            }
+        }
+        removeSeriesButton.setDisable(disable);
+    }
+
+    private ButtonType confirmSeriesRemoval(@Nullable Template template, String seriesName) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirm column removal");
+        alert.setHeaderText("Remove column '" + seriesName + "'?");
+
+        List<ButtonType> buttons = new ArrayList<>(3);
+        buttons.add(REMOVE_SERIES_IN_FILE);
+        if (numOpenFiles(template) > 1) {
+            buttons.add(REMOVE_SERIES_IN_TEMPLATE_FILES);
+        }
+        buttons.add(ButtonType.CANCEL);
+        alert.getButtonTypes().setAll(buttons);
+
+        return alert.showAndWait().orElse(ButtonType.CANCEL);
+    }
+
     private void onRemoveSeries(ActionEvent event) {
         SeriesMeta selectedSeries = seriesSelector.getValue();
-        if (selectedSeries != null) {
-            removeChart(selectedSeries.name);
+        if (selectedSeries == null) {
+            return;
+        }
+        Template template = selectedTemplate;
+        ButtonType confirmation = confirmSeriesRemoval(template, selectedSeries.name);
+        if (Objects.equals(confirmation, REMOVE_SERIES_IN_FILE)) {
+            if (model.getCurrentFile() instanceof CsvFile csvFile) {
+                removeChart(csvFile, selectedSeries.name);
+            };
+        }
+        if (Objects.equals(confirmation, REMOVE_SERIES_IN_TEMPLATE_FILES)) {
+            for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
+                if (templateEquals(csvFile.getTemplate(), template)) {
+                    removeChart(csvFile, selectedSeries.name);
+                }
+            }
         }
     }
 
@@ -198,6 +268,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             }
             if (selectedSeries != null) {
                 seriesSelector.setValue(selectedSeries);
+                updateSeriesRemovalButton();
             }
 
             updateCharts(template);
@@ -258,6 +329,19 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             }
         }
         return false;
+    }
+
+    private int numOpenFiles(@Nullable Template template) {
+        if (template == null) {
+            return 0;
+        }
+        int numFiles = 0;
+        for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
+            if (templateEquals(csvFile.getTemplate(), template)) {
+                numFiles++;
+            }
+        }
+        return numFiles;
     }
 
     private boolean templateEquals(@Nullable Template a, @Nullable Template b) {
@@ -374,17 +458,16 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             }
             selectChart(template, selectedSeriesName);
             templateSettings.setSelectedSeriesName(template, selectedSeriesName);
+            updateSeriesRemovalButton();
         };
     }
 
     // chart updates
 
-    private void removeChart(String seriesName) {
-        if (model.getCurrentFile() instanceof CsvFile csvFile) {
-            model.getCsvChart(csvFile).ifPresent(chart -> {
-                chart.removeFileColumn(seriesName);
-            });
-        };
+    private void removeChart(CsvFile csvFile, String seriesName) {
+        model.getCsvChart(csvFile).ifPresent(chart -> {
+            chart.removeFileColumn(seriesName);
+        });
     }
 
     private void selectChart(Template template, @Nullable String seriesName) {

@@ -2,7 +2,6 @@ package com.ugcs.gprvisualizer.app.parsers;
 
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
-import com.ugcs.gprvisualizer.utils.Strings;
 
 import java.util.Arrays;
 import java.util.List;

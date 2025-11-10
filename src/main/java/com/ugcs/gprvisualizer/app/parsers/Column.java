@@ -12,6 +12,8 @@ public class Column {
 
     private boolean display = true;
 
+    private boolean readOnly = false;
+
     public Column(String header) {
         Check.notNull(header);
 
@@ -65,6 +67,14 @@ public class Column {
 
     public void setDisplay(boolean display) {
         this.display = display;
+    }
+
+    public boolean isReadOnly() {
+        return readOnly;
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
     }
 
     public Column withDisplay(boolean display) {

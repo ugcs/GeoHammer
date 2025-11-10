@@ -12,13 +12,13 @@ import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
-import com.ugcs.gprvisualizer.event.SeriesAddedEvent;
-import com.ugcs.gprvisualizer.event.SeriesRemovedEvent;
+import com.ugcs.gprvisualizer.event.SeriesUpdatedEvent;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.app.service.TemplateSettings;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.ColorPalette;
 import com.ugcs.gprvisualizer.utils.Strings;
+import com.ugcs.gprvisualizer.utils.Templates;
 import com.ugcs.gprvisualizer.utils.Views;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -187,7 +187,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         }
         if (Objects.equals(confirmation, REMOVE_SERIES_IN_TEMPLATE_FILES)) {
             for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
-                if (templateEquals(csvFile.getTemplate(), template)) {
+                if (Templates.equals(csvFile.getTemplate(), template)) {
                     removeChart(csvFile, selectedSeries.name);
                 }
             }
@@ -324,7 +324,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             return false;
         }
         for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
-            if (templateEquals(csvFile.getTemplate(), template)) {
+            if (Templates.equals(csvFile.getTemplate(), template)) {
                 return true;
             }
         }
@@ -337,21 +337,11 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         }
         int numFiles = 0;
         for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
-            if (templateEquals(csvFile.getTemplate(), template)) {
+            if (Templates.equals(csvFile.getTemplate(), template)) {
                 numFiles++;
             }
         }
         return numFiles;
-    }
-
-    private boolean templateEquals(@Nullable Template a, @Nullable Template b) {
-        if (a == b) {
-            return true;
-        }
-        if (a == null || b == null) {
-            return false;
-        }
-        return Objects.equals(a.getName(), b.getName());
     }
 
     private Set<String> getSeriesNames(@Nullable Template template) {
@@ -363,7 +353,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             if (csvFile == null) {
                 continue;
             }
-            if (templateEquals(csvFile.getTemplate(), template)) {
+            if (Templates.equals(csvFile.getTemplate(), template)) {
                 model.getCsvChart(csvFile).ifPresent(chart
                         -> seriesNames.addAll(chart.getSeriesNames()));
             }
@@ -474,7 +464,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         Check.notNull(template);
 
         for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
-            if (templateEquals(csvFile.getTemplate(), template)) {
+            if (Templates.equals(csvFile.getTemplate(), template)) {
                 SensorLineChart chart = model.getCsvChart(csvFile).orElse(null);
                 if (chart != null) {
                     chart.selectChart(seriesName);
@@ -488,7 +478,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         Check.notEmpty(seriesName);
 
         for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
-            if (templateEquals(csvFile.getTemplate(), template)) {
+            if (Templates.equals(csvFile.getTemplate(), template)) {
                 SensorLineChart chart = model.getCsvChart(csvFile).orElse(null);
                 if (chart != null) {
                     chart.showChart(seriesName, show);
@@ -505,7 +495,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         }
         if (file instanceof CsvFile csvFile) {
             Template template = csvFile.getTemplate();
-            if (templateEquals(template, selectedTemplate)) {
+            if (Templates.equals(template, selectedTemplate)) {
                 // reload template
                 Platform.runLater(() -> {
                     selectTemplate(template);
@@ -525,7 +515,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
                 template = null;
             }
         }
-        if (!templateEquals(template, selectedTemplate)) {
+        if (!Templates.equals(template, selectedTemplate)) {
             selectedTemplate = template;
             Template templateRef = template; // final reference
             Platform.runLater(() -> {
@@ -561,20 +551,27 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
     }
 
     @EventListener
-    private void onSeriesAdded(SeriesAddedEvent event) {
-        if (reloadTemplateOnChange(event.getFile())) {
-            Platform.runLater(() -> {
-                SeriesMeta series = getSeriesByName(event.getSeriesName());
-                if (series != null) {
-                    series.visible.setValue(true);
-                    seriesSelector.setValue(series);
-                }
-            });
+    private void onSeriesUpdated(SeriesUpdatedEvent event) {
+        Template template = event.getFile().getTemplate();
+        if (!Templates.equals(template, selectedTemplate)) {
+            return;
         }
-    }
-
-    @EventListener
-    private void onSeriesRemoved(SeriesRemovedEvent event) {
-        reloadTemplateOnChange(event.getFile());
+        String seriesName = event.getSeriesName();
+        Platform.runLater(() -> {
+            SeriesMeta series = getSeriesByName(seriesName);
+            if (series == null) {
+                selectTemplate(template);
+                series = getSeriesByName(seriesName);
+                if (series == null) {
+                    return;
+                }
+            }
+            series.visible.setValue(event.isSeriesVisible());
+            showChart(template, seriesName, event.isSeriesVisible());
+            if (event.isSeriesSelected()) {
+                seriesSelector.setValue(series);
+                selectChart(template, seriesName);
+            }
+        });
     }
 }

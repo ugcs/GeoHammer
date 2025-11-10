@@ -1024,11 +1024,14 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyTimeLagToAll(int value) {
-		var chart = model.getCsvChart((CsvFile) selectedFile);
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return;
+		}
+		var chart = model.getCsvChart(csvFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCsvCharts().stream()
-					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
+					.filter(c -> csvFile.isSameTemplate(c.getFile()))
 					.forEach(c -> c.applyTimeLag(seriesName, value));
 		});
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
@@ -1041,11 +1044,14 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyLowPassToAll(int value) {
-		var chart = model.getCsvChart((CsvFile) selectedFile);
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return;
+		}
+		var chart = model.getCsvChart(csvFile);
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCsvCharts().stream()
-					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
+					.filter(c -> csvFile.isSameTemplate(c.getFile()))
 					.forEach(c -> c.applyLowPass(seriesName, value));
 		});
 		showGridInputDataChangedWarning(true);
@@ -1060,12 +1066,15 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void applyRunningMedianToAll(int value) {
-		var chart = model.getCsvChart((CsvFile) selectedFile);
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return;
+		}
+		var chart = model.getCsvChart(csvFile);
 		var rangeBefore = getSelectedSeriesRange();
 		chart.ifPresent(sc -> {
 			String seriesName = sc.getSelectedSeriesName();
 			model.getCsvCharts().stream()
-					.filter(c -> c.isSameTemplate((CsvFile) selectedFile))
+					.filter(c -> csvFile.isSameTemplate(c.getFile()))
 					.forEach(c -> c.applyRunningMedian(seriesName, value));
 		});
 		Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));

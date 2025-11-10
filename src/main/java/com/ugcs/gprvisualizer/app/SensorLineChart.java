@@ -21,8 +21,8 @@ import com.ugcs.gprvisualizer.app.parsers.ColumnSchema;
 import com.ugcs.gprvisualizer.app.parsers.ColumnView;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
-import com.ugcs.gprvisualizer.event.SeriesAddedEvent;
-import com.ugcs.gprvisualizer.event.SeriesRemovedEvent;
+import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
+import com.ugcs.gprvisualizer.event.SeriesUpdatedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.ColorPalette;
@@ -246,7 +246,6 @@ public class SensorLineChart extends Chart {
             Platform.runLater(() -> {
                 chartsContainer.getChildren().remove(removed);
             });
-            model.publishEvent(new SeriesRemovedEvent(this, file, seriesName));
         }
     }
 
@@ -393,10 +392,6 @@ public class SensorLineChart extends Chart {
     @Override
     public CsvFile getFile() {
         return file;
-    }
-
-    public boolean isSameTemplate(CsvFile other) {
-        return file.isSameTemplate(other);
     }
 
     @Override
@@ -547,10 +542,8 @@ public class SensorLineChart extends Chart {
     }
 
     public void updateXAxisUnits(TraceUnit traceUnit) {
-        for (LineChartWithMarkers chart : charts.values()) {
-            if (chart.getXAxis() instanceof SensorLineChartXAxis axisWithUnits) {
-                Platform.runLater(() -> axisWithUnits.setUnit(traceUnit));
-            }
+        if (interactiveChart.getXAxis() instanceof SensorLineChartXAxis axisWithUnits) {
+            Platform.runLater(() -> axisWithUnits.setUnit(traceUnit));
         }
     }
 
@@ -619,8 +612,16 @@ public class SensorLineChart extends Chart {
     // zoom
 
     private void setViewport(Viewport viewport, boolean delayUpdate) {
+        int lineIndexBefore = getSelectedLineIndex();
+
         this.viewport = viewport;
         applyViewport(delayUpdate);
+
+        int lineIndexAfter = getSelectedLineIndex();
+        if (lineIndexBefore != lineIndexAfter) {
+            // request redraw on selected line index update
+            model.publishEvent(new WhatChanged(SensorLineChart.this, WhatChanged.Change.justdraw));
+        }
     }
 
     private void applyViewport(boolean delayUpdate) {
@@ -678,7 +679,8 @@ public class SensorLineChart extends Chart {
         int w = numVisibleTraces / 2;
 
         // adjust visible range to the full range bounds
-        middle = Math.clamp(middle, w, numTraces - w - 1);
+        middle = Math.max(middle, w);
+        middle = Math.min(middle, numTraces - w - 1);
         // x-axis width for a full scale
         int xWidth = numTraces > 0 ? numTraces - 1 : 0;
         Viewport scrolled = new Viewport(
@@ -991,15 +993,13 @@ public class SensorLineChart extends Chart {
         setFileColumnValues(filteredSeriesName, filtered);
 
         Platform.runLater(() -> {
-            updateChartName();
-
             LineChartWithMarkers filteredChart = charts.get(filteredSeriesName);
             if (filteredChart == null) {
                 Plot plot = createPlot(filteredSeriesName, file.getGeoData());
                 filteredChart = createChart(plot);
-
-                model.publishEvent(new SeriesAddedEvent(this, file, filteredSeriesName));
             }
+            model.publishEvent(new SeriesUpdatedEvent(this, file,
+                    filteredSeriesName, true, true));
             filteredChart.updateData();
         });
     }
@@ -1016,12 +1016,19 @@ public class SensorLineChart extends Chart {
                     column.setUnit(proto.getUnit());
                 }
             }
+            file.setUnsaved(true);
+            Platform.runLater(this::updateChartName);
+            model.publishEvent(new FileUpdatedEvent(this, file));
         }
     }
 
     public void removeFileColumn(String header) {
         List<GeoData> values = file.getGeoData();
-        GeoData.removeColumn(values, header);
+        if (GeoData.removeColumn(values, header) != null) {
+            file.setUnsaved(true);
+            Platform.runLater(this::updateChartName);
+            model.publishEvent(new FileUpdatedEvent(this, file));
+        };
         removeChart(header);
     }
 
@@ -1031,6 +1038,7 @@ public class SensorLineChart extends Chart {
             values.get(i).setValue(header, data.get(i));
         }
         file.setUnsaved(true);
+        Platform.runLater(this::updateChartName);
     }
 
     public void applyTimeLag(String seriesName, int shift) {
@@ -1136,8 +1144,6 @@ public class SensorLineChart extends Chart {
         }
 
         private void zoomTo(Viewport viewport) {
-            int lineIndexBefore = getSelectedLineIndex();
-
             int xWidth = !plot.getData().isEmpty() ? plot.getData().size() - 1 : 0;
             ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             xAxis.setLowerBound(viewport.xMin() * xWidth);
@@ -1147,12 +1153,6 @@ public class SensorLineChart extends Chart {
             ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();
             yAxis.setLowerBound(yRange.getMin().doubleValue() + viewport.yMin() * yRange.getWidth());
             yAxis.setUpperBound(yRange.getMin().doubleValue() + viewport.yMax() * yRange.getWidth());
-
-            int lineIndexAfter = getSelectedLineIndex();
-            if (lineIndexBefore != lineIndexAfter) {
-                // request redraw on selected line index update
-                model.publishEvent(new WhatChanged(SensorLineChart.this, WhatChanged.Change.justdraw));
-            }
         }
 
         private void setSeriesStyle(String style) {
@@ -1173,7 +1173,6 @@ public class SensorLineChart extends Chart {
             }
 
             // x range
-            // TODO num values == 0
             ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
             int xMin = (int)Math.ceil(xAxis.getLowerBound());
             int xMax = (int)Math.floor(xAxis.getUpperBound());

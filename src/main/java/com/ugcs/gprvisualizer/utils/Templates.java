@@ -5,11 +5,24 @@ import com.github.thecoldwine.sigrun.common.ext.GprFile;
 import com.github.thecoldwine.sigrun.common.ext.SgyFile;
 import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.dzt.DztFile;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Objects;
 
 public final class Templates {
 
     private Templates() {
         // Utility class, no instantiation
+    }
+
+    public static boolean equals(@Nullable Template a, @Nullable Template b) {
+        if (a == b) {
+            return true;
+        }
+        if (a == null || b == null) {
+            return false;
+        }
+        return Objects.equals(a.getName(), b.getName());
     }
 
     public static String getTemplateName(SgyFile file) {

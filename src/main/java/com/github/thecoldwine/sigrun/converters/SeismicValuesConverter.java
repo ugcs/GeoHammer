@@ -1,6 +1,6 @@
 package com.github.thecoldwine.sigrun.converters;
 
-import com.github.thecoldwine.sigrun.common.ext.Trace;
+import com.ugcs.geohammer.format.gpr.Trace;
 
 import java.nio.ByteBuffer;
 

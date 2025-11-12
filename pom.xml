@@ -204,7 +204,7 @@
 					</descriptorRefs>
 					<archive>
 						<manifest>
-							<mainClass>com.ugcs.gprvisualizer.app.MainGeoHammer</mainClass>
+							<mainClass>com.ugcs.geohammer.MainGeoHammer</mainClass>
 						</manifest>
 						<manifestEntries>
 							<SplashScreen-Image>splash_screen.jpg</SplashScreen-Image>
@@ -244,7 +244,7 @@
 		        <artifactId>javafx-maven-plugin</artifactId>
 		        <version>0.0.8</version>
 		        <configuration>
-		            <mainClass>com.ugcs.gprvisualizer.app.MainGeoHammer</mainClass>
+		            <mainClass>com.ugcs.geohammer.MainGeoHammer</mainClass>
 		        </configuration>
 		    </plugin>
 			<plugin>
@@ -564,7 +564,7 @@
 							<outfile>${project.build.directory}/${project.artifactId}.exe</outfile>
 							<errTitle>${project.artifactId}</errTitle>
 							<classPath>
-							<mainClass>com.ugcs.gprvisualizer.app.MainGeoHammer</mainClass>
+							<mainClass>com.ugcs.geohammer.MainGeoHammer</mainClass>
 							<addDependencies>false</addDependencies>
 							</classPath>
 							<jre>
@@ -685,7 +685,7 @@
 										<argument>--dest</argument> <argument>${installer.input}/..</argument>
 										<argument>--input</argument> <argument>${installer.input}</argument>
 										<argument>--name</argument> <argument>${project.name}</argument>
-										<argument>--main-class</argument> <argument>com.ugcs.gprvisualizer.app.MainGeoHammer</argument>
+										<argument>--main-class</argument> <argument>com.ugcs.geohammer.MainGeoHammer</argument>
 										<argument>--main-jar</argument> <argument>${project.artifactId}-jar-with-dependencies.jar</argument>
 										<argument>--java-options</argument> <argument>"-splash:splash_screen.jpg -Xmx4096m"</argument>
 										<argument>--runtime-image</argument> <argument>${project.build.directory}/jre21</argument>

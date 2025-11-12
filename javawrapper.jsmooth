@@ -13,7 +13,7 @@
 <iconLocation>src\main\resources\logo24.png</iconLocation>
 <initialMemoryHeap>-1</initialMemoryHeap>
 <jarLocation>target\geohammer-jar-with-dependencies.jar</jarLocation>
-<mainClassName>com.ugcs.gprvisualizer.app.MainGeoHammer</mainClassName>
+<mainClassName>com.ugcs.geohammer.MainGeoHammer</mainClassName>
 <maximumMemoryHeap>2146435072</maximumMemoryHeap>
 <maximumVersion></maximumVersion>
 <minimumVersion>1.8</minimumVersion>

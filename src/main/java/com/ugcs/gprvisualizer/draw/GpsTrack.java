@@ -21,7 +21,7 @@ import com.ugcs.gprvisualizer.event.FileOpenedEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.math.DouglasPeucker;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import javafx.geometry.Point2D;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -103,7 +103,7 @@ public class GpsTrack extends BaseLayer {
 				: null;
 
 		var ranges = file.getLineRanges();
-		for (Map.Entry<Integer, Range> e: ranges.entrySet()) {
+		for (Map.Entry<Integer, IndexRange> e: ranges.entrySet()) {
 			if (isSelectedFile) {
 				Integer lineIndex = e.getKey();
 				if (selectedLineIndex != null
@@ -123,8 +123,8 @@ public class GpsTrack extends BaseLayer {
 				g2.setColor(new Color(0xFA7D6E));
 			}
 
-			Range range = e.getValue();
-			var traces = file.getGeoData().subList(range.getMin().intValue(), range.getMax().intValue() + 1);
+			IndexRange range = e.getValue();
+			var traces = file.getGeoData().subList(range.from(), range.to());
 			renderTraceLines(g2, field, traces);
 		}
 	}

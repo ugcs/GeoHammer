@@ -7,7 +7,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 // columns are sorted in order of additions
 public class ColumnSchema implements Iterable<Column> {
@@ -118,5 +120,16 @@ public class ColumnSchema implements Iterable<Column> {
     public boolean isColumnDisplay(String header) {
         Column column = getColumn(header);
         return column != null && column.isDisplay();
+    }
+
+    public Set<String> getDisplayHeaders() {
+        Set<String> displayHeaders = new LinkedHashSet<>(numDisplayColumns());
+        for (Column column : columns.values()) {
+            if (!column.isDisplay()) {
+                continue;
+            }
+            displayHeaders.add(column.getHeader());
+        }
+        return displayHeaders;
     }
 }

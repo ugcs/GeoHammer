@@ -14,6 +14,14 @@ public final class Views {
     private Views() {
     }
 
+    public static Color fxColor(java.awt.Color color) {
+        return Color.rgb(
+                color.getRed(),
+                color.getGreen(),
+                color.getBlue(),
+                color.getAlpha() / 255.0);
+    }
+
     public static String toColorString(Color color) {
         Check.notNull(color);
 

@@ -1,8 +1,8 @@
 package com.ugcs.gprvisualizer.math;
 
 import com.github.thecoldwine.sigrun.common.ext.MetaFile;
-import com.ugcs.gprvisualizer.app.meta.SampleRange;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import org.jspecify.annotations.Nullable;
 
 import java.awt.Color;
@@ -77,12 +77,12 @@ public class HorizontalProfile {
 		if (metaFile == null) {
 			return depth;
 		}
-		SampleRange sampleRange = metaFile.getSampleRange();
+		IndexRange sampleRange = metaFile.getSampleRange();
 		if (sampleRange == null) {
 			return depth;
 		}
-		depth = Math.clamp(depth, sampleRange.getFrom(), sampleRange.getTo() - 1);
-		return depth - sampleRange.getFrom();
+		depth = Math.clamp(depth, sampleRange.from(), sampleRange.to() - 1);
+		return depth - sampleRange.from();
 	}
 
 	public int getDepth(int index) {

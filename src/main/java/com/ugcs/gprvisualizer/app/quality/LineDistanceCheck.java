@@ -4,7 +4,7 @@ import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.github.thecoldwine.sigrun.common.ext.SphericalMercator;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.Polygon;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 
 public class LineDistanceCheck implements QualityCheck {
 
@@ -117,28 +118,25 @@ public class LineDistanceCheck implements QualityCheck {
             if (values == null || values.isEmpty()) {
                 continue;
             }
-            Map<Integer, Range> ranges = file.getLineRanges();
-            for (Range range : ranges.values()) {
+            NavigableMap<Integer, IndexRange> ranges = file.getLineRanges();
+            for (IndexRange range : ranges.values()) {
                 addLinePoints(points, values, range);
             }
         }
         return points;
     }
 
-    private void addLinePoints(List<Coordinate> points, List<GeoData> values, Range range) {
+    private void addLinePoints(List<Coordinate> points, List<GeoData> values, IndexRange range) {
         // skip points within half of the max line distance
         double k = SphericalMercator.scaleFactorAt(values.getFirst().getLatitude());
         double th = k * 0.5 * distance;
 
-        int from = range.getMin().intValue();
-        int to = range.getMax().intValue();
-
         Coordinate last = null;
-        for (int i = from; i <= to; i++) {
+        for (int i = range.from(); i < range.to(); i++) {
             GeoData value = values.get(i);
             Coordinate point = Spatial.toCoordinate(
                     SphericalMercator.project(value.getLatitude(), value.getLongitude()));
-            if (last == null || i == to || last.distance(point) > th) {
+            if (last == null || i == range.to() - 1 || last.distance(point) > th) {
                 points.add(point);
                 last = point;
             }
@@ -153,8 +151,8 @@ public class LineDistanceCheck implements QualityCheck {
                 continue;
             }
             double k = SphericalMercator.scaleFactorAt(values.getFirst().getLatitude());
-            Map<Integer, Range> ranges = file.getLineRanges();
-            for (Range range : ranges.values()) {
+            NavigableMap<Integer, IndexRange> ranges = file.getLineRanges();
+            for (IndexRange range : ranges.values()) {
                 LineString line = getLine(values, range);
                 line = Spatial.simplifyLine(line, k * SIMPLIFY_TOLERANCE);
                 Polygon stripe = Spatial.createStripe(line, k * distance);
@@ -166,17 +164,15 @@ public class LineDistanceCheck implements QualityCheck {
         return stripes;
     }
 
-    private LineString getLine(List<GeoData> values, Range range) {
-        int from = range.getMin().intValue();
-        int to = range.getMax().intValue();
-        int n = Math.max(0, to - from + 1);
+    private LineString getLine(List<GeoData> values, IndexRange range) {
+        int n = range.size();
         if (n == 0) {
             return null;
         }
 
         Coordinate[] points = new Coordinate[n];
         for (int i = 0; i < n; i++) {
-            GeoData value = values.get(from + i);
+            GeoData value = values.get(range.from() + i);
             points[i] = Spatial.toCoordinate(
                     SphericalMercator.project(value.getLatitude(), value.getLongitude()));
         }

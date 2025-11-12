@@ -7,8 +7,6 @@ public enum Semantic {
     TMI("TMI"),
     MARK("Mark");
 
-    public static final String ANOMALY_SUFFIX = "_anomaly";
-
     private final String name;
 
     Semantic(String name) {

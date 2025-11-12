@@ -13,6 +13,7 @@ import com.ugcs.gprvisualizer.app.yaml.Template;
 import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Nulls;
+import com.ugcs.gprvisualizer.utils.Templates;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,8 +151,8 @@ public class CsvFile extends SgyFile {
 		this.setUnsaved(true);
 	}
 
-    public boolean isSameTemplate(CsvFile file) {
-        return Objects.equals(file.getTemplate(), getTemplate());
+    public boolean isSameTemplate(CsvFile other) {
+        return Templates.equals(getTemplate(), other.getTemplate());
     }
 
     public static class Snapshot extends FileSnapshot<CsvFile> {

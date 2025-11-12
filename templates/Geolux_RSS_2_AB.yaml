@@ -45,18 +45,3 @@
       - header: "RSS:Velocity filtered"
         semantic: "RSS:Velocity filtered"
         units: "m/s"
-      - header: "RSS:Signal"
-        semantic: "RSS:Signal"
-        units: ""
-      - header: "RSS:Q1"
-        semantic: "LRSS:Q1"
-        units: ""
-      - header: "RSS:Q2"
-        semantic: "RSS:Q2"
-        units: ""
-      - header: "RSS:Tilt"
-        semantic: "RSS:Tilt"
-        units: ""
-
-
-

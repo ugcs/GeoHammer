@@ -12,7 +12,7 @@ import com.ugcs.gprvisualizer.gpr.Model;
 import com.ugcs.gprvisualizer.math.PrefixSum;
 import com.ugcs.gprvisualizer.math.SegmentTree;
 import com.ugcs.gprvisualizer.utils.Check;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Strings;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.HPos;
@@ -328,7 +328,7 @@ public class StatisticsView extends VBox {
             }
 
             MetricsContext metricsContext = metricsContextSelector.getSelectedContext();
-            Range queryRange = getRange(chart, metricsContext);
+            IndexRange queryRange = getRange(chart, metricsContext);
 
             if (queryRange == null) {
                 count.setText(NO_VALUE);
@@ -339,8 +339,8 @@ public class StatisticsView extends VBox {
                 return;
             }
 
-            int l = queryRange.getMin().intValue();
-            int r = queryRange.getMax().intValue() + 1;
+            int l = queryRange.from();
+            int r = queryRange.to();
 
             int countValue = avgIndex.queryCount(l, r);
             double minValue = minMaxIndex.queryMin(l, r);
@@ -355,10 +355,10 @@ public class StatisticsView extends VBox {
         }
 
         @Nullable
-        Range getRange(SensorLineChart chart, MetricsContext metricsContext) {
+        IndexRange getRange(SensorLineChart chart, MetricsContext metricsContext) {
             switch (metricsContext) {
                 case VISIBLE_AREA:
-                    return chart.getVisibleXRange();
+                    return chart.getVisibleRange();
                 case LINE:
                     TraceKey selectedTrace = model.getSelectedTrace(chart);
                     if (selectedTrace != null) {
@@ -369,7 +369,7 @@ public class StatisticsView extends VBox {
                     // no range if no trace is selected
                     return null;
                 case FILE:
-                    return new Range(0, chart.getFile().numTraces() - 1);
+                    return new IndexRange(0, chart.numTraces());
                 default:
                     return null;
             }

@@ -4,17 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.Objects;
-import java.util.SortedMap;
 
 import com.ugcs.gprvisualizer.app.auxcontrol.BaseObject;
 import com.ugcs.gprvisualizer.app.axis.DistanceEstimator;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.parsers.Semantic;
 import com.ugcs.gprvisualizer.app.quality.LineSchema;
 import com.ugcs.gprvisualizer.app.undo.FileSnapshot;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nulls;
-import com.ugcs.gprvisualizer.utils.Range;
 import org.jspecify.annotations.Nullable;
 
 public abstract class SgyFile {
@@ -27,14 +26,14 @@ public abstract class SgyFile {
 	private List<BaseObject> auxElements = new ArrayList<>();
 
 	@Nullable
-	private SortedMap<Integer, Range> lineRanges;
+	private NavigableMap<Integer, IndexRange> lineRanges;
 
 	@Nullable
 	private DistanceEstimator distanceEstimator;
 	
 	public abstract List<GeoData> getGeoData();
 
-	public SortedMap<Integer, Range> getLineRanges() {
+	public NavigableMap<Integer, IndexRange> getLineRanges() {
 		if (lineRanges == null) {
 			lineRanges = LineSchema.getLineRanges(getGeoData());
 		}

@@ -40,9 +40,9 @@ public abstract class ScrollableData {
         this.middleTrace = selectedTrace;
     }
 
-    public abstract int getVisibleNumberOfTrace();
+    public abstract int numVisibleTraces();
 
-    public abstract int getTracesCount();
+    public abstract int numTraces();
 
     public void setRealAspect(double realAspect) {
         this.realAspect = realAspect;

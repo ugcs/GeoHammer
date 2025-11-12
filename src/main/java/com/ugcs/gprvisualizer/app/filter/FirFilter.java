@@ -1,4 +1,4 @@
-package com.ugcs.gprvisualizer.app.fir;
+package com.ugcs.gprvisualizer.app.filter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ import java.util.List;
  * It uses the average interval between the timestamps to compute the sampling rate.
  *
  */
-public class FIRFilter {
+public class FirFilter {
     
     private double[] coefficients;
     private double[] buffer;
@@ -28,7 +28,7 @@ public class FIRFilter {
      *
      * @param filterOrder the filter order
      */
-    public FIRFilter(int filterOrder) {
+    public FirFilter(int filterOrder) {
         this.coefficients = createFIRCoefficients(filterOrder);
         this.buffer = new double[filterOrder];
         this.bufferIndex = 0;

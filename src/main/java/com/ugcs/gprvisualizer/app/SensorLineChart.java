@@ -1,32 +1,36 @@
 package com.ugcs.gprvisualizer.app;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import com.github.thecoldwine.sigrun.common.ext.*;
-import com.google.common.base.Strings;
 import com.ugcs.gprvisualizer.app.auxcontrol.FoundPlace;
 import com.ugcs.gprvisualizer.app.axis.SensorLineChartXAxis;
 import com.ugcs.gprvisualizer.app.axis.SensorLineChartYAxis;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
+import com.ugcs.gprvisualizer.app.filter.LowPassFilter;
 import com.ugcs.gprvisualizer.app.filter.MedianCorrectionFilter;
+import com.ugcs.gprvisualizer.app.filter.SequenceFilter;
+import com.ugcs.gprvisualizer.app.filter.TimeLagFilter;
 import com.ugcs.gprvisualizer.app.parsers.Column;
 import com.ugcs.gprvisualizer.app.parsers.ColumnSchema;
 import com.ugcs.gprvisualizer.app.parsers.ColumnView;
 import com.ugcs.gprvisualizer.app.parsers.Semantic;
-import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
-import com.ugcs.gprvisualizer.app.yaml.DataMapping;
-import com.ugcs.gprvisualizer.app.yaml.data.SensorData;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
+import com.ugcs.gprvisualizer.event.FileUpdatedEvent;
+import com.ugcs.gprvisualizer.event.SeriesUpdatedEvent;
 import com.ugcs.gprvisualizer.event.WhatChanged;
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.ColorPalette;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Nodes;
 import com.ugcs.gprvisualizer.utils.Nulls;
 import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.Strings;
 import com.ugcs.gprvisualizer.utils.Views;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -36,9 +40,8 @@ import javafx.geometry.Side;
 import javafx.scene.Cursor;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ValueAxis;
-import javafx.scene.chart.XYChart;
-import javafx.scene.control.*;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
 
 import javafx.scene.layout.*;
@@ -50,16 +53,13 @@ import javafx.scene.text.FontWeight;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 
-import com.ugcs.gprvisualizer.app.fir.FIRFilter;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
 import com.ugcs.gprvisualizer.gpr.Model;
 
 import javafx.beans.InvalidationListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.input.MouseEvent;
@@ -71,148 +71,63 @@ import javafx.scene.Node;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart.Data;
-import javafx.scene.chart.XYChart.Series;
 
 public class SensorLineChart extends Chart {
 
-    private static final double ZOOM_STEP = 1.38;
+    private static final Logger log = LoggerFactory.getLogger(SensorLineChart.class);
 
-    private static final String FILTERED_SERIES_SUFFIX = "_filtered";
+    private static final double ZOOM_STEP = 1.38;
 
     private static final Color LINE_COLOR = Color.web("0xdf818eff");
 
-    private static final int DEFAULT_VIEW_SAMPLES = 500;
+    private final CsvFile file;
 
-    private static final int MAX_VIEW_SAMPLES = 1000;
+    private @Nullable final String lineSeriesName;
 
-    private static final Logger log = LoggerFactory.getLogger(SensorLineChart.class);
+    // series name -> chart
+    private final Map<String, LineChartWithMarkers> charts = new HashMap<>();
 
-    private final ApplicationEventPublisher eventPublisher;
-    private final TemplateSettingsModel templateSettingsModel;
-    @Nullable
-    private LineChartWithMarkers interactiveChart = null;
-    private Map<String, LineChartWithMarkers> charts = new HashMap<>();
-    private Rectangle selectionRect = new Rectangle();
-    private Label chartName;
-    @Nullable
-    private String selectedSeriesName;
-    @Nullable
-    private String lineSeriesName;
-    private Data<Number, Number> selectionMarker = null;
-    private VBox root;
-    private StackPane chartsContainer;
-    private CsvFile file;
-    private Map<String, Double> seriesMinValues = new HashMap<>();
-    private Map<String, Double> seriesMaxValues = new HashMap<>();
-    private Map<FoundPlace, Data<Number, Number>> foundPlaces = new HashMap<>();
+    private final LineChartWithMarkers interactiveChart;
+
+    private @Nullable String selectedSeriesName;
+
+    private final Map<FoundPlace, Data<Number, Number>> flagMarkers = new HashMap<>();
+
+    private @Nullable Data<Number, Number> selectionMarker;
+
+    // view
+
+    private final VBox root;
+
+    private final Label chartName;
+
+    private final StackPane chartsContainer;
+
+    private final Rectangle selectionRect = new Rectangle();
+
+    private Viewport viewport = new Viewport(0, 1, 0, 1);
 
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    private ScheduledFuture<?> updateTask;
+    private @Nullable ScheduledFuture<?> updateTask;
 
     static {
         Runtime.getRuntime().addShutdownHook(
                 new Thread(scheduler::shutdownNow));
     }
 
-    public SensorLineChart(Model model, ApplicationEventPublisher eventPublisher, TemplateSettingsModel templateSettingsModel) {
+    public SensorLineChart(Model model, CsvFile file) {
         super(model);
-        this.eventPublisher = eventPublisher;
-        this.templateSettingsModel = templateSettingsModel;
-    }
 
-    private EventHandler<MouseEvent> mouseClickHandler = new EventHandler<>() {
-        @Override
-        public void handle(MouseEvent event) {
-        	if (event.getClickCount() == 2) {
-                if (event.getSource() instanceof LineChart lineChart) {
-                    Axis<Number> xAxis = lineChart.getXAxis();
-                    Point2D point = xAxis.screenToLocal(event.getScreenX(), event.getScreenY());
-                    Number xValue = xAxis.getValueForDisplay(point.getX());
+        this.file = Check.notNull(file);
 
-                    int traceIndex = xValue.intValue();
-                    if (traceIndex >= 0 && traceIndex < file.numTraces()) {
-                        TraceKey trace = new TraceKey(file, traceIndex);
-                        model.selectTrace(trace);
-                        model.focusMapOnTrace(trace);
-                    }
-                }
-                event.consume();
-        	}
-        }
-	};
+        chartName = new Label();
+        chartName.setFont(Font.font("Verdana", FontWeight.BOLD, 8));
+        chartName.setTextFill(Color.rgb(60, 60, 60));
+        updateChartName();
 
-    public List<Plot> generatePlots(CsvFile csvFile) {
-        List<GeoData> values = Nulls.toEmpty(csvFile.getGeoData());
-        ColumnSchema schema = GeoData.getSchema(values);
-        if (schema == null) {
-            return List.of();
-        }
-
-        List<Plot> plots = new ArrayList<>(schema.numDisplayColumns());
-        for (Column column : schema) {
-            if (!column.isDisplay()) {
-                continue;
-            }
-            String header = column.getHeader();
-            Plot plot = new Plot(
-                    header,
-                    Strings.nullToEmpty(column.getUnit()),
-                    getColor(header),
-                    new ColumnView(values, schema.getColumnIndex(header)));
-            plots.add(plot);
-        }
-        return plots;
-    }
-
-    private Color getColor(String header) {
-        return model.getColor(header);
-    }
-
-    @Override
-    public Node getRootNode() {
-        return root;
-    }
-
-    @Override
-    public void selectFile() {
-        eventPublisher.publishEvent(new FileSelectedEvent(this, file));
-    }
-
-    public record Plot(String header, String unit, Color color, List<Number> data) {
-
-        public Plot withData(List<Number> data) {
-            return new Plot(header, unit, color, data);
-        }
-
-        public String getPlotStyle() {
-            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 0.6px;";
-        }
-    }
-
-    public VBox createChartWithMultipleYAxes(CsvFile file, List<Plot> plots) {
-        this.file = file;
-
-        // lookup line header
-        ColumnSchema schema = GeoData.getSchema(file.getGeoData());
-        lineSeriesName = schema != null
-                ? schema.getHeaderBySemantic(Semantic.LINE.getName())
-                : null;
-
-        // Using StackPane to overlay charts
-        this.chartsContainer = new StackPane();
-
-        for (Plot plot : plots) {
-            createLineChart(plot);
-        }
-        if (interactiveChart != null) {
-            setSelectionHandlers(interactiveChart);
-            setScrollHandlers(interactiveChart);
-            interactiveChart.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickHandler);
-            initLineMarkers();
-        }
-
-        initFlags();
+        // using StackPane to overlay charts
+        chartsContainer = new StackPane();
 
         ImageView close = ResourceImageHolder.getImageView("close.png");
         close.setPickOnBounds(true);
@@ -223,11 +138,6 @@ public class SensorLineChart extends Chart {
             event.consume();
             close();
         });
-
-        chartName = new Label();
-        chartName.setFont(Font.font("Verdana", FontWeight.BOLD, 8));
-        chartName.setTextFill(Color.rgb(60, 60, 60));
-        updateChartName();
 
         Region space = new Region();
         HBox.setHgrow(space, Priority.ALWAYS);
@@ -253,600 +163,140 @@ public class SensorLineChart extends Chart {
             model.selectChart(this);
         });
 
+        // lookup line header
+        ColumnSchema schema = GeoData.getSchema(file.getGeoData());
+        lineSeriesName = schema != null
+                ? schema.getHeaderBySemantic(Semantic.LINE.getName())
+                : null;
+
+        Set<String> displayHeaders = schema != null
+                ? schema.getDisplayHeaders()
+                : Set.of();
+        for (String seriesName : displayHeaders) {
+            Plot plot = createPlot(seriesName, file.getGeoData());
+            createChart(plot);
+        }
+
+        // create interactive chart
+        interactiveChart = createInteractiveChart();
+
+        initRemoveLineMarkers();
+        initFlagMarkers();
+
         getProfileScroll().setChangeListener((observable, oldVal, newVal) -> {
             zoomToProfileScroll();
-            updateOnZoom(true);
-        });
-        updateProfileScroll();
-
-        return root;
-    }
-
-    private void initLineMarkers() {
-        for (Map.Entry<Integer, Range> e : file.getLineRanges().entrySet()) {
-            int lineIndex = e.getKey();
-            Range lineRange = e.getValue();
-
-            Data<Number, Number> verticalMarker = new Data<>(lineRange.getMin().intValue(), 0);
-
-            Line line = new Line();
-            line.setStroke(LINE_COLOR);
-            line.setStrokeWidth(0.8);
-
-            Pane icon = createRemoveLineIcon(lineIndex);
-            if (interactiveChart != null) {
-                interactiveChart.addVerticalValueMarker(
-                        verticalMarker,
-                        line,
-                        null,
-                        icon,
-                        false);
-            }
-        }
-    }
-
-    private void initFlags() {
-        file.getAuxElements().stream().map(o -> ((FoundPlace) o))
-                .forEach(this::putFoundPlace);
-    }
-
-    private Pane createRemoveLineIcon(int lineIndex) {
-        Tooltip tooltip = new Tooltip("Remove Line " + lineIndex);
-        ImageView imageView = ResourceImageHolder.getImageView("closeFile.png");
-        Tooltip.install(imageView, tooltip);
-
-        imageView.setPickOnBounds(true);
-        imageView.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
-            imageView.setCursor(Cursor.HAND);
-        });
-        imageView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-            removeLine(lineIndex);
         });
 
-        imageView.setTranslateX(1);
-        imageView.setTranslateY(1);
-
-        return new Pane(imageView);
+        applyViewport(false);
     }
 
-    private void removeLine(int lineIndex) {
-        // if target line is last in a file, close the file
-        if (file.getLineRanges().size() == 1) {
-            close();
-        } else {
-            TraceTransform traceTransform = AppContext.getInstance(TraceTransform.class);
-            traceTransform.removeLine(file, lineIndex);
+    private Plot createPlot(String seriesName, List<GeoData> values) {
+        Check.notEmpty(seriesName);
+        ColumnSchema schema = GeoData.getSchema(values);
+        if (schema == null) {
+            return createEmptyPlot(seriesName, values.size());
         }
+        Column column = schema.getColumn(seriesName);
+        return new Plot(
+                seriesName,
+                column != null ? column.getUnit() : null,
+                new ColumnView(values, seriesName));
     }
 
-    private @Nullable LineChartWithMarkers createLineChart(Plot plot) {
-        var data = plot.data();
-        if (data.isEmpty()) {
-            return null;
-        }
+    private Plot createEmptyPlot(String seriesName, int numValues) {
+        return new Plot(
+                seriesName,
+                Strings.empty(),
+                Collections.nCopies(numValues, null));
+    }
 
-        Series<Number, Number> series = new Series<>();
-        series.setName(plot.header());
-
-        // Add data to chart
-        setSeriesData(series, plot, 0, data.size() - 1);
-        if (series.getData().isEmpty()) {
-            return null;
-        }
-
-        Series<Number, Number> filtered = new Series<>();
-        filtered.setName(plot.header() + FILTERED_SERIES_SUFFIX);
-
-        // Creating chart
-        boolean isInteractive = charts.isEmpty(); // first chart will be an intercative chart
-
-        // Create axes
-        ValueAxis<Number> xAxis = isInteractive ? createXAxis() : createHiddenXAxis();
+    private LineChartWithMarkers createInteractiveChart() {
+        Plot plot = createEmptyPlot(Strings.empty(), numTraces());
+        ValueAxis<Number> xAxis = createXAxisWithUnits();
         ValueAxis<Number> yAxis = createYAxis(plot);
 
-        Range valueRange = getValueRange(data, plot.header);
-        ZoomRect outZoomRect = new ZoomRect(0, Math.max(0, data.size() - 1),
-                valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
-        LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, outZoomRect, plot);
-        chart.resetZoomRect();
+        LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, plot);
+        chart.setMouseTransparent(false);
+        chart.zoomTo(viewport);
 
-        chart.setLegendVisible(false); // Hide legend
-        chart.setCreateSymbols(false); // Disable symbols
-        chart.setMouseTransparent(!isInteractive);
-        chart.lookup(".chart-plot-background").setStyle("-fx-background-color: transparent;");
+        setSelectionHandlers(chart);
+        setScrollHandlers(chart);
+        setClickHandlers(chart);
 
-        // Set random color for series
-        chart.getData().add(series);
-        setStyleForSeries(series, plot.getPlotStyle());
-
-        chart.getData().add(filtered);
-        setStyleForSeries(filtered, plot.getPlotStyle());
-
-        showChartAxes(chart, false);
-        showChart(chart, false);
-
-        // Add chart to container
         chartsContainer.getChildren().add(chart);
-        charts.put(series.getName(), chart);
-        if (isInteractive) {
-            interactiveChart = chart;
-        }
         return chart;
     }
 
-    private ValueAxis<Number> createXAxis() {
-        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(model, templateSettingsModel, file, 10);
+    private LineChartWithMarkers createChart(Plot plot) {
+        ValueAxis<Number> xAxis = createXAxis();
+        ValueAxis<Number> yAxis = createYAxis(plot);
+
+        LineChartWithMarkers chart = new LineChartWithMarkers(xAxis, yAxis, plot);
+        chart.setMouseTransparent(true);
+        chart.zoomTo(viewport);
+
+        chartsContainer.getChildren().add(chart);
+        charts.put(plot.getSeriesName(), chart);
+        return chart;
+    }
+
+    private void removeChart(String seriesName) {
+        LineChartWithMarkers removed = charts.remove(seriesName);
+        if (removed != null) {
+            Platform.runLater(() -> {
+                chartsContainer.getChildren().remove(removed);
+            });
+        }
+    }
+
+    private ValueAxis<Number> createXAxisWithUnits() {
+        SensorLineChartXAxis xAxis = new SensorLineChartXAxis(model, file, 10);
         xAxis.setSide(Side.BOTTOM);
         xAxis.setPrefHeight(50);
-
         xAxis.setMinorTickVisible(false);
 
+        xAxis.setAutoRanging(false);
         xAxis.setLowerBound(0);
-        xAxis.setUpperBound(Nulls.toEmpty(file.getGeoData()).size() - 1);
+        xAxis.setUpperBound(Math.max(0, numTraces() - 1));
 
         return xAxis;
     }
 
-    private ValueAxis<Number> createHiddenXAxis() {
+    private ValueAxis<Number> createXAxis() {
         NumberAxis xAxis = new NumberAxis();
         xAxis.setSide(Side.BOTTOM);
         xAxis.setPrefHeight(50);
-
         xAxis.setMinorTickVisible(false);
         xAxis.setTickMarkVisible(false);
         xAxis.setTickLabelsVisible(false);
 
-        int numValues = Nulls.toEmpty(file.getGeoData()).size();
-        double tickUnit = numValues > 0 ? numValues / 10.0 : 1.0;
+        int numTraces = numTraces();
+        double tickUnit = numTraces > 0 ? numTraces / 10.0 : 1.0;
         xAxis.setTickUnit(tickUnit);
+
+        xAxis.setAutoRanging(false);
+        xAxis.setLowerBound(0);
+        xAxis.setUpperBound(Math.max(0, numTraces - 1));
 
         return xAxis;
     }
 
     private ValueAxis<Number> createYAxis(Plot plot) {
         SensorLineChartYAxis yAxis = new SensorLineChartYAxis(10);
-        yAxis.setLabel(plot.unit());
+        yAxis.setLabel(Strings.nullToEmpty(plot.getUnit()));
         yAxis.setSide(Side.RIGHT); // Y-axis on the right
         yAxis.setPrefWidth(70);
         yAxis.setMinorTickVisible(false);
 
-        Range valueRange = getValueRange(plot.data, plot.header);
-        yAxis.setLowerBound(valueRange.getMin().doubleValue());
-        yAxis.setUpperBound(valueRange.getMax().doubleValue());
+        Range yRange = plot.getDisplayRange();
+        yAxis.setAutoRanging(false);
+        yAxis.setLowerBound(yRange.getMin().doubleValue());
+        yAxis.setUpperBound(yRange.getMax().doubleValue());
 
         return yAxis;
     }
 
-    @Override
-    public void reload() {
-        // clear selection
-        clearSelectionMarker();
-        // clear flags and markers
-        clearFlags();
-        if (interactiveChart != null) {
-            interactiveChart.clearVerticalValueMarkers();
-        }
-
-        List<Plot> plots = generatePlots(file);
-        for (Plot plot : plots) {
-            LineChartWithMarkers lineChart = charts.get(plot.header());
-            if (lineChart == null) {
-				lineChart = createLineChart(plot);
-
-				if (lineChart == null) {
-					continue;
-				}
-            }
-
-            Range valueRange = getValueRange(plot.data, plot.header);
-
-            lineChart.outZoomRect = new ZoomRect(
-                    0, Math.max(0, plot.data.size() - 1),
-                    valueRange.getMin().doubleValue(), valueRange.getMax().doubleValue());
-            lineChart.plot = plot;
-            lineChart.filteredPlot = null;
-            // update zoom
-            lineChart.setZoomRect(lineChart.zoomRect);
-        }
-
-		// remove charts for headers that are no longer present
-		Set<String> currentHeaders = plots.stream()
-				.map(Plot::header)
-				.collect(Collectors.toSet());
-
-		for (Iterator<Map.Entry<String, LineChartWithMarkers>> it = charts.entrySet().iterator(); it.hasNext(); ) {
-			Map.Entry<String, LineChartWithMarkers> entry = it.next();
-			if (!currentHeaders.contains(entry.getKey())) {
-				LineChartWithMarkers chart = entry.getValue();
-				it.remove();
-				chartsContainer.getChildren().remove(chart);
-			}
-		}
-
-        // put new line markers and reposition flags
-        initLineMarkers();
-        initFlags();
-
-        // restore selection
-        TraceKey selectedTrace = model.getSelectedTrace(this);
-        if (selectedTrace != null) {
-            selectTrace(selectedTrace, false);
-        }
-
-        Platform.runLater(this::updateChartData);
-    }
-
-    public void updateChartName() {
-        String fileName = (file.isUnsaved() ? "*" : "") + file.getFile().getName();
-        chartName.setText(fileName);
-    }
-
-    public void updateXAxisUnits(TraceUnit traceUnit) {
-        for (LineChartWithMarkers chart : charts.values()) {
-            if (chart.getXAxis() instanceof SensorLineChartXAxis axisWithUnits) {
-                Platform.runLater(() -> axisWithUnits.setUnit(traceUnit));
-            }
-        }
-    }
-
-    private void putFoundPlace(FoundPlace fp) {
-        Data<Number, Number> verticalMarker = new Data<>(fp.getTraceIndex(), 0);
-
-        var color = javafx.scene.paint.Color.rgb(
-            fp.getFlagColor().getRed(),
-            fp.getFlagColor().getGreen(),
-            fp.getFlagColor().getBlue(),
-            fp.getFlagColor().getAlpha() / 255.0
-        );
-        Line line = new Line();
-        line.setStroke(color);
-        line.setStrokeWidth(0.8);
-        line.setTranslateY(46);
-
-        var flagMarker = createFlagMarker(color);
-        flagMarker.setTranslateX(0);
-        flagMarker.setTranslateY(28);
-
-        flagMarker.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
-            flagMarker.setCursor(Cursor.HAND);
-        });
-
-        flagMarker.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-            model.selectChart(this);
-            selectFlag(fp);
-            fp.mousePressHandle(new Point2D(event.getScreenX(), event.getScreenY()), this);
-            event.consume();
-        });
-
-        flagMarker.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
-            event.consume();
-        });
-
-        foundPlaces.put(fp, verticalMarker);
-        if (interactiveChart != null) {
-            interactiveChart.addVerticalValueMarker(
-                    verticalMarker,
-                    line,
-                    null,
-                    flagMarker,
-                    false);
-        }
-    }
-
-    public Range getVisibleXRange() {
-        String seriesName = getSelectedSeriesName();
-        LineChartWithMarkers selectedChart = charts.get(seriesName);
-        if (selectedChart == null) {
-            return new Range(0, 0);
-        }
-        ZoomRect zoomRect = selectedChart.zoomRect;
-        return new Range(zoomRect.xMin, zoomRect.xMax);
-    }
-
-    @Override
-    public int getVisibleNumberOfTrace() {
-        String seriesName = getSelectedSeriesName();
-        LineChartWithMarkers selectedChart = charts.get(seriesName);
-        if (selectedChart == null) {
-            return 0;
-        }
-        ZoomRect zoomRect = selectedChart.zoomRect;
-        return zoomRect.xMax.intValue() - zoomRect.xMin.intValue() + 1;
-    }
-
-    @Override
-    public int getTracesCount() {
-        String seriesName = getSelectedSeriesName();
-        LineChartWithMarkers selectedChart = charts.get(seriesName);
-        if (selectedChart == null) {
-            return 0;
-        }
-        ZoomRect zoomRect = selectedChart.outZoomRect;
-        return zoomRect.xMax.intValue() - zoomRect.xMin.intValue() + 1;
-    }
-
-    private List<Data<Number, Number>> getSamplesInRange(List<Number> data,
-            int lowerIndex, int upperIndex, int numSamples) {
-        int numValues = upperIndex - lowerIndex + 1;
-        int limit = Math.min(numValues, numSamples);
-
-        double step = Math.max(1, limit > 1 ? (double)(numValues - 1) / (limit - 1) : 1);
-        int hw = (int)(step / 2);
-
-        List<Data<Number, Number>> samples = new ArrayList<>(limit);
-        for (int k = 0; k < limit; k++) {
-            int i = lowerIndex + (int)Math.round(k * step);
-            if (data.get(i) == null) {
-                continue;
-            }
-            int line = getValueLineIndex(i);
-            double sum = 0.0;
-            int count = 0;
-            for (int j = i - hw; j <= i + hw; j++) {
-                if (j < 0 || j >= data.size()) {
-                    continue;
-                }
-                Number v = data.get(j);
-                if (v != null && getValueLineIndex(j) == line) {
-                    sum += v.doubleValue();
-                    count++;
-                }
-            }
-            if (count > 0) {
-                samples.add(new Data<>(i, sum / count));
-            }
-        }
-        return samples;
-    }
-
-    private void setSeriesData(Series<Number, Number> series,
-                               Plot plot, int lowerIndex, int upperIndex) {
-
-        XYChart<Number, Number> chart = series.getChart();
-        Axis<Number> xAxis = chart != null ? chart.getXAxis() : null;
-        int numSamples = xAxis != null
-                ? Math.min((int) xAxis.getLayoutBounds().getWidth(), MAX_VIEW_SAMPLES)
-                : DEFAULT_VIEW_SAMPLES;
-
-        List<Data<Number, Number>> samples = plot != null
-                ? getSamplesInRange(plot.data, lowerIndex, upperIndex, numSamples)
-                : List.of();
-
-        // clear current points
-        if (chart != null) {
-            chart.setAnimated(false);
-        }
-        series.getData().clear();
-
-        if (samples.isEmpty()) {
-            series.getData().add(new Data<>(0, 0));
-        } else {
-            series.getData().addAll(samples);
-        }
-
-        if (chart != null) {
-            chart.setAnimated(true);
-        }
-    }
-
-    @Override
-    public int getSelectedLineIndex() {
-        if (selectionMarker != null) {
-            int selectedIndex = selectionMarker.getXValue().intValue();
-            if (isValueVisible(selectedIndex)) {
-                return getValueLineIndex(selectedIndex);
-            }
-        }
-        return getViewLineIndex();
-    }
-
-    private boolean isValueVisible(int index) {
-        String seriesName = getSelectedSeriesName();
-        LineChartWithMarkers selectedChart = charts.get(seriesName);
-        if (selectedChart != null) {
-            ValueAxis<Number> xAxis = (ValueAxis<Number>) selectedChart.getXAxis();
-            return index >= xAxis.getLowerBound() && index <= xAxis.getUpperBound();
-        }
-        return false;
-    }
-
-    public int getValueLineIndex(int index) {
-        List<GeoData> values = file.getGeoData();
-        if (values == null || values.isEmpty()) {
-            return 0;
-        }
-        // correct out of range values to point to the first or last trace
-        index = Math.max(0, Math.min(index, values.size() - 1));
-        return values.get(index).getLineOrDefault(0);
-    }
-
-    public int getViewLineIndex() {
-        String seriesName = getSelectedSeriesName();
-        LineChartWithMarkers selectedChart = charts.get(seriesName);
-        if (selectedChart != null) {
-            ValueAxis<Number> xAxis = (ValueAxis<Number>) selectedChart.getXAxis();
-            int xCenter = (int) (0.5 * (xAxis.getLowerBound() + xAxis.getUpperBound()));
-            return getValueLineIndex(xCenter);
-        }
-        // default: first range key or 0
-        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
-        return !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
-    }
-
-    private void updateProfileScroll() {
-        String seriesName = getSelectedSeriesName();
-        LineChartWithMarkers chart = charts.get(seriesName);
-        // fallback to interactive chart when nothing selected
-        if (chart == null) {
-            chart = interactiveChart;
-        }
-        if (chart == null) {
-            return;
-        }
-
-        ZoomRect zoomRect = chart.zoomRect;
-        int xMin = zoomRect.xMin.intValue();
-        int xMax = zoomRect.xMax.intValue();
-
-        // num  visible traces
-        int numTraces = xMax - xMin + 1;
-        setMiddleTrace(xMin + numTraces / 2);
-
-        // hScale = scroll width / num visible traces
-        // aspect ratio = hScale / vScale
-        double hScale = getProfileScroll().getWidth() / numTraces;
-        double aspectRatio = hScale / getVScale();
-        setRealAspect(aspectRatio);
-
-        // update scroll view
-        getProfileScroll().recalc();
-    }
-
-    private void zoomToProfileScroll() {
-        // num visible traces = scroll width / hscale
-        int numTraces = (int)(getProfileScroll().getWidth() / getHScale());
-        int numTracesTotal = getTracesCount();
-
-        int middle = getMiddleTrace();
-        int w = numTraces / 2;
-
-        // adjust visible range to the
-        // full range bounds
-        if (middle - w < 0) {
-            middle = w;
-        }
-        if (middle + w >= numTracesTotal) {
-            middle = numTracesTotal - w - 1;
-        }
-
-        Range range = new Range(middle - w, middle + w);
-        for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.createZoomRectForXRange(range, true);
-            chart.setZoomRect(zoomRect);
-        }
-    }
-
-    private void zoomToLine(int lineIndex) {
-        Range range = file.getLineRanges().get(lineIndex);
-        for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.createZoomRectForXRange(range);
-            chart.setZoomRect(zoomRect);
-        }
-    }
-
-    @Override
-    public void zoomToCurrentLine() {
-        int lineIndex = getSelectedLineIndex();
-        zoomToLine(lineIndex);
-        updateOnZoom(false);
-    }
-
-    @Override
-    public void zoomToPreviousLine() {
-        int lineIndex = getViewLineIndex();
-        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
-        int firstLineIndex = !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
-        zoomToLine(Math.max(lineIndex - 1, firstLineIndex));
-        updateOnZoom(false);
-    }
-
-    @Override
-    public void zoomToNextLine() {
-        int lineIndex = getViewLineIndex();
-        SortedMap<Integer, Range> lineRanges = file.getLineRanges();
-        int lastLineIndex = !lineRanges.isEmpty() ? lineRanges.lastKey() : 0;
-        zoomToLine(Math.min(lineIndex + 1, lastLineIndex));
-        updateOnZoom(false);
-    }
-
-    /**
-     * Zoom to full range
-     */
-    @Override
-    public void zoomToFit() {
-        for (LineChartWithMarkers chart : charts.values()) {
-            chart.resetZoomRect();
-        }
-        updateOnZoom(false);
-    }
-
-    @Override
-    public void zoomIn() {
-        double scale = 1.0 / ZOOM_STEP;
-        zoom(scale, 1.0, null);
-        updateOnZoom(false);
-    }
-
-    @Override
-    public void zoomOut() {
-        double scale = ZOOM_STEP;
-        zoom(scale, 1.0, null);
-        updateOnZoom(false);
-    }
-
-    private void zoomToArea(Point2D start, Point2D end) {
-        for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.createZoomRectForArea(start, end);
-            chart.setZoomRect(zoomRect);
-        }
-    }
-
-    private void zoom(double scaleX, double scaleY, Point2D scaleCenter) {
-        for (LineChartWithMarkers chart : charts.values()) {
-            ZoomRect zoomRect = chart.scaleZoomRect(chart.zoomRect, scaleX, scaleY, scaleCenter);
-            chart.setZoomRect(zoomRect);
-        }
-    }
-
-    private void updateOnZoom(boolean delayed) {
-        updateProfileScroll();
-        model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
-
-        if (delayed) {
-            scheduleUpdate(() -> {
-                Platform.runLater(this::updateChartData);
-            }, 300);
-        } else {
-            Platform.runLater(this::updateChartData);
-        }
-    }
-
-    private void updateChartData() {
-        for (LineChartWithMarkers chart : charts.values()) {
-            chart.updateLineChartData();
-        }
-    }
-
-    /**
-     * Close chart
-     */
-    private void close() {
-        if (!confirmUnsavedChanges()) {
-            return;
-        }
-        close(true);
-    }
-
-    /**
-     * Close chart
-     * @param removeFromModel
-     */
-    public void close(boolean removeFromModel) {
-        if (root.getParent() instanceof VBox) {
-            // hide profile scroll
-            if (getProfileScroll() != null) {
-                getProfileScroll().setVisible(false);
-            }
-            // remove charts
-            VBox parent = (VBox) root.getParent();
-            parent.getChildren().remove(root);
-
-            if (removeFromModel) {
-                // remove files and traces from map
-                model.publishEvent(new FileClosedEvent(this, file));
-            }
-        }
-    }
+    // chart event handlers
 
     private void setSelectionRectFromDragBounds(DragBounds bounds) {
         selectionRect.setX(bounds.getMinX());
@@ -892,25 +342,307 @@ public class SensorLineChart extends Chart {
             double endX = startX + selectionRect.getWidth();
             double endY = startY + selectionRect.getHeight();
 
-            zoomToArea(new Point2D(startX, startY), new Point2D(endX, endY));
-            updateOnZoom(false);
+            // y-axis is reversed in a zoom space
+            Point2D zoomStart = chart.normalizeToBounds(new Point2D(startX, endY));
+            Point2D zoomEnd = chart.normalizeToBounds(new Point2D(endX, startY));
+            Viewport selected = new Viewport(zoomStart.getX(), zoomEnd.getX(), zoomStart.getY(), zoomEnd.getY());
+            setViewport(viewport.fit(selected), false);
         });
     }
 
     private void setScrollHandlers(LineChartWithMarkers chart) {
         chart.setOnScroll((ScrollEvent event) -> {
-            Point2D scaleCenter = new Point2D(event.getX(), event.getY());
             boolean scaleY = !event.isControlDown();
             double scaleFactor = 1.1;
             if (event.getDeltaY() > 0) {
                 scaleFactor = 1 / scaleFactor;
             }
 
-            zoom(scaleFactor, scaleY ? scaleFactor : 1, scaleCenter);
-            updateOnZoom(true);
+            Point2D scaleCenter = chart.normalizeToBounds(
+                    new Point2D(event.getX(), event.getY()));
+            Viewport scaled = viewport.scale(
+                    scaleFactor,
+                    scaleY ? scaleFactor : 1,
+                    scaleCenter.getX(),
+                    scaleCenter.getY());
+            setViewport(scaled, true);
 
             event.consume(); // don't scroll parent pane
         });
+    }
+
+    private void setClickHandlers(LineChartWithMarkers chart) {
+        chart.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                Axis<Number> xAxis = chart.getXAxis();
+                Point2D point = xAxis.screenToLocal(event.getScreenX(), event.getScreenY());
+                Number xValue = xAxis.getValueForDisplay(point.getX());
+
+                int traceIndex = xValue.intValue();
+                if (traceIndex >= 0 && traceIndex < file.numTraces()) {
+                    TraceKey trace = new TraceKey(file, traceIndex);
+                    model.selectTrace(trace);
+                    model.focusMapOnTrace(trace);
+                }
+                event.consume();
+            }
+        });
+    }
+
+    @Override
+    public CsvFile getFile() {
+        return file;
+    }
+
+    @Override
+    public VBox getRootNode() {
+        return root;
+    }
+
+    public Set<String> getSeriesNames() {
+        return Collections.unmodifiableSet(charts.keySet());
+    }
+
+    public @Nullable String getSelectedSeriesName() {
+        return selectedSeriesName;
+    }
+
+    private @Nullable LineChartWithMarkers getChart(@Nullable String seriesName) {
+        // search chart by series name (excluding line markers)
+        if (seriesName == null || seriesName.equals(lineSeriesName)) {
+            return null;
+        }
+        return charts.get(seriesName);
+    }
+
+    private @Nullable LineChartWithMarkers getSelectedChart() {
+        return selectedSeriesName != null ? charts.get(selectedSeriesName) : null;
+    }
+
+    public double getSeriesMinValue() {
+        LineChartWithMarkers selectedChart = getSelectedChart();
+        return selectedChart != null ? selectedChart.plot.getDataRange().getMin().doubleValue() : 0.0;
+    }
+
+    public double getSeriesMaxValue() {
+        LineChartWithMarkers selectedChart = getSelectedChart();
+        return selectedChart != null ? selectedChart.plot.getDataRange().getMax().doubleValue() : 0.0;
+    }
+
+    @Override
+    public int numTraces() {
+        return file.getGeoData().size();
+    }
+
+    @Override
+    public int numVisibleTraces() {
+        return getVisibleRange().size();
+    }
+
+    public IndexRange getVisibleRange() {
+        int numTraces = numTraces();
+        if (numTraces == 0) {
+            return new IndexRange(0, 0);
+        }
+
+        int xWidth = numTraces - 1;
+        int xMin = (int)Math.ceil(viewport.xMin() * xWidth);
+        int xMax = (int)Math.floor(viewport.xMax() * xWidth);
+        xMin = Math.clamp(xMin, 0, xWidth);
+        xMax = Math.clamp(xMax, xMin, xWidth);
+
+        return new IndexRange(xMin, xMax + 1);
+    }
+
+    private boolean isValueVisible(int index) {
+        return getVisibleRange().contains(index);
+    }
+
+    public int getValueLineIndex(int index) {
+        List<GeoData> values = file.getGeoData();
+        if (values.isEmpty()) {
+            return 0;
+        }
+        // correct out of range values to point to the first or last trace
+        index = Math.max(0, Math.min(index, values.size() - 1));
+        return values.get(index).getLineOrDefault(0);
+    }
+
+    public int getViewLineIndex() {
+        LineChartWithMarkers selectedChart = getSelectedChart();
+        if (selectedChart != null) {
+            ValueAxis<Number> xAxis = (ValueAxis<Number>) selectedChart.getXAxis();
+            int xCenter = (int) (0.5 * (xAxis.getLowerBound() + xAxis.getUpperBound()));
+            return getValueLineIndex(xCenter);
+        }
+        // default: first range key or 0
+        NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
+        return !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
+    }
+
+    @Override
+    public int getSelectedLineIndex() {
+        if (selectionMarker != null) {
+            int selectedIndex = selectionMarker.getXValue().intValue();
+            if (isValueVisible(selectedIndex)) {
+                return getValueLineIndex(selectedIndex);
+            }
+        }
+        return getViewLineIndex();
+    }
+
+    // updates
+
+    @Override
+    public void selectFile() {
+        model.publishEvent(new FileSelectedEvent(this, file));
+    }
+
+    public void selectChart(@Nullable String seriesName) {
+        if (Objects.equals(seriesName, selectedSeriesName)) {
+            return;
+        }
+        // clear current selection
+        LineChartWithMarkers selectedChart = charts.get(selectedSeriesName);
+        if (selectedChart != null) {
+            selectedChart.setSelected(false);
+        }
+        selectedSeriesName = null;
+        // select chart
+        if (seriesName != null) {
+            LineChartWithMarkers chart = charts.get(seriesName);
+            if (chart != null) {
+                chart.setSelected(true);
+                selectedSeriesName = seriesName;
+            }
+        }
+        if (model.isChartSelected(this)) {
+            selectFile();
+        }
+    }
+
+    public void showChart(String seriesName, boolean show) {
+        LineChartWithMarkers chart = charts.get(seriesName);
+        if (chart != null) {
+            chart.setSeriesVisible(show);
+        }
+    }
+
+    public void updateChartName() {
+        File source = file.getFile();
+        String fileName = (file.isUnsaved() ? "*" : "")
+                + (source != null ? source.getName() : "Noname");
+        chartName.setText(fileName);
+    }
+
+    private void updateCharts() {
+        for (LineChartWithMarkers chart : charts.values()) {
+            chart.updateData();
+        }
+    }
+
+    public void updateXAxisUnits(TraceUnit traceUnit) {
+        if (interactiveChart.getXAxis() instanceof SensorLineChartXAxis axisWithUnits) {
+            Platform.runLater(() -> axisWithUnits.setUnit(traceUnit));
+        }
+    }
+
+    @Override
+    public void reload() {
+        // clear selection
+        clearSelectionMarker();
+        // clear flags and markers
+        clearFlags();
+        interactiveChart.clearMarkers();
+
+        ColumnSchema schema = GeoData.getSchema(file.getGeoData());
+        Set<String> displayHeaders = schema != null
+                ? schema.getDisplayHeaders()
+                : Set.of();
+        for (String seriesName : displayHeaders) {
+            Plot plot = createPlot(seriesName, file.getGeoData());
+            LineChartWithMarkers chart = charts.get(seriesName);
+            if (chart == null) {
+                chart = createChart(plot);
+            } else {
+                chart.setPlot(plot);
+            }
+        }
+
+        Set<String> seriesToRemove = new HashSet<>(charts.keySet());
+        seriesToRemove.removeAll(displayHeaders);
+        seriesToRemove.forEach(this::removeFileColumn);
+
+        // update interactive chart
+        interactiveChart.setPlot(createEmptyPlot(Strings.empty(), numTraces()));
+
+        // put new line markers and reposition flags
+        initRemoveLineMarkers();
+        initFlagMarkers();
+
+        // restore selection
+        TraceKey selectedTrace = model.getSelectedTrace(this);
+        if (selectedTrace != null) {
+            selectTrace(selectedTrace, false);
+        }
+
+        applyViewport(false);
+    }
+
+    private void close() {
+        if (!confirmUnsavedChanges()) {
+            return;
+        }
+        close(true);
+    }
+
+    public void close(boolean removeFromModel) {
+        if (root.getParent() instanceof VBox parent) {
+            // hide profile scroll
+            getProfileScroll().setVisible(false);
+            // remove charts
+            parent.getChildren().remove(root);
+            if (removeFromModel) {
+                // remove files and traces from map
+                model.publishEvent(new FileClosedEvent(this, file));
+            }
+        }
+    }
+
+    // zoom
+
+    private void setViewport(Viewport viewport, boolean delayUpdate) {
+        int lineIndexBefore = getSelectedLineIndex();
+
+        this.viewport = viewport;
+        applyViewport(delayUpdate);
+
+        int lineIndexAfter = getSelectedLineIndex();
+        if (lineIndexBefore != lineIndexAfter) {
+            // request redraw on selected line index update
+            model.publishEvent(new WhatChanged(SensorLineChart.this, WhatChanged.Change.justdraw));
+        }
+    }
+
+    private void applyViewport(boolean delayUpdate) {
+        // update scroll control
+        updateProfileScroll();
+
+        // zoom all charts to viewport
+        interactiveChart.zoomTo(viewport);
+        for (LineChartWithMarkers chart : charts.values()) {
+            chart.zoomTo(viewport);
+        }
+
+        // update charts
+        if (delayUpdate) {
+            scheduleUpdate(() -> Platform.runLater(this::updateCharts), 300);
+        } else {
+            Platform.runLater(this::updateCharts);
+        }
+
+        // raise scroll event
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
     }
 
     private void scheduleUpdate(Runnable update, long delayMillis) {
@@ -920,311 +652,510 @@ public class SensorLineChart extends Chart {
         updateTask = scheduler.schedule(update, delayMillis, TimeUnit.MILLISECONDS);
     }
 
-    /**
-     * Remove vertical marker 
-     */
+    private void updateProfileScroll() {
+        IndexRange range = getVisibleRange();
+
+        // num visible traces
+        int numVisibleTraces = range.size();
+        setMiddleTrace(range.from() + numVisibleTraces / 2);
+
+        // hScale = scroll width / num visible traces
+        // aspect ratio = hScale / vScale
+        double hScale = getProfileScroll().getWidth()
+                / (numVisibleTraces != 0 ? numVisibleTraces : 1);
+        double aspectRatio = hScale / getVScale();
+        setRealAspect(aspectRatio);
+
+        // update scroll view
+        getProfileScroll().recalc();
+    }
+
+    private void zoomToProfileScroll() {
+        // num visible traces = scroll width / hscale
+        int numVisibleTraces = (int)(getProfileScroll().getWidth() / getHScale());
+        int numTraces = numTraces();
+
+        int middle = getMiddleTrace();
+        int w = numVisibleTraces / 2;
+
+        // adjust visible range to the full range bounds
+        middle = Math.max(middle, w);
+        middle = Math.min(middle, numTraces - w - 1);
+        // x-axis width for a full scale
+        int xWidth = numTraces > 0 ? numTraces - 1 : 0;
+        Viewport scrolled = new Viewport(
+                xWidth > 0 ? (double)(middle - w) / xWidth : 0,
+                xWidth > 0 ? (double)(middle + w) / xWidth : 0,
+                viewport.yMin(),
+                viewport.yMax()
+        );
+        setViewport(scrolled, true);
+    }
+
+    private void zoomToLine(int lineIndex) {
+        IndexRange range = file.getLineRanges().get(lineIndex);
+        int numTraces = numTraces();
+        Viewport lineViewport = new Viewport(
+                (double)range.from() / numTraces,
+                (double)range.to() / numTraces,
+                0,
+                1);
+        setViewport(lineViewport, false);
+    }
+
+    @Override
+    public void zoomToCurrentLine() {
+        int lineIndex = getSelectedLineIndex();
+        zoomToLine(lineIndex);
+    }
+
+    @Override
+    public void zoomToPreviousLine() {
+        int lineIndex = getViewLineIndex();
+        NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
+        int firstLineIndex = !lineRanges.isEmpty() ? lineRanges.firstKey() : 0;
+        zoomToLine(Math.max(lineIndex - 1, firstLineIndex));
+    }
+
+    @Override
+    public void zoomToNextLine() {
+        int lineIndex = getViewLineIndex();
+        NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
+        int lastLineIndex = !lineRanges.isEmpty() ? lineRanges.lastKey() : 0;
+        zoomToLine(Math.min(lineIndex + 1, lastLineIndex));
+    }
+
+    @Override
+    public void zoomToFit() {
+        Viewport full = new Viewport(0, 1, 0, 1);
+        setViewport(full, false);
+    }
+
+    @Override
+    public void zoomIn() {
+        Viewport scaled = viewport.scale(1.0 / ZOOM_STEP, 1.0);
+        setViewport(scaled, false);
+    }
+
+    @Override
+    public void zoomOut() {
+        Viewport scaled = viewport.scale(ZOOM_STEP, 1.0);
+        setViewport(scaled, false);
+    }
+
+    // markers
+
+    @Override
+    public void selectTrace(@Nullable TraceKey trace, boolean focus) {
+        if (trace == null) {
+            // clear selection
+            clearSelectionMarker();
+            return;
+        }
+
+        int traceIndex = trace.getIndex();
+        int numTraces = numTraces();
+        if (traceIndex < 0 || traceIndex >= numTraces) {
+            log.error("Selected trace index {} is out of range: {}", traceIndex, numTraces);
+            return;
+        }
+
+        double x = numTraces > 0 ? (double)traceIndex / numTraces : 0;
+        if (x < viewport.xMin() || x > viewport.xMax()) {
+            setViewport(viewport.moveToX(x), false);
+        }
+        createSelectionMarker(traceIndex);
+    }
+
+    public void createSelectionMarker(int traceIndex) {
+        if (selectionMarker != null) {
+            interactiveChart.removeMarker(selectionMarker);
+        }
+        selectionMarker = new Data<>(traceIndex, 0);
+        interactiveChart.addMarker(selectionMarker);
+    }
+
     public void clearSelectionMarker() {
-        if (interactiveChart != null && selectionMarker != null) {
-            interactiveChart.removeVerticalValueMarker(selectionMarker);
+        if (selectionMarker != null) {
+            interactiveChart.removeMarker(selectionMarker);
             selectionMarker = null;
         }
     }
 
-    /**
-     * Add vertical marker
-     * @param x
-     */
-    public void putSelectionMarker(int x) {
-        if (interactiveChart != null) {
-            if (selectionMarker != null) {
-                interactiveChart.removeVerticalValueMarker(selectionMarker);
+    private void initRemoveLineMarkers() {
+        file.getLineRanges().forEach((lineIndex, lineRange) -> {
+            createRemoveLineMarker(lineIndex, lineRange.from());
+        });
+    }
+
+    private void createRemoveLineMarker(int lineIndex, int traceIndex) {
+        Data<Number, Number> removeLineMarker = new Data<>(traceIndex, 0);
+
+        Line line = new Line();
+        line.setStroke(LINE_COLOR);
+        line.setStrokeWidth(0.8);
+
+        Pane icon = createRemoveLineIcon(lineIndex);
+
+        interactiveChart.addMarker(
+                removeLineMarker,
+                line,
+                null,
+                icon,
+                false);
+    }
+
+    private Pane createRemoveLineIcon(int lineIndex) {
+        Tooltip tooltip = new Tooltip("Remove Line " + lineIndex);
+        ImageView imageView = ResourceImageHolder.getImageView("closeFile.png");
+        Tooltip.install(imageView, tooltip);
+
+        imageView.setPickOnBounds(true);
+        imageView.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
+            imageView.setCursor(Cursor.HAND);
+        });
+        imageView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+            removeLine(lineIndex);
+        });
+
+        imageView.setTranslateX(1);
+        imageView.setTranslateY(1);
+
+        return new Pane(imageView);
+    }
+
+    private void removeLine(int lineIndex) {
+        // if target line is last in a file, close the file
+        if (file.getLineRanges().size() == 1) {
+            close();
+        } else {
+            TraceTransform traceTransform = AppContext.getInstance(TraceTransform.class);
+            traceTransform.removeLine(file, lineIndex);
+        }
+    }
+
+    private void initFlagMarkers() {
+        file.getAuxElements().forEach(it -> {
+            if (it instanceof FoundPlace flag) {
+                createFlagMarker(flag);
             }
-            selectionMarker = new Data<>(x, 0);
-            interactiveChart.addVerticalValueMarker(selectionMarker);
+        });
+    }
+
+    private void createFlagMarker(FoundPlace flag) {
+        Data<Number, Number> flagMarker = new Data<>(flag.getTraceIndex(), 0);
+
+        Line line = new Line();
+        line.setStroke(Views.fxColor(flag.getFlagColor()));
+        line.setStrokeWidth(0.8);
+        line.setTranslateY(46);
+
+        Pane flagIcon = createFlagIcon(flag);
+        flagIcon.setTranslateY(28);
+
+        interactiveChart.addMarker(
+                flagMarker,
+                line,
+                null,
+                flagIcon,
+                false);
+
+        flagMarkers.put(flag, flagMarker);
+    }
+
+    private Pane createFlagIcon(FoundPlace flag) {
+        Line flagPole = new Line(0, 0, 0, 18);
+        flagPole.setStroke(Color.BLACK);
+        flagPole.setStrokeWidth(0.8);
+
+        Polygon flagCloth = new Polygon();
+        flagCloth.getPoints().addAll(0.0, 0.0,
+                15.0, 0.0,
+                10.0, 5.0,
+                15.0, 10.0,
+                0.0, 10.0);
+        flagCloth.setFill(Views.fxColor(flag.getFlagColor()));
+        flagCloth.setStroke(Color.BLACK);
+        flagCloth.setStrokeWidth(0.8);
+
+        Pane flagIcon = new Pane();
+        flagIcon.getChildren().addAll(flagPole, flagCloth);
+
+        flagIcon.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
+            flagIcon.setCursor(Cursor.HAND);
+        });
+        flagIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+            model.selectChart(this);
+            selectFlag(flag);
+            flag.mousePressHandle(new Point2D(event.getScreenX(), event.getScreenY()), this);
+            event.consume();
+        });
+        flagIcon.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
+            event.consume();
+        });
+
+        return flagIcon;
+    }
+
+    @Override
+    public List<FoundPlace> getFlags() {
+        return new ArrayList<>(flagMarkers.keySet());
+    }
+
+    @Override
+    public void selectFlag(@Nullable FoundPlace flag) {
+        flagMarkers.keySet().forEach(f -> {
+            var markerBox = (Pane) flagMarkers.get(f).getNode();
+            Line l = (Line) markerBox.getChildren().get(1);
+            l.setStrokeType(StrokeType.CENTERED);
+            var fm = (Pane) ((Pane) markerBox.getChildren().getFirst()).getChildren().getFirst();
+            fm.getChildren().stream().filter(ch -> ch instanceof Shape).forEach(
+                    ch -> ((Shape) ch).setStrokeType(StrokeType.CENTERED)
+            );
+            f.setSelected(false);
+        });
+
+        // null -> clear selection
+        if (flag != null) {
+            var markerBox = (Pane) flagMarkers.get(flag).getNode();
+            Line l = (Line) markerBox.getChildren().get(1);
+            l.setStrokeType(StrokeType.OUTSIDE);
+            var fm = (Pane) ((Pane) markerBox.getChildren().getFirst()).getChildren().getFirst();
+            fm.getChildren().stream().filter(ch -> ch instanceof Shape).forEach(
+                    ch -> ((Shape) ch).setStrokeType(StrokeType.OUTSIDE)
+            );
+            flag.setSelected(true);
         }
     }
 
-    public double getSeriesMinValue() {
-        return seriesMinValues.getOrDefault(getSelectedSeriesName(), 0.0);
-    }
-
-    public double getSeriesMaxValue() {
-        return seriesMaxValues.getOrDefault(getSelectedSeriesName(), 0.0);
-    }
-
-    private double getScaleFactor(double value) {
-        int base = (int)Math.clamp(Math.floor(Math.log10(Math.abs(value))), 0, 3);
-        return Math.pow(10, base);
-    }
-
-    private Range getValueRange(List<Number> data, String header) {
-        Double min = null;
-        Double max = null;
-        for (Number value : data) {
-            if (value == null) {
-                continue;
+    @Override
+    public void addFlag(FoundPlace flag) {
+        if (!flagMarkers.containsKey(flag)) {
+            createFlagMarker(flag);
+            clearSelectionMarker();
+            if (flag.isSelected()) {
+                selectFlag(flag);
             }
-            double unboxed = value.doubleValue();
-            if (min == null || unboxed < min) {
-                min = unboxed;
-            }
-            if (max == null || unboxed > max) {
-                max = unboxed;
-            }
         }
-        if (min == null) {
-            min = 0.0;
-        }
-        if (max == null) {
-            max = 0.0;
-        }
-
-        seriesMinValues.put(header, min);
-        seriesMaxValues.put(header, max);
-
-        // get scale factor and align min max to it
-        double f = Math.max(getScaleFactor(min), getScaleFactor(max));
-        double minAligned = f * Math.floor(min / f);
-        double maxAligned = f * Math.ceil(max / f);
-        if (Math.abs(maxAligned - minAligned) < 1e-6) {
-            minAligned -= f;
-            maxAligned += f;
-        }
-
-        return new Range(minAligned, maxAligned);
     }
 
-    public void selectChart(@Nullable String seriesName) {
-        if (Objects.equals(seriesName, selectedSeriesName)) {
+    @Override
+    public void removeFlag(FoundPlace flag) {
+        Data<Number, Number> flagMarker = flagMarkers.remove(flag);
+        if (flagMarker != null) {
+            interactiveChart.removeMarker(flagMarker);
+        }
+    }
+
+    @Override
+    public void clearFlags() {
+        for (Data<Number, Number> flagMarker : flagMarkers.values()) {
+            interactiveChart.removeMarker(flagMarker);
+        }
+        flagMarkers.clear();
+    }
+
+    // filters
+
+    public void applyFilter(SequenceFilter filter, String seriesName, String filteredSeriesSuffix) {
+        Check.notNull(filter);
+        if (Strings.isNullOrEmpty(seriesName)) {
             return;
         }
-        // clear current selection
-        LineChartWithMarkers selectedChart = charts.get(selectedSeriesName);
-        showChartAxes(selectedChart, false);
-        selectedSeriesName = null;
-        // select chart
-        if (seriesName != null) {
-            LineChartWithMarkers chart = charts.get(seriesName);
-            if (chart != null) {
-                showChartAxes(chart, true);
-                selectedSeriesName = seriesName;
-            }
+        filteredSeriesSuffix = Strings.nullToEmpty(filteredSeriesSuffix);
+        if (seriesName.endsWith(filteredSeriesSuffix)) {
+            seriesName = seriesName.substring(0, seriesName.length() - filteredSeriesSuffix.length());
         }
-        if (model.isChartSelected(this)) {
-            selectFile();
-        }
-    }
+        String filteredSeriesName = seriesName + filteredSeriesSuffix;
 
-    private void showChartAxes(@Nullable LineChartWithMarkers chart, boolean show) {
+        LineChartWithMarkers chart = getChart(seriesName);
         if (chart == null) {
+            String errorMessage = "Cannot apply filter to %s.".formatted(seriesName);
+            MessageBoxHelper.showError(errorMessage, "");
             return;
         }
 
-        chart.setVerticalGridLinesVisible(show);
-        chart.setHorizontalGridLinesVisible(show);
-        chart.setHorizontalZeroLineVisible(show);
-        chart.setVerticalZeroLineVisible(show);
+        List<@Nullable Number> values = chart.plot.data;
+        List<@Nullable Number> filtered = new ArrayList<>(values.size());
+        for (IndexRange range : file.getLineRanges().values()) {
+            List<@Nullable Number> rangeValues = values.subList(range.from(), range.to());
+            try {
+                rangeValues = filter.apply(rangeValues);
+            } catch (Exception e) {
+                log.error("Filter error", e);
+            }
 
-        chart.getYAxis().setOpacity(show ? 1 : 0);
-    }
-
-    public void showChart(String seriesName, boolean show) {
-        showChart(charts.get(seriesName), show);
-    }
-
-    public void showChart(@Nullable LineChartWithMarkers chart, boolean show) {
-        if (chart == null) {
-            return;
+            // put all back
+            filtered.addAll(rangeValues);
         }
 
-        for (Series<Number, Number> series : chart.getData()) {
-            series.getNode().setVisible(show);
+        createFileColumn(filteredSeriesName, seriesName);
+        setFileColumnValues(filteredSeriesName, filtered);
+
+        Platform.runLater(() -> {
+            LineChartWithMarkers filteredChart = charts.get(filteredSeriesName);
+            if (filteredChart == null) {
+                Plot plot = createPlot(filteredSeriesName, file.getGeoData());
+                filteredChart = createChart(plot);
+            }
+            model.publishEvent(new SeriesUpdatedEvent(this, file,
+                    filteredSeriesName, true, true));
+            filteredChart.updateData();
+        });
+    }
+
+    private void createFileColumn(String header, @Nullable String protoHeader) {
+        List<GeoData> values = file.getGeoData();
+        Column column = GeoData.addColumn(values, header);
+        if (column != null) {
+            column.setDisplay(true);
+            if (protoHeader != null) {
+                Column proto = GeoData.getColumn(values, protoHeader);
+                if (proto != null) {
+                    column.setSemantic(proto.getSemantic());
+                    column.setUnit(proto.getUnit());
+                }
+            }
+            file.setUnsaved(true);
+            Platform.runLater(this::updateChartName);
+            model.publishEvent(new FileUpdatedEvent(this, file));
         }
     }
 
-    // Apply color to data series
-    private void setStyleForSeries(Series<Number, Number> series, String plotStyle) {
-        //String colorString = getColorString(color);
-        //System.out.println("Color: " + colorString);
-        // Apply style to series
-        series.getNode().lookup(".chart-series-line").setStyle(plotStyle);
-        //.setStyle("-fx-stroke: " + colorString + ";" + "-fx-stroke-width: 0.6px;");
+    public void removeFileColumn(String header) {
+        List<GeoData> values = file.getGeoData();
+        if (GeoData.removeColumn(values, header) != null) {
+            file.setUnsaved(true);
+            Platform.runLater(this::updateChartName);
+            model.publishEvent(new FileUpdatedEvent(this, file));
+        };
+        removeChart(header);
     }
 
-    private record ZoomRect(Number xMin, Number xMax, Number yMin, Number yMax) {}
+    private void setFileColumnValues(String header, List<@Nullable Number> data) {
+        List<GeoData> values = file.getGeoData();
+        for (int i = 0; i < data.size(); i++) {
+            values.get(i).setValue(header, data.get(i));
+        }
+        file.setUnsaved(true);
+        Platform.runLater(this::updateChartName);
+    }
 
-    /**
-     * Line chart with markers
-     */
-    private class LineChartWithMarkers extends LineChart<Number, Number> {
+    public void applyTimeLag(String seriesName, int shift) {
+        TimeLagFilter filter = new TimeLagFilter(shift);
+        applyFilter(filter, seriesName, "_LAG");
+    }
 
-        private final ObservableList<Data<Number, Number>> horizontalMarkers;
-        private final ObservableList<Data<Number, Number>> verticalMarkers;
-        //private final List<Data<Number, Number>> buttonMarkers;
-        //private final List<Data<Number, Number>> flagMarkers;
+    public void applyLowPass(String seriesName, int order) {
+        LowPassFilter filter = new LowPassFilter(order);
+        applyFilter(filter, seriesName, "_LPF");
+    }
 
-        private ZoomRect outZoomRect;
-        private ZoomRect zoomRect;
+    public void applyRunningMedian(String seriesName, int window) {
+        MedianCorrectionFilter filter = new MedianCorrectionFilter(window);
+        applyFilter(filter, seriesName, "_RM");
+    }
+
+    // chart
+
+    class LineChartWithMarkers extends LineChart<Number, Number> {
+
+        private static final int DEFAULT_VIEW_SAMPLES = 500;
+
+        private static final int MIN_VIEW_SAMPLES = 200;
+
+        private static final int MAX_VIEW_SAMPLES = 1000;
 
         private Plot plot;
-        private Plot filteredPlot;
 
-        private FilterOptions filterOptions = new FilterOptions();
+        private final Series<Number, Number> series;
 
-        public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, ZoomRect outZoomRect, Plot plot) {
+        private final ObservableList<Data<Number, Number>> markers;
+
+        public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, Plot plot) {
             super(xAxis, yAxis);
 
-            this.outZoomRect = outZoomRect;
-
-            horizontalMarkers = FXCollections.observableArrayList(data -> new Observable[] {data.YValueProperty()});
-            horizontalMarkers.addListener((InvalidationListener)observable -> layoutPlotChildren());
-            verticalMarkers = FXCollections.observableArrayList(data -> new Observable[] {data.XValueProperty()});
-            verticalMarkers.addListener((InvalidationListener)observable -> layoutPlotChildren());
-
             this.plot = plot;
+
+            series = new Series<>();
+            getData().add(series);
+
+            markers = FXCollections.observableArrayList(data -> new Observable[] {data.XValueProperty()});
+            markers.addListener((InvalidationListener) observable -> layoutPlotChildren());
+
+            initView();
         }
 
-        public void rescaleY() {
-            Range oldYRange = new Range(outZoomRect.yMin, outZoomRect.yMax);
-            Range newYRange = getValueRange(plot.data, plot.header);
+        private void initView() {
+            setLegendVisible(false); // Hide legend
+            setCreateSymbols(false); // Disable symbols
+            lookup(".chart-plot-background").setStyle("-fx-background-color: transparent;");
 
-            outZoomRect = new ZoomRect(
-                    0, Math.max(0, plot.data.size() - 1),
-                    newYRange.getMin(), newYRange.getMax());
+            setSeriesVisible(false);
+            setSelected(false);
+        }
 
-            if (zoomRect != null) {
-                double widthRate = newYRange.getWidth() / oldYRange.getWidth();
-                Number newYMin = newYRange.getMin().doubleValue()
-                        + widthRate * (zoomRect.yMin.doubleValue() - oldYRange.getMin().doubleValue());
-                Number newYMax = newYRange.getMin().doubleValue()
-                        + widthRate * (zoomRect.yMax.doubleValue() - oldYRange.getMin().doubleValue());
-                setZoomRect(new ZoomRect(zoomRect.xMin, zoomRect.xMax, newYMin, newYMax));
+        public void setSelected(boolean selected) {
+            setSeriesStyle(selected ? plot.getSelectedStyle() : plot.getStyle());
+            setAxesVisible(selected);
+        }
+
+        public boolean isSeriesVisible() {
+            return series.getNode().isVisible();
+        }
+
+        public void setSeriesVisible(boolean visible) {
+            series.getNode().setVisible(visible);
+
+            if (visible) {
+                updateData();
             }
         }
 
-        public ZoomRect createZoomRectForArea(Point2D start, Point2D end) {
-            // start and end are in chart coordinates
-            Node plot = lookup(".chart-plot-background");
-            Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
-            // translate coordinates to a plot space
-            Point2D plotStart = new Point2D(
-                    Math.clamp(start.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
-                    Math.clamp(start.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
-            Point2D plotEnd = new Point2D(
-                    Math.clamp(end.getX() - plotBounds.getMinX(), 0, plotBounds.getWidth()),
-                    Math.clamp(end.getY() - plotBounds.getMinY(), 0, plotBounds.getHeight()));
-
-            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
-            Number xMin = xAxis.getValueForDisplay(plotStart.getX());
-            Number xMax = xAxis.getValueForDisplay(plotEnd.getX());
-
-            ValueAxis<Number> yAxis = (ValueAxis<Number>)getYAxis();
-            Number yMax = yAxis.getValueForDisplay(plotStart.getY());
-            Number yMin = yAxis.getValueForDisplay(plotEnd.getY());
-
-            return new ZoomRect(xMin, xMax, yMin, yMax);
+        private void setAxesVisible(boolean visible) {
+            setVerticalGridLinesVisible(visible);
+            setHorizontalGridLinesVisible(visible);
+            setHorizontalZeroLineVisible(visible);
+            setVerticalZeroLineVisible(visible);
+            getYAxis().setOpacity(visible ? 1 : 0);
         }
 
-        public ZoomRect createZoomRectForXRange(Range range) {
-            return createZoomRectForXRange(range, false);
+        public void setPlot(Plot plot) {
+            this.plot = Check.notNull(plot);
         }
 
-        public ZoomRect createZoomRectForXRange(Range range, boolean keepYScale) {
-            if (range == null) {
-                return outZoomRect;
-            }
-            ZoomRect yRect = keepYScale ? zoomRect : outZoomRect;
-            return new ZoomRect(range.getMin(), range.getMax(), yRect.yMin, yRect.yMax);
-        }
-
-        public ZoomRect scaleZoomRect(ZoomRect zoomRect, double xScale, double yScale, Point2D scaleCenter) {
-            if (zoomRect == null)
-                return null;
-
-            // scale center is in chart coordinates
+        public Point2D normalizeToBounds(Point2D chartPoint) {
+            // point is in chart coordinates
             // translate chart coordinates to plot coordinates
             Node plot = lookup(".chart-plot-background");
             Bounds plotBounds = Nodes.getBoundsInParent(plot, this);
-            Point2D plotScaleCenter = null;
-            if (scaleCenter != null ) {
-                plotScaleCenter = new Point2D(
-                        scaleCenter.getX() - plotBounds.getMinX(),
-                        scaleCenter.getY() - plotBounds.getMinY());
-            }
+            Point2D plotPoint = new Point2D(
+                    chartPoint.getX() - plotBounds.getMinX(),
+                    chartPoint.getY() - plotBounds.getMinY());
 
-            // convert center coordinates to x and y ratios [0, 1]
-            // when scale center is null zoom at plot center
-            double xCenterRatio = plotScaleCenter != null && plotBounds.getWidth() > 1e-9
-                    ? Math.clamp(plotScaleCenter.getX() / plotBounds.getWidth(), 0, 1)
-                    : 0.5;
-            double yCenterRatio = plotScaleCenter != null && plotBounds.getHeight() > 1e-9
-                    ? Math.clamp(1 - plotScaleCenter.getY() / plotBounds.getHeight(), 0, 1)
-                    : 0.5;
-
-            Range xRange = new Range(zoomRect.xMin, zoomRect.xMax)
-                    .scale(xScale, xCenterRatio);
-            Range yRange = new Range(zoomRect.yMin, zoomRect.yMax)
-                    .scale(yScale, yCenterRatio);
-
-            return new ZoomRect(
-                    xRange.getMin(), xRange.getMax(),
-                    yRange.getMin(), yRange.getMax());
+            // convert point coordinates to x and y ratios [0, 1]
+            double x = plotBounds.getWidth() > 1e-9
+                    ? Math.clamp(plotPoint.getX() / plotBounds.getWidth(), 0, 1)
+                    : 0;
+            double y = plotBounds.getHeight() > 1e-9
+                    ? Math.clamp(1 - plotPoint.getY() / plotBounds.getHeight(), 0, 1)
+                    : 0;
+            return new Point2D(x, y);
         }
 
-        public ZoomRect cropZoomRect(ZoomRect zoomRect, ZoomRect cropRect) {
-            if (zoomRect == null || cropRect == null)
-                return zoomRect;
-
-            return new ZoomRect(
-                    Math.max(zoomRect.xMin.doubleValue(), cropRect.xMin.doubleValue()),
-                    Math.min(zoomRect.xMax.doubleValue(), cropRect.xMax.doubleValue()),
-                    Math.max(zoomRect.yMin.doubleValue(), cropRect.yMin.doubleValue()),
-                    Math.min(zoomRect.yMax.doubleValue(), cropRect.yMax.doubleValue()));
-        }
-
-        public void setZoomRect(ZoomRect zoomRect) {
-            this.zoomRect = zoomRect != outZoomRect
-                    ? cropZoomRect(zoomRect, outZoomRect)
-                    : zoomRect;
-            applyZoom();
-        }
-
-        public void resetZoomRect() {
-            setZoomRect(outZoomRect);
-        }
-
-        private void applyZoom() {
-            int lineIndexBefore = getSelectedLineIndex();
-
+        private void zoomTo(Viewport viewport) {
+            int xWidth = !plot.getData().isEmpty() ? plot.getData().size() - 1 : 0;
             ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
-            xAxis.setAutoRanging(false);
-            xAxis.setLowerBound(zoomRect.xMin.doubleValue());
-            xAxis.setUpperBound(zoomRect.xMax.doubleValue());
+            xAxis.setLowerBound(viewport.xMin() * xWidth);
+            xAxis.setUpperBound(viewport.xMax() * xWidth);
 
+            Range yRange = plot.getDisplayRange();
             ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();
-            yAxis.setAutoRanging(false);
-            yAxis.setLowerBound(zoomRect.yMin.doubleValue());
-            yAxis.setUpperBound(zoomRect.yMax.doubleValue());
-
-            int lineIndexAfter = getSelectedLineIndex();
-            if (lineIndexBefore != lineIndexAfter) {
-                // request redraw on selected line index update
-                eventPublisher.publishEvent(new WhatChanged(
-                        SensorLineChart.this,
-                        WhatChanged.Change.justdraw
-                ));
-            }
+            yAxis.setLowerBound(yRange.getMin().doubleValue() + viewport.yMin() * yRange.getWidth());
+            yAxis.setUpperBound(yRange.getMin().doubleValue() + viewport.yMax() * yRange.getWidth());
         }
 
-        private static String emphasizeStyle(String style) {
-            return style + "-fx-stroke-width: 2.0px;";
-        }
-
-        private static String dashStyle(String style) {
-            return style + "-fx-stroke-dash-array: 1 5 1 5;";
-        }
-
-        private void setSeriesStyle(Series<Number, Number> series, String style) {
+        private void setSeriesStyle(String style) {
             Check.notNull(series);
 
             Node seriesNode = series.getNode();
@@ -1236,55 +1167,71 @@ public class SensorLineChart extends Chart {
             }
         }
 
-        private void updateLineChartData() {
-            int lowerIndex = Math.clamp(zoomRect.xMin.intValue(), 0, plot.data().size() - 1);
-            int upperIndex = Math.clamp(zoomRect.xMax.intValue(), lowerIndex, plot.data().size() - 1);
-
-            getData().forEach(series -> {
-                Plot plot;
-                String style = this.plot.getPlotStyle();
-                if (series.getName().endsWith(FILTERED_SERIES_SUFFIX)) {
-                    plot = filteredPlot;
-                    style = emphasizeStyle(style);
-                } else {
-                    plot = this.plot;
-                    style = filteredPlot != null ? dashStyle(style) : style;
-                }
-
-                setSeriesData(series, plot, lowerIndex, upperIndex);
-                setSeriesStyle(series, style);
-            });
-        }
-
-        /**
-         * Add horizontal value marker.
-         *
-         * @param marker horizontal value marker.
-         */
-        public void addHorizontalValueMarker(Data<Number, Number> marker) {
-            Objects.requireNonNull(marker, "the marker must not be null");
-            if (horizontalMarkers.contains(marker)) return;
-            Line line = new Line();
-            marker.setNode(line );
-            getPlotChildren().add(line);
-            horizontalMarkers.add(marker);
-        }
-
-        /**
-         * Remove horizontal value marker.
-         *
-         * @param marker horizontal value marker.
-         */
-        public void removeHorizontalValueMarker(Data<Number, Number> marker) {
-            Objects.requireNonNull(marker, "the marker must not be null");
-            if (marker.getNode() != null) {
-                getPlotChildren().remove(marker.getNode());
-                marker.setNode(null);
+        private void updateData() {
+            if (!isSeriesVisible()) {
+                return; // don't update hidden charts
             }
-            horizontalMarkers.remove(marker);
+
+            // x range
+            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
+            int xMin = (int)Math.ceil(xAxis.getLowerBound());
+            int xMax = (int)Math.floor(xAxis.getUpperBound());
+            xMin = Math.clamp(xMin, 0, plot.getData().size() - 1);
+            xMax = Math.clamp(xMax, xMin, plot.getData().size() - 1);
+            IndexRange range = new IndexRange(xMin, xMax + 1);
+
+            int numSamples = Math.clamp((int)xAxis.getLayoutBounds().getWidth(), MIN_VIEW_SAMPLES, MAX_VIEW_SAMPLES);
+            List<Data<Number, Number>> data = sampleSeriesData(range, numSamples);
+
+            setSeriesData(data);
         }
 
-        public void addVerticalValueMarker(Data<Number, Number> marker) {
+        private void setSeriesData(List<Data<Number, Number>> data) {
+            setAnimated(false);
+
+            // clear current data
+            series.getData().clear();
+            if (data.isEmpty()) {
+                series.getData().add(new Data<>(0, 0));
+            } else {
+                series.getData().addAll(data);
+            }
+
+            setAnimated(true);
+        }
+
+        private List<Data<Number, Number>> sampleSeriesData(IndexRange range, int numSamples) {
+            int limit = Math.min(range.size(), numSamples);
+            double step = Math.max(1, limit > 1 ? (double)(range.size() - 1) / (limit - 1) : 1);
+            int hw = (int)(step / 2);
+
+            List<Data<Number, Number>> samples = new ArrayList<>(limit);
+            for (int k = 0; k < limit; k++) {
+                int i = range.from() + (int)Math.round(k * step);
+                if (plot.data.get(i) == null) {
+                    continue;
+                }
+                int line = getValueLineIndex(i);
+                double sum = 0.0;
+                int count = 0;
+                for (int j = i - hw; j <= i + hw; j++) {
+                    if (j < 0 || j >= plot.data.size()) {
+                        continue;
+                    }
+                    Number v = plot.data.get(j);
+                    if (v != null && getValueLineIndex(j) == line) {
+                        sum += v.doubleValue();
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    samples.add(new Data<>(i, sum / count));
+                }
+            }
+            return samples;
+        }
+
+        public void addMarker(Data<Number, Number> marker) {
             Line line = new Line();
             line.setStroke(Color.RED); // Bright color for white background
             line.setStrokeWidth(1);
@@ -1293,7 +1240,7 @@ public class SensorLineChart extends Chart {
             ImageView imageView = ResourceImageHolder.getImageView("gps32.png");
             imageView.setTranslateY(17);
 
-            addVerticalValueMarker(marker, line, imageView, null, true);
+            addMarker(marker, line, imageView, null, true);
         }
 
         /**
@@ -1303,9 +1250,12 @@ public class SensorLineChart extends Chart {
          * @param line      the line to be used for the marker
          * @param imageView the image to be displayed at the marker
          */
-        public void addVerticalValueMarker(Data<Number, Number> marker, Line line, ImageView imageView, Pane flag, boolean mouseTransparent) {
-            Objects.requireNonNull(marker, "the marker must not be null");
-            if (verticalMarkers.contains(marker)) return;
+        public void addMarker(Data<Number, Number> marker, Line line,
+                @Nullable ImageView imageView, @Nullable Pane imagePane,
+                boolean mouseTransparent) {
+            if (markers.contains(marker)) {
+                return;
+            }
 
             VBox markerBox = new VBox();
             markerBox.setAlignment(Pos.TOP_CENTER);
@@ -1313,42 +1263,32 @@ public class SensorLineChart extends Chart {
 
             VBox imageContainer = new VBox();
             imageContainer.setAlignment(Pos.TOP_CENTER);
-
             if (imageView != null) {
                 imageContainer.getChildren().add(imageView);
             }
-
-            if (flag != null) {
-                imageContainer.getChildren().add(flag);
+            if (imagePane != null) {
+                imageContainer.getChildren().add(imagePane);
             }
-
             markerBox.getChildren().add(imageContainer);
-
             markerBox.getChildren().add(line);
 
             marker.setNode(markerBox);
             getPlotChildren().add(markerBox);
 
-            verticalMarkers.add(marker);
+            markers.add(marker);
         }
 
-        /**
-         * Remove vertical value marker.
-         *
-         * @param marker vertical value marker.
-         */
-        public void removeVerticalValueMarker(Data<Number, Number> marker) {
-            Objects.requireNonNull(marker, "the marker must not be null");
+        public void removeMarker(Data<Number, Number> marker) {
             if (marker.getNode() != null) {
                 getPlotChildren().remove(marker.getNode());
                 marker.setNode(null);
             }
-            verticalMarkers.remove(marker);
+            markers.remove(marker);
         }
 
-        private void clearVerticalValueMarkers() {
-            for (Data<Number, Number> marker : new ArrayList<>(verticalMarkers)) {
-                removeVerticalValueMarker(marker);
+        private void clearMarkers() {
+            for (Data<Number, Number> marker : new ArrayList<>(markers)) {
+                removeMarker(marker);
             }
         }
 
@@ -1356,23 +1296,14 @@ public class SensorLineChart extends Chart {
         protected void layoutPlotChildren() {
             super.layoutPlotChildren();
 
-            for (Data<Number, Number> horizontalMarker : horizontalMarkers) {
-                Line line = (Line) horizontalMarker.getNode();
-                line.setStartX(0);
-                line.setEndX(getBoundsInLocal().getWidth());
-                line.setStartY(getYAxis().getDisplayPosition(horizontalMarker.getYValue()) + 0.5); // 0.5 for crispness
-                line.setEndY(line.getStartY());
-                line.toFront();
-            }
-
-            for (Data<Number, Number> verticalMarker : verticalMarkers) {
+            for (Data<Number, Number> verticalMarker : markers) {
                 VBox markerBox = (VBox) verticalMarker.getNode();
                 markerBox.setLayoutX(getXAxis().getDisplayPosition(verticalMarker.getXValue()));
 
-                VBox imageContainer = (VBox) markerBox.getChildren().get(0);
+                VBox imageContainer = (VBox) markerBox.getChildren().getFirst();
                 double imageHeight = imageContainer.getChildren().stream()
-                    .mapToDouble(node -> node.getBoundsInLocal().getHeight())
-                    .sum();
+                        .mapToDouble(node -> node.getBoundsInLocal().getHeight())
+                        .sum();
 
                 Line line = (Line) markerBox.getChildren().get(1);
                 line.setStartY(imageHeight);
@@ -1383,440 +1314,154 @@ public class SensorLineChart extends Chart {
                 markerBox.toFront();
             }
         }
+    }
 
-        public FilterOptions getFilterOptions() {
-            return filterOptions;
+    // data classes
+
+    // chart viewport relative to [0, 1] full-size view
+    record Viewport(double xMin, double xMax, double yMin, double yMax) {
+
+        Viewport(double xMin, double xMax, double yMin, double yMax) {
+            this.xMin = Math.clamp(xMin, 0, 1);
+            this.xMax = Math.clamp(xMax, 0, 1);
+            this.yMin = Math.clamp(yMin, 0, 1);
+            this.yMax = Math.clamp(yMax, 0, 1);
         }
 
-        public void setFilterOptions(FilterOptions filterOptions) {
-            Check.notNull(filterOptions);
-            this.filterOptions = filterOptions;
+        public double width() {
+            return xMax - xMin;
+        }
+
+        public double height() {
+            return yMax - yMin;
+        }
+
+        public Viewport scale(double xScale, double yScale) {
+            // scale center is in the middle
+            return scale(xScale, yScale, 0.5, 0.5);
+        }
+
+        public Viewport scale(double xScale, double yScale, double xCenter, double yCenter) {
+            Range xRange = new Range(xMin, xMax).scale(xScale, xCenter);
+            Range yRange = new Range(yMin, yMax).scale(yScale, yCenter);
+            return new Viewport(
+                    xRange.getMin().doubleValue(), xRange.getMax().doubleValue(),
+                    yRange.getMin().doubleValue(), yRange.getMax().doubleValue());
+        }
+
+        public Viewport fit(Viewport other) {
+            // other viewport in a space of the current viewport
+            // translate this viewport to match other but in its own
+            // coordinate space
+            return new Viewport(
+                    xMin + other.xMin * width(),
+                    xMin + other.xMax * width(),
+                    yMin + other.yMin * height(),
+                    yMin + other.yMax * height());
+        }
+
+        public Viewport moveToX(double x) {
+            if (x >= xMin && x <= xMax) {
+                return this;
+            }
+            double w = 0.5 * (xMax - xMin);
+            x = Math.clamp(x, w, 1.0 - w);
+            return new Viewport(x - w, x + w, yMin, yMax);
         }
     }
 
-    private record FilterOptions(int lowPassOrder, int timeLagShift) {
+    public static class Plot {
 
-        public FilterOptions() {
-            this(0, 0);
+        private final String seriesName;
+
+        private final @Nullable String unit;
+
+        private final Color color;
+
+        private final List<@Nullable Number> data;
+
+        private final Range dataRange;
+
+        private final Range displayRange;
+
+        public Plot(String seriesName, @Nullable String unit, List<@Nullable Number> data) {
+            this.seriesName = seriesName;
+            this.unit = unit;
+            this.color = ColorPalette.highContrast().getColor(this.seriesName);
+            this.data = data;
+            this.dataRange = buildDataRange(data);
+            this.displayRange = buildDisplayRange(this.dataRange);
         }
 
-        public FilterOptions withLowPassOrder(int lowPassOrder) {
-            return new FilterOptions(lowPassOrder, this.timeLagShift);
+        public String getSeriesName() {
+            return seriesName;
         }
 
-        public FilterOptions withTimeLagShift(int timeLagShift) {
-            return new FilterOptions(this.lowPassOrder, timeLagShift);
+        public @Nullable String getUnit() {
+            return unit;
         }
 
-        public boolean hasAny() {
-            return lowPassOrder != 0 || timeLagShift != 0;
-        }
-    }
-
-    // Create flag marker
-    private Pane createFlagMarker(Color color) {
-        Line flagPole = new Line(0, 0, 0, 18);
-        flagPole.setStroke(Color.BLACK);
-        flagPole.setStrokeWidth(0.8);
-
-        Polygon flag = new Polygon();
-        flag.getPoints().addAll(0.0, 0.0, 
-        15.0, 0.0, 
-        10.0, 5.0, 
-        15.0, 10.0, 
-        0.0, 10.0);
-
-        flag.setFill(color);
-        flag.setStroke(Color.BLACK);
-        flag.setStrokeWidth(0.8);
-
-        Pane flagMarker = new Pane();
-        flagMarker.getChildren().addAll(flagPole, flag);
-
-        flag.setTranslateX(0);
-        flag.setTranslateY(-10);
-
-        return flagMarker;
-    }
-
-    public void gnssTimeLag(String seriesName, int timeLagShift) {
-        LineChartWithMarkers chart = getDataChart(seriesName);
-        if (chart == null) {
-            return;
+        public String getStyle() {
+            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 0.6px;";
         }
 
-        chart.setFilterOptions(chart.getFilterOptions().withTimeLagShift(timeLagShift));
-        applyFilters(chart);
-
-        Platform.runLater(chart::updateLineChartData);
-    }
-
-    public void lowPassFilter(String seriesName, int lowPassOrder) {
-        LineChartWithMarkers chart = getDataChart(seriesName);
-        if (chart == null) {
-            return;
+        public String getSelectedStyle() {
+            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 1.4px;";
         }
 
-        chart.setFilterOptions(chart.getFilterOptions().withLowPassOrder(lowPassOrder));
-        applyFilters(chart);
+        public List<@Nullable Number> getData() {
+            return data;
+        }
 
-        Platform.runLater(chart::updateLineChartData);
-    }
-
-    private void applyFilters(LineChartWithMarkers chart) {
-        Check.notNull(chart);
-        FilterOptions filterOptions = chart.getFilterOptions();
-
-        List<GeoData> geoData = Nulls.toEmpty(file.getGeoData());
-        if (!filterOptions.hasAny()) {
-            // undo all
-            chart.filteredPlot = null;
-            if (chart.plot != null) {
-                for (int i = 0; i < geoData.size(); i++) {
-                    geoData.get(i).setValue(chart.plot.header, chart.plot.data.get(i));
+        public static Range buildDataRange(List<@Nullable Number> data) {
+            Double min = null;
+            Double max = null;
+            for (Number value : Nulls.toEmpty(data)) {
+                if (value == null) {
+                    continue;
+                }
+                double unboxed = value.doubleValue();
+                if (min == null || unboxed < min) {
+                    min = unboxed;
+                }
+                if (max == null || unboxed > max) {
+                    max = unboxed;
                 }
             }
-            return;
-        }
-
-        List<Number> values = chart.plot.data;
-        List<Number> filtered = new ArrayList<>(values.size());
-        for (Range range : file.getLineRanges().values()) {
-            int from = range.getMin().intValue();
-            int to = range.getMax().intValue();
-
-            List<Number> rangeValues = values.subList(from, to + 1);
-            // low-pass
-            try {
-                if (filterOptions.lowPassOrder() != 0) {
-                    rangeValues = lowPass(rangeValues,
-                            filterOptions.lowPassOrder());
-                }
-            } catch (Exception e) {
-                log.error("Low-pass filter error", e);
+            if (min == null) {
+                min = 0.0;
             }
-            // time lag
-            try {
-                if (filterOptions.timeLagShift() != 0) {
-                    rangeValues = gnssTimeLag(rangeValues,
-                            filterOptions.timeLagShift());
-                }
-            } catch (Exception e) {
-                log.error("Time lag filter error", e);
+            if (max == null) {
+                max = 0.0;
             }
-            // put all back
-            filtered.addAll(rangeValues);
+            return new Range(min, max);
         }
 
-        // TODO workaround: replace values with a copy
-        //  if plot uses a view to reference file values
-        //  this will be removed after updating the series filtering
-        //  workflow
-        if (chart.plot.data instanceof ColumnView) {
-            List<Number> copy = new ArrayList<>(geoData.size());
-            for (GeoData value : geoData) {
-                copy.add(value.getNumber(chart.plot.header));
+        public Range getDataRange() {
+            return dataRange;
+        }
+
+        public static double getScaleFactor(double value) {
+            int base = (int)Math.clamp(Math.floor(Math.log10(Math.abs(value))), 0, 3);
+            return Math.pow(10, base);
+        }
+
+        public static Range buildDisplayRange(Range dataRange) {
+            double min = dataRange.getMin().doubleValue();
+            double max = dataRange.getMax().doubleValue();
+            // get scale factor and align min max to it
+            double f = Math.max(getScaleFactor(min), getScaleFactor(max));
+            double minAligned = f * Math.floor(min / f);
+            double maxAligned = f * Math.ceil(max / f);
+            if (Math.abs(maxAligned - minAligned) < 1e-6) {
+                minAligned -= f;
+                maxAligned += f;
             }
-            chart.plot = chart.plot.withData(copy);
-        }
-        chart.filteredPlot = chart.plot.withData(filtered);
-        for (int i = 0; i < geoData.size(); i++) {
-            geoData.get(i).setValue(chart.plot.header, filtered.get(i));
-        }
-        file.setUnsaved(true);
-        Platform.runLater(this::updateChartName);
-    }
-
-    private List<Number> gnssTimeLag(List<Number> values, int shift) {
-        if (values == null || values.isEmpty()) {
-            return values;
+            return new Range(minAligned, maxAligned);
         }
 
-        Number[] filtered = new Number[values.size()];
-
-        int l = 0;
-        int r = values.size() - 1;
-
-        // shift > 0 -> move left
-        if (shift > 0) {
-            l += shift;
-        } else {
-            // shift is negative
-            r += shift;
+        public Range getDisplayRange() {
+            return displayRange;
         }
-        for (int i = l; i <= r; i++) {
-            int j = i - shift;
-            if (j >= 0 && j < filtered.length) {
-                filtered[j] = values.get(i);
-            }
-        }
-        return Arrays.asList(filtered);
-    }
-
-    private List<Number> lowPass(List<Number> values, int order) {
-        if (values == null || values.isEmpty()) {
-            return values;
-        }
-
-        // data size should be >= 2 * filterOrder + 1
-        // min filter order = (size - 1) / 2
-        order = Math.min(order, (values.size() - 1) / 2);
-        int shift = order / 2;
-        FIRFilter filter = new FIRFilter(order);
-
-        var filtered = filter.filterList(values).subList(shift, values.size() + shift);
-        assert filtered.size() == values.size();
-
-        List<Number> valuesNonNull = new ArrayList<>();
-        List<Number> filteredValuesNonNull = new ArrayList<>();
-        for (int i = 0; i < values.size(); i++) {
-            Number value = values.get(i);
-            Number filteredValue = filtered.get(i);
-            if (value != null && filteredValue != null) {
-                valuesNonNull.add(value);
-                filteredValuesNonNull.add(filteredValue);
-            }
-        }
-
-        double rmsOriginal = calculateRMS(valuesNonNull);
-        double rmsFiltered = calculateRMS(filteredValuesNonNull);
-
-        double scale = rmsOriginal != 0.0 && rmsFiltered != 0.0
-                ? rmsOriginal / rmsFiltered
-                : 0.0;
-        for (int i = 0; i < filtered.size(); i++) {
-            Number value = filtered.get(i);
-            if (value != null) {
-                filtered.set(i, scale * value.doubleValue());
-            }
-        }
-        return filtered;
-    }
-
-    private static double calculateRMS(List<Number> values) {
-        double sum = 0.0;
-        int count = 0;
-        for (Number value : values) {
-            if (value == null) {
-                continue;
-            }
-            sum += value.doubleValue() * value.doubleValue();
-            count++;
-        }
-        return count > 0 ? Math.sqrt(sum / count) : 0.0;
-    }
-
-    public void medianCorrection(String seriesName, int window) {
-        if (Strings.isNullOrEmpty(seriesName)) {
-            return;
-        }
-
-        DataMapping mapping = file.getTemplate().getDataMapping();
-        String semantic = mapping.getSemanticByHeader(seriesName);
-
-        // if selected column is a semantic column, use origin
-        if (!Strings.isNullOrEmpty(semantic) && semantic.endsWith(Semantic.ANOMALY_SUFFIX)) {
-            semantic = semantic.substring(0, semantic.length() - Semantic.ANOMALY_SUFFIX.length());
-            seriesName = mapping.getHeaderBySemantic(semantic);
-        }
-
-        if (Strings.isNullOrEmpty(seriesName) || Strings.isNullOrEmpty(semantic)) {
-            String errorMessage = "Cannot apply running median filter to %s.".formatted(seriesName);
-            MessageBoxHelper.showError(errorMessage, "");
-            return;
-        }
-
-        String anomalySemantic = semantic + Semantic.ANOMALY_SUFFIX;
-        SensorData anomalyColumn = mapping.getDataValueBySemantic(anomalySemantic);
-        if (anomalyColumn == null) {
-            String errorMessage = """
-                    Cannot apply running median filter to "%s" \
-                    because there is no "%s" field \
-                    defined in import template.
-                    """.formatted(seriesName, anomalySemantic);
-            MessageBoxHelper.showError(errorMessage, "");
-            return;
-        }
-        String filteredSeriesName = anomalyColumn.getHeader();
-
-        LineChartWithMarkers chart = getDataChart(seriesName);
-        if (chart == null) {
-            return;
-        }
-        Plot data = chart.filteredPlot != null && !chart.filteredPlot.data().isEmpty()
-                ? chart.filteredPlot
-                : chart.plot;
-
-        List<Number> values = data.data;
-        List<Number> filtered = new ArrayList<>(values.size());
-        for (Range range : file.getLineRanges().values()) {
-            int from = range.getMin().intValue();
-            int to = range.getMax().intValue();
-
-            List<Number> rangeValues = values.subList(from, to + 1);
-            MedianCorrectionFilter medianCorrection = new MedianCorrectionFilter(window);
-            rangeValues = medianCorrection.apply(rangeValues);
-
-            // put all back
-            filtered.addAll(rangeValues);
-        }
-
-        for (int i = 0; i < file.getGeoData().size(); i++) {
-            file.getGeoData().get(i).setValue(filteredSeriesName, filtered.get(i));
-        }
-        file.setUnsaved(true);
-
-        Platform.runLater(() -> {
-            LineChartWithMarkers filteredChart = charts.get(filteredSeriesName);
-            if (filteredChart == null) {
-                Plot filteredData = new Plot(
-                        filteredSeriesName,
-                        chart.plot.unit,
-                        chart.plot.color,
-                        filtered
-                );
-                createLineChart(filteredData);
-            } else {
-                filteredChart.plot = filteredChart.plot.withData(filtered);
-                filteredChart.filteredPlot = null;
-                filteredChart.rescaleY();
-                filteredChart.updateLineChartData();
-            }
-            updateChartName();
-        });
-    }
-
-    private Map<String, LineChartWithMarkers> getCharts() {
-        return charts;
-    }
-
-    private LineChartWithMarkers getDataChart(String seriesName) {
-        // search chart by series name (excluding line markers)
-        if (seriesName == null || seriesName.equals(lineSeriesName)) {
-            return null;
-        }
-        return charts.get(seriesName);
-    }
-
-    public boolean isSameTemplate(CsvFile selectedFile) {
-        return file.isSameTemplate(selectedFile);
-    }
-
-    public String getSelectedSeriesName() {
-        return selectedSeriesName;
-    }
-
-    public Set<String> getSeriesNames() {
-        return Collections.unmodifiableSet(charts.keySet());
-    }
-
-    @Override
-    public CsvFile getFile() {
-        return file;
-    }
-
-    @Override
-    public void selectTrace(TraceKey trace, boolean focus) {
-        if (trace == null) {
-            // clear selection
-            clearSelectionMarker();
-            return;
-        }
-
-        // TODO focus does not affect behavior
-
-        int selectedX = trace.getIndex();
-
-        if (interactiveChart == null) {
-            return;
-        }
-        ValueAxis<Number> xAxis = (ValueAxis<Number>) interactiveChart.getXAxis();
-        var dataSize = interactiveChart.plot.data().size();
-
-        if (selectedX < 0 || selectedX > dataSize) {
-            log.error("Selected trace index: {} is out of range: {}", selectedX, dataSize);
-            return;
-        }
-
-        if (xAxis.getLowerBound() > selectedX || xAxis.getUpperBound() < selectedX) {
-            int delta = (int)(xAxis.getUpperBound() - xAxis.getLowerBound());
-
-            int lowerIndex = Math.clamp(selectedX - delta / 2, 0, dataSize - delta);
-            int upperIndex = Math.clamp(selectedX + delta / 2, delta, dataSize);
-
-            log.debug("Shifted charts, lowerIndex: {} upperIndex: {} size: {}", lowerIndex, upperIndex, dataSize);
-
-            for (LineChartWithMarkers chart : charts.values()) {
-                var yAxis = (ValueAxis<Number>) chart.getYAxis();
-
-                ZoomRect zoomRect = new ZoomRect(lowerIndex, upperIndex, yAxis.getLowerBound(), yAxis.getUpperBound());
-                chart.setZoomRect(zoomRect);
-                chart.updateLineChartData();
-            }
-
-            model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataZoom));
-        }
-        putSelectionMarker(selectedX);
-        updateProfileScroll();
-    }
-
-    @Override
-    public List<FoundPlace> getFlags() {
-        return new ArrayList<>(foundPlaces.keySet());
-    }
-
-    @Override
-    public void selectFlag(FoundPlace flag) {
-        foundPlaces.keySet().forEach(f -> {
-            var markerBox = (Pane) foundPlaces.get(f).getNode();
-            Line l = (Line) markerBox.getChildren().get(1);
-            l.setStrokeType(StrokeType.CENTERED);
-            var fm = (Pane) ((Pane) markerBox.getChildren().get(0)).getChildren().get(0);
-            fm.getChildren().stream().filter(ch -> ch instanceof Shape).forEach(
-                    ch -> ((Shape) ch).setStrokeType(StrokeType.CENTERED)
-            );
-            f.setSelected(false);
-        });
-
-        // null -> clear selection
-        if (flag != null) {
-            var markerBox = (Pane) foundPlaces.get(flag).getNode();
-            Line l = (Line) markerBox.getChildren().get(1);
-            l.setStrokeType(StrokeType.OUTSIDE);
-            var fm = (Pane) ((Pane) markerBox.getChildren().get(0)).getChildren().get(0);
-            fm.getChildren().stream().filter(ch -> ch instanceof Shape).forEach(
-                    ch -> ((Shape) ch).setStrokeType(StrokeType.OUTSIDE)
-            );
-            flag.setSelected(true);
-        }
-    }
-
-    @Override
-    public void addFlag(FoundPlace flag) {
-        if (!foundPlaces.containsKey(flag)) {
-            putFoundPlace(flag);
-            clearSelectionMarker();
-            if (flag.isSelected()) {
-                selectFlag(flag);
-            }
-        }
-    }
-
-    @Override
-    public void removeFlag(FoundPlace flag) {
-        Data<Number, Number> marker = foundPlaces.remove(flag);
-        if (marker != null && interactiveChart != null) {
-            interactiveChart.removeVerticalValueMarker(marker);
-        }
-    }
-
-    @Override
-    public void clearFlags() {
-        if (interactiveChart != null) {
-            for (Data<Number, Number> marker : foundPlaces.values()) {
-                interactiveChart.removeVerticalValueMarker(marker);
-            }
-        }
-        foundPlaces.clear();
     }
 }

@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app.filter;
 
 import com.ugcs.gprvisualizer.utils.Check;
+import com.ugcs.gprvisualizer.utils.Nulls;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +17,7 @@ public class MedianCorrectionFilter implements SequenceFilter {
 
     @Override
     public List<Number> apply(List<Number> values) {
-        if (values == null || values.isEmpty()) {
+        if (Nulls.isNullOrEmpty(values)) {
             return values;
         }
 

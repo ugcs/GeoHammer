@@ -1,23 +1,29 @@
-package com.ugcs.gprvisualizer.gpr;
+package com.ugcs.gprvisualizer.app.service;
 
+import com.ugcs.gprvisualizer.app.TraceUnit;
 import com.ugcs.gprvisualizer.app.yaml.Template;
+import com.ugcs.gprvisualizer.gpr.PrefSettings;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Strings;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class TemplateSettings {
 
     private final PrefSettings settings;
 
+    private final Map<String, TraceUnit> traceUnits = new ConcurrentHashMap<>();
+
     public TemplateSettings(PrefSettings settings) {
         Check.notNull(settings);
         this.settings = settings;
     }
 
-    @Nullable
-    public String getSelectedSeriesName(Template template) {
+    public @Nullable String getSelectedSeriesName(Template template) {
         return settings.getSetting(template.getName(),"selected");
     }
 
@@ -25,13 +31,29 @@ public class TemplateSettings {
         settings.saveSetting(template.getName(), "selected", seriesName);
     }
 
-    @Nullable
-    public Boolean isSeriesVisible(Template template, String seriesName) {
+    public @Nullable Boolean isSeriesVisible(Template template, String seriesName) {
         String s = settings.getSetting(template.getName() + "." + seriesName, "visible");
         return !Strings.isNullOrEmpty(s) ? Boolean.parseBoolean(s) : null;
     }
 
     public void setSeriesVisible(Template template, String seriesName, boolean visible) {
         settings.saveSetting(template.getName() + "." + seriesName, "visible", visible);
+    }
+
+    public void setTraceUnit(String templateName, TraceUnit traceUnit) {
+        if (Strings.isNullOrEmpty(templateName)) {
+            return;
+        }
+        if (traceUnit == null) {
+            traceUnit = TraceUnit.getDefault();
+        }
+        traceUnits.put(templateName, traceUnit);
+    }
+
+    public TraceUnit getTraceUnit(String templateName) {
+        if (Strings.isNullOrEmpty(templateName)) {
+            return TraceUnit.getDefault();
+        }
+        return traceUnits.getOrDefault(templateName, TraceUnit.getDefault());
     }
 }

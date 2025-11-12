@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 
 import com.github.thecoldwine.sigrun.common.ext.GprFile;
@@ -20,7 +19,7 @@ import com.ugcs.gprvisualizer.app.*;
 import com.ugcs.gprvisualizer.app.auxcontrol.*;
 import com.ugcs.gprvisualizer.app.events.FileClosedEvent;
 import com.ugcs.gprvisualizer.app.parsers.GeoData;
-import com.ugcs.gprvisualizer.app.service.TemplateSettingsModel;
+import com.ugcs.gprvisualizer.app.service.TemplateSettings;
 import com.ugcs.gprvisualizer.event.BaseEvent;
 import com.ugcs.gprvisualizer.event.FileSelectedEvent;
 import com.ugcs.gprvisualizer.event.TemplateUnitChangedEvent;
@@ -55,50 +54,15 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.paint.Color;
 
 @Component
 public class Model implements InitializingBean {
 
+	private static final Logger log = LoggerFactory.getLogger(Model.class);
+
 	public static final int TOP_MARGIN = 60;
 
 	public static final int CHART_MIN_HEIGHT = 400;
-
-	private static final List<Color> BRIGHT_COLORS = List.of(
-			Color.web("#fbd101"),
-			//Color.web("#fdff0d"),
-			Color.web("#b0903a"),
-			Color.web("#f99e01"),
-			Color.web("#c56a04"),
-			Color.web("#df818e"),
-			Color.web("#ff6455"),
-			Color.web("#d80b01"),
-			Color.web("#b40a13"),
-			Color.web("#690d08"),
-			Color.web("#989d9b"),
-			Color.web("#738768"),
-			Color.web("#6bb7e6"),
-			Color.web("#496a8b"),
-			Color.web("#2b52a3"),
-			Color.web("#272f73"),
-			Color.web("#5b9a95"),
-			Color.web("#add6aa"),
-			Color.web("#2b960a"),
-			Color.web("#0e5f1e"),
-			Color.web("#bfc1c3"),
-			Color.web("#cbac7a"),
-			Color.web("#80674e"),
-			Color.web("#cabf95"),
-			Color.web("#7b7b7b"),
-			Color.web("#354a32"),
-			Color.web("#8c2a07"),
-			Color.web("#545a4c"),
-			Color.web("#242d29"),
-			Color.web("#7b7b7b"));
-
-	private static final Logger log = LoggerFactory.getLogger(Model.class);
-
-	private final Random rand = new Random();
 
 	@SuppressWarnings("NullAway.Init")
 	@Value("${trace.lookup.threshold}")
@@ -120,8 +84,6 @@ public class Model implements InitializingBean {
 
 	private final PrefSettings prefSettings;
 
-	private final Map<String, Color> colors = new HashMap<>();
-
 	private final AuxElementEditHandler auxEditHandler;
 
 	private final VBox chartsContainer = new VBox(); // Charts container
@@ -132,7 +94,7 @@ public class Model implements InitializingBean {
 
 	private final ApplicationEventPublisher eventPublisher;
 
-	private final TemplateSettingsModel templateSettingsModel;
+	private final TemplateSettings templateSettings;
 
 	@Nullable
 	private Node selectedDataNode;
@@ -140,16 +102,20 @@ public class Model implements InitializingBean {
 	@Nullable
 	private SgyFile currentFile;
 
-	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateSettingsModel templateSettingsModel) {
+	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateSettings templateSettings) {
 		this.prefSettings = prefSettings;
 		this.fileManager = fileManager;
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
-		this.templateSettingsModel = templateSettingsModel;
+		this.templateSettings = templateSettings;
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {
 		return auxEditHandler;
+	}
+
+	public ApplicationEventPublisher getEventPublisher() {
+		return eventPublisher;
 	}
 
 	public MapField getMapField() {
@@ -158,6 +124,14 @@ public class Model implements InitializingBean {
 
 	public FileManager getFileManager() {
 		return fileManager;
+	}
+
+	public PrefSettings getPrefSettings() {
+		return prefSettings;
+	}
+
+	public TemplateSettings getTemplateSettings() {
+		return templateSettings;
 	}
 
 	@Nullable
@@ -287,7 +261,6 @@ public class Model implements InitializingBean {
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		AppContext.model = this;
-		loadColorSettings(colors);
 	}
 
 	/**
@@ -300,8 +273,6 @@ public class Model implements InitializingBean {
 			return;
 		}
 		var sensorLineChart = createSensorLineChart(csvFile);
-		saveColorSettings(colors);
-
 		Platform.runLater(() -> selectAndScrollToChart(sensorLineChart));
 	}
 
@@ -334,7 +305,6 @@ public class Model implements InitializingBean {
 
 		// Create and add the new chart
 		SensorLineChart newChart = createSensorLineChart(csvFile);
-		saveColorSettings(colors);
 		getFileManager().addFile(csvFile);
 
 		Platform.runLater(() -> selectAndScrollToChart(newChart));
@@ -353,13 +323,12 @@ public class Model implements InitializingBean {
 			}
 		}
 
-		chart = new SensorLineChart(this, eventPublisher, templateSettingsModel);
+		chart = new SensorLineChart(this, csvFile);
 		csvFiles.remove(csvFile);
 		csvFiles.put(csvFile, chart);
 
 		// create new chart contents
-		var plotData = chart.generatePlots(csvFile);
-		var newChartBox = chart.createChartWithMultipleYAxes(csvFile, plotData);
+		var newChartBox = chart.getRootNode();
 
 		// add to container keeping position
 		if (index != -1) {
@@ -377,11 +346,6 @@ public class Model implements InitializingBean {
 		});
 
 		return chart;
-	}
-
-	private void saveColorSettings(Map<String, Color> headerColors) {
-		String group = "colors";
-		prefSettings.saveSetting(group, headerColors);
 	}
 
 	/**
@@ -431,23 +395,6 @@ public class Model implements InitializingBean {
 		if (!chartSelected) {
 			publishEvent(new FileSelectedEvent(this, (SgyFile) null));
 		}
-	}
-
-	public void loadColorSettings(Map<String, Color> headerColors) {
-		var colors = prefSettings.getAllSettings().get("colors");
-		if (colors != null)
-			colors.forEach((key, value) -> {
-				this.colors.put(key, Color.web(value));
-			});
-	}
-
-	public Color getColor(String key) {
-		return colors.computeIfAbsent(key, k -> generateRandomColor());
-	}
-
-	// Generate random color
-	private Color generateRandomColor() {
-		return BRIGHT_COLORS.get(rand.nextInt(BRIGHT_COLORS.size()));
 	}
 
 	private void setSelectedData(Node node) {
@@ -551,7 +498,7 @@ public class Model implements InitializingBean {
 		if (chart != null) {
 			return chart;
 		}
-		chart = new GPRChart(this, file, templateSettingsModel);
+		chart = new GPRChart(this, file);
 		gprCharts.put(file, chart);
 		return chart;
 	}

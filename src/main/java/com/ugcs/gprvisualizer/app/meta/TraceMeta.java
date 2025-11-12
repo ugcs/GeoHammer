@@ -1,6 +1,7 @@
 package com.ugcs.gprvisualizer.app.meta;
 
 import com.google.gson.annotations.Expose;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Range;
 
 import java.util.List;
@@ -8,7 +9,7 @@ import java.util.List;
 public class TraceMeta {
 
     @Expose
-    private SampleRange sampleRange;
+    private IndexRange sampleRange;
 
     @Expose
     private List<TraceLine> lines;
@@ -22,11 +23,11 @@ public class TraceMeta {
 	@Expose
 	private Range amplitudeRange;
 
-    public SampleRange getSampleRange() {
+    public IndexRange getSampleRange() {
         return sampleRange;
     }
 
-    public void setSampleRange(SampleRange sampleRange) {
+    public void setSampleRange(IndexRange sampleRange) {
         this.sampleRange = sampleRange;
     }
 

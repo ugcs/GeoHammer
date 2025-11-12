@@ -29,7 +29,7 @@ import com.ugcs.gprvisualizer.obm.ObjectByteMapper;
 import com.ugcs.gprvisualizer.utils.AuxElements;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.FileNames;
-import com.ugcs.gprvisualizer.utils.Range;
+import com.ugcs.gprvisualizer.utils.IndexRange;
 import com.ugcs.gprvisualizer.utils.Traces;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -202,11 +202,11 @@ public class DztFile extends TraceFile {
 
 	@Override
 	public void save(File file) throws IOException {
-		save(file, new Range(0, numTraces() - 1));
+		save(file, new IndexRange(0, numTraces()));
 	}
 
 	@Override
-	public void save(File file, Range range) throws IOException {
+	public void save(File file, IndexRange range) throws IOException {
 		Check.notNull(file);
 
 		// TODO instead of reloading DZT header from source
@@ -238,10 +238,7 @@ public class DztFile extends TraceFile {
 
 			List<Trace> fileTraces = getTraces();
 
-			int from = range.getMin().intValue();
-			int to = range.getMax().intValue() + 1; // exclusive
-
-			for (int i = from; i < to; i++) {
+			for (int i = range.from(); i < range.to(); i++) {
 				Trace trace = fileTraces.get(i);
 				Check.condition(numSamples == trace.numSamples());
 
@@ -280,11 +277,11 @@ public class DztFile extends TraceFile {
 		return buffer;
 	}
 
-	private List<DzgFile.IndexMapping> buildDzgMappings(Range range) {
+	private List<DzgFile.IndexMapping> buildDzgMappings(IndexRange range) {
 		Check.notNull(range);
 
-		int from = range.getMin().intValue();
-		int to = range.getMax().intValue() + 1;
+		int from = range.from();
+		int to = range.to();
 
 		List<DzgFile.IndexMapping> mappings = new ArrayList<>();
 		if (metaFile != null) {

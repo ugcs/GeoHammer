@@ -50,7 +50,3 @@
       - header: "Line_Name"
         semantic: "Line"
         units: ""
-      - header: "TMI_anomaly"
-        semantic: "TMI_anomaly"
-        units: "nT"
-

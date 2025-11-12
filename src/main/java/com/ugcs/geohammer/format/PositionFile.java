@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.template.DataMapping;
 import com.ugcs.geohammer.model.template.Template;
@@ -14,7 +15,7 @@ import com.ugcs.geohammer.model.template.data.BaseData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
 
-import com.ugcs.geohammer.format.csv.parser.CsvParserFactory;
+import com.ugcs.geohammer.format.csv.parser.ParserFactory;
 import com.ugcs.geohammer.format.csv.parser.CsvParser;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Nulls;
@@ -30,7 +31,7 @@ public class PositionFile {
 	private FileTemplates templates;
 
 	@Nullable
-	private CsvParser parser;
+	private Parser parser;
 
 	@Nullable
 	private File positionFile;
@@ -113,7 +114,7 @@ public class PositionFile {
 		}
 
 		log.info("Using position file template: {}", template.getName());
-		parser = new CsvParserFactory().createCsvParser(template);
+		parser = ParserFactory.createParser(template);
         return parser.parse(file);
 	}
 

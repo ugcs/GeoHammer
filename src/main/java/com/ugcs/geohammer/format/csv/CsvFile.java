@@ -1,15 +1,16 @@
 package com.ugcs.geohammer.format.csv;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.format.csv.parser.Parser;
+import com.ugcs.geohammer.format.csv.parser.Writer;
+import com.ugcs.geohammer.format.csv.parser.WriterFactory;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.element.FoundPlace;
-import com.ugcs.geohammer.format.csv.parser.CsvParser;
-import com.ugcs.geohammer.format.csv.parser.CsvParserFactory;
-import com.ugcs.geohammer.format.csv.parser.CsvWriter;
+import com.ugcs.geohammer.format.csv.parser.ParserFactory;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.template.Template;
@@ -34,7 +35,7 @@ public class CsvFile extends SgyFile {
 	private List<GeoData> geoData = new ArrayList<>();
 
 	@Nullable
-	private CsvParser parser;
+	private Parser parser;
 
 	private FileTemplates fileTemplates;
 
@@ -62,7 +63,7 @@ public class CsvFile extends SgyFile {
 
         log.debug("template: {}", template.getName());
 
-        parser = new CsvParserFactory().createCsvParser(template);
+        parser = ParserFactory.createParser(template);
         geoData = parser.parse(csvFile);
 
         if (getFile() == null) {
@@ -112,8 +113,8 @@ public class CsvFile extends SgyFile {
             value.setMark(marks.contains(i));
         }
 
-        CsvWriter writer = new CsvWriter(this);
-        writer.write(file);
+        Writer writer = WriterFactory.createWriter(getTemplate());
+        writer.write(this, file);
     }
 
     @Override
@@ -126,13 +127,13 @@ public class CsvFile extends SgyFile {
     }
 
     @Nullable
-    public CsvParser getParser() {
+    public Parser getParser() {
         return parser;
     }
 
     @Nullable
     public Template getTemplate() {
-        CsvParser parser = this.parser;
+        Parser parser = this.parser;
         return parser != null ? parser.getTemplate() : null;
     }
 

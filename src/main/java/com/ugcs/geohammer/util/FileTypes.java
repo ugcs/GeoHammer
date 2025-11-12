@@ -6,7 +6,7 @@ import java.util.Set;
 
 public final class FileTypes {
 
-    private static final Set<String> CSV_EXTENSIONS = Set.of("csv", "asc", "txt");
+    private static final Set<String> CSV_EXTENSIONS = Set.of("csv", "asc", "txt", "pos");
 
     private static final Set<String> GPR_EXTENSIONS = Set.of("sgy");
 

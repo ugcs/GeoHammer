@@ -1,6 +1,5 @@
 package com.ugcs.gprvisualizer.app.parsers;
 
-import com.github.thecoldwine.sigrun.common.ext.CsvFile;
 import com.ugcs.gprvisualizer.utils.Check;
 import com.ugcs.gprvisualizer.utils.Strings;
 import org.jetbrains.annotations.NotNull;
@@ -9,7 +8,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 

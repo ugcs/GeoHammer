@@ -50,12 +50,12 @@ public class ColorPalette {
     }
 
     private static Color generateColor(int i, double minWhiteContrast) {
-        double h = (i * GOLDEN_RATIO) % 1;
+        double h = i * GOLDEN_RATIO % 1.0;
         double s = BASE_SATURATION;
         double l = BASE_LIGHTNESS;
 
         // vary saturation and lightness for more distinction
-        double ds = ((i % 2 == 0) ? 0.05 : -0.05) * ((i / 2) % 3);
+        double ds = ((i % 2 == 0) ? 0.05 : -0.05) * (i / 2 % 3);
         s = Math.clamp(s + ds, MIN_SATURATION, MAX_SATURATION);
         double dl = ((i % 5) - 2) * 0.05;
         l = Math.clamp(l + dl, MIN_LIGHTNESS, MAX_LIGHTNESS);

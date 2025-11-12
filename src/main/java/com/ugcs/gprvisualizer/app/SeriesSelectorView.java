@@ -183,7 +183,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         if (Objects.equals(confirmation, REMOVE_SERIES_IN_FILE)) {
             if (model.getCurrentFile() instanceof CsvFile csvFile) {
                 removeChart(csvFile, selectedSeries.name);
-            };
+            }
         }
         if (Objects.equals(confirmation, REMOVE_SERIES_IN_TEMPLATE_FILES)) {
             for (CsvFile csvFile : model.getFileManager().getCsvFiles()) {
@@ -497,9 +497,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
             Template template = csvFile.getTemplate();
             if (Templates.equals(template, selectedTemplate)) {
                 // reload template
-                Platform.runLater(() -> {
-                    selectTemplate(template);
-                });
+                Platform.runLater(() -> selectTemplate(template));
                 return true;
             }
         }
@@ -518,9 +516,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         if (!Templates.equals(template, selectedTemplate)) {
             selectedTemplate = template;
             Template templateRef = template; // final reference
-            Platform.runLater(() -> {
-                selectTemplate(templateRef);
-            });
+            Platform.runLater(() -> selectTemplate(templateRef));
         }
     }
 

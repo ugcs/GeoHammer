@@ -9,14 +9,14 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.thecoldwine.sigrun.common.ext.Block;
-import com.github.thecoldwine.sigrun.common.ext.BlockFile;
+import com.ugcs.geohammer.format.gpr.Block;
+import com.ugcs.geohammer.format.gpr.BlockFile;
 import com.github.thecoldwine.sigrun.serialization.BinaryHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.BinaryHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
-import com.ugcs.gprvisualizer.gpr.SgyLoader;
+import com.ugcs.geohammer.model.SgyLoader;
 
 public class Repack {
 	private final Charset charset = Charset.forName("UTF8");

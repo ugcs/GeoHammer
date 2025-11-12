@@ -15,7 +15,7 @@
   <manifest></manifest>
   <icon></icon>
   <classPath>
-    <mainClass>com.ugcs.gprvisualizer.app.MainGeoHammer</mainClass>
+    <mainClass>com.ugcs.geohammer.MainGeoHammer</mainClass>
   </classPath>
   <jre>
     <path></path>

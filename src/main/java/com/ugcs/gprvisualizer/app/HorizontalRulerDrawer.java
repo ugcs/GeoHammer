@@ -18,7 +18,7 @@ import com.ugcs.gprvisualizer.utils.Ticks;
 
 public class HorizontalRulerDrawer {
     private final GPRChart field;
-    private final DecimalFormat formatter = new DecimalFormat();
+    private final DecimalFormat formatter = new DecimalFormat("#0.00");
 
     public HorizontalRulerDrawer(GPRChart field) {
         this.field = field;

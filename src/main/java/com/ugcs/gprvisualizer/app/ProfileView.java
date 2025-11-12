@@ -3,6 +3,7 @@ package com.ugcs.gprvisualizer.app;
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.github.thecoldwine.sigrun.common.ext.CsvFile;
@@ -168,7 +169,11 @@ public class ProfileView implements InitializingBean {
 	}
 
 	public List<Node> getRight(TraceFile file) {
-		var contrastNode = model.getGprChart(file).getContrastSlider().produce();
+		GPRChart gprChart = model.getGprChart(file);
+		if (gprChart == null) {
+			return List.of();
+		}
+		var contrastNode = gprChart.getContrastSlider().produce();
 		return List.of(contrastNode);
 	}
 
@@ -191,11 +196,7 @@ public class ProfileView implements InitializingBean {
 			model.getFileManager().removeFile(traceFile);
 			GPRChart gprChart = model.getGprChart(traceFile);
 			if (gprChart != null) {
-				gprChart.getProfileScroll().setVisible(false);
-
-				VBox vbox = (VBox)gprChart.getRootNode();
-				model.getChartsContainer().getChildren().remove(vbox);
-
+				clearChartContainer(gprChart);
 				if (traceFile.equals(currentFile)) {
 					currentFile = null;
 				}
@@ -204,8 +205,13 @@ public class ProfileView implements InitializingBean {
 
 		if (closedFile instanceof CsvFile csvFile) {
 			model.getFileManager().removeFile(csvFile);
-			if (csvFile.equals(currentFile)) {
-				currentFile = null;
+			Optional<SensorLineChart> csvChartOpt = model.getCsvChart(csvFile);
+			if (csvChartOpt.isPresent()) {
+				clearChartContainer(csvChartOpt.get());
+
+				if (csvFile.equals(currentFile)) {
+					currentFile = null;
+				}
 			}
 		}
 
@@ -213,6 +219,13 @@ public class ProfileView implements InitializingBean {
 		model.updateAuxElements();
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+	}
+
+	private void clearChartContainer(Chart chart) {
+		chart.getProfileScroll().setVisible(false);
+
+		VBox vbox = (VBox) chart.getRootNode();
+		model.getChartsContainer().getChildren().remove(vbox);
 	}
 
 	@EventListener

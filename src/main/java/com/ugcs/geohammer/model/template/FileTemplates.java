@@ -39,7 +39,7 @@ import com.ugcs.geohammer.model.template.Template.FileType;
 @Component
 public class FileTemplates implements InitializingBean {
 
-    private static Logger logger = LoggerFactory.getLogger(FileTemplates.class);
+    private static final Logger log = LoggerFactory.getLogger(FileTemplates.class);
 
     private static final String TEMPLATES_FOLDER = "templates";
 
@@ -60,7 +60,7 @@ public class FileTemplates implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        logger.info("Loading templates...");
+        log.info("Loading templates...");
 
         Constructor c = new Constructor(Template.class, new LoaderOptions());
 
@@ -117,22 +117,22 @@ public class FileTemplates implements InitializingBean {
                         template.init();
                         if (template.isTemplateValid()) {
                             templates.add(template);
-                            logger.debug("Valid template, data: " + template);
+                            log.debug("Valid template, data: " + template);
                         } else {
-                            logger.error("Invalid template: " + template);
+                            log.error("Invalid template: " + template);
                             status.showMessage("Invalid template: " + template, "Templates");
                         }
                     } catch (YAMLException e) {
-                        logger.error("Error reading template: " + e.getMessage());
+                        log.error("Error reading template: " + e.getMessage());
                     }
                 }
             }
             if (templates.isEmpty()) {
-                logger.error("No templates found in " + templatesPath);
+                log.error("No templates found in " + templatesPath);
             }
             return templatesPath;
         } catch (IOException e) {
-            logger.error("Error reading template: " + e.getMessage());
+            log.error("Error reading template: " + e.getMessage());
         }
         return null;
     }
@@ -165,19 +165,19 @@ public class FileTemplates implements InitializingBean {
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            logger.info("Template file created: " + templateName);
+                            log.info("Template file created: " + templateName);
                             status.showMessage("Template created: " + templateName, "Templates");
                         }
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            logger.info("Template file deleted: " + templateName);
+                            log.info("Template file deleted: " + templateName);
                             status.showMessage("Template deleted: " + templateName, "Templates");
                         }
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            logger.info("Template file modified: " + templateName);
+                            log.info("Template file modified: " + templateName);
                             status.showMessage("Template updated: " + templateName, "Templates");
                         } else {
                             continue;
@@ -197,7 +197,7 @@ public class FileTemplates implements InitializingBean {
             }
 
         } catch (IOException | InterruptedException e) {
-            logger.error("Error reading template: " + e.getMessage());
+            log.error("Error reading template: " + e.getMessage());
         }
     }
 
@@ -217,9 +217,9 @@ public class FileTemplates implements InitializingBean {
         try (Stream<String> lines = Files.lines(file.toPath())) {
             List<String> firstTenLines = lines.limit(lineThreshold).collect(Collectors.toList());
             firstNonEmptyLines = String.join(System.lineSeparator(), firstTenLines);
-            logger.debug(firstNonEmptyLines);
+            log.debug(firstNonEmptyLines);
         } catch (IOException e) {
-            logger.error("Error reading file: " + e.getMessage());
+            log.error("Error reading file: " + e.getMessage());
         }
 
         for (var t : templates) {
@@ -229,7 +229,7 @@ public class FileTemplates implements InitializingBean {
                     return t;
                 }
             } catch (Exception e) {
-                logger.error("Error matching template: " + e.getMessage());
+                log.error("Error matching template: " + e.getMessage());
             }
         }
 

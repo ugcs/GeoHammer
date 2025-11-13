@@ -31,9 +31,14 @@
     timestamp:
       header: 'Timestamp [ms]'
     data-values:
+      - header: "Track ID"
+        read-only: true
+      - header: "Sensor ID"
+        read-only: true
       - header: "Total field [nT]"
         semantic: "TMI"
         units: "nT"
+        read-only: true
       - header: "Altitude [m]"
         semantic: "Altitude"
         units: "m"
@@ -49,12 +54,14 @@
       - header: "Declination [°]"
         semantic: "Declination"
         units: "°"
+        read-only: true
       - header: "Inclination [°]"
         semantic: "Inclination"
         units: "°"
+        read-only: true
       - header: "Line"
         semantic: "Line"
-        units: ""
+        read-only: true
 
 
 

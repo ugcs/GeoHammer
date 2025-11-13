@@ -36,18 +36,21 @@
       - header: "Heading"
         semantic: "Heading"
         units: "deg"
+        read-only: true
       - header: "Altitude RTK"
         semantic: "Altitude RTK"
         units: "m"
+        read-only: true
       - header: "Altitude AGL"
         semantic: "Altitude AGL"
         units: "m"
       - header: "LX:Distance"
         semantic: "LX:Distance"
         units: "m"
+        read-only: true
       - header: "LX:Temperature"
         semantic: "LX:Temperature"
         units: "C"
       - header: "Line"
         semantic: "Line"
-        units: ""
+        read-only: true

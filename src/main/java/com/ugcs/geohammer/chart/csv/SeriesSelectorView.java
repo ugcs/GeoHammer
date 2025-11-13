@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.csv;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
@@ -169,6 +170,7 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         }
         buttons.add(ButtonType.CANCEL);
         alert.getButtonTypes().setAll(buttons);
+        alert.initOwner(AppContext.stage);
 
         return alert.showAndWait().orElse(ButtonType.CANCEL);
     }

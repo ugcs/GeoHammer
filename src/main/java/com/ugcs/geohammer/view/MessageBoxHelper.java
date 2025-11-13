@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.view;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.util.Strings;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -35,6 +36,8 @@ public class MessageBoxHelper {
 			content.setMaxWidth(CONTENT_WIDTH);
 
 			alert.getDialogPane().setContent(content);
+			alert.initOwner(AppContext.stage);
+
 			alert.showAndWait();
 		});
 	}

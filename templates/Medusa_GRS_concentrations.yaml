@@ -32,27 +32,38 @@
       - header: "Height"
         semantic: "Height"
         units: "m"
+        read-only: true
       - header: "Total"
         semantic: "Total"
         units: "ppm"
+        read-only: true
+      - header: "Countrate"
+        read-only: true
       - header: "U238"
         semantic: "U238"
         units: "Bq/kg"
+        read-only: true
       - header: "K40"
         semantic: "K40"
         units: "Bq/kg"
+        read-only: true
       - header: "Th232"
         semantic: "Th232"
         units: "Bq/kg"
+        read-only: true
       - header: "Cs137"
         semantic: "Cs137"
         units: "Bq/kg"
+        read-only: true
       - header: "Press"
         semantic: "Atm. pressure"
         units: "millibar"
+        read-only: true
       - header: "Temp"
         semantic: "Temperature"
         units: "Deg."
+        read-only: true
       - header: "Hum"
         semantic: "Atm. humidity"
         units: "%"
+        read-only: true

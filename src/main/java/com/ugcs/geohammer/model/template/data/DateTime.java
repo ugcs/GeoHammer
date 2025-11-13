@@ -11,7 +11,9 @@ import java.util.List;
 public class DateTime extends BaseData {
 
     private String format;
+
     private List<String> formats;
+
     private Type type;
 
     public String getFormat() {
@@ -55,5 +57,4 @@ public class DateTime extends BaseData {
         UTC,
         GPST
     }
-    
 }

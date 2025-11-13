@@ -9,6 +9,7 @@ import org.jspecify.annotations.NullUnmarked;
 public class SkipLinesTo {
 
     private String matchRegex;
+
     private boolean skipMatchedLine;
 
     /**
@@ -46,5 +47,4 @@ public class SkipLinesTo {
     public void setSkipMatchedLine(boolean skipMatchedLine) {
         this.skipMatchedLine = skipMatchedLine;
     }
-
 }

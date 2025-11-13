@@ -15,13 +15,21 @@ import org.springframework.util.StringUtils;
 public class Template {
 
     private String name;
+
     private String code;
+
     private FileType fileType = FileType.Unknown;
+
     private String matchRegex;
+
     private FileFormat fileFormat;
+
     private String dataValidation;
+
     private DataMapping dataMapping;
+
     private SkipLinesTo skipLinesTo;
+
     private boolean reorderByTime = false;
 
     /**

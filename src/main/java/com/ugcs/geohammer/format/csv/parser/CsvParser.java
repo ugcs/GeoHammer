@@ -51,9 +51,4 @@ public class CsvParser extends Parser {
         }
         return null;
     }
-
-    @Override
-    protected void onParsed(ColumnSchema columns, List<GeoData> values) {
-        // do nothing
-    }
 }

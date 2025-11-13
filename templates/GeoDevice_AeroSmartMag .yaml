@@ -35,9 +35,17 @@
       - header: "Field"
         semantic: "TMI"
         units: "nT"
+        read-only: true
       - header: "Alt"
         semantic: "Altitude"
         units: "m"
+        read-only: true
       - header: "Line"
         semantic: "Line"
-        units: ""
+        read-only: true
+      - header: "Time_zone"
+        read-only: true
+      - header: "hAcc"
+        read-only: true
+      - header: "vAcc"
+        read-only: true

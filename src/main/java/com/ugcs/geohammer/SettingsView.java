@@ -67,6 +67,7 @@ public class SettingsView implements ToolProducer {
 		Platform.runLater(() -> {
 			if (settingsStage == null) {
 				settingsStage = createSettingsStage();
+				settingsStage.initOwner(AppContext.stage);
 			}
 			settingsStage.show();
 		});

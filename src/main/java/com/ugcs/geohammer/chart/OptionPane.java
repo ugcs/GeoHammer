@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.chart.csv.SeriesSelectorView;
 import com.ugcs.geohammer.format.TraceFile;
@@ -1015,6 +1016,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		dialog.setHeaderText("Feature Not Implemented");
 		dialog.setContentText("This feature is not yet implemented.");
 		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK);
+		dialog.initOwner(AppContext.stage);
 		dialog.showAndWait();
 	}
 

@@ -18,19 +18,28 @@ import java.util.Map;
 public class DataMapping {
 
     private BaseData latitude;
+
     private BaseData longitude;
+
     private BaseData altitude;
+
     private Date date;
+
     private DateTime time;
+
     private DateTime dateTime;
+
     private BaseData timestamp;
+
     private BaseData traceNumber;
 
     private List<BaseData> sgyTraces;
+
     private List<SensorData> dataValues;
 
     // lookup caches
     private Map<String, SensorData> dataValuesBySemantic;
+
     private Map<String, SensorData> dataValuesByHeader;
 
     public List<BaseData> getSgyTraces() {

@@ -149,14 +149,8 @@ public abstract class Parser {
         // based on loaded data values
         setColumnDisplay(columns, values);
 
-        // allow post-processing by
-        // implementations
-        onParsed(columns, values);
-
         return values;
     }
-
-    protected abstract void onParsed(ColumnSchema columns, List<GeoData> values);
 
     private void skipLines(BufferedReader r) throws IOException {
         int markLimit = 65_536;
@@ -216,6 +210,11 @@ public abstract class Parser {
     private ColumnSchema buildColumnSchema() {
         DataMapping mapping = template.getDataMapping();
 
+        Set<String> metaHeaders = new HashSet<>();
+        for (BaseData metaValue : mapping.getMetaValues()) {
+            metaHeaders.add(metaValue.getHeader());
+        }
+
         ColumnSchema columns = new ColumnSchema();
 
         // add all file columns
@@ -225,6 +224,11 @@ public abstract class Parser {
             if (dataValue != null) {
                 column.setSemantic(Strings.emptyToNull(dataValue.getSemantic()));
                 column.setUnit(Strings.emptyToNull(dataValue.getUnits()));
+                column.setReadOnly(dataValue.isReadOnly());
+            }
+            // mark meta columns read-only
+            if (metaHeaders.contains(header)) {
+                column.setReadOnly(true);
             }
             columns.addColumn(column);
         }
@@ -272,11 +276,6 @@ public abstract class Parser {
             boolean display = !excludeHeaders.contains(header)
                     && (mapping.getDataValueByHeader(header) != null || hasNumbers(values, header));
             column.setDisplay(display);
-            // not a line or mark column
-            String semantic = column.getSemantic();
-            boolean readOnly = Objects.equals(semantic, Semantic.LINE.getName())
-                    || Objects.equals(semantic, Semantic.MARK.getName());
-            column.setReadOnly(readOnly);
         }
     }
 

@@ -82,12 +82,4 @@ public class FixedWidthParser extends Parser {
         }
         return null;
     }
-
-    @Override
-    protected void onParsed(ColumnSchema columns, List<GeoData> values) {
-        // mark all columns as read-only
-        for (Column column : columns) {
-            column.setReadOnly(true);
-        }
-    }
 }

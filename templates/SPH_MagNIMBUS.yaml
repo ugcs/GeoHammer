@@ -36,15 +36,22 @@
       - header: "TMI"
         semantic: "TMI"
         units: "nT"
+        read-only: true
+      - header: "Heading"
+        read-only: true
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
+        read-only: true
       - header: "Altitude AGL"
         semantic: "Altitude AGL"
         units: "m"
+        read-only: true
+      - header: "Valid"
+        read-only: true
       - header: "Next WP"
         semantic: "Line"
-        units: ""
+        read-only: true
       - header: "Bx"
         semantic: "Bx"
         units: "nT"

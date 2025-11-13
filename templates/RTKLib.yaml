@@ -31,28 +31,38 @@
     data-values:
       - header: "Q"
         index: 4
+        read-only: true
       - header: "ns"
         index: 5
+        read-only: true
       - header: "sdn(m)"
         index: 6
         units: "m"
+        read-only: true
       - header: "sde(m)"
         index: 7
         units: "m"
+        read-only: true
       - header: "sdu(m)"
         index: 8
         units: "m"
+        read-only: true
       - header: "sdne(m)"
         index: 9
         units: "m"
+        read-only: true
       - header: "sdeu(m)"
         index: 10
         units: "m"
+        read-only: true
       - header: "sdun(m)"
         index: 11
         units: "m"
+        read-only: true
       - header: "age(s)"
         index: 12
         units: "s"
+        read-only: true
       - header: "ratio"
         index: 13
+        read-only: true

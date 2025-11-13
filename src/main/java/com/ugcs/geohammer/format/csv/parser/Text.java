@@ -3,7 +3,6 @@ package com.ugcs.geohammer.format.csv.parser;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 
-import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;

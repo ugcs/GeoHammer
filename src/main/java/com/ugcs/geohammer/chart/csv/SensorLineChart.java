@@ -112,7 +112,7 @@ public class SensorLineChart extends Chart {
 
     private final Rectangle selectionRect = new Rectangle();
 
-    private Viewport viewport = new Viewport(0, 1, 0, 1);
+    private Viewport viewport = Viewport.FULL;
 
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -697,11 +697,9 @@ public class SensorLineChart extends Chart {
         // adjust visible range to the full range bounds
         middle = Math.max(middle, w);
         middle = Math.min(middle, numTraces - w - 1);
-        // x-axis width for a full scale
-        int xWidth = numTraces > 0 ? numTraces - 1 : 0;
         Viewport scrolled = new Viewport(
-                xWidth > 0 ? (double)(middle - w) / xWidth : 0,
-                xWidth > 0 ? (double)(middle + w) / xWidth : 0,
+                Viewport.normalizeIndex(middle - w, numTraces),
+                Viewport.normalizeIndex(middle + w, numTraces),
                 viewport.yMin(),
                 viewport.yMax()
         );
@@ -712,8 +710,8 @@ public class SensorLineChart extends Chart {
         IndexRange range = file.getLineRanges().get(lineIndex);
         int numTraces = numTraces();
         Viewport lineViewport = new Viewport(
-                (double)range.from() / numTraces,
-                (double)range.to() / numTraces,
+                Viewport.normalizeIndex(range.from(), numTraces),
+                Viewport.normalizeIndex(range.to() - 1, numTraces),
                 0,
                 1);
         setViewport(lineViewport, false);
@@ -743,8 +741,7 @@ public class SensorLineChart extends Chart {
 
     @Override
     public void zoomToFit() {
-        Viewport full = new Viewport(0, 1, 0, 1);
-        setViewport(full, false);
+        setViewport(Viewport.FULL, false);
     }
 
     @Override
@@ -1223,7 +1220,11 @@ public class SensorLineChart extends Chart {
             xMax = Math.clamp(xMax, xMin, plot.getData().size() - 1);
             IndexRange range = new IndexRange(xMin, xMax + 1);
 
-            int numSamples = Math.clamp((int)xAxis.getLayoutBounds().getWidth(), MIN_VIEW_SAMPLES, MAX_VIEW_SAMPLES);
+            int xWidth = (int)xAxis.getLayoutBounds().getWidth();
+            if (xWidth == 0) {
+                xWidth = DEFAULT_VIEW_SAMPLES;
+            }
+            int numSamples = Math.clamp(xWidth, MIN_VIEW_SAMPLES, MAX_VIEW_SAMPLES);
             List<Data<Number, Number>> data = sampleSeriesData(range, numSamples);
 
             setSeriesData(data);
@@ -1364,11 +1365,27 @@ public class SensorLineChart extends Chart {
     // chart viewport relative to [0, 1] full-size view
     record Viewport(double xMin, double xMax, double yMin, double yMax) {
 
+        public static final Viewport FULL = new Viewport(0, 1, 0, 1);
+
         Viewport(double xMin, double xMax, double yMin, double yMax) {
             this.xMin = Math.clamp(xMin, 0, 1);
             this.xMax = Math.clamp(xMax, 0, 1);
             this.yMin = Math.clamp(yMin, 0, 1);
             this.yMax = Math.clamp(yMax, 0, 1);
+        }
+
+        public static double normalize(double value, double min, double max) {
+            // min -> 0
+            // max -> 1
+            double width = max - min;
+            return width > 0 ? (value - min) / width : 0;
+        }
+
+        public static double normalizeIndex(double value, int n) {
+            // min -> 0
+            // max -> 1
+            double width = Math.max(0, n - 1);
+            return width > 0 ? value / width : 0;
         }
 
         public double width() {
@@ -1408,7 +1425,8 @@ public class SensorLineChart extends Chart {
                 return this;
             }
             double w = 0.5 * (xMax - xMin);
-            x = Math.clamp(x, w, 1.0 - w);
+            x = Math.max(x, w);
+            x = Math.min(x, 1 - w);
             return new Viewport(x - w, x + w, yMin, yMax);
         }
     }

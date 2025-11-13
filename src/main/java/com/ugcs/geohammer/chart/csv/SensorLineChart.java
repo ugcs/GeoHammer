@@ -183,6 +183,10 @@ public class SensorLineChart extends Chart {
             Plot plot = createPlot(seriesName, file.getGeoData());
             createChart(plot);
         }
+        // sync display ranges of the filtered and source columns
+        for (String seriesName : charts.keySet()) {
+            syncDisplayRange(seriesName);
+        }
 
         // create interactive chart
         interactiveChart = createInteractiveChart();
@@ -580,6 +584,11 @@ public class SensorLineChart extends Chart {
         seriesToRemove.removeAll(displayHeaders);
         seriesToRemove.forEach(this::removeFileColumn);
 
+        // sync display ranges of the filtered and source columns
+        for (String seriesName : charts.keySet()) {
+            syncDisplayRange(seriesName);
+        }
+
         // update interactive chart
         interactiveChart.setPlot(createEmptyPlot(Strings.empty(), numTraces()));
 
@@ -964,6 +973,29 @@ public class SensorLineChart extends Chart {
 
     // filters
 
+    private void syncDisplayRange(String seriesName) {
+        String sourceSeriesName = getSourceSeriesName(seriesName);
+        if (Objects.equals(seriesName, sourceSeriesName)) {
+            return;
+        }
+        LineChartWithMarkers chart = charts.get(seriesName);
+        LineChartWithMarkers sourceChart = charts.get(sourceSeriesName);
+        if (chart != null && sourceChart != null) {
+            chart.plot.setDisplayRange(sourceChart.plot.getDisplayRange());
+            chart.zoomTo(viewport);
+        }
+    }
+
+    private String getSourceSeriesName(String seriesName) {
+        if (seriesName.endsWith("_LPF")) {
+            return getSourceSeriesName(seriesName.substring(0, seriesName.length() - 4));
+        }
+        if (seriesName.endsWith("_LAG")) {
+            return getSourceSeriesName(seriesName.substring(0, seriesName.length() - 4));
+        }
+        return seriesName;
+    }
+
     public void applyFilter(SequenceFilter filter, String seriesName, String filteredSeriesSuffix) {
         Check.notNull(filter);
         if (Strings.isNullOrEmpty(seriesName)) {
@@ -1001,10 +1033,14 @@ public class SensorLineChart extends Chart {
 
         Platform.runLater(() -> {
             LineChartWithMarkers filteredChart = charts.get(filteredSeriesName);
+            Plot plot = createPlot(filteredSeriesName, file.getGeoData());
             if (filteredChart == null) {
-                Plot plot = createPlot(filteredSeriesName, file.getGeoData());
                 filteredChart = createChart(plot);
+            } else {
+                filteredChart.setPlot(plot);
             }
+            // keep display range of the source series
+            syncDisplayRange(filteredSeriesName);
             model.publishEvent(new SeriesUpdatedEvent(this, file,
                     filteredSeriesName, true, true));
             filteredChart.updateData();
@@ -1389,7 +1425,7 @@ public class SensorLineChart extends Chart {
 
         private final Range dataRange;
 
-        private final Range displayRange;
+        private Range displayRange;
 
         public Plot(String seriesName, @Nullable String unit, List<@Nullable Number> data) {
             this.seriesName = seriesName;
@@ -1469,6 +1505,10 @@ public class SensorLineChart extends Chart {
 
         public Range getDisplayRange() {
             return displayRange;
+        }
+
+        public void setDisplayRange(Range displayRange) {
+            this.displayRange = displayRange;
         }
     }
 }

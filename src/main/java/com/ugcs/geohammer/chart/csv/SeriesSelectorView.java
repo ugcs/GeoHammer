@@ -20,7 +20,7 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.ColorPalette;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
-import com.ugcs.geohammer.util.Views;
+import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;

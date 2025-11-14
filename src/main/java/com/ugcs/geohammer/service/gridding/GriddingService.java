@@ -5,7 +5,7 @@ import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.chart.OptionPane;
 import com.ugcs.geohammer.model.event.GriddingParamsSetted;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.math.DataPoint;
+import com.ugcs.geohammer.model.DataPoint;
 import com.ugcs.geohammer.util.Check;
 import edu.mines.jtk.interp.SplinesGridder2;
 import org.springframework.stereotype.Service;

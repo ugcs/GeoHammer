@@ -2,7 +2,6 @@ package com.ugcs.geohammer;
 
 import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.chart.OptionPane;
-import com.ugcs.geohammer.view.status.StatusBar;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.FileManager;
 import com.ugcs.geohammer.service.script.PythonConfig;

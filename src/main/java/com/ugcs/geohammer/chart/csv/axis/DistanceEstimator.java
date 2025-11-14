@@ -6,7 +6,7 @@ import com.ugcs.geohammer.math.SphericalMercator;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.math.DouglasPeucker;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import javafx.geometry.Point2D;
 

@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.service.script;
 
+import com.ugcs.geohammer.analytics.EventSender;
+import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.Loader;
 import com.ugcs.geohammer.model.template.FileTemplates;
@@ -44,12 +46,18 @@ public class ScriptExecutor {
 
 	private final Loader loader;
 
+	private final EventSender eventSender;
+
+	private final EventsFactory eventsFactory;
+
 	// sgyFile -> scriptName
 	private final Map<SgyFile, String> executingScripts = new ConcurrentHashMap<>();
 
-	public ScriptExecutor(PythonConfig pythonConfig, Loader loader) {
+	public ScriptExecutor(PythonConfig pythonConfig, Loader loader, EventSender eventSender, EventsFactory eventsFactory) {
 		this.pythonConfig = pythonConfig;
 		this.loader = loader;
+		this.eventSender = eventSender;
+		this.eventsFactory = eventsFactory;
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
@@ -68,6 +76,7 @@ public class ScriptExecutor {
 			tempFile = copyToTempFile(sgyFile);
 
 			List<String> command = buildCommand(scriptMetadata, parameters, tempFile.toPath());
+			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
 			runScript(command, onScriptOutput);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();

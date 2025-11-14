@@ -1,6 +1,7 @@
-package com.ugcs.geohammer.util;
+package com.ugcs.geohammer.model;
 
 import com.google.gson.annotations.Expose;
+import com.ugcs.geohammer.util.Check;
 
 public class Range {
 

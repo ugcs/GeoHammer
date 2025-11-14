@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.math;
 
+import com.ugcs.geohammer.model.DataPoint;
 import edu.mines.jtk.interp.SplinesGridder2;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

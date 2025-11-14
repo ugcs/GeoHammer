@@ -1,7 +1,7 @@
 package com.ugcs.geohammer.math;
 
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.Range;
+import com.ugcs.geohammer.model.Range;
 
 import java.util.Collections;
 import java.util.PriorityQueue;

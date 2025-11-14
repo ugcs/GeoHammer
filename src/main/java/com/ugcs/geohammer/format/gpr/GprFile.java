@@ -28,7 +28,7 @@ import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Traces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -13,7 +13,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.math.PrefixSum;
 import com.ugcs.geohammer.math.SegmentTree;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Strings;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.HPos;

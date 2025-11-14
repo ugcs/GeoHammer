@@ -26,7 +26,7 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.math.AnalyticSignal;
 import com.ugcs.geohammer.math.AnalyticSignalFilter;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.Range;
+import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Strings;
 import javafx.scene.control.Button;
 import org.jspecify.annotations.Nullable;

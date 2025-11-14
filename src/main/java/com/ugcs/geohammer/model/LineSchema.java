@@ -3,7 +3,6 @@ package com.ugcs.geohammer.model;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.math.SphericalMercator;
 import com.ugcs.geohammer.math.PrincipalComponents;
-import com.ugcs.geohammer.util.IndexRange;
 import com.ugcs.geohammer.service.quality.LineComponents;
 import javafx.geometry.Point2D;
 

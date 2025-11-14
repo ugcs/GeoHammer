@@ -1,5 +1,6 @@
-package com.ugcs.geohammer.util;
+package com.ugcs.geohammer.view;
 
+import com.ugcs.geohammer.util.Check;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;

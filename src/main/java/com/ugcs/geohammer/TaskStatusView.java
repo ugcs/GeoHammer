@@ -6,7 +6,7 @@ import com.ugcs.geohammer.model.event.TaskRegisteredEvent;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.Views;
+import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;

@@ -4,8 +4,6 @@ import com.amplitude.Amplitude;
 import com.amplitude.AmplitudeCallbacks;
 import com.ugcs.geohammer.analytics.Event;
 import com.ugcs.geohammer.analytics.EventType;
-import com.ugcs.geohammer.analytics.amplitude.AmplitudeEventSender;
-import com.ugcs.geohammer.analytics.amplitude.UserIdService;
 import com.ugcs.geohammer.model.Model;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,6 +87,7 @@ class AmplitudeEventSenderTest {
 
             Event event = createMockEvent();
             when(mockUserIdService.getOrCreateUserId()).thenReturn("user123");
+            when(mockUserIdService.getOrCreateDeviceId()).thenReturn("device123");
 
             ArgumentCaptor<com.amplitude.Event> eventCaptor = ArgumentCaptor.forClass(com.amplitude.Event.class);
             ArgumentCaptor<AmplitudeCallbacks> callbackCaptor = ArgumentCaptor.forClass(AmplitudeCallbacks.class);
@@ -100,6 +99,7 @@ class AmplitudeEventSenderTest {
             com.amplitude.Event capturedEvent = eventCaptor.getValue();
             assertEquals("test_event", capturedEvent.eventType);
             assertEquals("user123", capturedEvent.userId);
+            assertEquals("device123", capturedEvent.deviceId);
 
             // Simulate successful callback
             AmplitudeCallbacks callbacks = callbackCaptor.getValue();
@@ -116,6 +116,7 @@ class AmplitudeEventSenderTest {
 
             Event event = createMockEventWithData();
             when(mockUserIdService.getOrCreateUserId()).thenReturn("user123");
+            when(mockUserIdService.getOrCreateDeviceId()).thenReturn("device123");
 
             ArgumentCaptor<com.amplitude.Event> eventCaptor = ArgumentCaptor.forClass(com.amplitude.Event.class);
 
@@ -140,6 +141,7 @@ class AmplitudeEventSenderTest {
 
             Event event = createMockEventWithProperties();
             when(mockUserIdService.getOrCreateUserId()).thenReturn("user123");
+            when(mockUserIdService.getOrCreateDeviceId()).thenReturn("device123");
 
             ArgumentCaptor<com.amplitude.Event> eventCaptor = ArgumentCaptor.forClass(com.amplitude.Event.class);
 

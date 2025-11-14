@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.math;
+package com.ugcs.geohammer.model;
 
 public record DataPoint(double latitude, double longitude, double value) implements Comparable<DataPoint> {
 

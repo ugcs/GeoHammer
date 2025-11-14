@@ -22,7 +22,7 @@ import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.math.DouglasPeucker;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import javafx.geometry.Point2D;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;

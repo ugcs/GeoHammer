@@ -28,7 +28,7 @@ public class AmplitudeEventSender implements EventSender {
     private UserIdService userIdService;
 
     public AmplitudeEventSender(
-            @Value("${amplitude.api-key:}") String apiKey,
+            @Value("${amplitude.apiKey:}") String apiKey,
             @Value("${amplitude.enabled:false}") Boolean isEnabled
     ) {
         if (!isEnabled) {
@@ -51,7 +51,8 @@ public class AmplitudeEventSender implements EventSender {
         }
         com.amplitude.Event amplitudeEvent = new com.amplitude.Event(
                 event.getEventType().getCode(),
-                userIdService.getOrCreateUserId()
+                userIdService.getOrCreateUserId(),
+                userIdService.getOrCreateDeviceId()
         );
         Event.ClientProperties clientProperties = event.getClientProperties();
         if (clientProperties != null) {

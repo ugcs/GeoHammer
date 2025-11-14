@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.math;
 
+import com.ugcs.geohammer.model.DataPoint;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.kdtree.KdNode;

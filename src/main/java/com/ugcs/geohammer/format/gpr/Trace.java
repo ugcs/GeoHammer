@@ -2,7 +2,7 @@ package com.ugcs.geohammer.format.gpr;
 
 import com.github.thecoldwine.sigrun.common.TraceHeader;
 import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;

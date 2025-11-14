@@ -17,7 +17,7 @@ import com.ugcs.geohammer.service.TaskRunner;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.FileTypes;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.MessageBoxHelper;

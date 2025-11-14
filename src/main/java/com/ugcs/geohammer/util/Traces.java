@@ -1,8 +1,10 @@
 package com.ugcs.geohammer.util;
 
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.gpr.Trace;
+import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.format.GeoData;
 

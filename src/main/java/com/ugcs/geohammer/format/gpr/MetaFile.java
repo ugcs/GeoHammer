@@ -10,9 +10,9 @@ import com.ugcs.geohammer.format.TraceGeoData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.GsonConfig;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
-import com.ugcs.geohammer.util.Range;
+import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Traces;
 

@@ -7,7 +7,7 @@ import com.ugcs.geohammer.model.ProgressListener;
 import com.ugcs.geohammer.map.layer.radar.ArrayBuilder;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
-import com.ugcs.geohammer.math.ScanProfile;
+import com.ugcs.geohammer.model.ScanProfile;
 
 public class RadarMapScan implements Command {
 

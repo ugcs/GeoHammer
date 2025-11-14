@@ -1,12 +1,12 @@
-package com.ugcs.geohammer.view.status;
+package com.ugcs.geohammer;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.stream.Collectors;
 
-import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.view.Toast;
-import com.ugcs.geohammer.TaskStatusView;
+import com.ugcs.geohammer.view.status.Status;
+import com.ugcs.geohammer.view.status.StatusMessage;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;

@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.util;
 
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.element.PositionalObject;

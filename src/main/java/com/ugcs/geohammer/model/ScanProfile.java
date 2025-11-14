@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.math;
+package com.ugcs.geohammer.model;
 
 import org.jspecify.annotations.Nullable;
 

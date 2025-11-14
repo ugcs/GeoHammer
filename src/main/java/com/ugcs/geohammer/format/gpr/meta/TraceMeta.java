@@ -1,8 +1,8 @@
 package com.ugcs.geohammer.format.gpr.meta;
 
 import com.google.gson.annotations.Expose;
-import com.ugcs.geohammer.util.IndexRange;
-import com.ugcs.geohammer.util.Range;
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.Range;
 
 import java.util.List;
 

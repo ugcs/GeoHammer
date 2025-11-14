@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.math;
 
+import com.ugcs.geohammer.model.DataPoint;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.index.kdtree.KdTree;

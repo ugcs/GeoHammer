@@ -24,7 +24,7 @@ import com.ugcs.geohammer.service.gpr.RadarMapScan;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.Settings.RadarMapMode;
-import com.ugcs.geohammer.math.ScanProfile;
+import com.ugcs.geohammer.model.ScanProfile;
 import com.ugcs.geohammer.view.AutoGainCheckbox;
 import com.ugcs.geohammer.view.BaseCheckBox;
 import com.ugcs.geohammer.view.BaseSlider;

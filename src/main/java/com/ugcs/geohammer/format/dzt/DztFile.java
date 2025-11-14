@@ -28,7 +28,7 @@ import com.ugcs.geohammer.math.MinMaxAvg;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Traces;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;

@@ -13,7 +13,7 @@ import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import javafx.geometry.Point2D;
 
 public class RemoveLineButton extends PositionalObject {

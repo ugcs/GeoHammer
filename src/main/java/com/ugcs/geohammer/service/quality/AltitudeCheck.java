@@ -7,7 +7,7 @@ import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.math.DouglasPeucker;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import javafx.geometry.Point2D;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineSegment;

@@ -11,7 +11,7 @@ import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.chart.csv.axis.DistanceEstimator;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
-import com.ugcs.geohammer.util.IndexRange;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import org.jspecify.annotations.Nullable;
 

@@ -11,7 +11,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.List;
 
 public class FixedWidthWriter extends Writer {
@@ -52,7 +51,7 @@ public class FixedWidthWriter extends Writer {
         Parser parser = csvFile.getParser();
         return parser != null
                 ? parser.getHeaders()
-                : Arrays.asList(FixedWidthParser.getFixedWidthHeaders(template));
+                : template.getDataMapping().getIndexedHeaders();
     }
 
     private String buildDataLine(GeoData value, List<String> headers) {

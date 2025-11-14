@@ -1,14 +1,10 @@
 package com.ugcs.geohammer.format.csv.parser;
 
-import com.ugcs.geohammer.format.GeoData;
-import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.template.Template;
-import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.util.List;
 
 public class CsvParser extends Parser {
 
@@ -36,7 +32,10 @@ public class CsvParser extends Parser {
             }
             return splitLine(line);
         } else {
-            return new String[0];
+            // get headers by index
+            return template.getDataMapping()
+                    .getIndexedHeaders()
+                    .toArray(new String[0]);
         }
     }
 

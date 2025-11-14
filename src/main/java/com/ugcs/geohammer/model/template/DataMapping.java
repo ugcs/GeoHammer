@@ -8,8 +8,10 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.NullUnmarked;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,6 +142,47 @@ public class DataMapping {
         Nulls.ifPresent(traceNumber, values::add);
 
         return values;
+    }
+
+    public List<@Nullable BaseData> getIndexedValues() {
+        List<BaseData> values = new ArrayList<>();
+        values.addAll(getMetaValues());
+        values.addAll(Nulls.toEmpty(dataValues));
+
+        int maxIndex = -1;
+        for (BaseData value : values) {
+            if (value.getIndex() != null) {
+                maxIndex = Math.max(maxIndex, value.getIndex());
+            }
+        }
+        if (maxIndex == -1) {
+            return List.of();
+        }
+
+        List<@Nullable BaseData> indexedValues
+                = new ArrayList<>(Collections.nCopies(maxIndex + 1, null));
+        for (BaseData value : values) {
+            if (value.getIndex() != null && value.getIndex() >= 0) {
+                indexedValues.set(value.getIndex(), value);
+            }
+        }
+        return indexedValues;
+    }
+
+    public List<String> getIndexedHeaders() {
+        List<@Nullable BaseData> indexedValues = getIndexedValues();
+        List<String> indexedHeaders = new ArrayList<>(indexedValues.size());
+        for (int i = 0; i < indexedValues.size(); i++) {
+            BaseData value = indexedValues.get(i);
+            String header = value != null
+                    ? Strings.trim(value.getHeader())
+                    : null;
+            if (header == null) {
+                header = "column_" + i;
+            }
+            indexedHeaders.add(header);
+        }
+        return indexedHeaders;
     }
 
     public boolean addDataValue(SensorData sensorData) {

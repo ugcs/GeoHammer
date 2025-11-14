@@ -30,13 +30,19 @@ class CsvParserTest extends BaseParsersTest {
         // TODO: Add some GeoCoordinates to the coordinates list
     }
 
+    private Template loadTemplate(String file) {
+        Template template = deserializer.load(file);
+        template.init();
+        return template;
+    }
+
     @Test
     void validCsv() throws IOException {
 
         String path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
         try {
@@ -52,7 +58,7 @@ class CsvParserTest extends BaseParsersTest {
         var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
         assertThrows(ParseException.class, () -> {
@@ -65,7 +71,7 @@ class CsvParserTest extends BaseParsersTest {
         var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
         assertThrows(IncorrectDateFormatException.class, () -> {
@@ -78,7 +84,7 @@ class CsvParserTest extends BaseParsersTest {
         var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplateWithoutHeaders.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
         try {
@@ -93,7 +99,7 @@ class CsvParserTest extends BaseParsersTest {
         var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplateWithoutHeaders.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
         // invalid csv also parcing if possible
@@ -110,7 +116,7 @@ class CsvParserTest extends BaseParsersTest {
         var path = YamlTestDataFolder + YamlCsvFolder + YamlMagdroneFolder + "MagDroneValidTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         Parser parser = new CsvParser(template);
 
         try {
@@ -126,7 +132,7 @@ class CsvParserTest extends BaseParsersTest {
         var path = YamlTestDataFolder + YamlCsvFolder + YamlMagdroneFolder + "MagDroneInvalidTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         var parser = new CsvParser(template);
 
         Assertions.assertThrows(Exception.class, () -> {
@@ -140,7 +146,7 @@ class CsvParserTest extends BaseParsersTest {
         var path = YamlTestDataFolder + YamlCsvFolder + YamlMagarrowFolder + "MagArrowValidTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
-        Template template = deserializer.load(file);
+        Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
         try {

@@ -41,10 +41,9 @@ public class FixedWidthParser extends Parser {
     protected String[] readValues(BufferedReader r) throws IOException {
         String line;
         while ((line = r.readLine()) != null) {
-            if (isBlankOrCommented(line)) {
-                continue;
+            if (!isBlankOrCommented(line)) {
+                return splitLine(line);
             }
-            return splitLine(line);
         }
         return null;
     }

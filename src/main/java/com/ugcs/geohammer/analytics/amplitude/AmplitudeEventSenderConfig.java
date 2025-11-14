@@ -11,7 +11,7 @@ public class AmplitudeEventSenderConfig {
 
     @Bean
     public AmplitudeEventSender amplitudeEventSender(
-            @Value("${amplitude.api-key:}") String apiKey,
+            @Value("${amplitude.apiKey:}") String apiKey,
             @Value("${amplitude.enabled:}") Boolean enabled) {
         return new AmplitudeEventSender(apiKey, enabled);
     }

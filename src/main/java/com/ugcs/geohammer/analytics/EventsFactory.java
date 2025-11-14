@@ -31,4 +31,15 @@ public class EventsFactory {
                 .withProperty("template", template)
                 .withProperty("error_message", errorMessage);
     }
+
+    public Event createLicenseValidatedEvent(String name, String expiresAt) {
+        return new Event(EventType.LICENSE_VALIDATED, null, null, null)
+                .withProperty("name", name)
+                .withProperty("expires_at", expiresAt);
+    }
+
+    public Event createScriptExecutionStartedEvent(String scriptName) {
+        return new Event(EventType.SCRIPT_EXECUTION_STARTED, null, null, null)
+                .withProperty("script_name", scriptName);
+    }
 }

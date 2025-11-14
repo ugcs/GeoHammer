@@ -4,6 +4,7 @@ import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.GeoData;
+import com.ugcs.geohammer.model.template.FileFormat;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
@@ -16,36 +17,23 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CsvWriter {
+public class CsvWriter extends Writer {
 
-    private static final String DEFAULT_SEPARATOR = ",";
-
-    private static final boolean DEFAULT_WITH_HEADER = false;
-
-    private final CsvFile csvFile;
-
-    public CsvWriter(CsvFile csvFile) {
-        Check.notNull(csvFile);
-
-        this.csvFile = csvFile;
+    public CsvWriter(Template template) {
+        super(template);
     }
 
-    public void write(File file) throws IOException {
-        Check.notNull(file);
+    @Override
+    public void write(CsvFile csvFile, File toFile) throws IOException {
+        Check.notNull(csvFile);
+        Check.notNull(toFile);
 
-        CsvParser parser = csvFile.getParser();
-        Template template = csvFile.getTemplate();
-
-        String separator = template != null
-                ? template.getFileFormat().getSeparator()
-                : DEFAULT_SEPARATOR;
-        boolean withHeader = template != null
-                ? template.getFileFormat().isHasHeader()
-                : DEFAULT_WITH_HEADER;
+        Parser parser = csvFile.getParser();
+        FileFormat format = template.getFileFormat();
 
         // target headers may differ from the source headers
-        List<String> headers = getHeadersToSave();
-        try (BufferedWriter writer = Files.newBufferedWriter(file.toPath())) {
+        List<String> headers = getHeadersToSave(csvFile);
+        try (BufferedWriter writer = Files.newBufferedWriter(toFile.toPath())) {
             // skipped lines
             if (parser != null) {
                 for (String line : Nulls.toEmpty(parser.getSkippedLines())) {
@@ -55,17 +43,17 @@ public class CsvWriter {
             }
 
             // headers
-            if (withHeader) {
-                writer.write(String.join(separator, buildHeadersLine(headers)));
+            if (format.isHasHeader()) {
+                writer.write(String.join(format.getSeparator(), buildHeadersLine(headers)));
                 writer.newLine();
             }
 
-            // data lines
-            for (GeoData value : Nulls.toEmpty(csvFile.getGeoData())) {
+            // value lines
+            for (GeoData value : csvFile.getGeoData()) {
                 if (value == null) {
                     continue;
                 }
-                writer.write(String.join(separator, buildDataLine(value, headers)));
+                writer.write(String.join(format.getSeparator(), buildDataLine(value, headers)));
                 writer.newLine();
             }
         }
@@ -76,9 +64,9 @@ public class CsvWriter {
         }
     }
 
-    private List<String> getHeadersToSave() {
-        CsvParser parser = csvFile.getParser();
-        List<GeoData> values = Nulls.toEmpty(csvFile.getGeoData());
+    private List<String> getHeadersToSave(CsvFile csvFile) {
+        Parser parser = csvFile.getParser();
+        List<GeoData> values = csvFile.getGeoData();
 
         if (values.isEmpty()) {
             if (parser != null) {
@@ -96,15 +84,15 @@ public class CsvWriter {
             // header present in a source file
             // or column has any values
             if (parser != null && parser.hasHeader(header)
-                    || !isEmptyColumn(header)) {
+                    || !isEmptyColumn(header, values)) {
                 headersToSave.add(header);
             }
         }
         return headersToSave;
     }
 
-    private boolean isEmptyColumn(String header) {
-        for (GeoData value : Nulls.toEmpty(csvFile.getGeoData())) {
+    private boolean isEmptyColumn(String header, List<GeoData> values) {
+        for (GeoData value : values) {
             if (value != null && value.getValue(header) != null) {
                 return false;
             }
@@ -126,7 +114,7 @@ public class CsvWriter {
             String header = headers.get(i);
             Number number = value.getNumber(header);
             if (number != null) {
-                line[i] = String.format("%s", number);
+                line[i] = Text.formatNumber(number);
             } else {
                 String str = value.getString(header);
                 line[i] = Strings.nullToEmpty(str);

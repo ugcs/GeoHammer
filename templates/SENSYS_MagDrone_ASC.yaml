@@ -27,9 +27,12 @@
     timestamp:
       header: 'Timestamp [ms]'
     data-values:
+      - header: "Sensor ID"
+        read-only: true
       - header: "Total field anomaly [nT]"
         semantic: "TMI"
         units: "nT"
+        read-only: true
       - header: "Altitude [m]"
         semantic: "Altitude"
         units: "m"
@@ -44,6 +47,6 @@
         units: "nT"
       - header: "Line"
         semantic: "Line"
-        units: ""
+        read-only: true
 
 

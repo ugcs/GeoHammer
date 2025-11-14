@@ -36,12 +36,10 @@
       - header: "Mag"
         semantic: "Mag"
         units: "nT"
-      - header: "MagValid"
-        semantic: "MagValid"
-        units: ""
+        read-only: true
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
       - header: "Line"
         semantic: "Line"
-        units: ""
+        read-only: true

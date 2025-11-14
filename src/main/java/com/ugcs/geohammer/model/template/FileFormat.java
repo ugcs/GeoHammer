@@ -16,9 +16,13 @@ import com.ugcs.geohammer.model.template.data.Date;
 public class FileFormat {
 
     private String commentPrefix;
+
     private String separator;
+
     private String decimalSeparator;
+
     private boolean hasHeader;
+
     private List<Short> columnLengths;
 
     /**

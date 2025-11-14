@@ -41,12 +41,15 @@
       - header: "nT"
         semantic: "TMI"
         units: "nT"
+        read-only: true
       - header: "alt"
         semantic: "Altitude"
         units: "m"
+        read-only: true
       - header: "laser"
         semantic: "Altitude AGL"
         units: "m"
+        read-only: true
       - header: "Next WP"
         semantic: "Line"
-        units: ""
+        read-only: true

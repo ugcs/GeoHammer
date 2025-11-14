@@ -36,12 +36,30 @@
       - header: "Heading"
         semantic: "Heading"
         units: "deg"
+        read-only: true
+      - header: "Altitude MSL"
+        read-only: true
       - header: "Altitude AGL"
         semantic: "Altitude AGL"
         units: "m"
+        read-only: true
+      - header: "RSS:Direction"
+        read-only: true
       - header: "RSS:Velocity raw"
         semantic: "RSS:Velocity raw"
         units: "m/s"
+        read-only: true
       - header: "RSS:Velocity filtered"
         semantic: "RSS:Velocity filtered"
         units: "m/s"
+        read-only: true
+      - header: "RSS:Signal"
+        read-only: true
+      - header: "RSS:Q1"
+        read-only: true
+      - header: "RSS:Q2"
+        read-only: true
+      - header: "RSS:Tilt"
+        read-only: true
+      - header: "RSS:Trace"
+        read-only: true

@@ -8,8 +8,11 @@ public class BaseData {
     public static final int DEFAULT_DECIMALS = 2;
 
     private String header;
+
     private Integer index;
+
     private String regex;
+
     private int decimals = DEFAULT_DECIMALS;
 
     public String getHeader() {

@@ -1,10 +1,15 @@
 package com.ugcs.geohammer.model.template;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import com.ugcs.geohammer.model.Semantic;
+import com.ugcs.geohammer.model.template.data.BaseData;
 import com.ugcs.geohammer.model.template.data.SensorData;
+import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.NullUnmarked;
 import org.springframework.util.StringUtils;
 
@@ -15,37 +20,74 @@ import org.springframework.util.StringUtils;
 public class Template {
 
     private String name;
+
     private String code;
+
     private FileType fileType = FileType.Unknown;
+
     private String matchRegex;
+
     private FileFormat fileFormat;
+
     private String dataValidation;
+
     private DataMapping dataMapping;
+
     private SkipLinesTo skipLinesTo;
+
     private boolean reorderByTime = false;
 
     /**
      * Initialize template on load
      */
     public void init() {
-        if (dataMapping != null) {
-            // Line
-            String lineSemantic = Semantic.LINE.getName();
-            SensorData line = dataMapping.getDataValueBySemantic(lineSemantic);
-            if (line == null) {
-                line = new SensorData();
-                line.setSemantic(lineSemantic);
-                line.setHeader(lineSemantic);
-                dataMapping.addDataValue(line);
-            }
-            // Mark
-            String markSemantic = Semantic.MARK.getName();
-            SensorData mark = dataMapping.getDataValueBySemantic(markSemantic);
-            if (mark == null) {
-                mark = new SensorData();
-                mark.setSemantic(markSemantic);
-                mark.setHeader(markSemantic);
-                dataMapping.addDataValue(mark);
+        addLineDataValue();
+        addMarkDataValue();
+
+        initIndexedHeaders();
+    }
+
+    private void addLineDataValue() {
+        if (dataMapping == null) {
+            return;
+        }
+        String lineSemantic = Semantic.LINE.getName();
+        SensorData line = dataMapping.getDataValueBySemantic(lineSemantic);
+        if (line == null) {
+            line = new SensorData();
+            line.setSemantic(lineSemantic);
+            line.setHeader(lineSemantic);
+            line.setReadOnly(true);
+            dataMapping.addDataValue(line);
+        }
+    }
+
+    private void addMarkDataValue() {
+        if (dataMapping == null) {
+            return;
+        }
+        String markSemantic = Semantic.MARK.getName();
+        SensorData mark = dataMapping.getDataValueBySemantic(markSemantic);
+        if (mark == null) {
+            mark = new SensorData();
+            mark.setSemantic(markSemantic);
+            mark.setHeader(markSemantic);
+            mark.setReadOnly(true);
+            dataMapping.addDataValue(mark);
+        }
+    }
+
+    private void initIndexedHeaders() {
+        if (dataMapping == null) {
+            return;
+        }
+        List<BaseData> dataValues = new ArrayList<>();
+        dataValues.addAll(dataMapping.getMetaValues());
+        dataValues.addAll(Nulls.toEmpty(dataMapping.getDataValues()));
+        for (BaseData dataValue : dataValues) {
+            if (dataValue.getIndex() != null
+                    && Strings.isNullOrBlank(dataValue.getHeader())) {
+                dataValue.setHeader("column_" + dataValue.getIndex());
             }
         }
     }

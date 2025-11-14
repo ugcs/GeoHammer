@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.ScrollableData;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
@@ -90,7 +91,8 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 	private boolean confirmMarksRemoval() {
 		Alert alert = new Alert(AlertType.CONFIRMATION);
 		alert.setTitle("Remove all additional elements");
-		alert.setContentText("Confirm to clear makup");
+		alert.setContentText("Confirm to clear markup");
+		alert.initOwner(AppContext.stage);
 
 		Optional<ButtonType> result = alert.showAndWait();
 		return result.isPresent() && result.get() == ButtonType.OK;

@@ -1,0 +1,68 @@
+  # Template display name
+  name: "RTKLib POS"
+  # Code of template
+  code: "rtklib"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: ColumnsFixedWidth
+  # Applies to the first 10 not empty lines of the file to detect template
+  match-regex: "^.*RTKPOST-QT ver.+ Emlid b33$"
+  file-format:
+  # The symbol which uses to make a comment
+    comment-prefix: '%'
+  # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+  # Applies to ColumnsFixedWidth files. The length of every data column to parse information
+    column-lengths: [23, 15, 15, 11, 4, 4, 9, 9, 9, 9, 9, 9, 8, 7]
+  data-mapping:
+    date-time:
+      header: "%  GPST"
+      index: 0
+      format: 'yyyy/MM/dd HH:mm:ss.fff'
+      type: UTC
+    latitude:
+      header: "latitude(deg)"
+      index: 1
+    longitude:
+      header: "longitude(deg)"
+      index: 2
+    altitude:
+      header: "height(m)"
+      index: 3
+    data-values:
+      - header: "Q"
+        index: 4
+        read-only: true
+      - header: "ns"
+        index: 5
+        read-only: true
+      - header: "sdn(m)"
+        index: 6
+        units: "m"
+        read-only: true
+      - header: "sde(m)"
+        index: 7
+        units: "m"
+        read-only: true
+      - header: "sdu(m)"
+        index: 8
+        units: "m"
+        read-only: true
+      - header: "sdne(m)"
+        index: 9
+        units: "m"
+        read-only: true
+      - header: "sdeu(m)"
+        index: 10
+        units: "m"
+        read-only: true
+      - header: "sdun(m)"
+        index: 11
+        units: "m"
+        read-only: true
+      - header: "age(s)"
+        index: 12
+        units: "s"
+        read-only: true
+      - header: "ratio"
+        index: 13
+        read-only: true

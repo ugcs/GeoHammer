@@ -38,27 +38,34 @@
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
+        read-only: true
       - header: "Altitude RTK"
         semantic: "Altitude RTK"
         units: "m"
+        read-only: true
       - header: "ALT:Altitude"
         semantic: "Altitude AGL"
         units: "m"
       - header: "Ellipsoidal Height"
         semantic: "Ellipsoidal Height"
         units: "m"
+      - header: "Elapsed"
+        read-only: true
       - header: "Next WP"
         semantic: "Line"
-        units: ""
+        read-only: true
       - header: "Velocity"
         semantic: "Velocity"
         units: "m/s"
+        read-only: true
       - header: "Pitch"
         semantic: "Pitch"
         units: "°"
+        read-only: true
       - header: "Roll"
         semantic: "Roll"
         units: "°"
+        read-only: true
       - header: "Heading"
         semantic: "Heading"
         units: "°"
@@ -113,3 +120,7 @@
       - header: "MBES:Roll"
         semantic: "MBES:Roll"
         units: "°"
+      - header: "Latitude RTK"
+        read-only: true
+      - header: "Longitude RTK"
+        read-only: true

@@ -36,6 +36,7 @@
       - header: "Magnetic_Field"
         semantic: "TMI"
         units: "nT"
+        read-only: true
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
@@ -44,4 +45,4 @@
         units: "m"
       - header: "Line_Name"
         semantic: "Line"
-        units: ""
+        read-only: true

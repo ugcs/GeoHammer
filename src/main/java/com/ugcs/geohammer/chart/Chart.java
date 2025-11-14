@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.element.FoundPlace;
@@ -33,6 +34,7 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
         alert.getButtonTypes().setAll(
                 ButtonType.CANCEL,
                 ButtonType.OK);
+        alert.initOwner(AppContext.stage);
 
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get().equals(ButtonType.OK);

@@ -31,18 +31,23 @@
       - header: "magneticTotal"
         semantic: "TMI"
         units: "nT"
+        read-only: true
       - header: "altitude"
         semantic: "Altitude"
         units: "m"
+        read-only: true
       - header: "magneticX"
         semantic: "Bx"
         units: "nT"
+        read-only: true
       - header: "magneticY"
         semantic: "By"
         units: "nT"
+        read-only: true
       - header: "magneticZ"
         semantic: "Bz"
         units: "nT"
+        read-only: true
       - header: "Line"
         semantic: "Line"
-        units: ""
+        read-only: true

@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.map.layer;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -70,8 +71,6 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
     private final ExecutorService executor;
 
-    private final MapView mapView;
-
     private final OptionPane optionPane;
 
     @SuppressWarnings({"NullAway.Init"})
@@ -96,12 +95,11 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
     };
 
     public GridLayer(Model model, TaskService taskService, GriddingService griddingService,
-                     ExecutorService executor, MapView mapView, OptionPane optionPane) {
+                     ExecutorService executor, OptionPane optionPane) {
         this.model = model;
         this.taskService = taskService;
         this.griddingService = griddingService;
         this.executor = executor;
-        this.mapView = mapView;
         this.optionPane = optionPane;
     }
 
@@ -109,7 +107,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
     public void afterPropertiesSet() throws Exception {
         setActive(optionPane.getGridding().isSelected());
 
-        q = new ThrQueue(model, mapView) {
+        q = new ThrQueue(model) {
             protected void draw(BufferedImage backImg, MapField field) {
                 Graphics2D g2 = (Graphics2D) backImg.getGraphics();
                 g2.translate(backImg.getWidth() / 2, backImg.getHeight() / 2);
@@ -122,6 +120,11 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         };
 
         optionPane.getGridding().addEventHandler(ActionEvent.ACTION, showMapListener);
+    }
+
+    @Override
+    public void setSize(Dimension size) {
+        q.setBackImgSize(size);
     }
 
     @Override

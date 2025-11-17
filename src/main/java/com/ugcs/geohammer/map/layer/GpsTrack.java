@@ -2,6 +2,7 @@ package com.ugcs.geohammer.map.layer;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -15,7 +16,6 @@ import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.chart.Chart;
-import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
@@ -44,9 +44,9 @@ public class GpsTrack extends BaseLayer {
 	private final Model model;
 	private final ThrQueue q;
 
-	public GpsTrack(Model model, MapView mapView) {
+	public GpsTrack(Model model) {
 		this.model = model;
-		this.q = new ThrQueue(model, mapView) {
+		this.q = new ThrQueue(model) {
 			protected void draw(BufferedImage backImg, MapField field) {
 				Graphics2D g2 = (Graphics2D) backImg.getGraphics();
 				g2.translate(backImg.getWidth() / 2, backImg.getHeight() / 2);
@@ -73,7 +73,12 @@ public class GpsTrack extends BaseLayer {
 		showLayerCheckbox.setSelected(true);
 		showLayerCheckbox.setOnAction(showMapListener);
 	}
-		
+
+	@Override
+	public void setSize(Dimension size) {
+		q.setBackImgSize(size);
+	}
+
 	@Override
 	public void draw(Graphics2D g2, MapField currentField) {
 		if (currentField.getSceneCenter() == null || !isActive()) {

@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.ugcs.geohammer.map.layer.MapRuler;
 import com.ugcs.geohammer.map.layer.TraceCutter;
-import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.SettingsView;
 import com.ugcs.geohammer.map.layer.BaseLayer;
@@ -91,9 +90,6 @@ public class MapView implements InitializingBean {
 	@Autowired
 	private ZoomControlsView zoomControlsView;
 	
-	//@Autowired
-	private Dimension wndSize = new Dimension();
-
 	private GridLayer gridLayer;
 
 	@Autowired
@@ -125,8 +121,8 @@ public class MapView implements InitializingBean {
 
         Point2D p = getLocalCoords(event);
 
-        for (int i = getLayers().size() - 1; i >= 0; i--) {
-            Layer layer = getLayers().get(i);
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            Layer layer = layers.get(i);
             try {
                 if (layer.mousePressed(p)) {
                     return;
@@ -142,8 +138,8 @@ public class MapView implements InitializingBean {
             return;
         }
         Point2D p = getLocalCoords(event);
-        for (int i = getLayers().size() - 1; i >= 0; i--) {
-            Layer layer = getLayers().get(i);
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            Layer layer = layers.get(i);
             if (layer.mouseRelease(p)) {
                 return;
             }
@@ -155,8 +151,8 @@ public class MapView implements InitializingBean {
             return;
         }
         Point2D p = getLocalCoords(event);
-        for (int i = getLayers().size() - 1; i >= 0; i--) {
-            Layer layer = getLayers().get(i);
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            Layer layer = layers.get(i);
             if (layer.mouseMove(p)) {
                 return;
             }
@@ -174,14 +170,6 @@ public class MapView implements InitializingBean {
 		}
     };
 
-	public List<Layer> getLayers() {
-		return layers;
-	}
-
-	public QualityLayer getQualityLayer() {
-		return qualityLayer;
-	}
-
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		
@@ -195,21 +183,30 @@ public class MapView implements InitializingBean {
 
 		qualityLayer.setRepaintListener(listener);
 
-		getLayers().add(satelliteMap);
-		getLayers().add(radarMap);
-		getLayers().add(gridLayer);
-		getLayers().add(qualityLayer);
-		getLayers().add(gpsTrackMap);
-		getLayers().add(new FoundTracesLayer(model));
+		layers.add(satelliteMap);
+		layers.add(radarMap);
+		layers.add(gridLayer);
+		layers.add(qualityLayer);
+		layers.add(gpsTrackMap);
+		layers.add(new FoundTracesLayer(model));
 
 		//TODO: bad style
-		traceCutter.setListener(listener);		
-		getLayers().add(traceCutter);
+		traceCutter.setListener(listener);
+		layers.add(traceCutter);
 
 		mapRuler.setRepaintCallback(() -> listener.repaint());
-		getLayers().add(mapRuler);
+		layers.add(mapRuler);
 
+		setLayerSizes();
 		initImageView();
+	}
+
+	private void setLayerSizes() {
+		for (Layer layer : layers) {
+			if (layer instanceof BaseLayer baseLayer) {
+				baseLayer.setSize(windowSize);
+			}
+		}
 	}
 
 	@EventListener
@@ -354,15 +351,10 @@ public class MapView implements InitializingBean {
 		}
 	}
 
-	public List<Node> getRight(SgyFile dataFile) {
-		return radarMap.getControlNodes(dataFile);
-	}
-		
 	public List<Node> getToolNodes() {
-		
 		List<Node> lst = new ArrayList<>();
 
-		for (Layer layer : getLayers()) {
+		for (Layer layer : layers) {
 			List<Node> l = layer.getToolNodes();
 			if (!l.isEmpty()) {				
 				lst.addAll(l);
@@ -388,7 +380,7 @@ public class MapView implements InitializingBean {
 		
 		MapField fixedField = new MapField(model.getMapField());
 		
-		for (Layer l : getLayers()) {
+		for (Layer l : layers) {
 			try {
 				l.draw(g2, fixedField);
 			} catch (Exception e) {
@@ -430,7 +422,7 @@ public class MapView implements InitializingBean {
 
 	public void setSize(int width, int height) {
 		windowSize.setSize(width, height);
-		wndSize.setSize(width, height);
+		setLayerSizes();
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.windowresized));
 	}
 
@@ -477,9 +469,5 @@ public class MapView implements InitializingBean {
 				imgCoord.getX() - imageView.getBoundsInLocal().getWidth() / 2,
 				imgCoord.getY() - imageView.getBoundsInLocal().getHeight() / 2);
 		return p;
-	}
-
-	public Dimension getWndSize() {
-		return wndSize;
 	}
 }

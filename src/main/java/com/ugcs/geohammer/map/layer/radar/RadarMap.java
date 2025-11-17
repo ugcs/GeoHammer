@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.map.layer.radar;
 
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -7,7 +8,6 @@ import java.util.List;
 import com.ugcs.geohammer.map.ThrQueue;
 import com.ugcs.geohammer.map.layer.BaseLayer;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import javafx.geometry.Point2D;
@@ -48,23 +48,13 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 
 	private static final double MIN_CIRCLE_THRESHOLD = 2.0;
 
-	private static final String BORDER_STYLING = """
-		-fx-border-color: gray; 
-		-fx-border-insets: 5;
-		-fx-border-width: 1;
-		-fx-border-style: solid;
-		""";
-
 	private final CommandRegistry commandRegistry;
 
 	private final Model model;
 
-	private final MapView mapView;
-
-	public RadarMap(CommandRegistry commandRegistry, Model model, MapView mapView) {
+	public RadarMap(CommandRegistry commandRegistry, Model model) {
 		this.commandRegistry = commandRegistry;
 		this.model = model;
-		this.mapView = mapView;
 	}
 
 	private BaseSlider gainTopSlider;
@@ -141,7 +131,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	ThrQueue q;
 	
 	public void initQ() {
-		q = new ThrQueue(model, mapView) {
+		q = new ThrQueue(model) {
 			protected void draw(BufferedImage backImg, MapField field) {
 				createHiRes(field, backImg);
 			}
@@ -168,7 +158,12 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 				
 		initQ();
 	}
-	
+
+	@Override
+	public void setSize(Dimension size) {
+		q.setBackImgSize(size);
+	}
+
 	//draw on the map window prepared image
 	@Override
 	public void draw(Graphics2D g2, MapField currentField) {

@@ -11,9 +11,9 @@ import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.chart.csv.SeriesSelectorView;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.Loader;
 import com.ugcs.geohammer.ProfileView;
+import com.ugcs.geohammer.map.layer.radar.RadarMap;
 import com.ugcs.geohammer.view.status.Status;
 import com.ugcs.geohammer.service.quality.AltitudeCheck;
 import com.ugcs.geohammer.service.quality.DataCheck;
@@ -94,11 +94,13 @@ public class OptionPane extends VBox implements InitializingBean {
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-	private MapView mapView;
-
 	private ProfileView profileView;
 
 	private Model model;
+
+	private QualityLayer qualityLayer;
+
+	private RadarMap radarMap;
 
 	private LevelFilter levelFilter;
 
@@ -134,12 +136,14 @@ public class OptionPane extends VBox implements InitializingBean {
 	@Autowired
 	private ScriptExecutor scriptExecutor;
 
-	public OptionPane(MapView mapView, ProfileView profileView, Model model,
+	public OptionPane(ProfileView profileView, Model model,
+					  QualityLayer qualityLayer, RadarMap radarMap,
 					  LevelFilter levelFilter, PrefSettings prefSettings,
 					  Status status, Loader loader, SeriesSelectorView seriesSelectorView) {
-		this.mapView = mapView;
 		this.profileView = profileView;
 		this.model = model;
+		this.qualityLayer = qualityLayer;
+		this.radarMap = radarMap;
 		this.levelFilter = levelFilter;
 		this.prefSettings = prefSettings;
 		this.status = status;
@@ -1089,7 +1093,6 @@ public class OptionPane extends VBox implements InitializingBean {
 	}
 
 	private void toggleQualityLayer(boolean active) {
-		QualityLayer qualityLayer = mapView.getQualityLayer();
 		if (qualityLayer.isActive() == active) {
 			return;
 		}
@@ -1127,7 +1130,7 @@ public class OptionPane extends VBox implements InitializingBean {
 			List<QualityCheck> checks = createQualityChecks(params);
 			List<QualityIssue> issues = qualityControl.getQualityIssues(files, checks);
 
-			mapView.getQualityLayer().setIssues(issues);
+			qualityLayer.setIssues(issues);
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 		}
 	}
@@ -1138,7 +1141,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		List<QualityCheck> checks = createQualityChecks(params);
 		List<QualityIssue> issues = qualityControl.getQualityIssues(files, checks);
 
-		mapView.getQualityLayer().setIssues(issues);
+		qualityLayer.setIssues(issues);
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
@@ -1203,7 +1206,7 @@ public class OptionPane extends VBox implements InitializingBean {
 		options.setPadding(DEFAULT_GPR_OPTIONS_INSETS);
 
 		// gpr gridding
-		options.getChildren().addAll(mapView.getRight(file));
+		options.getChildren().addAll(radarMap.getControlNodes(file));
 
 		options.setVisible(false);
 		options.setManaged(false);

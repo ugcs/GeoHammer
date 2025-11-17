@@ -1,11 +1,11 @@
 package com.ugcs.geohammer.map.layer;
 
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.List;
 
-import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.map.ThrFront;
 import com.ugcs.geohammer.map.ThrQueue;
 import com.ugcs.geohammer.map.provider.GoogleMapProvider;
@@ -36,15 +36,13 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	private final Model model;
 	private final Status status;
-	private final MapView mapView;
     private final PrefSettings prefSettings;
 
 	private int lastTileZoom = -1;
 
-	public SatelliteMap(Model model, Status status, MapView mapView, PrefSettings prefSettings) {
+	public SatelliteMap(Model model, Status status, PrefSettings prefSettings) {
 		this.model = model;
 		this.status = status;
-		this.mapView = mapView;
         this.prefSettings = prefSettings;
     }
 
@@ -54,7 +52,7 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
-		recalcQueue = new ThrQueue(model, mapView) {
+		recalcQueue = new ThrQueue(model) {
 			protected void draw(BufferedImage backImg, MapField field) {
 				if (field.getMapProvider() != null) {
 					this.setBackImg(field.getMapProvider().loadimg(field));
@@ -65,8 +63,8 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 				getRepaintListener().repaint();
 			}
 
+			@Override
 			protected void actualizeBackImg() {
-
 			}
 		};
 
@@ -106,6 +104,11 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	RadioMenuItem menuItem3 = new RadioMenuItem("turn off");
 
 	private final MenuButton optionsMenuBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.MAP, new MenuButton());
+
+	@Override
+	public void setSize(Dimension size) {
+		recalcQueue.setBackImgSize(size);
+	}
 
 	@Override
 	public void draw(Graphics2D g2, MapField currentField) {

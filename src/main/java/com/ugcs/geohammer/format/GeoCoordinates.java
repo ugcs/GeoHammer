@@ -13,6 +13,8 @@ public class GeoCoordinates {
 
     private double longitude;
 
+	private double altitude;
+
     // -1 for empty value
     private long timestamp = -1;
 
@@ -24,6 +26,7 @@ public class GeoCoordinates {
 
         this.latitude = other.latitude;
         this.longitude = other.longitude;
+		this.altitude = other.altitude;
         this.timestamp = other.timestamp;
     }
 
@@ -53,7 +56,15 @@ public class GeoCoordinates {
         this.longitude = longitude;
     }
 
-    public LocalDateTime getDateTime() {
+	public double getAltitude() {
+		return altitude;
+	}
+
+	public void setAltitude(double altitude) {
+		this.altitude = altitude;
+	}
+
+	public LocalDateTime getDateTime() {
         return timestamp != -1
                 ? LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
                 : null;

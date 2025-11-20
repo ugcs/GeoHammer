@@ -37,6 +37,8 @@ public class Template {
 
     private boolean reorderByTime = false;
 
+	private boolean hasPositionsSource = false;
+
     /**
      * Initialize template on load
      */
@@ -284,7 +286,15 @@ public class Template {
         this.reorderByTime = reorderByTime;
     }
 
-    /**
+	public boolean isHasPositionsSource() {
+		return hasPositionsSource;
+	}
+
+	public void setHasPositionsSource(boolean isSource) {
+		this.hasPositionsSource = isSource;
+	}
+
+	/**
      * Returns a string representation of the template.
      *
      * @return a string representation of the template.
@@ -295,6 +305,7 @@ public class Template {
                 "name='" + name + '\'' +
                 ", code='" + code + '\'' +
                 ", fileType=" + fileType +
+				", hasPositionsSource=" + hasPositionsSource +
                 ", matchRegex='" + matchRegex + '\'' +
                 ", fileFormat=" + fileFormat +
                 ", dataValidation=" + dataValidation +

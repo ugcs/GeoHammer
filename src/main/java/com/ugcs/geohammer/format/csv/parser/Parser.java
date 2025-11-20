@@ -301,6 +301,7 @@ public abstract class Parser {
         GeoData geoData = new GeoData(columns);
         geoData.setLatitude(latitude);
         geoData.setLongitude(longitude);
+		geoData.setAltitude(parseAltitude(tokens));
         geoData.setDateTime(parseDateTime(tokens));
 
         for (Column column : columns) {
@@ -371,6 +372,15 @@ public abstract class Parser {
         BaseData longitudeColumn = template.getDataMapping().getLongitude();
         return Text.parseDouble(getString(values, longitudeColumn));
     }
+
+	public Double parseAltitude(String[] values) {
+		BaseData altitudeColumn = template.getDataMapping().getAltitude();
+		String altitudeStr = getString(values, altitudeColumn);
+		if (Strings.isNullOrBlank(altitudeStr)) {
+			return null;
+		}
+		return Text.parseDouble(getString(values, altitudeColumn));
+	}
 
     public LocalDate parseDateFromFilename(String filename) {
         Date dateColumn = template.getDataMapping().getDate();

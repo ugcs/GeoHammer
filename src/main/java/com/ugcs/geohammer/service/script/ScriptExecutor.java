@@ -1,24 +1,11 @@
 package com.ugcs.geohammer.service.script;
 
-import com.ugcs.geohammer.analytics.EventSender;
-import com.ugcs.geohammer.analytics.EventsFactory;
-import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.Loader;
-import com.ugcs.geohammer.model.template.FileTemplates;
-import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.util.PythonLocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -30,6 +17,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
+
+import com.ugcs.geohammer.Loader;
+import com.ugcs.geohammer.analytics.EventSender;
+import com.ugcs.geohammer.analytics.EventsFactory;
+import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.PythonLocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.Nullable;
 
@@ -73,7 +71,7 @@ public class ScriptExecutor {
 		executingScripts.put(sgyFile, scriptMetadata.filename());
 		File tempFile = null;
 		try {
-			tempFile = copyToTempFile(sgyFile);
+			tempFile = sgyFile.copyToTempFile();
 
 			List<String> command = buildCommand(scriptMetadata, parameters, tempFile.toPath());
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
@@ -91,19 +89,6 @@ public class ScriptExecutor {
 				}
 			}
 		}
-	}
-
-	private File copyToTempFile(SgyFile sgyFile) throws IOException {
-		Check.notNull(sgyFile);
-
-		File file = Check.notNull(sgyFile.getFile());
-		String fileName = file.getName();
-		String prefix = FileNames.removeExtension(fileName);
-		String suffix = "." + FileNames.getExtension(fileName);
-
-		File tempFile = Files.createTempFile(prefix, suffix).toFile();
-		sgyFile.save(tempFile);
-		return tempFile;
 	}
 
 	private void runScript(List<String> command, Consumer<String> onOutput) throws IOException, InterruptedException {

@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.format;
 
-import com.ugcs.geohammer.format.gpr.MetaFile;
+import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.IndexRange;
 import org.jspecify.annotations.Nullable;

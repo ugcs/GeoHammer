@@ -8,6 +8,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
+import com.ugcs.geohammer.format.SgyFileWithMeta;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
@@ -113,50 +115,28 @@ public class Saver implements ToolProducer, InitializingBean {
 		Check.notNull(file, "Path not specified");
 
 		String actionName = "Saving " + file;
-		if (selectedFile instanceof TraceFile traceFile) {
-			runAction(actionName, () -> {
-				saveGpr(traceFile);
-				return null;
-			});
-		}
-		if (selectedFile instanceof CsvFile csvFile) {
-			runAction(actionName, () -> {
-				saveCsv(csvFile);
-				return null;
-			});
-		}
+        runAction(actionName, () -> {
+            saveFile(selectedFile);
+            return null;
+        });
 	}
 
-	private void saveGpr(TraceFile traceFile) throws IOException {
-		Check.notNull(traceFile);
+    private void saveFile(SgyFile sgyFile) throws IOException {
+        Check.notNull(sgyFile);
 
-		File file = traceFile.getFile();
-		Check.notNull(file);
+        File file = sgyFile.getFile();
+        Check.notNull(file);
 
-		log.info("Saving GPR meta {}", file);
+        log.info("Saving file {}", file);
 
-		traceFile.saveMeta();
-		traceFile.setUnsaved(false);
-
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-	}
-
-	private void saveCsv(CsvFile csvFile) throws IOException {
-		Check.notNull(csvFile);
-
-		File file = csvFile.getFile();
-		Check.notNull(file);
-
-		log.info("Saving CSV {}", file);
-
-		csvFile.save(file);
-		csvFile.setUnsaved(false);
-
-		// Publish a file rename event to notify components
-		// that the file has been renamed
-		model.publishEvent(new FileRenameEvent(this, csvFile, file));
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-	}
+        if (sgyFile instanceof SgyFileWithMeta sgyFileWithMeta) {
+            sgyFileWithMeta.saveMeta();
+        } else {
+            sgyFile.save(file);
+        }
+        sgyFile.setUnsaved(false);
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+    }
 
 	private void onSaveTo(ActionEvent event) {
 		SgyFile selectedFile = model.getCurrentFile();
@@ -185,6 +165,17 @@ public class Saver implements ToolProducer, InitializingBean {
 				});
 			}
 		}
+
+        if (selectedFile instanceof SonarFile sonarFile) {
+            File toFile = selectFile(sonarFile.getFile());
+            if (toFile != null) {
+                String actionName = "Saving SVLOG to " + toFile;
+                runAction(actionName, () -> {
+                    saveToSonar(sonarFile, toFile);
+                    return null;
+                });
+            }
+        }
 	}
 
 	private void saveToGpr(TraceFile traceFile, File toFolder) throws IOException {
@@ -243,10 +234,21 @@ public class Saver implements ToolProducer, InitializingBean {
 		csvFile.save(toFile);
 		csvFile.setUnsaved(false);
 
-		model.updateCsvChartFile(csvFile, toFile);
+		model.updateChartFile(csvFile, toFile);
 		model.publishEvent(new FileRenameEvent(this, csvFile, oldFile));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
+
+    private void saveToSonar(SonarFile sonarFile, File toFile) throws IOException {
+        Check.notNull(sonarFile);
+        Check.notNull(toFile);
+
+        File file = sonarFile.getFile();
+        Check.notNull(file);
+
+        log.info("Saving SVLOG to {}", toFile);
+        sonarFile.save(toFile);
+    }
 
 	private List<File> selectFiles() {
 		FileChooser fileChooser = new FileChooser();
@@ -308,11 +310,7 @@ public class Saver implements ToolProducer, InitializingBean {
 		String actionName = "Saving all opened files";
 		runAction(actionName, () -> {
 			for (SgyFile file : files) {
-				if (file instanceof TraceFile traceFile) {
-					saveGpr(traceFile);
-				} else if (file instanceof CsvFile csvFile) {
-					saveCsv(csvFile);
-				}
+                saveFile(file);
 			}
 			return null;
 		});

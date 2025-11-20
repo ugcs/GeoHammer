@@ -1,12 +1,13 @@
 package com.ugcs.geohammer.service.gridding;
 
+import com.ugcs.geohammer.chart.tool.GriddingRange;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.chart.OptionPane;
 import com.ugcs.geohammer.model.event.GriddingParamsSetted;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.DataPoint;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Templates;
 import edu.mines.jtk.interp.SplinesGridder2;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +32,7 @@ public class GriddingService {
     }
 
     public Map<File, GriddingResult> runGridding(CsvFile csvFile, String seriesName,
-            GriddingParamsSetted params, OptionPane.GriddingRange range) {
+            GriddingParamsSetted params, GriddingRange range) {
         Check.notNull(csvFile);
         Check.notNull(seriesName);
 
@@ -40,7 +41,7 @@ public class GriddingService {
         Set<CsvFile> targetFiles = params.isToAll()
                 ? model.getFileManager().getCsvFiles()
                 .stream()
-                .filter(f -> f.isSameTemplate(csvFile))
+                .filter(f -> Templates.equals(f, csvFile))
                 .collect(Collectors.toSet())
                 : Collections.singleton(csvFile);
 

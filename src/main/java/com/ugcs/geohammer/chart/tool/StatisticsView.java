@@ -1,7 +1,7 @@
-package com.ugcs.geohammer.chart;
+package com.ugcs.geohammer.chart.tool;
 
+import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.ColumnSchema;
@@ -15,6 +15,7 @@ import com.ugcs.geohammer.math.SegmentTree;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Templates;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -90,18 +91,15 @@ public class StatisticsView extends VBox {
         setManaged(false);
     }
 
-    private int getDecimals(CsvFile csvFile, String header) {
-        SensorData sensorData = getSensorDataByHeader(csvFile, header);
+    private int getDecimals(SgyFile file, String header) {
+        SensorData sensorData = getSensorDataByHeader(file, header);
         return sensorData != null
                 ? sensorData.getDecimals()
                 : SensorData.DEFAULT_DECIMALS;
     }
 
-    private SensorData getSensorDataByHeader(CsvFile csvFile, String header) {
-        if (csvFile == null) {
-            return null;
-        }
-        Template template = csvFile.getTemplate();
+    private SensorData getSensorDataByHeader(SgyFile file, String header) {
+        Template template = Templates.getTemplate(file);
         if (template == null) {
             return null;
         }
@@ -113,15 +111,13 @@ public class StatisticsView extends VBox {
     }
 
     public void update(SgyFile selectedFile) {
-        chartDecimals = SensorData.DEFAULT_DECIMALS;
-        if (selectedFile instanceof CsvFile csvFile) {
-            chart = model.getCsvChart(csvFile).orElse(null);
-            if (chart != null) {
-                chartDecimals = getDecimals(csvFile, chart.getSelectedSeriesName());
-            }
-        } else {
-            chart = null;
-        }
+        Chart selectedChart = model.getChart(selectedFile);
+        chart = selectedChart instanceof SensorLineChart sensorChart
+                ? sensorChart
+                : null;
+        chartDecimals = selectedFile != null && chart != null
+                ? getDecimals(selectedFile, chart.getSelectedSeriesName())
+                : SensorData.DEFAULT_DECIMALS;
 
         if (chart == null) {
             seriesName.setText(NO_SERIES);

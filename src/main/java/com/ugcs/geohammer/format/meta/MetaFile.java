@@ -1,12 +1,6 @@
-package com.ugcs.geohammer.format.gpr;
+package com.ugcs.geohammer.format.meta;
 
-import com.ugcs.geohammer.format.GeoData;
-import com.ugcs.geohammer.format.gpr.meta.TraceLine;
-import com.ugcs.geohammer.format.gpr.meta.TraceMark;
-import com.ugcs.geohammer.format.gpr.meta.TraceMeta;
-import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.LineSchema;
-import com.ugcs.geohammer.format.TraceGeoData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.GsonConfig;
@@ -14,7 +8,6 @@ import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.Traces;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,7 +67,7 @@ public class MetaFile {
 		this.amplitudeRange = amplitudeRange;
 	}
 
-	public List<? extends GeoData> getValues() {
+	public List<TraceGeoData> getValues() {
         return values;
     }
 
@@ -97,38 +90,6 @@ public class MetaFile {
         return new File(source.getParentFile(), metaFileName).toPath();
     }
 
-    public void initTraces(List<Trace> traces) {
-        initLocations(traces);
-        initSampleRanges(traces);
-    }
-
-    private void initLocations(List<Trace> traces) {
-        if (traces == null) {
-            return;
-        }
-
-        for (TraceGeoData value : values) {
-            int traceIndex = value.getTraceIndex();
-            Trace trace = traces.get(traceIndex);
-
-            LatLon latLon = trace.getLatLon();
-            if (latLon != null) {
-                value.setLatLon(trace.getLatLon());
-            }
-        }
-    }
-
-    private void initSampleRanges(List<Trace> traces) {
-        for (Trace trace : Nulls.toEmpty(traces)) {
-            trace.setSampleRange(sampleRange);
-        }
-    }
-
-    public void init(List<Trace> traces) {
-        TraceMeta meta = getMetaFromTraces(traces);
-        setMetaToState(meta);
-    }
-
     public void load(Path path) throws IOException {
         Check.notNull(path);
 
@@ -141,37 +102,6 @@ public class MetaFile {
 
         TraceMeta meta = getMetaFromState();
         writeMeta(meta, path);
-    }
-
-    private TraceMeta getMetaFromTraces(List<Trace> traces) {
-        traces = Nulls.toEmpty(traces);
-
-        TraceMeta meta = new TraceMeta();
-
-        // sample range
-        IndexRange maxSampleRange = Traces.maxSampleRange(traces);
-        meta.setSampleRange(maxSampleRange);
-
-        // lines
-        TraceLine line = new TraceLine();
-        line.setLineIndex(0);
-        line.setFrom(0);
-        line.setTo(traces.size());
-        meta.setLines(List.of(line));
-
-        // marks
-        List<TraceMark> traceMarks = new ArrayList<>();
-        for (int i = 0; i < traces.size(); i++) {
-            Trace trace = traces.get(i);
-            if (trace.isMarked()) {
-                TraceMark traceMark = new TraceMark();
-                traceMark.setTraceIndex(i);
-                traceMarks.add(traceMark);
-            }
-        }
-        meta.setMarks(traceMarks);
-
-        return meta;
     }
 
     public TraceMeta getMetaFromState() {

@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.chart.tool.OptionPane;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptException;

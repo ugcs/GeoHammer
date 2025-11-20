@@ -84,7 +84,7 @@ public class UndoModel {
 
     @EventListener
     private void fileClosed(FileClosedEvent event) {
-        SgyFile file = event.getSgyFile();
+        SgyFile file = event.getFile();
         if (file != null) {
             removeSnapshots(file);
         }

@@ -2,7 +2,7 @@ package com.ugcs.geohammer.service;
 
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
-import com.ugcs.geohammer.format.gpr.MetaFile;
+import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.TraceKey;
@@ -54,7 +54,7 @@ public class TraceTransform {
     private void cropLines(SgyFile file, MapField field, List<Point2D> cropArea) {
         Check.notNull(file);
 
-        Chart chart = model.getFileChart(file);
+        Chart chart = model.getChart(file);
         TraceKey selectedTrace = null;
         if (chart != null) {
             selectedTrace = model.getSelectedTrace(chart);
@@ -169,7 +169,7 @@ public class TraceTransform {
 
         undoModel.saveSnapshot(file);
 
-        Chart chart = model.getFileChart(file);
+        Chart chart = model.getChart(file);
         TraceKey selectedTrace = null;
         if (chart != null) {
             selectedTrace = model.getSelectedTrace(chart);
@@ -237,7 +237,7 @@ public class TraceTransform {
         model.updateAuxElements();
 
         // reload chart
-        Chart chart = model.getFileChart(file);
+        Chart chart = model.getChart(file);
         if (chart != null) {
             chart.reload();
         }
@@ -293,7 +293,7 @@ public class TraceTransform {
         }
 
         metaFile.setSampleRange(sampleRange);
-        file.updateTracesFromMeta();
+        file.syncMeta();
 
         onFileTracesUpdated(file);
     }

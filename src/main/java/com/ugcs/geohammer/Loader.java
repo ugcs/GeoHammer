@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.PositionFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
@@ -234,6 +235,10 @@ public class Loader {
 			openCsvFile(file);
 			return true;
 		}
+        if (FileTypes.isSvlogFile(file)) {
+            openSvlogFile(file);
+            return true;
+        }
 		if (FileTypes.isKmlFile(file)) {
 			openKmlFile(file);
 			return true;
@@ -261,9 +266,7 @@ public class Loader {
 		}
 
 		Platform.runLater(() -> {
-			model.getFileManager().addFile(gprFile);
-			model.updateAuxElements();
-			model.initField();
+            model.initChartAll(gprFile);
 		});
 	}
 
@@ -275,9 +278,7 @@ public class Loader {
 		dztFile.open(file);
 
 		Platform.runLater(() -> {
-			model.getFileManager().addFile(dztFile);
-			model.updateAuxElements();
-			model.initField();
+            model.initChartAll(dztFile);
 		});
 	}
 
@@ -292,18 +293,21 @@ public class Loader {
 		}
 
 		Platform.runLater(() -> {
-			if (model.getCsvChart(csvFile).isEmpty()) {
-				model.getFileManager().addFile(csvFile);
-				model.updateAuxElements();
-				model.initCsvChart(csvFile);
-				model.initField();
-			} else if (csvFile.getFile() != null && Objects.equals(file.getAbsolutePath(), csvFile.getFile().getAbsolutePath())) {
-				model.recreateCsvChart(csvFile);
-				model.updateAuxElements();
-				model.initField();
-			}
+            model.initChartAll(csvFile);
 		});
 	}
+
+    private void openSvlogFile(File file) throws IOException {
+        Check.notNull(file);
+
+        SonarFile sonarFile = new SonarFile();
+
+        sonarFile.open(file);
+
+        Platform.runLater(() -> {
+            model.initChartAll(sonarFile);
+        });
+    }
 
 	private void openKmlFile(File file) {
 		Check.notNull(file);
@@ -361,7 +365,7 @@ public class Loader {
 
 		sgyFile.tracesChanged();
 
-		Chart chart = model.getFileChart(sgyFile);
+		Chart chart = model.getChart(sgyFile);
 		if (chart != null) {
 			chart.reload();
 		}

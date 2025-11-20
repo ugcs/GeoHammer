@@ -9,13 +9,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
+import com.ugcs.geohammer.chart.tool.GriddingRange;
 import com.ugcs.geohammer.map.ThrQueue;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
-import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
-import com.ugcs.geohammer.chart.OptionPane;
+import com.ugcs.geohammer.chart.tool.OptionPane;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
@@ -240,12 +240,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
      */
     synchronized private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
         var chart = model.getCsvChart(csvFile);
-        if (chart.isEmpty()) {
+        if (chart == null) {
             return;
         }
 
         // update gridding range for a target file
-        String seriesName = chart.get().getSelectedSeriesName();
+        String seriesName = chart.getSelectedSeriesName();
         if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor().equals(seriesName)) {
             var griddingRange = optionPane.getGriddingRange(csvFile, seriesName);
             griddingResults.put(csvFile.getFile(), gr.setValues(
@@ -398,7 +398,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
     @EventListener
     private void handleFileClosedEvent(FileClosedEvent event) {
-        if (event.getSgyFile() instanceof CsvFile csvFile) {
+        if (event.getFile() instanceof CsvFile csvFile) {
             removeFromGriddingResults(csvFile);
             if (griddingResults.size() == 0) {
                 submitDraw();
@@ -482,7 +482,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         if (file == null) {
             return;
         }
-        SensorLineChart chart = model.getCsvChart(file).orElse(null);
+        SensorLineChart chart = model.getCsvChart(file);
         if (chart == null) {
             return;
         }
@@ -494,7 +494,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         if (params == null) {
             return;
         }
-        OptionPane.GriddingRange griddingRange = optionPane.getGriddingRange(file, seriesName);
+        GriddingRange griddingRange = optionPane.getGriddingRange(file, seriesName);
 
         var future = executor.submit(() -> {
             optionPane.griddingProgress(true);

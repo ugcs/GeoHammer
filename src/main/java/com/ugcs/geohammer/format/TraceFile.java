@@ -1,7 +1,11 @@
 package com.ugcs.geohammer.format;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.format.gpr.MetaFile;
+import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.TraceGeoData;
+import com.ugcs.geohammer.format.meta.TraceLine;
+import com.ugcs.geohammer.format.meta.TraceMark;
+import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.TraceKey;
@@ -10,12 +14,13 @@ import com.ugcs.geohammer.service.gpr.DistanceCalculator;
 import com.ugcs.geohammer.service.gpr.DistanceSmoother;
 import com.ugcs.geohammer.service.gpr.EdgeFinder;
 import com.ugcs.geohammer.service.gpr.SpreadCoordinates;
-import com.ugcs.geohammer.format.gpr.meta.TraceMeta;
+import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.model.ScanProfile;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Traces;
 import org.jspecify.annotations.Nullable;
 
@@ -28,16 +33,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public abstract class TraceFile extends SgyFile {
+public abstract class TraceFile extends SgyFileWithMeta {
 
     protected static double SPEED_SM_NS_VACUUM = 30.0;
 
     protected static double SPEED_SM_NS_SOIL = SPEED_SM_NS_VACUUM / 3.0;
 
     protected List<Trace> traces = new ArrayList<>();
-
-    @Nullable
-    protected MetaFile metaFile;
 
     @Nullable
     private PositionFile positionFile;
@@ -54,10 +56,6 @@ public abstract class TraceFile extends SgyFile {
     // amplitude
     private ScanProfile amplScan;
 
-    public MetaFile getMetaFile() {
-        return metaFile;
-    }
-
     protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
         Check.notNull(source);
@@ -68,13 +66,78 @@ public abstract class TraceFile extends SgyFile {
             // load existing meta
             metaFile.load(metaPath);
         } else {
-            // init meta
-            metaFile.init(traces);
+            initMeta(traces);
         }
 
-        metaFile.initTraces(traces);
+        syncMeta(traces);
     }
 
+    private void initMeta(List<Trace> traces) {
+        if (metaFile != null) {
+            TraceMeta meta = getMetaFromTraces(traces);
+            metaFile.setMetaToState(meta);
+        }
+    }
+
+    private TraceMeta getMetaFromTraces(List<Trace> traces) {
+        traces = Nulls.toEmpty(traces);
+
+        TraceMeta meta = new TraceMeta();
+
+        // sample range
+        IndexRange maxSampleRange = Traces.maxSampleRange(traces);
+        meta.setSampleRange(maxSampleRange);
+
+        // lines
+        TraceLine line = new TraceLine();
+        line.setLineIndex(0);
+        line.setFrom(0);
+        line.setTo(traces.size());
+        meta.setLines(List.of(line));
+
+        // marks
+        List<TraceMark> traceMarks = new ArrayList<>();
+        for (int i = 0; i < traces.size(); i++) {
+            Trace trace = traces.get(i);
+            if (trace.isMarked()) {
+                TraceMark traceMark = new TraceMark();
+                traceMark.setTraceIndex(i);
+                traceMarks.add(traceMark);
+            }
+        }
+        meta.setMarks(traceMarks);
+
+        return meta;
+    }
+
+    @Override
+    public void syncMeta() {
+        syncMeta(traces);
+    }
+
+    protected void syncMeta(List<Trace> traces) {
+        if (metaFile == null) {
+            return;
+        }
+
+        // copy location from traces to meta geodata
+        for (TraceGeoData value : metaFile.getValues()) {
+            int traceIndex = value.getTraceIndex();
+            Trace trace = traces.get(traceIndex);
+
+            LatLon latLon = trace.getLatLon();
+            if (latLon != null) {
+                value.setLatLon(trace.getLatLon());
+            }
+        }
+
+        // init sample ranges
+        for (Trace trace : Nulls.toEmpty(traces)) {
+            trace.setSampleRange(metaFile.getSampleRange());
+        }
+    }
+
+    @Override
     public void saveMeta() throws IOException {
         Check.notNull(metaFile);
 
@@ -91,12 +154,6 @@ public abstract class TraceFile extends SgyFile {
 
         Path metaPath = MetaFile.getMetaPath(source);
         metaFile.save(metaPath);
-    }
-
-    public void updateTracesFromMeta() {
-        if (metaFile != null) {
-            metaFile.initTraces(traces);
-        }
     }
 
     public abstract int getSampleInterval();
@@ -167,11 +224,6 @@ public abstract class TraceFile extends SgyFile {
     @Override
     public abstract TraceFile copy();
 
-    @Override
-    public FileSnapshot<TraceFile> createSnapshot() {
-        return new Snapshot(this);
-    }
-
     public FileSnapshot<TraceFile> createSnapshotWithTraces() {
         return new SnapshotWithTraces(this);
     }
@@ -179,13 +231,6 @@ public abstract class TraceFile extends SgyFile {
     public abstract void normalize();
 
     public abstract void denormalize();
-
-    @Override
-    public List<GeoData> getGeoData() {
-        return metaFile != null
-                ? (List<GeoData>)metaFile.getValues()
-                : List.of();
-    }
 
     @Override
     public int numTraces() {
@@ -239,9 +284,9 @@ public abstract class TraceFile extends SgyFile {
     }
 
 	public void loadFrom(TraceFile other) {
-		this.setTraces(other.getTraces());
-		this.setGroundProfile(other.getGroundProfile());
-		this.setUnsaved(true);
+		setTraces(other.getTraces());
+		setGroundProfile(other.getGroundProfile());
+		setUnsaved(true);
 
 		TraceMeta meta = other.metaFile != null
 				? other.metaFile.getMetaFromState()
@@ -249,13 +294,11 @@ public abstract class TraceFile extends SgyFile {
 		if (meta == null) {
 			return; // no meta
 		}
-		MetaFile metaFile = this.getMetaFile();
 		if (metaFile == null) {
 			return; // no meta file
 		}
-
 		metaFile.setMetaToState(meta);
-		this.updateTracesFromMeta();
+		syncMeta();
 	}
 
     public class TraceList extends AbstractList<Trace> {
@@ -276,39 +319,7 @@ public abstract class TraceFile extends SgyFile {
         }
     }
 
-    public static class Snapshot extends FileSnapshot<TraceFile> {
-
-        private final TraceMeta meta;
-
-        public Snapshot(TraceFile file) {
-            super(file);
-
-            this.meta = copyMeta(file);
-        }
-
-        private static TraceMeta copyMeta(TraceFile file) {
-            MetaFile metaFile = file.getMetaFile();
-            return metaFile != null
-                    ? metaFile.getMetaFromState()
-                    : null;
-        }
-
-        @Override
-        public void restoreFile(Model model) {
-            if (meta == null) {
-                return; // no meta
-            }
-            MetaFile metaFile = file.getMetaFile();
-            if (metaFile == null) {
-                return; // no meta file
-            }
-
-            metaFile.setMetaToState(meta);
-            file.updateTracesFromMeta();
-        }
-    }
-
-    public static class SnapshotWithTraces extends Snapshot {
+    public static class SnapshotWithTraces extends Snapshot<TraceFile> {
 
         private List<Trace> traces;
 

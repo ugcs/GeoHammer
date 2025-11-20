@@ -4,14 +4,14 @@ import com.ugcs.geohammer.format.SgyFile;
 
 public class FileClosedEvent extends BaseEvent {
 
-    private final SgyFile sgyFile;
+    private final SgyFile file;
 
-    public FileClosedEvent(Object source, SgyFile sgyFile) {
+    public FileClosedEvent(Object source, SgyFile file) {
         super(source);
-        this.sgyFile = sgyFile;
+        this.file = file;
     }
 
-    public SgyFile getSgyFile() {
-        return sgyFile;
+    public SgyFile getFile() {
+        return file;
     }
 }

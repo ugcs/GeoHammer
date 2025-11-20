@@ -21,6 +21,7 @@ import com.github.thecoldwine.sigrun.serialization.BinaryHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
+import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
 import com.ugcs.geohammer.format.TraceFile;
@@ -268,7 +269,7 @@ public class GprFile extends TraceFile {
 		if (metaFile != null) {
 			copy.metaFile = new MetaFile();
 			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
-			copy.metaFile.initTraces(tracesCopy);
+			copy.syncMeta(tracesCopy);
 		}
 
 		if (groundProfile != null) {

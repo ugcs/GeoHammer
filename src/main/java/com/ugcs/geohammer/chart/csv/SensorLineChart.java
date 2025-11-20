@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.Chart;
-import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.service.TraceTransform;
@@ -18,7 +18,6 @@ import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.chart.csv.axis.SensorLineChartXAxis;
 import com.ugcs.geohammer.chart.csv.axis.SensorLineChartYAxis;
-import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.math.filter.LowPassFilter;
 import com.ugcs.geohammer.math.filter.MedianCorrectionFilter;
 import com.ugcs.geohammer.math.filter.SequenceFilter;
@@ -87,7 +86,7 @@ public class SensorLineChart extends Chart {
 
     private static final Color LINE_COLOR = Color.web("0xdf818eff");
 
-    private final CsvFile file;
+    private final SgyFile file;
 
     private @Nullable final String lineSeriesName;
 
@@ -123,7 +122,7 @@ public class SensorLineChart extends Chart {
                 new Thread(scheduler::shutdownNow));
     }
 
-    public SensorLineChart(Model model, CsvFile file) {
+    public SensorLineChart(Model model, SgyFile file) {
         super(model);
 
         this.file = Check.notNull(file);
@@ -401,7 +400,7 @@ public class SensorLineChart extends Chart {
     }
 
     @Override
-    public CsvFile getFile() {
+    public SgyFile getFile() {
         return file;
     }
 
@@ -552,10 +551,27 @@ public class SensorLineChart extends Chart {
         }
     }
 
-    public void updateXAxisUnits(TraceUnit traceUnit) {
+    @Override
+    public void setTraceUnit(TraceUnit traceUnit) {
         if (interactiveChart.getXAxis() instanceof SensorLineChartXAxis axisWithUnits) {
             Platform.runLater(() -> axisWithUnits.setUnit(traceUnit));
         }
+    }
+
+    @Override
+    public void init() {
+        // adjust height
+        root.getChildren().forEach(node -> {
+            if (node instanceof StackPane) {
+                ((StackPane) node).setPrefHeight(Math.max(MIN_HEIGHT, node.getScene().getHeight()));
+                ((StackPane) node).setMinHeight(Math.max(MIN_HEIGHT, node.getScene().getHeight() / 2));
+            }
+        });
+    }
+
+    @Override
+    public void repaint() {
+        updateChartName();
     }
 
     @Override
@@ -610,19 +626,6 @@ public class SensorLineChart extends Chart {
             return;
         }
         close(true);
-    }
-
-    public void close(boolean removeFromModel) {
-        if (root.getParent() instanceof VBox parent) {
-            // hide profile scroll
-            getProfileScroll().setVisible(false);
-            // remove charts
-            parent.getChildren().remove(root);
-            if (removeFromModel) {
-                // remove files and traces from map
-                model.publishEvent(new FileClosedEvent(this, file));
-            }
-        }
     }
 
     // zoom

@@ -12,6 +12,8 @@ public final class FileTypes {
 
     private static final Set<String> DZT_EXTENSIONS = Set.of("dzt");
 
+    private static final Set<String> SVLOG_EXTENSIONS = Set.of("svlog");
+
     private static final Set<String> KML_EXTENSIONS = Set.of("kml");
 
     private static final Set<String> CONST_POINTS_EXTENSIONS = Set.of("constpoints");
@@ -49,6 +51,14 @@ public final class FileTypes {
 
     public static boolean isDztFile(String fileName) {
         return extensionMatches(fileName, DZT_EXTENSIONS);
+    }
+
+    public static boolean isSvlogFile(File file) {
+        return file != null && isSvlogFile(file.getName());
+    }
+
+    public static boolean isSvlogFile(String fileName) {
+        return extensionMatches(fileName, SVLOG_EXTENSIONS);
     }
 
     public static boolean isKmlFile(File file) {

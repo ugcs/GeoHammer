@@ -1,5 +1,6 @@
-package com.ugcs.geohammer.format;
+package com.ugcs.geohammer.format.meta;
 
+import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.Semantic;

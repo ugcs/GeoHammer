@@ -56,21 +56,21 @@ public class Navigator implements ToolProducer {
 	}
 
 	public void fitNext() {
-		Chart chart = model.getFileChart(currentFile);
+		Chart chart = model.getChart(currentFile);
 		if (chart != null) {
 			chart.zoomToNextLine();
 		}
 	}
 
 	public void fitBack() {
-		Chart chart = model.getFileChart(currentFile);
+		Chart chart = model.getChart(currentFile);
 		if (chart != null) {
 			chart.zoomToPreviousLine();
 		}
 	}
 
 	public void fitCurrent() {
-		Chart chart = model.getFileChart(currentFile);
+		Chart chart = model.getChart(currentFile);
 		if (chart != null) {
 			chart.zoomToCurrentLine();
 		}

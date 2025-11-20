@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.format.gpr.meta;
+package com.ugcs.geohammer.format.meta;
 
 import com.google.gson.annotations.Expose;
 import com.ugcs.geohammer.model.IndexRange;

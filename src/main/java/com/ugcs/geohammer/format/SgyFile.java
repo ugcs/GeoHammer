@@ -2,6 +2,7 @@ package com.ugcs.geohammer.format;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -12,6 +13,8 @@ import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.chart.csv.axis.DistanceEstimator;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Nulls;
 import org.jspecify.annotations.Nullable;
 
@@ -62,6 +65,20 @@ public abstract class SgyFile {
 	public void tracesChanged() {
 		lineRanges = null;
 		distanceEstimator = null;
+	}
+
+	public File copyToTempFile() throws IOException {
+		SgyFile sgyFile = this;
+		Check.notNull(sgyFile);
+
+		File file = Check.notNull(sgyFile.getFile());
+		String fileName = file.getName();
+		String prefix = FileNames.removeExtension(fileName);
+		String suffix = "." + FileNames.getExtension(fileName);
+
+		File tempFile = Files.createTempFile(prefix, suffix).toFile();
+		sgyFile.save(tempFile);
+		return tempFile;
 	}
 
 	public abstract int numTraces();

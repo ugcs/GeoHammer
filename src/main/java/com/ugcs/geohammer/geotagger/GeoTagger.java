@@ -16,16 +16,21 @@ import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.gpr.GprFile;
+import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.math.LinearInterpolator;
 import com.ugcs.geohammer.model.ColumnSchema;
+import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.FileTypes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GeoTagger {
 
 	private static final int MAX_TIME_DIFFERENCE_MS = 1000;
+	private static final Logger log = LoggerFactory.getLogger(GeoTagger.class);
 
 	private final Model model;
 
@@ -90,6 +95,10 @@ public class GeoTagger {
 	}
 
 	private void writeToFile(SgyFile file, List<Position> positions) throws IOException {
+		log.debug("Writing to file {}: positions -> {}, geo data -> {}",
+				file.getFile() != null ? file.getFile().getName() : "Unknown",
+				positions.size(),
+				file.getGeoData().size());
 		if (file instanceof CsvFile csvFile) {
 			writeToCsvFile(csvFile, positions);
 		} else if (file instanceof GprFile gprFile) {
@@ -105,8 +114,19 @@ public class GeoTagger {
 	}
 
 	private void writeToSgyFile(GprFile gprFile, List<Position> positions) {
-		List<GeoData> geoData = gprFile.getGeoData();
-		List<GeoData> updatedGeoData = updateGeoData(positions, geoData);
+		List<Trace> traces = gprFile.getTraces();
+
+		if (traces.size() != positions.size()) {
+			throw new IllegalStateException("Number of traces and coordinates do not match.");
+		}
+		for (int i = 0; i < traces.size(); i++) {
+			Trace trace = traces.get(i);
+			Position position = positions.get(i);
+
+			if (position.getLatitude() != null && position.getLongitude() != null) {
+				trace.setLatLon(new LatLon(position.getLatitude(), position.getLongitude()));
+			}
+		}
 		gprFile.setUnsaved(true);
 	}
 

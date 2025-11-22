@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.service.quality;
 
-import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.math.SphericalMercator;
 import com.ugcs.geohammer.format.GeoData;
@@ -35,7 +35,7 @@ public class AltitudeCheck extends FileQualityCheck {
     }
 
     @Override
-    public List<QualityIssue> checkFile(CsvFile file) {
+    public List<QualityIssue> checkFile(SgyFile file) {
         return file != null ? checkValues(file.getGeoData()) : List.of();
     }
 

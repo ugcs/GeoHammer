@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
+import com.ugcs.geohammer.chart.tool.CsvTab;
 import com.ugcs.geohammer.chart.tool.GriddingRange;
 import com.ugcs.geohammer.map.ThrQueue;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -63,6 +64,12 @@ import javafx.event.EventHandler;
 @Component
 public final class GridLayer extends BaseLayer implements InitializingBean {
 
+    private static final double HILLSHADING_AZIMUTH = 180.0;
+
+    private static final double HILLSHADING_ALTITUDE = 45.0;
+
+    private static final double HILLSHADING_INTENSITY = 0.5;
+
     private final Model model;
 
     private final TaskService taskService;
@@ -71,7 +78,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
     private final ExecutorService executor;
 
-    private final OptionPane optionPane;
+    private final CsvTab optionPane;
 
     @SuppressWarnings({"NullAway.Init"})
     private ThrQueue q;
@@ -95,12 +102,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
     };
 
     public GridLayer(Model model, TaskService taskService, GriddingService griddingService,
-                     ExecutorService executor, OptionPane optionPane) {
+                     ExecutorService executor, CsvTab griddingToolView) {
         this.model = model;
         this.taskService = taskService;
         this.griddingService = griddingService;
         this.executor = executor;
-        this.optionPane = optionPane;
+        this.optionPane = griddingToolView;
     }
 
     @Override
@@ -342,12 +349,6 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
         System.out.println("cellWidth = " + cellWidth + " cellHeight = " + cellHeight);
 
-        // Log hill-shading parameters if enabled
-        if (gr.hillShadingEnabled()) {
-            System.out.println("Hill-shading enabled with azimuth=" + gr.hillShadingAzimuth() +
-                    ", altitude=" + gr.hillShadingAltitude() + ", intensity=" + gr.hillShadingIntensity());
-        }
-
         for (int i = 0; i < gridWidth; i++) {
             for (int j = 0; j < gridHeight; j++) {
                 try {
@@ -366,12 +367,16 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
                                 grid.values,
                                 i,
                                 j,
-                                gr.hillShadingAzimuth(),
-                                gr.hillShadingAltitude()
+                                HILLSHADING_AZIMUTH,
+                                HILLSHADING_ALTITUDE
                         );
 
                         // Apply hill-shading to the color
-                        color = applyHillShading(color, illumination, gr.hillShadingIntensity());
+                        color = applyHillShading(
+                                color,
+                                illumination,
+                                HILLSHADING_INTENSITY
+                        );
                     }
 
                     g2.setColor(color);

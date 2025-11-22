@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.service.quality;
 
-import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.math.SphericalMercator;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.util.Check;
@@ -39,7 +39,7 @@ public class LineDistanceCheck implements QualityCheck {
     }
 
     @Override
-    public List<QualityIssue> check(List<CsvFile> files) {
+    public List<QualityIssue> check(List<SgyFile> files) {
         if (files == null) {
             return List.of();
         }
@@ -67,8 +67,8 @@ public class LineDistanceCheck implements QualityCheck {
         return issues;
     }
 
-    private double getProjectionScaleFactor(List<CsvFile> files) {
-        for (CsvFile file : files) {
+    private double getProjectionScaleFactor(List<SgyFile> files) {
+        for (SgyFile file : files) {
             List<GeoData> values = file.getGeoData();
             if (values == null || values.isEmpty()) {
                 continue;
@@ -110,9 +110,9 @@ public class LineDistanceCheck implements QualityCheck {
         return result;
     }
 
-    private List<Coordinate> getAllPoints(List<CsvFile> files) {
+    private List<Coordinate> getAllPoints(List<SgyFile> files) {
         List<Coordinate> points = new ArrayList<>();
-        for (CsvFile file : files) {
+        for (SgyFile file : files) {
             List<GeoData> values = file.getGeoData();
             if (values == null || values.isEmpty()) {
                 continue;
@@ -142,9 +142,9 @@ public class LineDistanceCheck implements QualityCheck {
         }
     }
 
-    private List<Polygon> createStripes(List<CsvFile> files) {
+    private List<Polygon> createStripes(List<SgyFile> files) {
         List<Polygon> stripes = new ArrayList<>();
-        for (CsvFile file : files) {
+        for (SgyFile file : files) {
             List<GeoData> values = file.getGeoData();
             if (values == null || values.isEmpty()) {
                 continue;

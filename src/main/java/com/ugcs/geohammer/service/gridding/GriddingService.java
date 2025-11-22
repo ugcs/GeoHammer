@@ -195,7 +195,7 @@ public class GriddingService {
 
         // Store the gridding result for the affected files
         GriddingResult result = new GriddingResult(
-                gridData, // Deep cloning is done in the constructor
+                gridData,
                 applyLowPassFilter(gridData),
                 minLatLon,
                 maxLatLon,
@@ -206,10 +206,7 @@ public class GriddingService {
                 seriesName,
                 params.isAnalyticSignalEnabled(),
                 params.isHillShadingEnabled(),
-                params.isSmoothingEnabled(),
-                params.getHillShadingAzimuth(),
-                params.getHillShadingAltitude(),
-                params.getHillShadingIntensity()
+                params.isSmoothingEnabled()
         );
 
         HashMap<File, GriddingResult> results = new HashMap<>();

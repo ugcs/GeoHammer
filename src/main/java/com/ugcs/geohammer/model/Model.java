@@ -172,11 +172,8 @@ public class Model implements InitializingBean {
 		MinMaxAvg latMid = new MinMaxAvg();
 
 		for (SgyFile file : fileManager.getFiles()) {
-            System.out.println(file);
-            System.out.println("NUM VALUES: " + file.getGeoData().size());
 			for (GeoData value : Nulls.toEmpty(file.getGeoData())) {
 				LatLon latlon = value.getLatLon();
-                System.out.println(latlon);
 				if (latlon == null) {
 					continue;
 				}
@@ -262,7 +259,7 @@ public class Model implements InitializingBean {
         return charts.get(file) instanceof SensorLineChart csvChart ? csvChart : null;
     }
 
-    public List<SensorLineChart> getCsvCharts() {
+    public List<SensorLineChart> getSensorCharts() {
         return charts.values().stream()
                 .filter(c -> c instanceof SensorLineChart)
                 .map(c -> (SensorLineChart) c)

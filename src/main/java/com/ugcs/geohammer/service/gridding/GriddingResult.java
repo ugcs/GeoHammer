@@ -12,20 +12,18 @@ public record GriddingResult(
         float minValue,
         float maxValue,
         String sensor,
-        // Analytic signal
         boolean analyticSignalEnabled,
-        // Hill-shading parameters
         boolean hillShadingEnabled,
-        boolean smoothingEnabled,
-        double hillShadingAzimuth,
-        double hillShadingAltitude,
-        double hillShadingIntensity) {
+        boolean smoothingEnabled
+) {
 
-    public GriddingResult setValues(float minValue,
-                                    float maxValue,
-                                    boolean analyticSignalEnabled,
-                                    boolean hillShadingEnabled,
-                                    boolean smoothingEnabled) {
+    public GriddingResult setValues(
+            float minValue,
+            float maxValue,
+            boolean analyticSignalEnabled,
+            boolean hillShadingEnabled,
+            boolean smoothingEnabled
+    ) {
         return new GriddingResult(
                 gridData,
                 smoothedGridData,
@@ -38,10 +36,7 @@ public record GriddingResult(
                 sensor,
                 analyticSignalEnabled,
                 hillShadingEnabled,
-                smoothingEnabled,
-                hillShadingAzimuth,
-                hillShadingAltitude,
-                hillShadingIntensity
+                smoothingEnabled
         );
     }
 }

@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.chart.tool.OptionPane;
+import com.ugcs.geohammer.chart.tool.Tools;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptException;
@@ -83,8 +83,8 @@ public class ScriptExecutionView extends VBox {
 		this.scriptExecutor = scriptExecutor;
 		this.selectedFile = selectedFile;
 
-		setSpacing(OptionPane.DEFAULT_SPACING);
-		setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
+		setSpacing(Tools.DEFAULT_SPACING);
+		setPadding(Tools.DEFAULT_OPTIONS_INSETS);
 
 		progressIndicator = new ProgressIndicator();
 		progressIndicator.setVisible(false);
@@ -93,8 +93,8 @@ public class ScriptExecutionView extends VBox {
 		scriptsMetadataSelector.setPromptText("Select script");
 		scriptsMetadataSelector.setMaxWidth(Double.MAX_VALUE);
 
-		parametersBox = new VBox(OptionPane.DEFAULT_SPACING);
-		parametersBox.setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
+		parametersBox = new VBox(Tools.DEFAULT_SPACING);
+		parametersBox.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
 
 		Label parametersLabel = new Label("Parameters:");
 		parametersLabel.setStyle("-fx-font-weight: bold;");

@@ -1,13 +1,13 @@
 package com.ugcs.geohammer.geotagger;
 
-public class Position {
+class Position {
 	private final Long timeMs;
 	private Double latitude;
 	private Double longitude;
 	private Double altitude;
 
 
-	public Position(Long timeMs, Double latitude, Double longitude, Double altitude) {
+	Position(Long timeMs, Double latitude, Double longitude, Double altitude) {
 		this.timeMs = timeMs;
 		this.latitude = latitude;
 		this.longitude = longitude;

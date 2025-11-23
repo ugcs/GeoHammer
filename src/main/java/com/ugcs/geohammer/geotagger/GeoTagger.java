@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -22,6 +23,7 @@ import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.FileTypes;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,7 +40,8 @@ public class GeoTagger {
 		this.model = model;
 	}
 
-	public CompletableFuture<String> updateCoordinates(List<SgyFile> positionFiles, List<SgyFile> dataFiles,
+	public CompletableFuture<String> updateCoordinates(List<SgyFile> positionFiles,
+													   List<SgyFile> dataFiles,
 													   Consumer<Integer> progressCallback) {
 		return CompletableFuture.supplyAsync(() -> {
 			List<Position> positions;
@@ -49,7 +52,7 @@ public class GeoTagger {
 			}
 
 			int totalRows = dataFiles.stream()
-					.mapToInt(f -> getPositions(f).size())
+					.mapToInt(sgyFile -> sgyFile.getGeoData().size())
 					.sum();
 			if (totalRows == 0) {
 				progressCallback.accept(100);
@@ -60,7 +63,7 @@ public class GeoTagger {
 
 			for (SgyFile dataFile : dataFiles) {
 				try {
-					List<Position> interpolatedPositions = interpolatePositions(dataFile, positions, processedRows,
+					List<Position> interpolatedPositions = interpolatePositions(positions, dataFile, processedRows,
 							totalRows, progressCallback);
 					writeToFile(dataFile, interpolatedPositions);
 				} catch (IOException e) {
@@ -95,7 +98,7 @@ public class GeoTagger {
 	}
 
 	private void writeToFile(SgyFile file, List<Position> positions) throws IOException {
-		log.debug("Writing to file {}: positions -> {}, geo data -> {}",
+		log.debug("Writing to file {}: positions size -> {}, geodata size -> {}",
 				file.getFile() != null ? file.getFile().getName() : "Unknown",
 				positions.size(),
 				file.getGeoData().size());
@@ -157,24 +160,19 @@ public class GeoTagger {
 
 	private List<Position> getPositions(SgyFile sgyFile) {
 		if (sgyFile instanceof GprFile gprFile) {
-			return getPositionsFromGpr(gprFile);
+			return getPositionsFromSgyFile(gprFile);
 		} else if (sgyFile instanceof CsvFile csvFile) {
-			return getPositionsFromCsv(csvFile);
+			return getPositionsFromSgyFile(csvFile);
 		} else {
 			return List.of();
 		}
 	}
 
-	private List<Position> getPositionsFromCsv(CsvFile csvFile) {
-		List<GeoData> geoData = csvFile.getGeoData();
-		return geoData.stream().map(this::createPosition).toList();
-	}
-
-	private List<Position> getPositionsFromGpr(GprFile gprFile) {
-		if (gprFile == null) {
+	private List<Position> getPositionsFromSgyFile(@Nullable SgyFile sgyFile) {
+		if (sgyFile == null) {
 			return List.of();
 		}
-		List<GeoData> geoData = gprFile.getGeoData();
+		List<GeoData> geoData = sgyFile.getGeoData();
 		return geoData.stream().map(this::createPosition).toList();
 	}
 
@@ -191,7 +189,7 @@ public class GeoTagger {
 		);
 	}
 
-	private List<Position> interpolatePositions(SgyFile dataFile, List<Position> positions,
+	private List<Position> interpolatePositions(List<Position> positions, SgyFile dataFile,
 												AtomicInteger processedRows, int totalRows,
 												Consumer<Integer> progressCallback) throws IOException {
 		List<Position> correctedTraces = new ArrayList<>();
@@ -199,7 +197,7 @@ public class GeoTagger {
 		positions.sort(Comparator.comparing(Position::getTimeMs, Comparator.nullsLast(Long::compareTo)));
 
 		if (positions.isEmpty()) {
-			return correctedTraces;
+			return List.of();
 		}
 
 		List<Position> dataFilePositions = getPositions(dataFile);
@@ -210,25 +208,12 @@ public class GeoTagger {
 				continue;
 			}
 
-			int leftIndex = -1;
-			for (int i = 0; i < positions.size(); i++) {
-				Long timeMs = positions.get(i).getTimeMs();
-				if (timeMs != null && timeMs <= targetTime) {
-					leftIndex = i;
-				}
-			}
+			int leftIndex = findLeftIndex(positions, targetTime);
 			if (leftIndex < 0) {
 				continue;
 			}
 
-			int rightIndex = -1;
-			for (int i = 0; i < positions.size(); i++) {
-				Long timeMs = positions.get(i).getTimeMs();
-				if (timeMs != null && timeMs > targetTime) {
-					rightIndex = i;
-					break;
-				}
-			}
+			int rightIndex = findRightIndex(positions, targetTime);
 			if (rightIndex < 0) {
 				continue;
 			}
@@ -269,10 +254,37 @@ public class GeoTagger {
 
 			correctedTraces.add(dataFilePosition);
 			int current = processedRows.incrementAndGet();
-			int percent = (int) ((current * 100L) / totalRows);
+			int percent = (int) (current * 100L) / totalRows;
 			progressCallback.accept(percent);
 		}
 
 		return correctedTraces;
+	}
+
+	private int findLeftIndex(List<Position> sortedPositions, Long targetTime) {
+		int index = Collections.binarySearch(sortedPositions,
+				new Position(targetTime, null, null, null),
+				Comparator.comparing(Position::getTimeMs, Comparator.nullsFirst(Long::compareTo)));
+
+		if (index >= 0) {
+			return index;
+		} else {
+
+			int insertionPoint = -(index + 1);
+			return insertionPoint - 1;
+		}
+	}
+
+	private int findRightIndex(List<Position> sortedPositions, Long targetTime) {
+		int index = Collections.binarySearch(sortedPositions,
+				new Position(targetTime, null, null, null),
+				Comparator.comparing(Position::getTimeMs, Comparator.nullsFirst(Long::compareTo)));
+
+		if (index >= 0) {
+			return index + 1 < sortedPositions.size() ? index + 1 : -1;
+		} else {
+			int insertionPoint = -(index + 1);
+			return insertionPoint < sortedPositions.size() ? insertionPoint : -1;
+		}
 	}
 }

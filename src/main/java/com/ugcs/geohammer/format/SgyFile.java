@@ -3,16 +3,19 @@ package com.ugcs.geohammer.format;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Objects;
 
+import com.ugcs.geohammer.chart.csv.axis.DistanceEstimator;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.model.element.BaseObject;
-import com.ugcs.geohammer.chart.csv.axis.DistanceEstimator;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
-import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Nulls;
@@ -96,7 +99,7 @@ public abstract class SgyFile {
 		return file;
 	}
 
-	public void setFile(File file) {
+	public void setFile(@Nullable File file) {
 		this.file = file;
 	}
 
@@ -114,6 +117,24 @@ public abstract class SgyFile {
 
 	public void setAuxElements(List<BaseObject> auxElements) {
 		this.auxElements = auxElements;
+	}
+
+	@Nullable
+	public Instant getStartTime() {
+		LocalDateTime dateTime = getGeoData().stream().map(GeoData::getDateTime)
+				.filter(Objects::nonNull)
+				.min(LocalDateTime::compareTo)
+				.orElse(null);
+		return dateTime != null ? dateTime.toInstant(ZoneOffset.UTC) : null;
+	}
+
+	@Nullable
+	public Instant getEndTime() {
+		LocalDateTime dateTime = getGeoData().stream().map(GeoData::getDateTime)
+				.filter(Objects::nonNull)
+				.max(LocalDateTime::compareTo)
+				.orElse(null);
+		return dateTime != null ? dateTime.toInstant(ZoneOffset.UTC) : null;
 	}
 
 	@Override

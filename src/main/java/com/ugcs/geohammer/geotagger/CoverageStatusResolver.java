@@ -1,8 +1,6 @@
 package com.ugcs.geohammer.geotagger;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -14,6 +12,8 @@ import javax.annotation.Nullable;
 
 class CoverageStatusResolver {
 
+	private CoverageStatusResolver() {}
+
 	@Nullable
 	static CoverageStatus resolve(List<SgyFile> positionFiles, SgyFile dataFile) {
 		if (dataFile == null || positionFiles == null || positionFiles.isEmpty()) {
@@ -22,32 +22,32 @@ class CoverageStatusResolver {
 
 		Set<SgyFile> coverageFiles = new HashSet<>();
 
-		Instant dataFileStart = getStartTime(dataFile);
-		Instant dataFileEnd = getEndTime(dataFile);
+		Instant dataFileStartTime = dataFile.getStartTime();
+		Instant dataFileEndTime = dataFile.getEndTime();
 
-		if (dataFileStart == null || dataFileEnd == null) {
+		if (dataFileStartTime == null || dataFileEndTime == null) {
 			return null;
 		}
 
 		for (SgyFile positionFile : positionFiles) {
-			Instant positionStartTime = getStartTime(positionFile);
-			Instant positionEndTime = getEndTime(positionFile);
+			Instant positionStartTime = positionFile.getStartTime();
+			Instant positionEndTime = positionFile.getEndTime();
 
 			if (positionStartTime == null || positionEndTime == null) {
 				continue;
 			}
 
-			boolean overlaps = !positionEndTime.isBefore(dataFileStart) && !positionStartTime.isAfter(dataFileEnd);
+			boolean overlaps = !positionEndTime.isBefore(dataFileStartTime) && !positionStartTime.isAfter(dataFileEndTime);
 			if (!overlaps) {
 				continue;
 			}
 
-			boolean coversCompletely = !positionStartTime.isAfter(dataFileStart) && !positionEndTime.isBefore(dataFileEnd);
-			boolean coversEnd = !positionStartTime.isAfter(dataFileEnd) && !positionEndTime.isBefore(dataFileEnd);
-			boolean coversStart = !positionStartTime.isAfter(dataFileStart) && !positionEndTime.isBefore(dataFileStart);
-			boolean ftuCoversPsf = !dataFileStart.isAfter(positionStartTime) && !dataFileEnd.isBefore(positionEndTime);
+			boolean coversCompletely = !positionStartTime.isAfter(dataFileStartTime) && !positionEndTime.isBefore(dataFileEndTime);
+			boolean coversEnd = !positionStartTime.isAfter(dataFileEndTime) && !positionEndTime.isBefore(dataFileEndTime);
+			boolean coversStart = !positionStartTime.isAfter(dataFileStartTime) && !positionEndTime.isBefore(dataFileStartTime);
+			boolean dataFileContainsPositionFile = !dataFileStartTime.isAfter(positionStartTime) && !dataFileEndTime.isBefore(positionEndTime);
 
-			if (coversCompletely || coversEnd || coversStart || ftuCoversPsf) {
+			if (coversCompletely || coversEnd || coversStart || dataFileContainsPositionFile) {
 				coverageFiles.add(positionFile);
 			}
 		}
@@ -57,30 +57,18 @@ class CoverageStatusResolver {
 		}
 
 		Instant minTime = coverageFiles.stream()
-				.map(CoverageStatusResolver::getStartTime)
+				.map(SgyFile::getStartTime)
 				.filter(Objects::nonNull)
 				.min(Instant::compareTo)
-				.orElse(dataFileStart);
+				.orElse(dataFileStartTime);
 		Instant maxTime = coverageFiles.stream()
-				.map(CoverageStatusResolver::getEndTime)
+				.map(SgyFile::getEndTime)
 				.filter(Objects::nonNull)
 				.max(Instant::compareTo)
-				.orElse(dataFileEnd);
+				.orElse(dataFileEndTime);
 
-		boolean fullyCovered = !minTime.isAfter(dataFileStart) && !maxTime.isBefore(dataFileEnd);
+		boolean fullyCovered = !minTime.isAfter(dataFileStartTime) && !maxTime.isBefore(dataFileEndTime);
 
 		return fullyCovered ? CoverageStatus.FullyCovered : CoverageStatus.PartiallyCovered;
-	}
-
-	@Nullable
-	private static Instant getStartTime(SgyFile sgyFile) {
-		LocalDateTime dateTime = sgyFile.getGeoData().getFirst().getDateTime();
-		return dateTime != null ? dateTime.toInstant(ZoneOffset.UTC) : null;
-	}
-
-	@Nullable
-	private static Instant getEndTime(SgyFile sgyFile) {
-		LocalDateTime dateTime = sgyFile.getGeoData().getLast().getDateTime();
-		return dateTime != null ? dateTime.toInstant(ZoneOffset.UTC) : null;
 	}
 }

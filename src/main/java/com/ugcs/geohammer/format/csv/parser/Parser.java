@@ -35,6 +35,7 @@ import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
+import org.jspecify.annotations.Nullable;
 
 public abstract class Parser {
 
@@ -373,6 +374,7 @@ public abstract class Parser {
         return Text.parseDouble(getString(values, longitudeColumn));
     }
 
+	@Nullable
 	public Double parseAltitude(String[] values) {
 		BaseData altitudeColumn = template.getDataMapping().getAltitude();
 		String altitudeStr = getString(values, altitudeColumn);

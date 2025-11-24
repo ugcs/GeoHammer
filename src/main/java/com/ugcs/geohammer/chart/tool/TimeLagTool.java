@@ -2,19 +2,22 @@ package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
+import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
 import javafx.scene.control.TextField;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
 
 @Component
-public class TimeLagView extends FilterToolView {
+public class TimeLagTool extends FilterToolView {
 
     private final Model model;
 
@@ -22,7 +25,7 @@ public class TimeLagView extends FilterToolView {
 
     private final TextField shiftInput;
 
-    public TimeLagView(Model model, PrefSettings preferences, ExecutorService executor) {
+    public TimeLagTool(Model model, PrefSettings preferences, ExecutorService executor) {
         super(executor);
 
         this.model = model;
@@ -36,6 +39,11 @@ public class TimeLagView extends FilterToolView {
 
         showApply(true);
         showApplyToAll(true);
+    }
+
+    @Override
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile;
     }
 
     private void onShiftChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -75,29 +83,35 @@ public class TimeLagView extends FilterToolView {
     }
 
     @Override
-    public void apply() {
+    protected void onApply(ActionEvent event) {
         Integer shift = (Integer) shiftInput.getUserData();
         if (shift == null) {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
-            sensorChart.applyTimeLag(sensorChart.getSelectedSeriesName(), shift);
-            model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
+            submitAction(() -> {
+                sensorChart.applyTimeLag(sensorChart.getSelectedSeriesName(), shift);
+                model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
+                return null;
+            });
         }
     }
 
     @Override
-    public void applyToAll() {
+    protected void onApplyToAll(ActionEvent event) {
         Integer shift = (Integer) shiftInput.getUserData();
         if (shift == null) {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
             String seriesName = sensorChart.getSelectedSeriesName();
-            model.getSensorCharts().stream()
-                    .filter(c -> Templates.equals(c.getFile(), selectedFile))
-                    .forEach(c -> c.applyTimeLag(seriesName, shift));
-            model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
+            submitAction(() -> {
+                model.getSensorCharts().stream()
+                        .filter(c -> Templates.equals(c.getFile(), selectedFile))
+                        .forEach(c -> c.applyTimeLag(seriesName, shift));
+                model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
+                return null;
+            });
         }
     }
 }

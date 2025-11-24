@@ -11,7 +11,9 @@ import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 public abstract class FilterToolView extends ToolView {
 
@@ -21,15 +23,15 @@ public abstract class FilterToolView extends ToolView {
 
     // view
 
-    protected final Button applyButton;
-
-    protected final Button applyToAllButton;
-
     protected final ProgressIndicator progress;
 
     protected final VBox inputContainer;
 
     protected final HBox buttonContainer;
+
+    protected final Button applyButton;
+
+    protected final Button applyToAllButton;
 
     public FilterToolView(ExecutorService executor) {
         this.executor = executor;
@@ -45,7 +47,7 @@ public abstract class FilterToolView extends ToolView {
 
         applyToAllButton = new Button("Apply to all");
         applyToAllButton.setOnAction(this::onApplyToAll);
-        applyToAllButton.setVisible(false); // disabled by default
+        applyToAllButton.setVisible(false); // hide by default
         applyToAllButton.setDisable(true);
 
         // input
@@ -56,12 +58,8 @@ public abstract class FilterToolView extends ToolView {
         HBox.setHgrow(separator, Priority.ALWAYS);
         buttonContainer = new HBox(Tools.DEFAULT_SPACING, applyButton, separator, applyToAllButton);
 
-        VBox container = new VBox(Tools.DEFAULT_SPACING, inputContainer, buttonContainer);
-        container.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
-        container.setVisible(false);
-        container.setManaged(false);
-
-        getChildren().addAll(container, progress);
+        VBox container = Tools.createToolContainer(inputContainer, buttonContainer);
+        getChildren().addAll(progress, container);
     }
 
     public void showApply(boolean show) {
@@ -74,7 +72,7 @@ public abstract class FilterToolView extends ToolView {
 
     public void showProgress(boolean show) {
         progress.setVisible(show);
-        progress.setManaged(show); // TODO ?
+        progress.setManaged(show);
     }
 
     public void disableInput(boolean disable) {
@@ -86,49 +84,38 @@ public abstract class FilterToolView extends ToolView {
         applyToAllButton.setDisable(disable);
     }
 
-    protected void disableAndShowProgress() {
+    public void disableAndShowProgress() {
         showProgress(true);
 
         disableInput(true);
         disableActions(true);
     }
 
-    protected void enableAndHideProgress() {
+    public void enableAndHideProgress() {
         disableInput(false);
         disableActions(false);
 
         showProgress(false);
     }
 
-    private void onApply(ActionEvent event) {
+    protected <T> Future<T> submitAction(Callable<T> action) {
         disableAndShowProgress();
-        executor.submit(() -> {
+        return executor.submit(() -> {
             savePreferences();
             try {
-                apply();
+                return action.call();
             } catch (Exception e) {
                 log.error("Error", e);
+                throw e;
             } finally {
                 Platform.runLater(this::enableAndHideProgress);
             }
         });
     }
 
-    public abstract void apply();
-
-    private void onApplyToAll(ActionEvent event) {
-        disableAndShowProgress();
-        executor.submit(() -> {
-            savePreferences();
-            try {
-                applyToAll();
-            } catch (Exception e) {
-                log.error("Error", e);
-            } finally {
-                Platform.runLater(this::enableAndHideProgress);
-            }
-        });
+    protected void onApply(ActionEvent event) {
     }
 
-    public abstract void applyToAll();
+    protected void onApplyToAll(ActionEvent event) {
+    }
 }

@@ -41,7 +41,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 @Component
-public class GriddingView extends FilterToolView {
+public class GriddingTool extends FilterToolView {
 
     private static final float SLIDER_EXPAND_THRESHOLD = 0.15f;
 
@@ -70,7 +70,7 @@ public class GriddingView extends FilterToolView {
 
     private final CheckBox analyticSignal;
 
-    public GriddingView(Model model, PrefSettings preferences, ExecutorService executor) {
+    public GriddingTool(Model model, PrefSettings preferences, ExecutorService executor) {
         super(executor);
 
         this.model = model;
@@ -145,6 +145,11 @@ public class GriddingView extends FilterToolView {
 
         showApply(true);
         showApplyToAll(true);
+    }
+
+    @Override
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile;
     }
 
     private RangeSlider createRangeSlider(Label minLabel, Label maxLabel) {
@@ -507,13 +512,13 @@ public class GriddingView extends FilterToolView {
     }
 
     @Override
-    public void apply() {
+    protected void onApply(ActionEvent event) {
         publishGriddingParameters(applyButton, false);
         showGridInputDataChangedWarning(false);
     }
 
     @Override
-    public void applyToAll() {
+    protected void onApplyToAll(ActionEvent event) {
         publishGriddingParameters(applyToAllButton, true);
         showGridInputDataChangedWarning(false);
     }
@@ -533,10 +538,9 @@ public class GriddingView extends FilterToolView {
         ));
     }
 
-    @Override
     @EventListener
     protected void onFileSelected(FileSelectedEvent event) {
-        super.onFileSelected(event);
+        selectFile(event.getFile());
 
         // TODO: check if possible, that current file and sensor
         //  was not gridded with current parameters

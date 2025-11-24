@@ -2,18 +2,23 @@ package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
+import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
 import javafx.scene.control.TextField;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
 
 @Component
-public class LowPassView extends FilterToolView {
+public class LowPassTool extends FilterToolView {
 
     private final Model model;
 
@@ -21,7 +26,7 @@ public class LowPassView extends FilterToolView {
 
     private final TextField orderInput;
 
-    public LowPassView(Model model, PrefSettings preferences, ExecutorService executor) {
+    public LowPassTool(Model model, PrefSettings preferences, ExecutorService executor) {
         super(executor);
 
         this.model = model;
@@ -35,6 +40,11 @@ public class LowPassView extends FilterToolView {
 
         showApply(true);
         showApplyToAll(true);
+    }
+
+    @Override
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile;
     }
 
     private void onOrderChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -74,29 +84,42 @@ public class LowPassView extends FilterToolView {
     }
 
     @Override
-    public void apply() {
+    protected void onApply(ActionEvent event) {
         Integer order = (Integer)orderInput.getUserData();
         if (order == null) {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
-            sensorChart.applyLowPass(sensorChart.getSelectedSeriesName(), order);
-            //showGridInputDataChangedWarning(true);
+            submitAction(() -> {
+                sensorChart.applyLowPass(sensorChart.getSelectedSeriesName(), order);
+                // TODO
+                //showGridInputDataChangedWarning(true);
+                return null;
+            });
         }
     }
 
     @Override
-    public void applyToAll() {
+    protected void onApplyToAll(ActionEvent event) {
         Integer order = (Integer)orderInput.getUserData();
         if (order == null) {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
             String seriesName = sensorChart.getSelectedSeriesName();
-            model.getSensorCharts().stream()
-                    .filter(c -> Templates.equals(c.getFile(), selectedFile))
-                    .forEach(c -> c.applyLowPass(seriesName, order));
-            //showGridInputDataChangedWarning(true);
+            submitAction(() -> {
+                model.getSensorCharts().stream()
+                        .filter(c -> Templates.equals(c.getFile(), selectedFile))
+                        .forEach(c -> c.applyLowPass(seriesName, order));
+                // TODO
+                //showGridInputDataChangedWarning(true);
+                return null;
+            });
         }
+    }
+
+    @EventListener
+    private void onFileSelected(FileSelectedEvent event) {
+        selectFile(event.getFile());
     }
 }

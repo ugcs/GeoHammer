@@ -1,31 +1,26 @@
 package com.ugcs.geohammer.chart.tool;
 
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.jspecify.annotations.NonNull;
 
 public final class Tools {
 
     public static final double DEFAULT_SPACING = 5;
-    public static final Insets DEFAULT_OPTIONS_INSETS = new Insets(10, 0, 10, 0);
+    public static final Insets DEFAULT_OPTIONS_INSETS = new Insets(10, 0, 5, 0);
 
     private Tools() {
     }
 
-    public static ToggleButton createToggle(String text, StackPane targetView) {
-        ToggleButton toggle = new ToggleButton(text);
-        toggle.setMaxWidth(Double.MAX_VALUE);
-        toggle.setOnAction(Tools.getChangeVisibleAction(targetView));
-        return toggle;
+    public static VBox createToolContainer(Node... children) {
+        VBox container = new VBox(Tools.DEFAULT_SPACING, children);
+        container.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
+        return container;
     }
 
-    static ScrollPane createVerticalScrollContainer(Node content) {
+    static ScrollPane createVerticalScrollContainer(Node content, Node parent) {
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
@@ -34,17 +29,14 @@ public final class Tools {
         // this seems the only way to force pane to fill container
         // in height
         scrollPane.setPrefHeight(10_000);
+        if (parent != null) {
+            scrollPane.focusedProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue) {
+                    // redirect focus to the parent node
+                    Platform.runLater(parent::requestFocus);
+                }
+            });
+        }
         return scrollPane;
-    }
-
-    static @NonNull EventHandler<ActionEvent> getChangeVisibleAction(StackPane filterOptionsStackPane) {
-        return e -> {
-            filterOptionsStackPane.getChildren()
-                    .stream().filter(n -> n instanceof VBox).forEach(options -> {
-                        boolean visible = options.isVisible();
-                        options.setVisible(!visible);
-                        options.setManaged(!visible);
-                    });
-        };
     }
 }

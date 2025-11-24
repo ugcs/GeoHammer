@@ -2,8 +2,10 @@ package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.map.layer.QualityLayer;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.quality.AltitudeCheck;
 import com.ugcs.geohammer.service.quality.DataCheck;
@@ -16,8 +18,10 @@ import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -25,7 +29,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 @Component
-public class QualityControlView extends FilterToolView {
+public class QualityControlTool extends FilterToolView {
 
     public static double DEFAULT_MAX_LINE_DISTANCE = 1.0;
 
@@ -51,7 +55,7 @@ public class QualityControlView extends FilterToolView {
 
     private final TextField altitudeToleranceInput;
 
-    public QualityControlView(
+    public QualityControlTool(
             Model model,
             PrefSettings preferences,
             ExecutorService executor,
@@ -96,6 +100,11 @@ public class QualityControlView extends FilterToolView {
         showApplyToAll(true);
 
         validateInput();
+    }
+
+    @Override
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile;
     }
 
     private void onInputChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -164,7 +173,7 @@ public class QualityControlView extends FilterToolView {
         }
         double lineDistance = params.maxLineDistance() != null
                 ? params.maxLineDistance()
-                : QualityControlView.DEFAULT_MAX_LINE_DISTANCE;
+                : QualityControlTool.DEFAULT_MAX_LINE_DISTANCE;
         checks.add(new DataCheck(
                 0.35 * lineDistance
         ));
@@ -178,43 +187,54 @@ public class QualityControlView extends FilterToolView {
         return checks;
     }
 
-    @Override
-    public void apply() {
-        if (selectedFile == null) {
-            return;
-        }
-
-        QualityControlParams params = getParams();
-        List<QualityCheck> checks = createQualityChecks(params);
-
-        QualityControl qualityControl = new QualityControl();
-        List<QualityIssue> issues = qualityControl.getQualityIssues(List.of(selectedFile), checks);
-
-        qualityLayer.setIssues(issues);
-        model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+    @EventListener
+    private void onFileSelected(FileSelectedEvent event) {
+        selectFile(event.getFile());
     }
 
     @Override
-    public void applyToAll() {
+    protected void onApply(ActionEvent event) {
         if (selectedFile == null) {
             return;
         }
 
-        List<SgyFile> files = new ArrayList<>();
-        for (SgyFile file : model.getFileManager().getFiles()) {
-            if (Templates.equals(file, selectedFile)) {
-                files.add(file);
-            }
+        submitAction(() -> {
+            QualityControlParams params = getParams();
+            List<QualityCheck> checks = createQualityChecks(params);
+
+            QualityControl qualityControl = new QualityControl();
+            List<QualityIssue> issues = qualityControl.getQualityIssues(List.of(selectedFile), checks);
+
+            qualityLayer.setIssues(issues);
+            model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+            return null;
+        });
+    }
+
+    @Override
+    protected void onApplyToAll(ActionEvent event) {
+        if (selectedFile == null) {
+            return;
         }
 
-        QualityControlParams params = getParams();
-        List<QualityCheck> checks = createQualityChecks(params);
+        submitAction(() -> {
+            List<SgyFile> files = new ArrayList<>();
+            for (SgyFile file : model.getFileManager().getFiles()) {
+                if (Templates.equals(file, selectedFile)) {
+                    files.add(file);
+                }
+            }
 
-        QualityControl qualityControl = new QualityControl();
-        List<QualityIssue> issues = qualityControl.getQualityIssues(files, checks);
+            QualityControlParams params = getParams();
+            List<QualityCheck> checks = createQualityChecks(params);
 
-        qualityLayer.setIssues(issues);
-        model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+            QualityControl qualityControl = new QualityControl();
+            List<QualityIssue> issues = qualityControl.getQualityIssues(files, checks);
+
+            qualityLayer.setIssues(issues);
+            model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+            return null;
+        });
     }
 
     private void toggleQualityLayer(boolean active) {

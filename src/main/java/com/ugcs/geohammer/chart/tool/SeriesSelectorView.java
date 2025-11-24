@@ -1,9 +1,11 @@
-package com.ugcs.geohammer.chart.csv;
+package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.Chart;
+import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.template.Template;
+import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
@@ -47,7 +49,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -62,7 +63,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @Component
-public class SeriesSelectorView extends VBox implements InitializingBean {
+public class SeriesSelectorView extends VBox {
 
     private static final String DEFAULT_TITLE = "Select chart";
 
@@ -81,9 +82,9 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
     @Nullable
     private String selectedTemplateName;
 
-    private Label title;
+    private final Label title;
 
-    private Button removeSeriesButton;
+    private final Button removeSeriesButton;
 
     private ObservableList<SeriesMeta> series = FXCollections.observableArrayList();
 
@@ -111,22 +112,16 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         this.model = model;
         this.templates = templates;
         this.templateSettings = templateSettings;
-    }
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        initView();
-    }
-
-    private void initView() {
         initSeriesSelector();
 
         HBox container = new HBox();
         container.setAlignment(Pos.CENTER_LEFT);
-        container.setSpacing(5);
+        container.setSpacing(Tools.DEFAULT_SPACING);
 
         title = new Label(DEFAULT_TITLE);
         title.setStyle("-fx-text-fill: #dddddd;");
+        title.setMinHeight(26);
 
         removeSeriesButton = ResourceImageHolder.setButtonImage(
                 ResourceImageHolder.DELETE,
@@ -141,6 +136,8 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
 
         container.getChildren().addAll(title, spacer, seriesSelector, removeSeriesButton);
         getChildren().addAll(container);
+
+        showSeriesSelector(false);
     }
 
     private void updateSeriesRemovalButton() {
@@ -248,6 +245,13 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         });
     }
 
+    private void showSeriesSelector(boolean show) {
+        seriesSelector.setVisible(show);
+        seriesSelector.setManaged(show);
+        removeSeriesButton.setVisible(show);
+        removeSeriesButton.setManaged(show);
+    }
+
     private void selectTemplate(@Nullable String templateName) {
         // dispose change listener
         clearSeriesChangeListener();
@@ -255,9 +259,12 @@ public class SeriesSelectorView extends VBox implements InitializingBean {
         if (Strings.isNullOrEmpty(templateName)) {
             title.setText(DEFAULT_TITLE);
             series.clear();
+            showSeriesSelector(false);
         } else {
             title.setText(templateName);
-            series.setAll(getSeriesMetas(templateName));
+            List<SeriesMeta> seriesMetas = getSeriesMetas(templateName);
+            series.setAll(seriesMetas);
+            showSeriesSelector(!Nulls.isNullOrEmpty(seriesMetas));
 
             // get selected series from settings
             String selectedSeriesName = templateSettings.getSelectedSeriesName(templateName);

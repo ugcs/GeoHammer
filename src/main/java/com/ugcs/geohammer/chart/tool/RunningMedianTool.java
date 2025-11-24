@@ -2,20 +2,23 @@ package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
+import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
-import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
 import javafx.scene.control.TextField;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
 
 @Component
-public class RunningMedianView extends FilterToolView {
+public class RunningMedianTool extends FilterToolView {
 
     private final Model model;
 
@@ -23,7 +26,7 @@ public class RunningMedianView extends FilterToolView {
 
     private final TextField windowInput;
 
-    public RunningMedianView(Model model, PrefSettings preferences, ExecutorService executor) {
+    public RunningMedianTool(Model model, PrefSettings preferences, ExecutorService executor) {
         super(executor);
 
         this.model = model;
@@ -37,6 +40,11 @@ public class RunningMedianView extends FilterToolView {
 
         showApply(true);
         showApplyToAll(true);
+    }
+
+    @Override
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile;
     }
 
     private void onShiftChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -76,22 +84,25 @@ public class RunningMedianView extends FilterToolView {
     }
 
     @Override
-    public void apply() {
+    protected void onApply(ActionEvent event) {
         Integer window = (Integer) windowInput.getUserData();
         if (window == null) {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
-            // TODO
-            //var rangeBefore = getSelectedSeriesRange();
-            sensorChart.applyRunningMedian(sensorChart.getSelectedSeriesName(), window);
-            //Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
-            //showGridInputDataChangedWarning(true);
+            submitAction(() -> {
+                // TODO
+                //var rangeBefore = getSelectedSeriesRange();
+                sensorChart.applyRunningMedian(sensorChart.getSelectedSeriesName(), window);
+                //Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
+                //showGridInputDataChangedWarning(true);
+                return null;
+            });
         }
     }
 
     @Override
-    public void applyToAll() {
+    protected void onApplyToAll(ActionEvent event) {
         Integer window = (Integer) windowInput.getUserData();
         if (window == null) {
             return;
@@ -100,11 +111,19 @@ public class RunningMedianView extends FilterToolView {
             // TODO
             //var rangeBefore = getSelectedSeriesRange();
             String seriesName = sensorChart.getSelectedSeriesName();
-            model.getSensorCharts().stream()
-                    .filter(c -> Templates.equals(c.getFile(), selectedFile))
-                    .forEach(c -> c.applyRunningMedian(seriesName, window));
-            //Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
-            //showGridInputDataChangedWarning(true);
+            submitAction(() -> {
+                model.getSensorCharts().stream()
+                        .filter(c -> Templates.equals(c.getFile(), selectedFile))
+                        .forEach(c -> c.applyRunningMedian(seriesName, window));
+                //Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
+                //showGridInputDataChangedWarning(true);
+                return null;
+            });
         }
+    }
+
+    @EventListener
+    private void onFileSelected(FileSelectedEvent event) {
+        selectFile(event.getFile());
     }
 }

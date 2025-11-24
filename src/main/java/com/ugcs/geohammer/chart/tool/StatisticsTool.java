@@ -3,6 +3,8 @@ package com.ugcs.geohammer.chart.tool;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
@@ -34,7 +36,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import org.springframework.context.annotation.Scope;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -44,7 +45,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Component
-public class StatisticsView extends ToolView {
+public class StatisticsTool extends ToolView {
 
     private static final String NO_VALUE = "n/a";
     private static final String NO_SERIES = "No series";
@@ -63,7 +64,7 @@ public class StatisticsView extends ToolView {
 
     private int chartDecimals = SensorData.DEFAULT_DECIMALS;
 
-    public StatisticsView(Model model) {
+    public StatisticsTool(Model model) {
         this.model = model;
 
         // name and value
@@ -89,18 +90,16 @@ public class StatisticsView extends ToolView {
 
         VBox container = new VBox(Tools.DEFAULT_SPACING, valueGroup, metricsGroup);
         container.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
-        container.setVisible(false);
-        container.setManaged(false);
 
         getChildren().add(container);
+
+        // show by default
+        show(true);
     }
 
     @Override
-    public void loadPreferences() {
-    }
-
-    @Override
-    public void savePreferences() {
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile || file instanceof SonarFile;
     }
 
     private int getDecimals(SgyFile file, String header) {
@@ -122,7 +121,9 @@ public class StatisticsView extends ToolView {
         return dataMapping.getDataValueByHeader(header);
     }
 
-    public void update(SgyFile file) {
+    @Override
+    public void updateView() {
+        SgyFile file = selectedFile;
         Chart selectedChart = model.getChart(file);
         chart = selectedChart instanceof SensorLineChart sensorChart
                 ? sensorChart
@@ -222,18 +223,15 @@ public class StatisticsView extends ToolView {
         return container;
     }
 
-    @Override
     @EventListener
-    protected void onFileSelected(FileSelectedEvent event) {
-        super.onFileSelected(event);
-
-        Platform.runLater(() -> update(event.getFile()));
+    private void onFileSelected(FileSelectedEvent event) {
+        Platform.runLater(() -> selectFile(event.getFile()));
     }
 
     @EventListener
     private void onChange(WhatChanged changed) {
         if (changed.isCsvDataZoom() || changed.isTraceCut() || changed.isTraceSelected()) {
-            Platform.runLater(() -> update(selectedFile));
+            Platform.runLater(this::updateView);
         }
     }
 

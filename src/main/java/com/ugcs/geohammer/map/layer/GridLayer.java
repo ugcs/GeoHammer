@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
-import com.ugcs.geohammer.chart.tool.CsvTab;
 import com.ugcs.geohammer.chart.tool.GriddingRange;
 import com.ugcs.geohammer.map.ThrQueue;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -78,7 +77,7 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
     private final ExecutorService executor;
 
-    private final CsvTab optionPane;
+    private final OptionPane optionPane;
 
     @SuppressWarnings({"NullAway.Init"})
     private ThrQueue q;
@@ -102,12 +101,12 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
     };
 
     public GridLayer(Model model, TaskService taskService, GriddingService griddingService,
-                     ExecutorService executor, CsvTab griddingToolView) {
+                     ExecutorService executor, OptionPane optionPane) {
         this.model = model;
         this.taskService = taskService;
         this.griddingService = griddingService;
         this.executor = executor;
-        this.optionPane = griddingToolView;
+        this.optionPane = optionPane;
     }
 
     @Override

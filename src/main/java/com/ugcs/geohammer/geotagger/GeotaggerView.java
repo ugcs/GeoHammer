@@ -446,9 +446,17 @@ public class GeotaggerView {
 			SgyFile sgy = geoTagger.toSgyFile(file);
 			listView.getItems().add(file.getName());
 			target.add(sgy);
+			if (section == Section.POSITION_FILES) {
+				recalculateCoverageStatuses();
+			}
 		} catch (Exception e) {
 			statusBar.showMessage("Failed to open file: " + e.getMessage(), TITLE);
 		}
+	}
+
+	private void recalculateCoverageStatuses() {
+		List<String> items = new ArrayList<>(dataFilesListView.getItems());
+		dataFilesListView.getItems().setAll(items);
 	}
 
 	private void addAlreadyOpenedFiles() {

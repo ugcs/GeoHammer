@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -40,6 +41,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -277,11 +279,12 @@ public class ScriptExecutionView extends VBox {
 
 	private static Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
 		Node inputNode = switch (param.type()) {
-			case STRING, FILE_PATH -> {
+			case STRING -> {
 				TextField textField = new TextField(initialValue);
 				textField.setPromptText(param.displayName());
 				yield textField;
 			}
+			case FILE_PATH -> createFileParameterInput(initialValue);
 			case INTEGER -> {
 				TextField textField = new TextField(initialValue);
 				textField.setPromptText("Enter integer value");
@@ -302,6 +305,34 @@ public class ScriptExecutionView extends VBox {
 
 		inputNode.setUserData(param.name());
 		return inputNode;
+	}
+
+	private static HBox createFileParameterInput(String initialValue) {
+		HBox fileBox = new HBox(5);
+		TextField textField = new TextField(initialValue);
+		textField.setPromptText("Select file path");
+		textField.setEditable(false);
+		HBox.setHgrow(textField, Priority.ALWAYS);
+
+		Button browseButton = new Button("Browse...");
+		browseButton.setOnAction(e -> {
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Select File");
+			String currentText = textField.getText();
+			if (currentText != null && !currentText.isEmpty()) {
+				File currentFile = new File(currentText);
+				if (currentFile.getParentFile() != null && currentFile.getParentFile().exists()) {
+					fileChooser.setInitialDirectory(currentFile.getParentFile());
+				}
+			}
+			File selectedFile = fileChooser.showOpenDialog(browseButton.getScene().getWindow());
+			if (selectedFile != null) {
+				textField.setText(selectedFile.getAbsolutePath());
+			}
+		});
+
+		fileBox.getChildren().addAll(textField, browseButton);
+		return fileBox;
 	}
 
 	private String loadStoredParamValue(@Nullable String scriptFilename, String paramName, String defaultValue) {
@@ -430,6 +461,17 @@ public class ScriptExecutionView extends VBox {
 		return switch (node) {
 			case TextField textField -> textField.getText();
 			case CheckBox checkBox -> String.valueOf(checkBox.isSelected());
+			case HBox hBox -> {
+				TextField textField = (TextField) hBox.getChildren().stream()
+						.filter(n -> n instanceof TextField)
+						.findFirst()
+						.orElse(null);
+				if (textField != null) {
+					yield textField.getText();
+				} else {
+					yield "";
+				}
+			}
 			default -> "";
 		};
 	}

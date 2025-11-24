@@ -16,6 +16,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
 class GeotaggerViewHelper {
+
+	private static final String SEPARATOR_STYLE = "-fx-background-color: #cccccc;";
+
 	 protected static Node createDragAndDropPlaceholder(String text) {
 		VBox box = new VBox(5);
 		box.setAlignment(Pos.CENTER);
@@ -42,6 +45,7 @@ class GeotaggerViewHelper {
 	protected static Label headerLabel(String text, int width) {
 		Label label = new Label(text);
 		label.setPrefWidth(width);
+		label.setMinWidth(width);
 		return label;
 	}
 
@@ -55,5 +59,12 @@ class GeotaggerViewHelper {
 		Region region = new Region();
 		HBox.setHgrow(region, Priority.ALWAYS);
 		return region;
+	}
+
+	protected static Region createVerticalSeparator() {
+		Region separator = new Region();
+		separator.setPrefWidth(1);
+		separator.setStyle(SEPARATOR_STYLE);
+		return separator;
 	}
 }

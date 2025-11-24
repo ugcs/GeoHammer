@@ -60,7 +60,7 @@ public class ProfileView implements InitializingBean {
 
 	private final Button cropSamples = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP_SAMPLES, new Button());
 
-	private final Button geotaggerBtn = new Button("Geotagger");
+	private final Button geotaggerBtn = new Button("GeoTagger");
 
 	private SgyFile currentFile;
 
@@ -90,7 +90,7 @@ public class ProfileView implements InitializingBean {
 		cropSamples.setTooltip(new Tooltip("Crop samples"));
 		cropSamples.setOnAction(this::cropSamples);
 
-		geotaggerBtn.setTooltip(new Tooltip("Geotagger tool"));
+		geotaggerBtn.setTooltip(new Tooltip("GeoTagger tool"));
 		geotaggerBtn.setOnAction(this::showGeotaggerWindow);
 
 	}

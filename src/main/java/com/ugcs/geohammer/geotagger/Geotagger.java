@@ -29,14 +29,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class GeoTagger {
+public class Geotagger {
 
 	private static final int MAX_TIME_DIFFERENCE_MS = 1000;
-	private static final Logger log = LoggerFactory.getLogger(GeoTagger.class);
+	private static final Logger log = LoggerFactory.getLogger(Geotagger.class);
 
 	private final Model model;
 
-	public GeoTagger(Model model) {
+	public Geotagger(Model model) {
 		this.model = model;
 	}
 

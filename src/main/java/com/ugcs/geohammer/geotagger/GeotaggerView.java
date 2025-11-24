@@ -54,13 +54,15 @@ public class GeotaggerView {
 
 	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
 
-	private static final int FILE_NAME_WIDTH = 350;
-	private static final int TEMPLATE_NAME_WIDTH = 100;
+	private static final int FILE_NAME_WIDTH = 300;
+	private static final int TEMPLATE_NAME_WIDTH = 150;
 	private static final int TIME_WIDTH = 150;
 	private static final int COVERAGE_STATUS_WIDTH = 150;
-	private static final int HEADER_SPACING = 10;
+	private static final int HEADER_SPACING = 5;
 	private static final int ROOT_SPACING = 12;
 	private static final int SECTION_HEIGHT = 200;
+	private static final String HEADER_STYLE = "-fx-background-color: linear-gradient(to bottom, #fafafa, #e5e5e5);" +
+			"-fx-padding: 5;";
 
 	private static final String TITLE = "GeoTagger";
 	private static final String POSITION_HEADER = "Position Files";
@@ -69,24 +71,22 @@ public class GeotaggerView {
 	private static final String DATA_PLACEHOLDER = "Drag and drop data files here";
 
 	private final Model model;
-	private final GeoTagger geoTagger;
+	private final Geotagger geoTagger;
 	private final StatusBar statusBar;
 	private final PositionSourceFileIdentifier positionSourceFileIdentifier;
 
 	private Stage stage;
 	private final Scene scene;
 
-	private final ListView<String> positionFilesView;
-	private final ListView<String> dataFilesListView;
-
-	private final List<SgyFile> positionFiles = new ArrayList<>();
-	private final List<SgyFile> dataFiles = new ArrayList<>();
+	private final ListView<SgyFile> positionFilesView;
+	private final ListView<SgyFile> dataFilesListView;
 
 	private ProgressBar progressBar;
 	private Label progressLabel;
 	private final BooleanProperty isProcessing = new SimpleBooleanProperty(false);
 
-	public GeotaggerView(Model model, GeoTagger geoTagger, StatusBar statusBar, PositionSourceFileIdentifier positionSourceFileIdentifier) {
+	public GeotaggerView(Model model, Geotagger geoTagger, StatusBar statusBar,
+						 PositionSourceFileIdentifier positionSourceFileIdentifier) {
 		this.model = model;
 		this.geoTagger = geoTagger;
 		this.statusBar = statusBar;
@@ -122,7 +122,7 @@ public class GeotaggerView {
 			stage.initModality(Modality.NONE);
 			stage.setTitle("GeoTagger");
 			stage.setScene(scene);
-			stage.setOnCloseRequest(e -> stage = null);
+			stage.setOnCloseRequest(event -> stage = null);
 		}
 		if (!stage.isShowing()) {
 			stage.show();
@@ -134,7 +134,7 @@ public class GeotaggerView {
 		return stage;
 	}
 
-	private ListView<String> createFileSection(String headerText,
+	private ListView<SgyFile> createFileSection(String headerText,
 											   String placeholderText,
 											   Section section,
 											   RowFactory rowFactory) {
@@ -142,16 +142,17 @@ public class GeotaggerView {
 		header.setStyle("-fx-font-size: 16px;");
 
 		HBox columnHeaders = new HBox();
-		switch(section) {
+		switch (section) {
 			case POSITION_FILES -> columnHeaders = createPositionHeader();
 			case DATA_FILES -> columnHeaders = createDataHeader();
 		}
 		columnHeaders.setPadding(new Insets(5, 10, 0, 10));
 
-		ListView<String> listView = new ListView<>();
+		ListView<SgyFile> listView = new ListView<>();
 		listView.setPlaceholder(GeotaggerViewHelper.createDragAndDropPlaceholder(placeholderText));
 		listView.setPrefHeight(SECTION_HEIGHT);
-		listView.setStyle("-fx-border-color: #cccccc; -fx-border-style: dashed; -fx-border-width: 2px; -fx-border-radius: 5px;");
+		listView.setStyle("-fx-border-color: #cccccc; -fx-border-style: dashed; -fx-border-width: 2px; " +
+				"-fx-border-radius: 5px;");
 
 		listView.setCellFactory(lv -> createFileListCell(rowFactory));
 
@@ -167,15 +168,15 @@ public class GeotaggerView {
 		return listView;
 	}
 
-	private ListCell<String> createFileListCell(RowFactory rowFactory) {
+	private ListCell<SgyFile> createFileListCell(RowFactory rowFactory) {
 		return new ListCell<>() {
 			@Override
-			protected void updateItem(String name, boolean empty) {
-				super.updateItem(name, empty);
-				if (empty || name == null) {
+			protected void updateItem(SgyFile sgyFile, boolean empty) {
+				super.updateItem(sgyFile, empty);
+				if (empty || sgyFile == null || sgyFile.getFile() == null) {
 					setGraphic(null);
 				} else {
-					setGraphic(rowFactory.build(name));
+					setGraphic(rowFactory.build(sgyFile));
 				}
 			}
 		};
@@ -185,11 +186,15 @@ public class GeotaggerView {
 	private HBox createPositionHeader() {
 		HBox header = new HBox(HEADER_SPACING);
 		header.setAlignment(Pos.CENTER_LEFT);
+		header.setStyle(HEADER_STYLE);
 		header.getChildren().addAll(
 				GeotaggerViewHelper.headerLabel("File", FILE_NAME_WIDTH),
 				GeotaggerViewHelper.spacer(),
+				GeotaggerViewHelper.createVerticalSeparator(),
 				GeotaggerViewHelper.headerLabel("Template", TEMPLATE_NAME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
 				GeotaggerViewHelper.headerLabel("Start Time", TIME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
 				GeotaggerViewHelper.headerLabel("End Time", TIME_WIDTH)
 		);
 		return header;
@@ -198,92 +203,100 @@ public class GeotaggerView {
 	private HBox createDataHeader() {
 		HBox header = new HBox(HEADER_SPACING);
 		header.setAlignment(Pos.CENTER_LEFT);
+		header.setStyle(HEADER_STYLE);
 		header.getChildren().addAll(
 				GeotaggerViewHelper.headerLabel("File", FILE_NAME_WIDTH),
 				GeotaggerViewHelper.spacer(),
+				GeotaggerViewHelper.createVerticalSeparator(),
 				GeotaggerViewHelper.headerLabel("Template", TEMPLATE_NAME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
 				GeotaggerViewHelper.headerLabel("Start Time", TIME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
 				GeotaggerViewHelper.headerLabel("End Time", TIME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
 				GeotaggerViewHelper.headerLabel("Coverage Status", COVERAGE_STATUS_WIDTH)
 		);
 		return header;
 	}
 
-	private HBox createPositionRow(String fileName) {
-		RowInfo info = extractCommonInfo(fileName, positionFiles);
-		return buildBaseRow(info);
-	}
-
-	private HBox createDataRow(String fileName) {
-		RowInfo rawInfo = extractCommonInfo(fileName, dataFiles);
-		rawInfo.coverageStatus = resolveCoverage(fileName);
-		HBox row = buildBaseRow(rawInfo);
-		row.getChildren().add(GeotaggerViewHelper.fixedLabel(rawInfo.coverageStatus, COVERAGE_STATUS_WIDTH));
-		return row;
-	}
-
-	private HBox buildBaseRow(RowInfo info) {
-		Label fileNameLabel = GeotaggerViewHelper.fixedLabel(info.fileName, FILE_NAME_WIDTH);
-		Label templateLabel = GeotaggerViewHelper.fixedLabel(info.templateName, TEMPLATE_NAME_WIDTH);
-		Label startLabel = GeotaggerViewHelper.fixedLabel(info.startTime, TIME_WIDTH);
-		Label endLabel = GeotaggerViewHelper.fixedLabel(info.endTime, TIME_WIDTH);
+	private HBox createPositionRow(SgyFile sgyFile) {
+		RowInfo info = extractCommonInfo(sgyFile);
 
 		HBox row = new HBox(HEADER_SPACING);
 		row.setAlignment(Pos.CENTER_LEFT);
-		row.getChildren().addAll(fileNameLabel, GeotaggerViewHelper.spacer(), templateLabel, startLabel, endLabel);
+		row.setPadding(new Insets(0, -5, 0, 0));
+		row.getChildren().addAll(
+				GeotaggerViewHelper.fixedLabel(info.fileName, FILE_NAME_WIDTH),
+				GeotaggerViewHelper.spacer(),
+				GeotaggerViewHelper.createVerticalSeparator(),
+				GeotaggerViewHelper.fixedLabel(info.templateName, TEMPLATE_NAME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
+				GeotaggerViewHelper.fixedLabel(info.startTime, TIME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
+				GeotaggerViewHelper.fixedLabel(info.endTime, TIME_WIDTH));
 		return row;
 	}
 
-	private RowInfo extractCommonInfo(String fileName, List<SgyFile> source) {
+	private HBox createDataRow(SgyFile sgyFile) {
+		RowInfo info = extractCommonInfo(sgyFile);
+		info.coverageStatus = resolveCoverage(sgyFile);
+
+		HBox row = new HBox(HEADER_SPACING);
+		row.setAlignment(Pos.CENTER_LEFT);
+		row.setPadding(new Insets(0, -5, 0, 0));
+		row.getChildren().addAll(
+				GeotaggerViewHelper.fixedLabel(info.fileName, FILE_NAME_WIDTH),
+				GeotaggerViewHelper.spacer(),
+				GeotaggerViewHelper.createVerticalSeparator(),
+				GeotaggerViewHelper.fixedLabel(info.templateName, TEMPLATE_NAME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
+				GeotaggerViewHelper.fixedLabel(info.startTime, TIME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
+				GeotaggerViewHelper.fixedLabel(info.endTime, TIME_WIDTH),
+				GeotaggerViewHelper.createVerticalSeparator(),
+				GeotaggerViewHelper.fixedLabel(info.coverageStatus, COVERAGE_STATUS_WIDTH));
+		return row;
+	}
+
+	private RowInfo extractCommonInfo(SgyFile sgyFile) {
 		RowInfo info = new RowInfo();
-		info.fileName = fileName;
-		SgyFile sgy = findFileByName(source, fileName);
-		if (sgy == null || sgy.getFile() == null) {
+		if (sgyFile == null || sgyFile.getFile() == null) {
 			return info;
 		}
+		File file = sgyFile.getFile();
+		info.fileName = file.getName();
 
-		List<GeoData> geoData = sgy.getGeoData();
+		List<GeoData> geoData = sgyFile.getGeoData();
 		if (geoData == null || geoData.isEmpty()) {
 			return info;
 		}
 
 		FileManager fileManager = model.getFileManager();
 		Template template = fileManager.getFileTemplates().findTemplate(
-				fileManager.getFileTemplates().getTemplates(), sgy.getFile()
+				fileManager.getFileTemplates().getTemplates(), file
 		);
 		if (template != null) {
 			info.templateName = template.getName();
 		}
 
-		Instant startInstant = sgy.getStartTime();
+		Instant startInstant = sgyFile.getStartTime();
 		if (startInstant != null) {
 			info.startTime = LocalDateTime.ofInstant(startInstant, ZoneOffset.UTC).format(FORMATTER);
 		}
 
-		Instant endInstant = sgy.getEndTime();
+		Instant endInstant = sgyFile.getEndTime();
 		if (endInstant != null) {
 			info.endTime = LocalDateTime.ofInstant(endInstant, ZoneOffset.UTC).format(FORMATTER);
 		}
 		return info;
 	}
 
-	private String resolveCoverage(String fileName) {
-		SgyFile data = findFileByName(dataFiles, fileName);
-		if (data == null) {
+	private String resolveCoverage(@Nullable SgyFile sgyFile) {
+		if (sgyFile == null) {
 			return "-";
 		}
-		CoverageStatus status = CoverageStatusResolver.resolve(positionFiles, data);
+		CoverageStatus status = CoverageStatusResolver.resolve(positionFilesView.getItems(), sgyFile);
 		return status != null ? status.getDisplayName() : "-";
-	}
-
-	@Nullable
-	private SgyFile findFileByName(List<SgyFile> sgyFiles, String name) {
-		for (SgyFile sgyFile : sgyFiles) {
-			if (sgyFile != null && sgyFile.getFile() != null && sgyFile.getFile().getName().equals(name)) {
-				return sgyFile;
-			}
-		}
-		return null;
 	}
 
 	private Node createProcessView() {
@@ -309,12 +322,12 @@ public class GeotaggerView {
 		progressLabel = new Label();
 		progressLabel.setVisible(false);
 
-		cancelButton.setOnAction(e -> {
+		cancelButton.setOnAction(event -> {
 			Stage currentStage = (Stage) cancelButton.getScene().getWindow();
 			currentStage.close();
 		});
 
-		processButton.setOnAction(e -> startProcessing());
+		processButton.setOnAction(event -> startProcessing());
 
 		HBox progressBox = new HBox(10, progressBar, progressLabel);
 		progressBox.setAlignment(Pos.CENTER_LEFT);
@@ -334,8 +347,8 @@ public class GeotaggerView {
 		progressLabel.setVisible(true);
 		progressLabel.setText("Processing...");
 
-		List<SgyFile> pos = positionFiles.stream().filter(Objects::nonNull).toList();
-		List<SgyFile> data = dataFiles.stream().filter(Objects::nonNull).toList();
+		List<SgyFile> pos = positionFilesView.getItems().stream().filter(Objects::nonNull).toList();
+		List<SgyFile> data = dataFilesListView.getItems().stream().filter(Objects::nonNull).toList();
 
 		CompletableFuture<String> future = geoTagger.updateCoordinates(pos, data, percentage ->
 				Platform.runLater(() -> {
@@ -358,7 +371,7 @@ public class GeotaggerView {
 		statusBar.showMessage(message, TITLE);
 	}
 
-	private void setupDragAndDrop(ListView<String> listView, Section section) {
+	private void setupDragAndDrop(ListView<SgyFile> listView, Section section) {
 		listView.setOnDragOver(event -> {
 			if (!Objects.equals(event.getGestureSource(), listView) && event.getDragboard().hasFiles()) {
 				event.acceptTransferModes(TransferMode.COPY);
@@ -370,7 +383,7 @@ public class GeotaggerView {
 			Dragboard dragboard = event.getDragboard();
 			boolean success = false;
 			if (dragboard.hasFiles()) {
-				dragboard.getFiles().forEach(f -> addFile(f, listView, section));
+				dragboard.getFiles().forEach(file -> addFile(file, listView, section));
 				success = true;
 			}
 			event.setDropCompleted(success);
@@ -378,26 +391,35 @@ public class GeotaggerView {
 		});
 	}
 
-	private HBox createButtonsBox(ListView<String> listView, Section section) {
+	private HBox createButtonsBox(ListView<SgyFile> listView, Section section) {
 		Button addButton = new Button("Add");
 		Button removeButton = new Button("Remove");
 		Button addFolderButton = new Button("Add Folder");
 		Button clearButton = new Button("Clear");
 
-		addButton.setOnAction(e -> chooseFiles(
+		addButton.setOnAction(event -> chooseFiles(
 				getOwnerStage(),
 				section == Section.POSITION_FILES ? "Select Position Files" : "Select Data Files",
-				files -> files.forEach(f -> addFile(f, listView, section))
+				files -> files.forEach(file -> addFile(file, listView, section))
 		));
 
-		addFolderButton.setOnAction(e -> chooseFolder(getOwnerStage(),
-				dirFiles -> dirFiles.forEach(f -> addFile(f, listView, section))));
+		addFolderButton.setOnAction(event -> chooseFolder(getOwnerStage(),
+				dirFiles -> dirFiles.forEach(file -> addFile(file, listView, section))));
 
-		removeButton.setOnAction(e -> removeSelected(listView, section));
+		removeButton.setOnAction(event -> removeSelected(listView));
 
-		clearButton.setOnAction(e -> {
+		clearButton.setOnAction(event -> {
+			FileManager fileManager = model.getFileManager();
+			listView.getItems().forEach(sgyFile -> {
+				if (sgyFile != null && sgyFile.getFile() != null) {
+					fileManager.removeFile(sgyFile);
+				}
+			});
 			listView.getItems().clear();
-			(section == Section.POSITION_FILES ? positionFiles : dataFiles).clear();
+
+			if (section == Section.POSITION_FILES) {
+				recalculateCoverageStatuses();
+			}
 		});
 
 		HBox box = new HBox(8, addButton, addFolderButton, removeButton, clearButton);
@@ -425,27 +447,22 @@ public class GeotaggerView {
 		}
 	}
 
-	private void removeSelected(ListView<String> listView, Section section) {
-		int idx = listView.getSelectionModel().getSelectedIndex();
-		if (idx >= 0) {
-			listView.getItems().remove(idx);
-			List<SgyFile> target = section == Section.POSITION_FILES ? positionFiles : dataFiles;
-			if (idx < target.size()) {
-				target.remove(idx);
-			}
+	private void removeSelected(ListView<SgyFile> listView) {
+		int index = listView.getSelectionModel().getSelectedIndex();
+		if (index >= 0) {
+			listView.getItems().remove(index);
 		}
 	}
 
-	private void addFile(File file, ListView<String> listView, Section section) {
+	private void addFile(File file, ListView<SgyFile> listView, Section section) {
 		Predicate<File> validator = section == Section.POSITION_FILES ? this::isPositionFile : this::isDataFile;
-		List<SgyFile> target = section == Section.POSITION_FILES ? positionFiles : dataFiles;
 		if (!validator.test(file)) {
+			statusBar.showMessage("Invalid file type: " + file.getName(), TITLE);
 			return;
 		}
 		try {
-			SgyFile sgy = geoTagger.toSgyFile(file);
-			listView.getItems().add(file.getName());
-			target.add(sgy);
+			SgyFile sgyFile = geoTagger.toSgyFile(file);
+			listView.getItems().add(sgyFile);
 			if (section == Section.POSITION_FILES) {
 				recalculateCoverageStatuses();
 			}
@@ -455,14 +472,14 @@ public class GeotaggerView {
 	}
 
 	private void recalculateCoverageStatuses() {
-		List<String> items = new ArrayList<>(dataFilesListView.getItems());
+		List<SgyFile> items = new ArrayList<>(dataFilesListView.getItems());
 		dataFilesListView.getItems().setAll(items);
 	}
 
 	private void addAlreadyOpenedFiles() {
 		Set<File> existingFiles = Stream.concat(
-						positionFiles.stream(),
-						dataFiles.stream()
+						positionFilesView.getItems().stream(),
+						dataFilesListView.getItems().stream()
 				)
 				.map(SgyFile::getFile)
 				.filter(Objects::nonNull)
@@ -507,10 +524,10 @@ public class GeotaggerView {
 		}
 	}
 
-	private enum Section { POSITION_FILES, DATA_FILES }
+	private enum Section {POSITION_FILES, DATA_FILES}
 
 	@FunctionalInterface
 	private interface RowFactory {
-		HBox build(String fileName);
+		HBox build(SgyFile sgyFile);
 	}
 }

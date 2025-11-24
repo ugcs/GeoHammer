@@ -10,18 +10,11 @@
 
     <!-- Keep the default "quickstart" ruleset -->
     <rule ref="rulesets/java/quickstart.xml"/>
-
-    <!-- ===== Disable unwanted ERRORPRONE rules ===== -->
-    <rule ref="category/java/errorprone.xml">
-        <exclude name="AvoidLiteralsInIfCondition" />
-        <exclude name="ReturnEmptyCollectionRatherThanNull" />
-    </rule>
-
     <!-- ===== Disable unwanted BEST PRACTICES rules ===== -->
-    <rule ref="category/java/bestpractices.xml">
-        <!-- Disables: "Logger calls should be surrounded by log level guards." -->
-        <exclude name="GuardLogStatement"/>
-    </rule>
+<!--    <rule ref="category/java/bestpractices.xml">-->
+<!--        &lt;!&ndash; Disables: "Logger calls should be surrounded by log level guards." &ndash;&gt;-->
+<!--        <exclude name="GuardLogStatement"/>-->
+<!--    </rule>-->
 
     <!-- ===== Disable unwanted DESIGN rules ===== -->
     <rule ref="category/java/design.xml">

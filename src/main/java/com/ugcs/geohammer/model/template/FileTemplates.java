@@ -202,7 +202,10 @@ public class FileTemplates implements InitializingBean {
     }
 
     public List<Template> getTemplates() {
-        return templates;
+        if (templates == null) {
+			return null;
+		}
+		return templates;
     }
 
     public Template findTemplate(List<Template> templates, File file) {

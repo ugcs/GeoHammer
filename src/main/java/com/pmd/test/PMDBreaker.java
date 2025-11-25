@@ -79,57 +79,5 @@ public class PMDBreaker {
 			log.info("duplicate");
 		}
 	}
-
-	// Useless method
-	public List<String> badMethod() {
-		List list = new ArrayList(); // raw type
-		list.add("a");
-		list.add("b");
-		return list; // unchecked return
-	}
-
-	// Violates: UseUtilityClass (if class had all static methods)
-	public static void uglyStatic1() { }
-	public static void uglyStatic2() { }
-
-	// Equals/hashCode violations
-	@Override
-	public boolean equals(Object o) {
-		return true; // terrible
-	}
-
-	@Override
-	public int hashCode() {
-		return 123; // terrible
-	}
-
-	// Dead code
-	private void neverCalled() {
-		String t = "zzz";
-	}
-
-	// Too many params
-	public void tooManyParams(int a, int b, int c, int d, int e, int f, int g) { }
-
-	// Synchronized method with unsafe behavior
-	public synchronized void doSync() {
-		try {
-			Thread.sleep(10);
-		} catch (InterruptedException e) { }
-	}
-
-	// Field shadowing
-	public void shadowing() {
-		int x = 5; // shadows field x
-		System.out.println(x);
-	}
-
-	// Bad naming
-	public void AaaAaaa() { }
-
-	// System exit
-	public void killJvm() {
-		System.exit(0); // forbidden in good code bases
-	}
 }
 

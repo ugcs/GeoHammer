@@ -4,13 +4,17 @@ import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.map.layer.GridLayer;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.Range;
+import com.ugcs.geohammer.model.TemplateSeriesKey;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
-import com.ugcs.geohammer.model.event.GriddingParamsSetted;
 import com.ugcs.geohammer.model.event.WhatChanged;
-import com.ugcs.geohammer.model.template.Template;
-import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.service.TaskService;
+import com.ugcs.geohammer.service.gridding.GriddingFilter;
+import com.ugcs.geohammer.service.gridding.GriddingParams;
+import com.ugcs.geohammer.service.gridding.GriddingResult;
+import com.ugcs.geohammer.service.gridding.GriddingService;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
@@ -29,15 +33,14 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.controlsfx.control.RangeSlider;
-import org.jspecify.annotations.NonNull;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 @Component
@@ -51,18 +54,28 @@ public class GriddingTool extends FilterToolView {
 
     private final PrefSettings preferences;
 
+    private final GridLayer gridLayer;
+
+    private final GriddingService griddingService;
+
+    private final TaskService taskService;
+
+    // range preferences are not persisted
+    private final Map<TemplateSeriesKey, Range> rangePreferences = new HashMap<>();
+
+    // shows that input events from the filter
+    // controls should be ignored
+    private volatile boolean ignoreFilterEvents;
+
     // view
 
-    // Warning label for grid input data changes
-    private final Label griddingWarningLabel;
+    private final Label warning;
 
     private final TextField cellSizeInput;
 
     private final TextField blankingDistanceInput;
 
-    private final RangeSlider griddingRangeSlider;
-
-    private final Map<TemplateSeriesKey, GriddingRange> griddingRanges = new HashMap<>();
+    private final RangeSlider rangeSlider;
 
     private final CheckBox hillShading;
 
@@ -70,33 +83,41 @@ public class GriddingTool extends FilterToolView {
 
     private final CheckBox analyticSignal;
 
-    public GriddingTool(Model model, PrefSettings preferences, ExecutorService executor) {
+    public GriddingTool(
+            Model model,
+            PrefSettings preferences,
+            GridLayer gridLayer,
+            GriddingService griddingService,
+            TaskService taskService,
+            ExecutorService executor
+    ) {
         super(executor);
 
         this.model = model;
         this.preferences = preferences;
+        this.gridLayer = gridLayer;
+        this.griddingService = griddingService;
+        this.taskService = taskService;
 
-        griddingWarningLabel = new Label("Warning: Grid needs to be recalculated.");
-        griddingWarningLabel.setStyle("-fx-text-fill: #E7AE3CFF; -fx-font-weight: bold;");
-        griddingWarningLabel.setVisible(false);
-        griddingWarningLabel.setManaged(false);
+        warning = new Label("Warning: Grid needs to be recalculated.");
+        warning.setStyle("-fx-text-fill: #E7AE3CFF; -fx-font-weight: bold;");
+        warning.setVisible(false);
+        warning.setManaged(false);
 
         cellSizeInput = new TextField();
         cellSizeInput.setPromptText("Enter cell size");
         cellSizeInput.textProperty().addListener(this::onCellSizeChange);
-        //filterInputs.put(Filter.gridding_cellsize.name(), cellSizeInput);
 
         blankingDistanceInput = new TextField();
         blankingDistanceInput.setPromptText("Enter blanking distance");
         blankingDistanceInput.textProperty().addListener(this::onBlankingDistanceChange);
-        //filterInputs.put(Filter.gridding_blankingdistance.name(), blankingDistanceInput);
 
         // range slider
 
         HBox labelAndReset = new HBox(10);
         Label label = new Label("Range");
         Button resetButton = Views.createGlyphButton("↺", 16, 16);
-        resetButton.setOnAction(this::onResetGriddingRange);
+        resetButton.setOnAction(e -> initRangeSlider());
 
         Region labelSeparator = new Region();
         HBox.setHgrow(labelSeparator, Priority.ALWAYS);
@@ -110,14 +131,10 @@ public class GriddingTool extends FilterToolView {
         HBox minMaxContainer = new HBox(Tools.DEFAULT_SPACING);
         minMaxContainer.getChildren().addAll(minLabel, minMaxSeparator, maxLabel);
 
-        griddingRangeSlider = createRangeSlider(minLabel, maxLabel);
-        VBox rangeContainer = new VBox(10, labelAndReset, griddingRangeSlider, minMaxContainer);
+        rangeSlider = createRangeSlider(minLabel, maxLabel);
+        VBox rangeContainer = new VBox(10, labelAndReset, rangeSlider, minMaxContainer);
 
         // post-processing
-
-        //filterInputs.put(Filter.gridding_hillshading_enabled.name(), hillShadingEnabledText);
-        //filterInputs.put(Filter.gridding_smoothing_enabled.name(), smoothingEnabledText);
-        //filterInputs.put(Filter.gridding_analytic_signal_enabled.name(), analyticSignalEnabledText);
 
         hillShading = new CheckBox("Enable hill-shading");
         hillShading.selectedProperty().addListener(this::onHillShadingChange);
@@ -137,7 +154,7 @@ public class GriddingTool extends FilterToolView {
         postProcessingContainer.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 5;");
 
         inputContainer.getChildren().setAll(
-                griddingWarningLabel,
+                warning,
                 cellSizeInput,
                 blankingDistanceInput,
                 rangeContainer,
@@ -158,34 +175,34 @@ public class GriddingTool extends FilterToolView {
         slider.setShowTickMarks(true);
         slider.setLowValue(0);
         slider.setHighValue(Double.MAX_VALUE);
-        slider.setDisable(true);
         slider.setShowTickLabels(false);
         slider.setShowTickMarks(false);
 
-        slider.lowValueProperty().addListener(
-                (observable, oldValue, newValue) -> {
+        slider.lowValueProperty().addListener((observable, oldValue, newValue) -> {
             setFormattedValue(newValue, "Min: ", minLabel);
-            saveGriddingRange();
-            model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
+            if (!ignoreFilterEvents) {
+                saveRangePreferences();
+                applyFilter();
+            }
         });
 
-        slider.highValueProperty().addListener(
-                (observable, oldValue, newValue) -> {
+        slider.highValueProperty().addListener((observable, oldValue, newValue) -> {
             setFormattedValue(newValue, "Max: ", maxLabel);
-            saveGriddingRange();
-            model.publishEvent(new WhatChanged(this, WhatChanged.Change.griddingRange));
+            if (!ignoreFilterEvents) {
+                saveRangePreferences();
+                applyFilter();
+            }
         });
 
         slider.setOnMouseReleased(event -> {
-            expandGriddingRangeSlider();
-            saveGriddingRange();
+            expandRangeSlider();
         });
 
         return slider;
     }
 
     private void setFormattedValue(Number newVal, String prefix, Label label) {
-        double range = griddingRangeSlider.getMax() - griddingRangeSlider.getMin();
+        double range = rangeSlider.getMax() - rangeSlider.getMin();
         String valueText;
         if (range < 10) {
             valueText = String.format(prefix + "%.2f", newVal.doubleValue());
@@ -202,7 +219,7 @@ public class GriddingTool extends FilterToolView {
         cellSizeInput.setUserData(cellSize);
         validateInput();
 
-         showGridInputDataChangedWarning(true);
+        showWarning(true);
     }
 
     private void onBlankingDistanceChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -210,22 +227,28 @@ public class GriddingTool extends FilterToolView {
         blankingDistanceInput.setUserData(blankingDistance);
         validateInput();
 
-        showGridInputDataChangedWarning(true);
+        showWarning(true);
     }
 
     private void onHillShadingChange(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
-        savePreferences();
-        publishGriddingParameters(this, false);
+        if (!ignoreFilterEvents) {
+            savePreferences();
+            applyFilter();
+        }
     }
 
     private void onSmoothingChange(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
-        saveGriddingRange();
-        publishGriddingParameters(this, false);
+        if (!ignoreFilterEvents) {
+            savePreferences();
+            applyFilter();
+        }
     }
 
     private void onAnalyticSignalChange(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
-        savePreferences();
-        publishGriddingParameters(this, false);
+        if (!ignoreFilterEvents) {
+            savePreferences();
+            applyFilter();
+        }
     }
 
     public void validateInput() {
@@ -243,35 +266,26 @@ public class GriddingTool extends FilterToolView {
         disableActions(disable);
     }
 
+    @Override
+    public void show(boolean show) {
+        super.show(show);
+
+        if (gridLayer != null && gridLayer.isActive() != show) {
+            gridLayer.setActive(show);
+            gridLayer.submitDraw();
+        }
+    }
+
     // warning
 
-    private void showGridInputDataChangedWarning(boolean show) {
-        if (griddingWarningLabel != null) {
-            Platform.runLater(() -> {
-                griddingWarningLabel.setVisible(show);
-                griddingWarningLabel.setManaged(show);
-            });
-        }
+    private void showWarning(boolean show) {
+        Platform.runLater(() -> {
+            warning.setVisible(show);
+            warning.setManaged(show);
+        });
     }
 
     // range slider
-
-    private void onResetGriddingRange(ActionEvent event) {
-        // get current min/max range
-        Range range = getSelectedSeriesRange();
-        if (range == null) {
-            return;
-        }
-        if (range.getWidth() == 0) {
-            range = range.scaleToWidth(1, 0.5);
-        }
-        GriddingRange griddingRange = new GriddingRange(
-                range.getMin().doubleValue(),
-                range.getMax().doubleValue(),
-                range.getMin().doubleValue(),
-                range.getMax().doubleValue());
-        updateGriddingRangeSlider(griddingRange);
-    }
 
     private @Nullable Range getSelectedSeriesRange() {
         SgyFile file = selectedFile;
@@ -284,34 +298,44 @@ public class GriddingTool extends FilterToolView {
                 max = Math.max(max, chart.getSeriesMaxValue());
             }
         }
-        return Double.isInfinite(min) || Double.isInfinite(max)
+        Range range = Double.isInfinite(min) || Double.isInfinite(max)
                 ? null
                 : new Range(min, max);
+        if (range != null && range.getWidth() == 0) {
+            range = range.scaleToWidth(1, 0.5);
+        }
+        return range;
     }
 
-    private void updateGriddingRangeSlider(GriddingRange sliderRange) {
-        griddingRangeSlider.setMax(sliderRange.max());
-        griddingRangeSlider.setMin(sliderRange.min());
+    private void initRangeSlider() {
+        Range range = getSelectedSeriesRange();
+        if (range != null) {
+            updateRangeSlider(range);
+        }
+    }
+
+    private void updateRangeSlider(Range range) {
+        rangeSlider.setMax(range.getMax());
+        rangeSlider.setMin(range.getMin());
 
         // assign and adjust values
-        if (sliderRange.highValue() > griddingRangeSlider.getLowValue()) {
-            griddingRangeSlider.adjustHighValue(sliderRange.highValue());
-            griddingRangeSlider.adjustLowValue(sliderRange.lowValue());
+        if (range.getMax() > rangeSlider.getLowValue()) {
+            rangeSlider.adjustHighValue(range.getMax());
+            rangeSlider.adjustLowValue(range.getMin());
         } else {
-            griddingRangeSlider.adjustLowValue(sliderRange.lowValue());
-            griddingRangeSlider.adjustHighValue(sliderRange.highValue());
+            rangeSlider.adjustLowValue(range.getMin());
+            rangeSlider.adjustHighValue(range.getMax());
         }
 
-        expandGriddingRangeSlider();
-        saveGriddingRange();
+        expandRangeSlider();
     }
 
-    private void expandGriddingRangeSlider() {
-        double min = griddingRangeSlider.getMin();
-        double max = griddingRangeSlider.getMax();
+    private void expandRangeSlider() {
+        double min = rangeSlider.getMin();
+        double max = rangeSlider.getMax();
 
-        double l = griddingRangeSlider.getLowValue();
-        double r = griddingRangeSlider.getHighValue();
+        double l = rangeSlider.getLowValue();
+        double r = rangeSlider.getHighValue();
 
         // shrink
         if ((r - l) > 1e-12 && (r - l) / (max - min) < SLIDER_SHRINK_WIDTH_THRESHOLD) {
@@ -343,138 +367,19 @@ public class GriddingTool extends FilterToolView {
             max = (r - k * min) / (1 - k);
         }
 
-        griddingRangeSlider.setMin(min);
-        griddingRangeSlider.setMax(max);
+        rangeSlider.setMin(min);
+        rangeSlider.setMax(max);
 
-        updateGriddingRangeSliderTicks();
+        updateRangeSliderTicks();
     }
 
-    private void updateGriddingRangeSliderTicks() {
-        double width = griddingRangeSlider.getMax() - griddingRangeSlider.getMin();
+    private void updateRangeSliderTicks() {
+        double width = rangeSlider.getMax() - rangeSlider.getMin();
         if (width > 0.0) {
-            griddingRangeSlider.setMajorTickUnit(width / 100);
-            griddingRangeSlider.setMinorTickCount((int) (width / 1000));
-            griddingRangeSlider.setBlockIncrement(width / 2000);
+            rangeSlider.setMajorTickUnit(width / 100);
+            rangeSlider.setMinorTickCount((int) (width / 1000));
+            rangeSlider.setBlockIncrement(width / 2000);
         }
-    }
-
-    // gridding ranges
-
-    public GriddingRange getGriddingRange(CsvFile csvFile, String seriesName) {
-        Check.notNull(csvFile);
-        Check.notEmpty(seriesName);
-
-        GriddingRange range = null;
-        Template template = csvFile.getTemplate();
-        if (template != null) {
-            TemplateSeriesKey rangeKey = new TemplateSeriesKey(template.getName(), seriesName);
-            range = griddingRanges.get(rangeKey);
-        }
-        return range != null
-                ? range
-                : getGriddingRangeSliderValues();
-    }
-
-    private @NonNull GriddingRange getGriddingRangeSliderValues() {
-        return new GriddingRange(griddingRangeSlider.getLowValue(),
-                griddingRangeSlider.getHighValue(),
-                griddingRangeSlider.getMin(),
-                griddingRangeSlider.getMax());
-    }
-
-    private void saveGriddingRange() {
-        if (!(selectedFile instanceof CsvFile csvFile)) {
-            return;
-        }
-        Template template = csvFile.getTemplate();
-        if (template == null) {
-            return;
-        }
-        SensorLineChart chart = model.getCsvChart(csvFile);
-        if (chart == null) {
-            return;
-        }
-        TemplateSeriesKey rangeKey = new TemplateSeriesKey(
-                template.getName(),
-                chart.getSelectedSeriesName());
-        GriddingRange griddingRange = getGriddingRangeSliderValues();
-        griddingRanges.put(rangeKey, griddingRange);
-    }
-
-    private Optional<GriddingRange> loadGriddingRange() {
-        if (!(selectedFile instanceof CsvFile csvFile)) {
-            return Optional.empty();
-        }
-        Template template = csvFile.getTemplate();
-        if (template == null) {
-            return Optional.empty();
-        }
-        SensorLineChart chart = model.getCsvChart(csvFile);
-        if (chart == null) {
-            return Optional.empty();
-        }
-
-        TemplateSeriesKey rangeKey = new TemplateSeriesKey(
-                template.getName(),
-                chart.getSelectedSeriesName());
-        return Optional.ofNullable(griddingRanges.get(rangeKey));
-    }
-
-    private void updateGriddingMinMaxPreserveUserRange() {
-        updateGriddingMinMaxPreserveUserRange(null);
-    }
-
-    /**
-     * Updates the gridding range slider min/max values if needed, while maintaining
-     * the user's selected range proportionally.
-     */
-    private void updateGriddingMinMaxPreserveUserRange(Range rangeBefore) {
-        if (!(selectedFile instanceof CsvFile)) {
-            return;
-        }
-
-        // get current min/max range
-        Range range = getSelectedSeriesRange();
-        if (range == null) {
-            return;
-        }
-        if (range.getWidth() == 0) {
-            range = range.scaleToWidth(1, 0.5);
-        }
-
-        GriddingRange defaultGriddingRange = new GriddingRange(
-                range.getMin().doubleValue(),
-                range.getMax().doubleValue(),
-                range.getMin().doubleValue(),
-                range.getMax().doubleValue());
-        GriddingRange griddingRange = loadGriddingRange().orElse(defaultGriddingRange);
-
-        // Only update min/max if they changed
-        if (rangeBefore != null
-                && (!Objects.equals(rangeBefore.getMin(), range.getMin())
-                || !Objects.equals(rangeBefore.getMax(), range.getMax()))) {
-
-            // Calculate relative positions within the range
-            double widthBefore = rangeBefore.getWidth();
-            double lowRatio = widthBefore > 0
-                    ? (griddingRange.lowValue() - rangeBefore.getMin().doubleValue()) / widthBefore
-                    : 0;
-            lowRatio = Math.clamp(lowRatio, 0, 1);
-            double highRatio = widthBefore > 0
-                    ? (griddingRange.highValue() - rangeBefore.getMin().doubleValue()) / widthBefore
-                    : 1;
-            highRatio = Math.clamp(highRatio, 0, 1);
-
-            // maintain the relative range of user's selection
-            griddingRange = new GriddingRange(
-                    range.getMin().doubleValue() + lowRatio * range.getWidth(),
-                    range.getMin().doubleValue() + highRatio * range.getWidth(),
-                    range.getMin().doubleValue(),
-                    range.getMax().doubleValue());
-        }
-
-        updateGriddingRangeSlider(griddingRange);
-        griddingRangeSlider.setDisable(false);
     }
 
     @Override
@@ -485,12 +390,40 @@ public class GriddingTool extends FilterToolView {
                     cellSizeInput::setText);
             Nulls.ifPresent(preferences.getSetting("gridding_blankingdistance", templateName),
                     blankingDistanceInput::setText);
-            Nulls.ifPresent(preferences.getSetting("gridding_hillshading_enabled", templateName),
-                    s -> hillShading.setSelected(Boolean.parseBoolean(s)));
-            Nulls.ifPresent(preferences.getSetting("gridding_smoothing_enabled", templateName),
-                    s -> smoothing.setSelected(Boolean.parseBoolean(s)));
-            Nulls.ifPresent(preferences.getSetting("gridding_analytic_signal_enabled", templateName),
-                    s -> analyticSignal.setSelected(Boolean.parseBoolean(s)));
+
+            ignoreFilterEvents = true;
+            try {
+                Nulls.ifPresent(preferences.getSetting("gridding_hillshading_enabled", templateName),
+                        s -> hillShading.setSelected(Boolean.parseBoolean(s)));
+                Nulls.ifPresent(preferences.getSetting("gridding_smoothing_enabled", templateName),
+                        s -> smoothing.setSelected(Boolean.parseBoolean(s)));
+                Nulls.ifPresent(preferences.getSetting("gridding_analytic_signal_enabled", templateName),
+                        s -> analyticSignal.setSelected(Boolean.parseBoolean(s)));
+            } finally {
+                ignoreFilterEvents = false;
+            }
+        }
+
+        loadRangePreferences();
+    }
+
+    private void loadRangePreferences() {
+        TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(
+                selectedFile,
+                model.getSelectedSeriesName(selectedFile));
+        Range range = templateSeries != null
+                ? rangePreferences.get(templateSeries)
+                : null;
+        if (range == null) {
+            range = getSelectedSeriesRange();
+        }
+        if (range != null) {
+            ignoreFilterEvents = true;
+            try {
+                updateRangeSlider(range);
+            } finally {
+                ignoreFilterEvents = false;
+            }
         }
     }
 
@@ -502,6 +435,7 @@ public class GriddingTool extends FilterToolView {
                     cellSizeInput.getText());
             preferences.saveSetting("gridding_blankingdistance", templateName,
                     blankingDistanceInput.getText());
+
             preferences.saveSetting("gridding_hillshading_enabled", templateName,
                     Boolean.toString(hillShading.isSelected()));
             preferences.saveSetting("gridding_smoothing_enabled", templateName,
@@ -509,49 +443,120 @@ public class GriddingTool extends FilterToolView {
             preferences.saveSetting("gridding_analytic_signal_enabled", templateName,
                     Boolean.toString(analyticSignal.isSelected()));
         }
+
+        saveRangePreferences();
+    }
+
+    private void saveRangePreferences() {
+        TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(
+                selectedFile,
+                model.getSelectedSeriesName(selectedFile));
+        if (templateSeries != null) {
+            Range range = new Range(rangeSlider.getLowValue(), rangeSlider.getHighValue());
+            rangePreferences.put(templateSeries, range);
+        }
     }
 
     @Override
     protected void onApply(ActionEvent event) {
-        publishGriddingParameters(applyButton, false);
-        showGridInputDataChangedWarning(false);
+        SgyFile file = selectedFile;
+        if (file == null) {
+            return;
+        }
+        String seriesName = model.getSelectedSeriesName(file);
+        if (Strings.isNullOrEmpty(seriesName)) {
+            return;
+        }
+
+        applyGridding(List.of(file), seriesName);
     }
 
     @Override
     protected void onApplyToAll(ActionEvent event) {
-        publishGriddingParameters(applyToAllButton, true);
-        showGridInputDataChangedWarning(false);
+        SgyFile file = selectedFile;
+        if (file == null) {
+            return;
+        }
+        String seriesName = model.getSelectedSeriesName(file);
+        if (Strings.isNullOrEmpty(seriesName)) {
+            return;
+        }
+        List<SgyFile> files = model.getFileManager().getFiles().stream()
+                .filter(f -> Templates.equals(f, file))
+                .toList();
+
+        applyGridding(files, seriesName);
     }
 
-    private void publishGriddingParameters(Object source, boolean toAll) {
+    private GriddingParams getParams() {
         Double cellSize = (Double)cellSizeInput.getUserData();
         Double blankingDistance = (Double)blankingDistanceInput.getUserData();
-
-        model.publishEvent(new GriddingParamsSetted(
-                source,
+        if (cellSize == null || blankingDistance == null) {
+            return null;
+        }
+        return new GriddingParams(
                 cellSize,
-                blankingDistance,
-                toAll,
+                blankingDistance
+        );
+    }
+
+    private GriddingFilter getFilter() {
+        return new GriddingFilter(
+                new Range(rangeSlider.getLowValue(), rangeSlider.getHighValue()),
                 analyticSignal.isSelected(),
                 hillShading.isSelected(),
                 smoothing.isSelected()
-        ));
+        );
+    }
+
+    private void publishFilter() {
+        SgyFile file = selectedFile;
+        String seriesName = model.getSelectedSeriesName(file);
+
+        GriddingFilter filter = getFilter();
+        gridLayer.setFilter(file, seriesName, filter);
+    }
+
+    private void applyFilter() {
+        publishFilter();
+        gridLayer.submitDraw();
+    }
+
+    private void applyGridding(Collection<SgyFile> files, String seriesName) {
+        GriddingParams params = getParams();
+        if (params == null) {
+            return;
+        }
+
+        var future = submitAction(() -> {
+            publishFilter();
+            GriddingResult result = griddingService.runGridding(files, seriesName, params);
+            for (SgyFile targetFile : files) {
+                gridLayer.setResult(targetFile, result);
+            }
+            gridLayer.submitDraw();
+            showWarning(false);
+            return result;
+        });
+
+        String taskName = "Gridding " + seriesName;
+        taskService.registerTask(future, taskName);
     }
 
     @EventListener
     protected void onFileSelected(FileSelectedEvent event) {
-        selectFile(event.getFile());
-
-        // TODO: check if possible, that current file and sensor
-        //  was not gridded with current parameters
-        showGridInputDataChangedWarning(true);
-        Platform.runLater(this::updateGriddingMinMaxPreserveUserRange);
+        Platform.runLater(() -> selectFile(event.getFile(), false));
     }
 
     @EventListener
     public void onChange(WhatChanged changed) {
         if (changed.isTraceCut()) {
-            showGridInputDataChangedWarning(true);
+            showWarning(true);
+        }
+        if (changed.isCsvDataFiltered()) {
+            showWarning(true);
+            // TODO
+            //applyGridding();
         }
     }
 }

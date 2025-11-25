@@ -5,13 +5,16 @@ import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
+import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.control.TextField;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
@@ -113,5 +116,10 @@ public class TimeLagTool extends FilterToolView {
                 return null;
             });
         }
+    }
+
+    @EventListener
+    private void onFileSelected(FileSelectedEvent event) {
+        Platform.runLater(() -> selectFile(event.getFile()));
     }
 }

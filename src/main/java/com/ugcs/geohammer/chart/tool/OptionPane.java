@@ -8,7 +8,6 @@ import javafx.scene.layout.StackPane;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.SgyFile;
 
 import javafx.geometry.Insets;
@@ -72,29 +71,6 @@ public class OptionPane extends VBox {
                 toggleBox.show(tool.isVisibleFor(file));
             }
         }
-    }
-
-    // gridding
-
-    // TODO deprecated
-    public void griddingProgress(boolean inProgress) {
-//        Platform.runLater(() -> {
-//            griddingView.showProgress(inProgress);
-//            griddingView.disableInput(inProgress);
-//            griddingView.disableActions(inProgress);
-//        });
-    }
-
-    // TODO deprecated
-    public GriddingRange getGriddingRange(CsvFile csvFile, String seriesName) {
-        return new GriddingRange(0.0, 1.0, 0.0, 1.0);
-        //return griddingView.getGriddingRange(csvFile, seriesName);
-    }
-
-    // TODO deprecated
-    public ToggleButton getGridding() {
-        //return griddingToggle;
-        return new ToggleButton("Gridding");
     }
 
     static class ToolToggleBox extends VBox {

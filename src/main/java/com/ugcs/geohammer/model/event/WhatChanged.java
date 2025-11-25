@@ -62,10 +62,6 @@ public class WhatChanged extends BaseEvent {
 		return change == Change.csvDataZoom;
 	}
 
-	public boolean isGriddingRangeChanged() {
-		return change == Change.griddingRange;
-	}
-
 	public boolean isTraceSelected() {
 		return change == Change.traceSelected;
 	}
@@ -85,7 +81,6 @@ public class WhatChanged extends BaseEvent {
 		fileSelected,
 		csvDataFiltered,
 		csvDataZoom,
-		griddingRange,
 		traceSelected;
 	}
 }

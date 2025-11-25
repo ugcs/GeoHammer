@@ -43,6 +43,7 @@ import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.checkerframework.checker.units.qual.min;
 import org.jfree.fx.FXGraphics2D;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -242,14 +243,11 @@ public class GPRChart extends Chart {
 		MetaFile meta = traceFile.getMetaFile();
 		Range savedRange = meta != null ? meta.getAmplitudeRange() : null;
 		if (savedRange != null) {
-			Number min = savedRange.getMin();
-			Number max = savedRange.getMax();
-			if (min == null || max == null) {
-				return;
-			}
+			double min = savedRange.getMin();
+            double max = savedRange.getMax();
 			var profileSettings = profileField.getProfileSettings();
-			profileSettings.hpage = max.intValue() - min.intValue();
-			profileSettings.setLayer(min.intValue());
+			profileSettings.hpage = (int)max - (int)min;
+			profileSettings.setLayer((int)min);
 		}
 	}
 

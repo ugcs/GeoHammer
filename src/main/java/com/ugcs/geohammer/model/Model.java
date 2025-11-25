@@ -27,6 +27,7 @@ import com.ugcs.geohammer.model.event.BaseEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.TemplateUnitChangedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Traces;
@@ -264,6 +265,16 @@ public class Model implements InitializingBean {
                 .filter(c -> c instanceof SensorLineChart)
                 .map(c -> (SensorLineChart) c)
                 .toList();
+    }
+
+    public String getSelectedSeriesName(@Nullable SgyFile file) {
+        if (file == null) {
+            return null;
+        }
+        if (getChart(file) instanceof SensorLineChart sensorChart) {
+            return Strings.emptyToNull(sensorChart.getSelectedSeriesName());
+        }
+        return null;
     }
 
     // create chart

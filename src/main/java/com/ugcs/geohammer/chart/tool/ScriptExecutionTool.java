@@ -394,6 +394,6 @@ public class ScriptExecutionTool extends FilterToolView {
 
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
-        selectFile(event.getFile());
+        Platform.runLater(() -> selectFile(event.getFile()));
     }
 }

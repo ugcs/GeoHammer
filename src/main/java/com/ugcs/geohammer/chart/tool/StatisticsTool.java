@@ -225,7 +225,7 @@ public class StatisticsTool extends ToolView {
 
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
-        Platform.runLater(() -> selectFile(event.getFile()));
+        Platform.runLater(() -> selectFile(event.getFile(), false));
     }
 
     @EventListener

@@ -9,6 +9,7 @@ import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
+import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.control.TextField;
@@ -120,6 +121,6 @@ public class LowPassTool extends FilterToolView {
 
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
-        selectFile(event.getFile());
+        Platform.runLater(() -> selectFile(event.getFile()));
     }
 }

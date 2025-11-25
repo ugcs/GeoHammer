@@ -17,6 +17,7 @@ import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
+import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Label;
@@ -43,7 +44,7 @@ public class QualityControlTool extends FilterToolView {
 
     private final PrefSettings preferences;
 
-    private QualityLayer qualityLayer;
+    private final QualityLayer qualityLayer;
 
     // view
 
@@ -113,6 +114,16 @@ public class QualityControlTool extends FilterToolView {
 
     public void validateInput() {
         disableActions(false); // always enabled
+    }
+
+    @Override
+    public void show(boolean show) {
+        super.show(show);
+
+        if (qualityLayer != null && qualityLayer.isActive() != show) {
+            qualityLayer.setActive(show);
+            model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+        }
     }
 
     @Override
@@ -187,11 +198,6 @@ public class QualityControlTool extends FilterToolView {
         return checks;
     }
 
-    @EventListener
-    private void onFileSelected(FileSelectedEvent event) {
-        selectFile(event.getFile());
-    }
-
     @Override
     protected void onApply(ActionEvent event) {
         if (selectedFile == null) {
@@ -237,12 +243,9 @@ public class QualityControlTool extends FilterToolView {
         });
     }
 
-    private void toggleQualityLayer(boolean active) {
-        if (qualityLayer.isActive() == active) {
-            return;
-        }
-        qualityLayer.setActive(active);
-        model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+    @EventListener
+    private void onFileSelected(FileSelectedEvent event) {
+        Platform.runLater(() -> selectFile(event.getFile()));
     }
 
     private record QualityControlParams(

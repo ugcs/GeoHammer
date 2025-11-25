@@ -300,8 +300,8 @@ public class SensorLineChart extends Chart {
 
         Range yRange = plot.getDisplayRange();
         yAxis.setAutoRanging(false);
-        yAxis.setLowerBound(yRange.getMin().doubleValue());
-        yAxis.setUpperBound(yRange.getMax().doubleValue());
+        yAxis.setLowerBound(yRange.getMin());
+        yAxis.setUpperBound(yRange.getMax());
 
         return yAxis;
     }
@@ -431,12 +431,12 @@ public class SensorLineChart extends Chart {
 
     public double getSeriesMinValue() {
         LineChartWithMarkers selectedChart = getSelectedChart();
-        return selectedChart != null ? selectedChart.plot.getDataRange().getMin().doubleValue() : 0.0;
+        return selectedChart != null ? selectedChart.plot.getDataRange().getMin() : 0.0;
     }
 
     public double getSeriesMaxValue() {
         LineChartWithMarkers selectedChart = getSelectedChart();
-        return selectedChart != null ? selectedChart.plot.getDataRange().getMax().doubleValue() : 0.0;
+        return selectedChart != null ? selectedChart.plot.getDataRange().getMax() : 0.0;
     }
 
     @Override
@@ -1194,8 +1194,8 @@ public class SensorLineChart extends Chart {
 
             Range yRange = plot.getDisplayRange();
             ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();
-            yAxis.setLowerBound(yRange.getMin().doubleValue() + viewport.yMin() * yRange.getWidth());
-            yAxis.setUpperBound(yRange.getMin().doubleValue() + viewport.yMax() * yRange.getWidth());
+            yAxis.setLowerBound(yRange.getMin() + viewport.yMin() * yRange.getWidth());
+            yAxis.setUpperBound(yRange.getMin() + viewport.yMax() * yRange.getWidth());
         }
 
         private void setSeriesStyle(String style) {
@@ -1408,8 +1408,8 @@ public class SensorLineChart extends Chart {
             Range xRange = new Range(xMin, xMax).scale(xScale, xCenter);
             Range yRange = new Range(yMin, yMax).scale(yScale, yCenter);
             return new Viewport(
-                    xRange.getMin().doubleValue(), xRange.getMax().doubleValue(),
-                    yRange.getMin().doubleValue(), yRange.getMax().doubleValue());
+                    xRange.getMin(), xRange.getMax(),
+                    yRange.getMin(), yRange.getMax());
         }
 
         public Viewport fit(Viewport other) {
@@ -1511,8 +1511,8 @@ public class SensorLineChart extends Chart {
         }
 
         public static Range buildDisplayRange(Range dataRange) {
-            double min = dataRange.getMin().doubleValue();
-            double max = dataRange.getMax().doubleValue();
+            double min = dataRange.getMin();
+            double max = dataRange.getMax();
             // get scale factor and align min max to it
             double f = Math.max(getScaleFactor(min), getScaleFactor(max));
             double minAligned = f * Math.floor(min / f);

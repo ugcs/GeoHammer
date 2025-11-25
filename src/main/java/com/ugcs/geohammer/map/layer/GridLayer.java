@@ -5,41 +5,31 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.Objects;
 
-import com.ugcs.geohammer.chart.tool.GriddingRange;
+import com.ugcs.geohammer.model.TemplateSeriesKey;
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.ThrQueue;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
-import com.ugcs.geohammer.chart.tool.OptionPane;
-import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
+import com.ugcs.geohammer.service.gridding.GriddingFilter;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
-import com.ugcs.geohammer.service.gridding.GriddingService;
-import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
-import com.ugcs.geohammer.model.event.GriddingParamsSetted;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.math.AnalyticSignal;
 import com.ugcs.geohammer.math.AnalyticSignalFilter;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.Range;
-import com.ugcs.geohammer.util.Strings;
-import javafx.scene.control.Button;
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.math.CoordinatesMath;
-
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 
 /**
  * Layer responsible for grid visualization of GPR data.
@@ -56,12 +46,9 @@ import javafx.event.EventHandler;
  * - Adaptive search radius based on data density
  * - Configurable power parameter for distance weighting
  * <p>
- * The interpolation method can be selected through GriddingParamsSetted event.
- * For large cell sizes or irregular data distribution, IDW is recommended
- * to avoid interpolation artifacts.
  */
 @Component
-public final class GridLayer extends BaseLayer implements InitializingBean {
+public final class GridLayer extends BaseLayer {
 
     private static final double HILLSHADING_AZIMUTH = 180.0;
 
@@ -71,47 +58,18 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
 
     private final Model model;
 
-    private final TaskService taskService;
-
-    private final GriddingService griddingService;
-
-    private final ExecutorService executor;
-
-    private final OptionPane optionPane;
-
     @SuppressWarnings({"NullAway.Init"})
     private ThrQueue q;
 
     @Nullable
-    private CsvFile currentFile;
+    private SgyFile selectedFile;
 
-    @Nullable
-    private GriddingParamsSetted currentParams;
+    private final Map<File, GriddingResult> results = new HashMap<>();
 
-    // Map to store gridding results for each file
-    private final Map<File, GriddingResult> griddingResults = new ConcurrentHashMap<>();
+    private final Map<TemplateSeriesKey, GriddingFilter> filters = new HashMap<>();
 
-    private final EventHandler<ActionEvent> showMapListener = new EventHandler<>() {
-        @Override
-        public void handle(ActionEvent event) {
-            System.out.println("showMapListener: " + event);
-            setActive(optionPane.getGridding().isSelected());
-            getRepaintListener().repaint();
-        }
-    };
-
-    public GridLayer(Model model, TaskService taskService, GriddingService griddingService,
-                     ExecutorService executor, OptionPane optionPane) {
+    public GridLayer(Model model) {
         this.model = model;
-        this.taskService = taskService;
-        this.griddingService = griddingService;
-        this.executor = executor;
-        this.optionPane = optionPane;
-    }
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        setActive(optionPane.getGridding().isSelected());
 
         q = new ThrQueue(model) {
             protected void draw(BufferedImage backImg, MapField field) {
@@ -124,8 +82,51 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
                 getRepaintListener().repaint();
             }
         };
+    }
 
-        optionPane.getGridding().addEventHandler(ActionEvent.ACTION, showMapListener);
+    public synchronized boolean hasResult(SgyFile file) {
+        return file != null && results.containsKey(file.getFile());
+    }
+
+    public synchronized GriddingResult getResult(SgyFile file) {
+        if (file != null) {
+            return results.get(file.getFile());
+        }
+        return null;
+    }
+
+    public synchronized void setResult(SgyFile file, GriddingResult result) {
+        if (file != null) {
+            results.put(file.getFile(), result);
+        }
+    }
+
+    private synchronized void removeResult(SgyFile file) {
+        if (file != null) {
+            results.remove(file.getFile());
+        }
+    }
+
+    private synchronized void moveResult(SgyFile file, File oldFile) {
+        GriddingResult result = results.remove(oldFile);
+        if (result != null) {
+            results.put(file.getFile(), result);
+        }
+    }
+
+    public synchronized GriddingFilter getFilter(SgyFile file, String seriesName) {
+        TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(file, seriesName);
+        if (templateSeries != null) {
+            return filters.get(templateSeries);
+        }
+        return null;
+    }
+
+    public synchronized void setFilter(SgyFile file, String seriesName, GriddingFilter filter) {
+        TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(file, seriesName);
+        if (templateSeries != null) {
+            filters.put(templateSeries, filter);
+        }
     }
 
     @Override
@@ -142,11 +143,99 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
     }
 
     public void drawOnMapField(Graphics2D g2, MapField field) {
-        if (isActive()) {
-            if (currentFile != null) {
-                drawFileOnMapField(g2, field, currentFile);
+        if (!isActive()) {
+            return;
+        }
+
+        // TODO draw only files of the same template
+        SgyFile last = selectedFile; // to draw on top
+        for (SgyFile file : model.getFileManager().getFiles()) {
+            if (!Objects.equals(file, last) && hasResult(file)) {
+                drawFileOnMapField(g2, field, file);
             }
-            setActive(optionPane.getGridding().isSelected());
+        }
+        if (hasResult(last)) {
+            drawFileOnMapField(g2, field, last);
+        }
+    }
+
+    /**
+     * Draws the grid visualization for a given file on the map field.
+     */
+    synchronized private void drawFileOnMapField(Graphics2D g2, MapField field, SgyFile file) {
+        // show last result for the file
+        GriddingResult result = getResult(file);
+        if (result == null) {
+            return;
+        }
+        GriddingFilter filter = getFilter(file, result.seriesName());
+        if (filter == null) {
+            return;
+        }
+        drawGrid(g2, field, result, filter);
+    }
+
+    private void drawGrid(Graphics2D g2, MapField field, GriddingResult result, GriddingFilter filter) {
+        Grid grid = getFilteredGrid(result, filter);
+
+        var minLatLon = grid.minLatLon;
+        var maxLatLon = grid.maxLatLon;
+
+        int gridWidth = grid.values.length;
+        int gridHeight = grid.values[0].length;
+
+        double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
+        double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
+
+        var minLatLonPoint = field.latLonToScreen(minLatLon);
+        var nextLatLonPoint = field.latLonToScreen(new LatLon(minLatLon.getLatDgr() + latStep, minLatLon.getLonDgr() + lonStep));
+
+        double cellWidth = Math.abs(minLatLonPoint.getX() - nextLatLonPoint.getX()) + 1; //3; //width / gridSizeX;
+        double cellHeight = Math.abs(minLatLonPoint.getY() - nextLatLonPoint.getY()) + 1; //3; //height / gridSizeY;
+
+        System.out.println("cellWidth = " + cellWidth + " cellHeight = " + cellHeight);
+
+        for (int i = 0; i < gridWidth; i++) {
+            for (int j = 0; j < gridHeight; j++) {
+                try {
+                    float value = grid.values[i][j];
+                    if (Float.isNaN(value)) {
+                        continue;
+                    }
+
+                    // Get base color for the value
+                    Color color = getColorForValue(value, grid.minValue, grid.maxValue);
+
+                    // Apply hill-shading if enabled
+                    if (filter.hillShading()) {
+                        // Calculate illumination for this cell
+                        double illumination = calculateHillShading(
+                                grid.values,
+                                i,
+                                j,
+                                HILLSHADING_AZIMUTH,
+                                HILLSHADING_ALTITUDE
+                        );
+
+                        // Apply hill-shading to the color
+                        color = applyHillShading(
+                                color,
+                                illumination,
+                                HILLSHADING_INTENSITY
+                        );
+                    }
+
+                    g2.setColor(color);
+
+                    double lat = minLatLon.getLatDgr() + j * latStep;
+                    double lon = minLatLon.getLonDgr() + i * lonStep;
+
+                    var point = field.latLonToScreen(new LatLon(lat, lon));
+                    g2.fillRect((int) point.getX(), (int) point.getY(), (int) cellWidth, (int) cellHeight);
+                } catch (Exception e) {
+                    System.out.println(e.getMessage());
+                }
+            }
         }
     }
 
@@ -226,85 +315,38 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
         return new Color(r, g, b, baseColor.getAlpha() / 255.0f);
     }
 
-    /**
-     * Draws the grid visualization for a given file on the map field.
-     * <p>
-     * The method performs the following steps:
-     * 1. Collects data points from the file
-     * 2. Creates a grid based on cell size
-     * 3. Interpolates missing values using either:
-     * - IDW interpolation (for large cell sizes)
-     * - Splines interpolation (for small/medium cell sizes)
-     * 4. Applies a low-pass filter to smooth the interpolated data
-     * 5. Renders the filtered grid
-     * <p>
-     * The interpolation method is selected based on GriddingParamsSetted configuration.
-     * <p>
-     * For the current file, new minValue and maxValue are applied.
-     * For other files, stored minValue and maxValue are used to ensure
-     * they are displayed without changes from the previous application.
-     */
-    synchronized private void drawFileOnMapField(Graphics2D g2, MapField field, CsvFile csvFile) {
-        var chart = model.getCsvChart(csvFile);
-        if (chart == null) {
-            return;
-        }
-
-        // update gridding range for a target file
-        String seriesName = chart.getSelectedSeriesName();
-        if (griddingResults.get(csvFile.getFile()) instanceof GriddingResult gr && gr.sensor().equals(seriesName)) {
-            var griddingRange = optionPane.getGriddingRange(csvFile, seriesName);
-            griddingResults.put(csvFile.getFile(), gr.setValues(
-                    (float) griddingRange.lowValue(),
-                    (float) griddingRange.highValue(),
-                    currentParams.isAnalyticSignalEnabled(),
-                    currentParams.isHillShadingEnabled(),
-                    currentParams.isSmoothingEnabled()));
-        }
-
-        // render gridding results, put current file's grid on top
-        GriddingResult last = null;
-        for (var e : griddingResults.entrySet()) {
-            if (csvFile.getFile().equals(e.getKey())) {
-                last = e.getValue();
-            } else {
-                drawGrid(g2, field, e.getValue());
-            }
-        }
-        if (last != null) {
-            drawGrid(g2, field, last);
-        }
-    }
-
     public Grid getCurrentGrid() {
-        if (currentFile == null) {
+        SgyFile file = selectedFile;
+        if (file == null) {
             return null;
         }
-
-        GriddingResult griddingResult = griddingResults.get(currentFile.getFile());
-        if (griddingResult == null) {
+        GriddingResult result = getResult(file);
+        if (result == null) {
             return null;
         }
-
-        return getFilteredGrid(griddingResult);
+        GriddingFilter filter = getFilter(file, result.seriesName());
+        if (filter == null) {
+            return null;
+        }
+        return getFilteredGrid(result, filter);
     }
 
-    private Grid getFilteredGrid(GriddingResult griddingResult) {
-        Check.notNull(griddingResult);
+    private Grid getFilteredGrid(GriddingResult result, GriddingFilter filter) {
+        Check.notNull(result);
 
-        float[][] grid = griddingResult.smoothingEnabled()
-                ? griddingResult.smoothedGridData()
-                : griddingResult.gridData();
+        float[][] grid = filter.smoothing()
+                ? result.smoothedGridData()
+                : result.gridData();
 
-        float minValue = griddingResult.minValue();
-        float maxValue = griddingResult.maxValue();
+        double minValue = filter.range().getMin();
+        double maxValue = filter.range().getMax();
 
-        if (griddingResult.analyticSignalEnabled()) {
+        if (filter.analyticSignal()) {
             int gridWidth = grid.length;
             int gridHeight = grid[0].length;
 
-            LatLon minLatLon = griddingResult.minLatLon();
-            LatLon maxLatLon = griddingResult.maxLatLon();
+            LatLon minLatLon = result.minLatLon();
+            LatLon maxLatLon = result.maxLatLon();
 
             double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
             double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
@@ -312,101 +354,41 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
             double cellWidthMeters = CoordinatesMath.measure(0, 0, 0, lonStep);
             double cellHeightMeters = CoordinatesMath.measure(0, 0, latStep, 0);
 
-            AnalyticSignalFilter filter = new AnalyticSignalFilter(
+            AnalyticSignalFilter analyticSignalFilter = new AnalyticSignalFilter(
                     grid,
                     cellWidthMeters,
                     cellHeightMeters);
-            AnalyticSignal signal = filter.evaluate();
+            AnalyticSignal signal = analyticSignalFilter.evaluate();
             Range signalRange = signal.getRange(0.02);
 
             grid = signal.getMagnitudes();
-            minValue = signalRange.getMin().floatValue();
-            maxValue = signalRange.getMax().floatValue();
+            minValue = signalRange.getMin();
+            maxValue = signalRange.getMax();
         }
 
-        return new Grid(grid, minValue, maxValue,
-                griddingResult.minLatLon(), griddingResult.maxLatLon());
-    }
-
-    private void drawGrid(Graphics2D g2, MapField field, GriddingResult gr) {
-        Grid grid = getFilteredGrid(gr);
-
-        var minLatLon = grid.minLatLon;
-        var maxLatLon = grid.maxLatLon;
-
-        int gridWidth = grid.values.length;
-        int gridHeight = grid.values[0].length;
-
-        double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
-        double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
-
-        var minLatLonPoint = field.latLonToScreen(minLatLon);
-        var nextLatLonPoint = field.latLonToScreen(new LatLon(minLatLon.getLatDgr() + latStep, minLatLon.getLonDgr() + lonStep));
-
-        double cellWidth = Math.abs(minLatLonPoint.getX() - nextLatLonPoint.getX()) + 1; //3; //width / gridSizeX;
-        double cellHeight = Math.abs(minLatLonPoint.getY() - nextLatLonPoint.getY()) + 1; //3; //height / gridSizeY;
-
-        System.out.println("cellWidth = " + cellWidth + " cellHeight = " + cellHeight);
-
-        for (int i = 0; i < gridWidth; i++) {
-            for (int j = 0; j < gridHeight; j++) {
-                try {
-                    float value = grid.values[i][j];
-                    if (Float.isNaN(value)) {
-                        continue;
-                    }
-
-                    // Get base color for the value
-                    Color color = getColorForValue(value, grid.minValue, grid.maxValue);
-
-                    // Apply hill-shading if enabled
-                    if (gr.hillShadingEnabled()) {
-                        // Calculate illumination for this cell
-                        double illumination = calculateHillShading(
-                                grid.values,
-                                i,
-                                j,
-                                HILLSHADING_AZIMUTH,
-                                HILLSHADING_ALTITUDE
-                        );
-
-                        // Apply hill-shading to the color
-                        color = applyHillShading(
-                                color,
-                                illumination,
-                                HILLSHADING_INTENSITY
-                        );
-                    }
-
-                    g2.setColor(color);
-
-                    double lat = minLatLon.getLatDgr() + j * latStep;
-                    double lon = minLatLon.getLonDgr() + i * lonStep;
-
-                    var point = field.latLonToScreen(new LatLon(lat, lon));
-                    g2.fillRect((int) point.getX(), (int) point.getY(), (int) cellWidth, (int) cellHeight);
-                } catch (Exception e) {
-                    System.out.println(e.getMessage());
-                }
-            }
-        }
+        return new Grid(
+                grid,
+                (float)minValue,
+                (float)maxValue,
+                result.minLatLon(),
+                result.maxLatLon()
+        );
     }
 
     @EventListener
-    public void handleFileSelectedEvent(FileSelectedEvent event) {
-        this.currentFile = event.getFile() instanceof CsvFile csvFile ? csvFile : null;
-        if (this.currentFile != null) {
+    public void onFileSelected(FileSelectedEvent event) {
+        selectedFile = event.getFile();
+        if (selectedFile != null) {
             submitDraw();
         }
     }
 
     @EventListener
-    private void handleFileClosedEvent(FileClosedEvent event) {
-        if (event.getFile() instanceof CsvFile csvFile) {
-            removeFromGriddingResults(csvFile);
-            if (griddingResults.size() == 0) {
-                submitDraw();
-            }
+    private void onFileClosed(FileClosedEvent event) {
+        SgyFile file = event.getFile();
+        if (file != null) {
+            removeResult(event.getFile());
+            submitDraw();
         }
     }
 
@@ -421,110 +403,24 @@ public final class GridLayer extends BaseLayer implements InitializingBean {
      * @param event the file rename event
      */
     @EventListener
-    private void handleFileRenameEvent(FileRenameEvent event) {
-        if (event.getSgyFile() instanceof CsvFile csvFile) {
-            switchGriddingResult(csvFile, event.getOldFile());
-        }
-    }
-
-    private synchronized void switchGriddingResult(CsvFile csvFile, File oldFile) {
-        if (griddingResults.remove(oldFile) instanceof GriddingResult gr) {
-            griddingResults.put(csvFile.getFile(), gr);
-        }
-    }
-
-    private synchronized void removeFromGriddingResults(CsvFile csvFile) {
-        griddingResults.remove(csvFile.getFile());
-        if (model.getFileManager().getCsvFiles().isEmpty() && griddingResults.size() > 0) {
-            griddingResults.clear();
+    private void onFileRenamed(FileRenameEvent event) {
+        if (event.getSgyFile() != null && event.getOldFile() != null) {
+            moveResult(event.getSgyFile(), event.getOldFile());
         }
     }
 
     @EventListener
-    private void somethingChanged(WhatChanged changed) {
+    private void onChanged(WhatChanged changed) {
         if (changed.isZoom() || changed.isWindowresized()
                 || changed.isAdjusting()
-                || changed.isMapscroll()
-                //|| changed.isJustdraw()
-                || changed.isGriddingRangeChanged()) {
+                || changed.isMapscroll()) {
             if (isActive()) {
                 submitDraw();
             }
-        } else if (changed.isCsvDataFiltered()) {
-            submitGridding();
         }
     }
 
-    /**
-     * Handles grid parameter updates from the UI.
-     * <p>
-     * Updates include:
-     * - Cell size for grid resolution
-     * - Blanking distance for data filtering
-     * - Interpolation method selection
-     * - IDW-specific parameters (when IDW is selected)
-     * <p>
-     * Triggers grid recalculation only when explicitly requested through the UI.
-     */
-    @EventListener(GriddingParamsSetted.class)
-    private void gridParamsSetted(GriddingParamsSetted griddingParams) {
-        setActive(true);
-
-        currentParams = griddingParams;
-
-        // Only recalculate grid when explicitly requested through the UI
-        // This is triggered by the "Apply" or "Apply to all" buttons
-        if (griddingParams.getSource() instanceof Button) {
-            submitGridding();
-        } else {
-            submitDraw();
-        }
-    }
-
-    private void submitGridding() {
-        CsvFile file = currentFile;
-        if (file == null) {
-            return;
-        }
-        SensorLineChart chart = model.getCsvChart(file);
-        if (chart == null) {
-            return;
-        }
-        String seriesName = chart.getSelectedSeriesName();
-        if (Strings.isNullOrEmpty(seriesName)) {
-            return;
-        }
-        GriddingParamsSetted params = currentParams;
-        if (params == null) {
-            return;
-        }
-        GriddingRange griddingRange = optionPane.getGriddingRange(file, seriesName);
-
-        var future = executor.submit(() -> {
-            optionPane.griddingProgress(true);
-            return griddingService.runGridding(file, seriesName, params, griddingRange);
-        });
-
-        String taskName = "Gridding " + seriesName;
-        if (file.getFile() != null) {
-            taskName += ": " + file.getFile().getName();
-        }
-        taskService.registerTask(future, taskName)
-                .whenComplete((results, throwable) -> {
-            try {
-                if (results != null) {
-                    synchronized (this) {
-                        griddingResults.putAll(results);
-                    }
-                    submitDraw();
-                }
-            } finally {
-                optionPane.griddingProgress(false);
-            }
-        });
-    }
-
-    private void submitDraw() {
+    public void submitDraw() {
         q.add();
     }
 

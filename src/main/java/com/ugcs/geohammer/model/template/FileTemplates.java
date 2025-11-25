@@ -177,8 +177,7 @@ public class FileTemplates implements InitializingBean {
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            log.info("Template file modified: " + templateName);
-							log.info("Reloading templates...");
+                            log.debug("Template file modified: " + templateName);
                             status.showMessage("Template updated: " + templateName, "Templates");
                         } else {
                             continue;

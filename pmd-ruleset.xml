@@ -8,18 +8,14 @@
         Custom PMD ruleset — keep defaults but disable noisy checks.
     </description>
 
-    <!-- Keep the default "quickstart" ruleset -->
     <rule ref="rulesets/java/quickstart.xml"/>
-    <!-- ===== Disable unwanted BEST PRACTICES rules ===== -->
-<!--    <rule ref="category/java/bestpractices.xml">-->
-<!--        &lt;!&ndash; Disables: "Logger calls should be surrounded by log level guards." &ndash;&gt;-->
-<!--        <exclude name="GuardLogStatement"/>-->
-<!--    </rule>-->
 
-<!--    &lt;!&ndash; ===== Disable unwanted DESIGN rules ===== &ndash;&gt;-->
-<!--    <rule ref="category/java/design.xml">-->
-<!--        &lt;!&ndash; Disables: "All methods are static. Consider adding a private constructor..." &ndash;&gt;-->
-<!--        <exclude name="UseUtilityClass"/>-->
-<!--    </rule>-->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="GuardLogStatement"/>
+    </rule>
 
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="ReturnEmptyCollectionRatherThanNull"/>
+    </rule>
 </ruleset>

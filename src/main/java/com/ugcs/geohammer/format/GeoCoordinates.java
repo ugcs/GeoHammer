@@ -2,6 +2,7 @@ package com.ugcs.geohammer.format;
 
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -12,6 +13,8 @@ public class GeoCoordinates {
     private double latitude;
 
     private double longitude;
+
+	private Double altitude;
 
     // -1 for empty value
     private long timestamp = -1;
@@ -24,6 +27,7 @@ public class GeoCoordinates {
 
         this.latitude = other.latitude;
         this.longitude = other.longitude;
+		this.altitude = other.altitude;
         this.timestamp = other.timestamp;
     }
 
@@ -53,7 +57,15 @@ public class GeoCoordinates {
         this.longitude = longitude;
     }
 
-    public LocalDateTime getDateTime() {
+	public Double getAltitude() {
+		return altitude;
+	}
+
+	public void setAltitude(@Nullable Double altitude) {
+		this.altitude = altitude;
+	}
+
+	public LocalDateTime getDateTime() {
         return timestamp != -1
                 ? LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
                 : null;

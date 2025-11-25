@@ -16,10 +16,10 @@
 <!--        <exclude name="GuardLogStatement"/>-->
 <!--    </rule>-->
 
-    <!-- ===== Disable unwanted DESIGN rules ===== -->
-    <rule ref="category/java/design.xml">
-        <!-- Disables: "All methods are static. Consider adding a private constructor..." -->
-        <exclude name="UseUtilityClass"/>
-    </rule>
+<!--    &lt;!&ndash; ===== Disable unwanted DESIGN rules ===== &ndash;&gt;-->
+<!--    <rule ref="category/java/design.xml">-->
+<!--        &lt;!&ndash; Disables: "All methods are static. Consider adding a private constructor..." &ndash;&gt;-->
+<!--        <exclude name="UseUtilityClass"/>-->
+<!--    </rule>-->
 
 </ruleset>

@@ -148,7 +148,7 @@ public class ProfileView implements InitializingBean {
 	private VBox profileScrollContainer;
 
 	//center
-	public Node getCenter() {
+	public VBox getCenter() {
 		if (center == null) {
 			center = new VBox();
 			center.setMinWidth(100);
@@ -197,12 +197,8 @@ public class ProfileView implements InitializingBean {
         }
 
         model.getFileManager().removeFile(closedFile);
-        Chart chart = model.getChart(closedFile);
-        if (chart != null) {
-            clearChartContainer(chart);
-            if (closedFile.equals(currentFile)) {
-                currentFile = null;
-            }
+        if (closedFile.equals(currentFile)) {
+            currentFile = null;
         }
 
 		model.removeChart(closedFile);
@@ -211,40 +207,8 @@ public class ProfileView implements InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
 	}
 
-	private void clearChartContainer(Chart chart) {
-		chart.getProfileScroll().setVisible(false);
-
-		VBox vbox = (VBox) chart.getRootNode();
-		model.getChartsContainer().getChildren().remove(vbox);
-	}
-
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
-
-		List<File> openedFiles = event.getFiles();
-		openedFiles.stream().flatMap(f -> f.isDirectory() ? Stream.of(f.listFiles()) : Stream.of(f)).forEach(file -> {
-			System.out.println("ProfileView.fileOpened " + file.getAbsolutePath());
-			model.getFileManager().getGprFiles().stream().filter(f -> f.getFile().equals(file)).findFirst().ifPresent(f -> {
-				System.out.println("Loaded traces: " + f.getTraces().size());
-				var gprChart = model.getGprChart(f);
-//				var vbox = (VBox) gprChart.getRootNode();
-//
-//				if (!model.getChartsContainer().getChildren().contains(vbox)) {
-//					model.getChartsContainer().getChildren().add(vbox);
-//					vbox.setPrefHeight(Math.max(400, vbox.getScene().getHeight()));
-//					vbox.setMinHeight(Math.max(400, vbox.getScene().getHeight() / 2));
-//				}
-
-                if (gprChart != null) {
-                    updateGprChartSize(gprChart);
-                    gprChart.fitFull();
-                }
-
-//				fileSelected(new FileSelectedEvent(this, f));
-//				model.selectAndScrollToChart(gprChart);
-			});
-		});
-
 		enableToolbar();
 	}
 

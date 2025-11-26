@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.chart.gpr;
 
+import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.ProfileView;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.gpr.axis.HorizontalRulerController;
 import com.ugcs.geohammer.chart.gpr.axis.HorizontalRulerDrawer;
@@ -167,9 +169,10 @@ public class GPRChart extends Chart {
         vbox.setPrefHeight(Math.max(Chart.MIN_HEIGHT, vbox.getScene().getHeight()));
         vbox.setMinHeight(Math.max(Chart.MIN_HEIGHT, vbox.getScene().getHeight() / 2));
 
-//        setSize(
-//                (int)(center.getWidth() - 21),
-//                (int)(Math.max(400, vbox.getHeight()) - 4));
+        ProfileView profileView = AppContext.getInstance(ProfileView.class);
+        setSize(
+                (int)(profileView.getCenter().getWidth() - 21),
+                (int)(Math.max(400, vbox.getHeight()) - 4));
         fitFull();
     }
 

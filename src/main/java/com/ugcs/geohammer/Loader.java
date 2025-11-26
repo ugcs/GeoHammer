@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 
@@ -266,7 +265,7 @@ public class Loader {
 		}
 
 		Platform.runLater(() -> {
-            model.initChartAll(gprFile);
+            model.initChart(gprFile);
 		});
 	}
 
@@ -278,7 +277,7 @@ public class Loader {
 		dztFile.open(file);
 
 		Platform.runLater(() -> {
-            model.initChartAll(dztFile);
+            model.initChart(dztFile);
 		});
 	}
 
@@ -293,7 +292,7 @@ public class Loader {
 		}
 
 		Platform.runLater(() -> {
-            model.initChartAll(csvFile);
+            model.initChart(csvFile);
 		});
 	}
 
@@ -305,7 +304,7 @@ public class Loader {
         sonarFile.open(file);
 
         Platform.runLater(() -> {
-            model.initChartAll(sonarFile);
+            model.initChart(sonarFile);
         });
     }
 

@@ -32,7 +32,6 @@ import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Traces;
 import javafx.scene.layout.*;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -337,7 +336,7 @@ public class Model implements InitializingBean {
         return chart;
     }
 
-    public Chart initChartAll(SgyFile file) {
+    public Chart initChart(SgyFile file) {
         Chart chart = charts.get(file);
         if (chart == null) {
             chart = createChart(file);
@@ -358,37 +357,6 @@ public class Model implements InitializingBean {
         return chart;
     }
 
-    public Chart initChart(SgyFile file) {
-        Chart chart = charts.get(file);
-        if (chart == null) {
-            chart = createChart(file);
-        }
-        Chart selected = chart;
-        Platform.runLater(() -> selectAndScrollToChart(selected));
-        return chart;
-    }
-
-    public GPRChart getOrCreateGprChart(@NonNull TraceFile file) {
-        return (GPRChart)initChart(file);
-    }
-
-    public void recreateChart(SgyFile file) {
-        // remove the old chart
-        fileManager.removeFile(file);
-        Chart oldChart = charts.get(file);
-        if (oldChart != null) {
-            Node oldNode = oldChart.getRootNode();
-            chartsContainer.getChildren().remove(oldNode);
-            charts.remove(file);
-        }
-
-        // create fresh chart
-        Chart newChart = createChart(file);
-        fileManager.addFile(file);
-
-        Platform.runLater(() -> selectAndScrollToChart(newChart));
-    }
-
     public void updateChartFile(SgyFile sgyFile, File file) {
         Chart chart = charts.remove(sgyFile);
         sgyFile.setFile(file);
@@ -407,8 +375,11 @@ public class Model implements InitializingBean {
     }
 
     public void removeChart(SgyFile sgyFile) {
-        charts.remove(sgyFile);
-        // TODO remove from container
+        Chart removed = charts.remove(sgyFile);
+        if (removed != null) {
+            removed.getProfileScroll().setVisible(false);
+            chartsContainer.getChildren().remove(removed.getRootNode());
+        }
 
         // select first file in a list
         boolean chartSelected = false;

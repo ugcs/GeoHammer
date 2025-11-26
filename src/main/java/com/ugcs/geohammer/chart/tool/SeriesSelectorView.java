@@ -218,14 +218,31 @@ public class SeriesSelectorView extends VBox {
         // style of item in a drop-down list
         seriesSelector.setCellFactory(listView
                 -> new CheckBoxListCell<>(series -> series.visible) {
+
+            {
+                setOnMouseEntered(e -> setStyle("-fx-text-fill: white;"));
+                setOnMouseExited(e -> updateStyle(getItem()));
+            }
+
+            private void updateStyle(SeriesMeta item) {
+                if (isSelected()) {
+                    setStyle("-fx-text-fill: white;");
+                } else if (item != null) {
+                    setStyle(item.style);
+                } else {
+                    setStyle(Strings.empty());
+                }
+            }
+
             @Override
             public void updateItem(SeriesMeta item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
+                    setStyle(Strings.empty());
                 } else {
                     setText(item.name);
-                    setStyle(item.style);
+                    updateStyle(item);
                 }
             }
         });

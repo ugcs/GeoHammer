@@ -60,7 +60,7 @@ public class HorizontalProfile {
 
 	public int size() {
 		return metaFile != null
-				? metaFile.numTraces()
+				? metaFile.numValues()
 				: depths.length;
 	}
 

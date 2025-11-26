@@ -4,6 +4,7 @@ import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.util.Nulls;
@@ -45,7 +46,7 @@ public class LowPassTool extends FilterToolView {
 
     @Override
     public boolean isVisibleFor(SgyFile file) {
-        return file instanceof CsvFile;
+        return file instanceof CsvFile || file instanceof SonarFile;
     }
 
     private void onOrderChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {

@@ -214,19 +214,25 @@ public class Saver implements ToolProducer, InitializingBean {
 		}
 	}
 
+    private void checkNotOpened(File file) {
+        if (file == null) {
+            return;
+        }
+        Optional<SgyFile> alreadyOpened = model.getFileManager().getFiles().stream()
+                .filter(f -> Objects.equals(f.getFile(), file))
+                .findAny();
+        if (alreadyOpened.isPresent()) {
+            throw new IllegalArgumentException(
+                    "File in use. Close target file first: " + file);
+        }
+    }
+
 	private void saveToCsv(CsvFile csvFile, File toFile) throws IOException {
 		Check.notNull(csvFile);
 		Check.notNull(toFile);
 
 		// check that target file is not open
-		Optional<CsvFile> alreadyOpened = model.getFileManager().getCsvFiles().stream()
-				.filter(f -> Objects.equals(f.getFile(), toFile))
-				.findAny();
-
-		if (alreadyOpened.isPresent()) {
-			throw new IllegalArgumentException(
-					"File in use. Close target file first: " + toFile);
-		}
+        checkNotOpened(toFile);
 
 		log.info("Saving CSV to {}", toFile);
 
@@ -243,8 +249,8 @@ public class Saver implements ToolProducer, InitializingBean {
         Check.notNull(sonarFile);
         Check.notNull(toFile);
 
-        File file = sonarFile.getFile();
-        Check.notNull(file);
+        // check that target file is not open
+        checkNotOpened(toFile);
 
         log.info("Saving SVLOG to {}", toFile);
         sonarFile.save(toFile);

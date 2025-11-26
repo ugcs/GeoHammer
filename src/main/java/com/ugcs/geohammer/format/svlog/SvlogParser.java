@@ -58,4 +58,19 @@ public class SvlogParser {
         }
         return null;
     }
+
+    public Double parseDepth(SvlogPacket packet) {
+        if (packet == null) {
+            return null;
+        }
+        if (packet.getPacketId() == SvlogPacketId.OMNISCAN_MONO_PROFILE) {
+            OmniscanParser omniscanParser = new OmniscanParser();
+            return omniscanParser.getDepth(packet);
+        }
+        if (packet.getPacketId() == SvlogPacketId.SURVEYOR_ATOF_POINT_DATA) {
+            SurveyorParser surveyorParser = new SurveyorParser();
+            return surveyorParser.getDepth(packet);
+        }
+        return null;
+    }
 }

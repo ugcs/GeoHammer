@@ -5,11 +5,10 @@ import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMeta;
-import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.Column;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.Traces;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,16 +18,32 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class SonarFile extends SgyFileWithMeta {
+
+    private static final String DEPTH_HEADER = "Depth";
+
+    private static final ColumnSchema COLUMN_SCHEMA = createSonarColumnSchema();
 
     private List<SvlogPacket> packets = List.of();
 
     @Override
     public int numTraces() {
-        return 0;
+        return getGeoData().size();
+    }
+
+    private static ColumnSchema createSonarColumnSchema() {
+        ColumnSchema schema = ColumnSchema.copy(TraceGeoData.SCHEMA);
+        schema.addColumn(new Column(DEPTH_HEADER)
+                .withUnit("m")
+                .withDisplay(true)
+                .withReadOnly(true));
+        return schema;
     }
 
     protected void loadMeta() throws IOException {
@@ -36,7 +51,7 @@ public class SonarFile extends SgyFileWithMeta {
         Check.notNull(source);
 
         Path metaPath = MetaFile.getMetaPath(source);
-        metaFile = new MetaFile();
+        metaFile = new MetaFile(COLUMN_SCHEMA);
         if (Files.exists(metaPath)) {
             // load existing meta
             metaFile.load(metaPath);
@@ -83,42 +98,54 @@ public class SonarFile extends SgyFileWithMeta {
 
         SvlogParser parser = new SvlogParser();
 
-        LatLon latLon = null;
-        Instant timestamp = null;
+        // first location and time in a stream
+        LatLon lastLatLon = null;
+        Instant lastTimestamp = null;
         for (SvlogPacket packet : packets) {
-            if (latLon == null) {
-                latLon = parser.parseLocation(packet);
+            if (lastLatLon == null) {
+                lastLatLon = parser.parseLocation(packet);
             }
-            if (timestamp == null) {
-                timestamp = parser.parseTime(packet);
+            if (lastTimestamp == null) {
+                lastTimestamp = parser.parseTime(packet);
             }
-            if (latLon != null && timestamp != null) {
+            if (lastLatLon != null && lastTimestamp != null) {
                 break;
             }
         }
-        if (latLon == null && timestamp == null) {
+        if (lastLatLon == null && lastTimestamp == null) {
             return;
         }
 
-        int k = 0;
-        for (int i = 0; i < packets.size() && k < metaFile.getValues().size(); i++) {
-            LatLon iLatLon = parser.parseLocation(packets.get(i));
-            if (iLatLon != null) {
-                latLon = iLatLon;
+        Double lastDepth = null;
+        int valueIndex = 0;
+        for (int i = 0; i < packets.size() && valueIndex < metaFile.numValues(); i++) {
+            SvlogPacket packet = packets.get(i);
+
+            LatLon latLon = parser.parseLocation(packet);
+            if (latLon != null) {
+                lastLatLon = latLon;
             }
-            Instant iTimestamp = parser.parseTime(packets.get(i));
-            if (iTimestamp != null) {
-                timestamp = iTimestamp;
+            Instant timestamp = parser.parseTime(packet);
+            if (timestamp != null) {
+                lastTimestamp = timestamp;
             }
-            TraceGeoData value = metaFile.getValues().get(k);
+            Double depth = parser.parseDepth(packet);
+            if (depth != null) {
+                lastDepth = depth;
+            }
+
+            TraceGeoData value = metaFile.getValues().get(valueIndex);
             if (value.getTraceIndex() == i) {
-                if (latLon != null) {
-                    value.setLatLon(latLon);
+                if (lastLatLon != null) {
+                    value.setLatLon(lastLatLon);
                 }
-                if (timestamp != null) {
-                    value.setDateTime(LocalDateTime.ofInstant(timestamp, ZoneOffset.UTC));
+                if (lastTimestamp != null) {
+                    value.setDateTime(LocalDateTime.ofInstant(lastTimestamp, ZoneOffset.UTC));
                 }
-                k++;
+                if (lastDepth != null) {
+                    value.setValue(DEPTH_HEADER, lastDepth);
+                }
+                valueIndex++;
             }
         }
     }
@@ -166,7 +193,7 @@ public class SonarFile extends SgyFileWithMeta {
         copy.setUnsaved(isUnsaved());
 
         if (metaFile != null) {
-            copy.metaFile = new MetaFile();
+            copy.metaFile = new MetaFile(COLUMN_SCHEMA);
             copy.metaFile.setMetaToState(metaFile.getMetaFromState());
         }
 

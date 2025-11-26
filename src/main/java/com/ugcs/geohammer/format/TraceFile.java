@@ -66,17 +66,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
             // load existing meta
             metaFile.load(metaPath);
         } else {
-            initMeta(traces);
-        }
-
-        syncMeta(traces);
-    }
-
-    private void initMeta(List<Trace> traces) {
-        if (metaFile != null) {
+            // init meta
             TraceMeta meta = getMetaFromTraces(traces);
             metaFile.setMetaToState(meta);
         }
+
+        syncMeta(traces);
     }
 
     private TraceMeta getMetaFromTraces(List<Trace> traces) {
@@ -314,7 +309,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
         @Override
         public int size() {
             return metaFile != null
-                    ? metaFile.numTraces()
+                    ? metaFile.numValues()
                     : traces.size();
         }
     }

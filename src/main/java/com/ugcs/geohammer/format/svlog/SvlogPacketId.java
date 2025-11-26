@@ -24,6 +24,10 @@ public final class SvlogPacketId {
 
     public static final int SET_SYNC_CHANNEL_NUMBER = 170;
 
+    public static final int OMNISCAN_MONO_PROFILE = 2198;
+
+    public static final int SURVEYOR_ATOF_POINT_DATA = 3012;
+
     private SvlogPacketId() {
     }
 }

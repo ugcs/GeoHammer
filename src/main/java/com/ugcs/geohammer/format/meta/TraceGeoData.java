@@ -7,7 +7,7 @@ import com.ugcs.geohammer.model.Semantic;
 
 public class TraceGeoData extends GeoData {
 
-    private static final ColumnSchema SCHEMA = getTraceSchema();
+    public static final ColumnSchema SCHEMA = getTraceSchema();
 
     private int traceIndex;
 
@@ -16,14 +16,18 @@ public class TraceGeoData extends GeoData {
         // line
         schema.addColumn(new Column(Semantic.LINE.getName())
                 .withSemantic(Semantic.LINE.getName())
-                .withDisplay(true));
+                .withDisplay(true)
+                .withReadOnly(true));
         return schema;
     }
 
-    public TraceGeoData(int traceIndex) {
-        super(SCHEMA);
-
+    public TraceGeoData(ColumnSchema schema, int traceIndex) {
+        super(schema);
         this.traceIndex = traceIndex;
+    }
+
+    public TraceGeoData(int traceIndex) {
+        this(SCHEMA, traceIndex);
     }
 
     public int getTraceIndex() {

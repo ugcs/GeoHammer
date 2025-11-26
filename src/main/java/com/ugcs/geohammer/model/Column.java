@@ -28,6 +28,7 @@ public class Column {
         copy.semantic = column.semantic;
         copy.unit = column.unit;
         copy.display = column.display;
+        copy.readOnly = column.readOnly;
         return copy;
     }
 
@@ -69,6 +70,11 @@ public class Column {
         this.display = display;
     }
 
+    public Column withDisplay(boolean display) {
+        setDisplay(display);
+        return this;
+    }
+
     public boolean isReadOnly() {
         return readOnly;
     }
@@ -77,8 +83,8 @@ public class Column {
         this.readOnly = readOnly;
     }
 
-    public Column withDisplay(boolean display) {
-        setDisplay(display);
+    public Column withReadOnly(boolean readOnly) {
+        setReadOnly(readOnly);
         return this;
     }
 }

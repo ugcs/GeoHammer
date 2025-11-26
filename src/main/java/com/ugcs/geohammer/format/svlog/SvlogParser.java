@@ -15,7 +15,7 @@ import java.util.Date;
 
 public class SvlogParser {
 
-    public static String dropNmeaChecksum(String s) {
+    public static String stripNmeaChecksum(String s) {
         if (Strings.isNullOrEmpty(s)) {
             return s;
         }
@@ -30,7 +30,7 @@ public class SvlogParser {
         SentenceFactory sf = SentenceFactory.getInstance();
         if (packet.getPacketId() == SvlogPacketId.NMEA_WRAPPER) {
             String nmea = new String(packet.getPayload(), StandardCharsets.US_ASCII);
-            nmea = dropNmeaChecksum(nmea);
+            nmea = stripNmeaChecksum(nmea);
 
             Sentence sentence = sf.createParser(nmea);
             if (sentence instanceof PositionSentence positionSentence) {
@@ -48,7 +48,7 @@ public class SvlogParser {
         SentenceFactory sf = SentenceFactory.getInstance();
         if (packet.getPacketId() == SvlogPacketId.NMEA_WRAPPER) {
             String nmea = new String(packet.getPayload(), StandardCharsets.US_ASCII);
-            nmea = dropNmeaChecksum(nmea);
+            nmea = stripNmeaChecksum(nmea);
 
             Sentence sentence = sf.createParser(nmea);
             if (sentence instanceof TimeSentence timeSentence) {

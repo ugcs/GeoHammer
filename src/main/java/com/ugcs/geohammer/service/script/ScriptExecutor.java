@@ -50,14 +50,17 @@ public class ScriptExecutor {
 
 	private final EventsFactory eventsFactory;
 
+	private final PythonDependenciesInstaller pythonDependenciesInstaller;
+
 	// sgyFile -> scriptName
 	private final Map<SgyFile, String> executingScripts = new ConcurrentHashMap<>();
 
-	public ScriptExecutor(PythonConfig pythonConfig, Loader loader, EventSender eventSender, EventsFactory eventsFactory) {
+	public ScriptExecutor(PythonConfig pythonConfig, Loader loader, EventSender eventSender, EventsFactory eventsFactory, PythonDependenciesInstaller pythonDependenciesInstaller) {
 		this.pythonConfig = pythonConfig;
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
+		this.pythonDependenciesInstaller = pythonDependenciesInstaller;
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
@@ -74,8 +77,14 @@ public class ScriptExecutor {
 		File tempFile = null;
 		try {
 			tempFile = copyToTempFile(sgyFile);
+			File scriptFile = new File(getScriptsPath().toFile(), scriptMetadata.filename());
+			if (!scriptFile.exists()) {
+				throw new IOException("Script file not found: " + scriptFile.getAbsolutePath());
+			}
 
-			List<String> command = buildCommand(scriptMetadata, parameters, tempFile.toPath());
+			pythonDependenciesInstaller.installIfNeeded(scriptFile, scriptMetadata, executor, onScriptOutput);
+
+			List<String> command = buildCommand(scriptFile.toPath(), scriptMetadata, parameters, tempFile.toPath());
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
 			runScript(command, onScriptOutput);
 			if (Thread.currentThread().isInterrupted()) {
@@ -134,7 +143,7 @@ public class ScriptExecutor {
 	 * Builds the process command:
 	 * [python, <scripts/path>/<script.py>, <workingCopy>, --key value | --flag]
 	 */
-	private List<String> buildCommand(ScriptMetadata scriptMetadata, Map<String, String> parameters, Path filePath)
+	private List<String> buildCommand(Path scriptPath, ScriptMetadata scriptMetadata, Map<String, String> parameters, Path filePath)
             throws InterruptedException {
 		List<String> command = new ArrayList<>();
 
@@ -149,9 +158,7 @@ public class ScriptExecutor {
 		}
 		command.add(pythonPath);
 
-		Path scriptsPath = getScriptsPath();
-
-		command.add(scriptsPath.resolve(scriptMetadata.filename()).toString());
+		command.add(scriptPath.toString());
 
 		command.add(filePath.toAbsolutePath().toString());
 

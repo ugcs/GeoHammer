@@ -2,15 +2,12 @@ package com.ugcs.geohammer.model;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.Chart;
@@ -20,8 +17,8 @@ import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
-import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.element.AuxElementEditHandler;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.model.element.FoundPlace;
@@ -30,13 +27,11 @@ import com.ugcs.geohammer.model.event.BaseEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.TemplateUnitChangedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
-import com.ugcs.geohammer.chart.gpr.axis.HorizontalRulerController;
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Traces;
 import javafx.scene.layout.*;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,8 +59,6 @@ public class Model implements InitializingBean {
 
 	public static final int TOP_MARGIN = 60;
 
-	public static final int CHART_MIN_HEIGHT = 400;
-
 	@SuppressWarnings("NullAway.Init")
 	@Value("${trace.lookup.threshold}")
 	private Double traceLookupThreshold;
@@ -76,23 +69,22 @@ public class Model implements InitializingBean {
 
 	private final FileManager fileManager;
 
-	private final Set<FileChangeType> changes = new HashSet<>();
-
 	private final List<BaseObject> auxElements = new ArrayList<>();
 
 	private final List<TraceKey> selectedTraces = new ArrayList<>();
 
 	private boolean kmlToFlagAvailable = false;
 
-	private final PrefSettings prefSettings;
-
 	private final AuxElementEditHandler auxEditHandler;
 
 	private final VBox chartsContainer = new VBox(); // Charts container
 
-	private final Map<CsvFile, SensorLineChart> csvFiles = new HashMap<>();
+    private final Map<SgyFile, Chart> charts = new HashMap<>();
 
-	private final Map<TraceFile, GPRChart> gprCharts = new HashMap<>();
+    // TODO rename to csvCharts
+	//private final Map<CsvFile, SensorLineChart> csvFiles = new HashMap<>();
+
+	//private final Map<TraceFile, GPRChart> gprCharts = new HashMap<>();
 
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -104,8 +96,7 @@ public class Model implements InitializingBean {
 	@Nullable
 	private SgyFile currentFile;
 
-	public Model(FileManager fileManager, PrefSettings prefSettings, ApplicationEventPublisher eventPublisher, TemplateSettings templateSettings) {
-		this.prefSettings = prefSettings;
+	public Model(FileManager fileManager, ApplicationEventPublisher eventPublisher, TemplateSettings templateSettings) {
 		this.fileManager = fileManager;
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
@@ -116,20 +107,12 @@ public class Model implements InitializingBean {
 		return auxEditHandler;
 	}
 
-	public ApplicationEventPublisher getEventPublisher() {
-		return eventPublisher;
-	}
-
 	public MapField getMapField() {
 		return field;
 	}
 
 	public FileManager getFileManager() {
 		return fileManager;
-	}
-
-	public PrefSettings getPrefSettings() {
-		return prefSettings;
 	}
 
 	public TemplateSettings getTemplateSettings() {
@@ -141,34 +124,34 @@ public class Model implements InitializingBean {
 		return currentFile;
 	}
 
-	public Set<FileChangeType> getChanges() {
-		return changes;
-	}
-
 	public List<BaseObject> getAuxElements() {
-		List<BaseObject> combinedElements = new ArrayList<>(auxElements);
-		combinedElements.addAll(gprCharts.values().stream()
-				.flatMap(gprChart -> gprChart.getAuxElements().stream())
-				.toList());
-		return List.copyOf(combinedElements);
+        ArrayList<BaseObject> allElements = new ArrayList<>(auxElements);
+        for (Chart chart : charts.values()) {
+            // TODO don't use instanceof branching
+            if (chart instanceof GPRChart gprChart) {
+                allElements.addAll(gprChart.getAuxElements());
+            }
+        }
+        return allElements;
 	}
 
 	public void updateAuxElements() {
-		gprCharts.values().forEach(
-				GPRChart::updateAuxElements
-		);
-
-		auxElements.clear();
-		getFileManager().getCsvFiles().forEach(sf -> {
-			auxElements.addAll(sf.getAuxElements());
-			getCsvChart(sf).ifPresent(chart ->
-					sf.getAuxElements().forEach(element -> {
-								if (element instanceof FoundPlace foundPlace) {
-									chart.addFlag(foundPlace);
-								}
-							}
-					));
-		});
+        auxElements.clear();
+        // TODO don't use instanceof branching
+        for (Chart chart : charts.values()) {
+            if (chart instanceof GPRChart gprChart) {
+                gprChart.updateAuxElements();
+            }
+            if (chart instanceof SensorLineChart csvChart) {
+                SgyFile file = csvChart.getFile();
+                auxElements.addAll(file.getAuxElements());
+                file.getAuxElements().forEach(element -> {
+                    if (element instanceof FoundPlace foundPlace) {
+                        chart.addFlag(foundPlace);
+                    }
+                });
+            }
+        }
 	}
 
 	public VBox getChartsContainer() {
@@ -210,12 +193,7 @@ public class Model implements InitializingBean {
 
 			this.getMapField().setPathEdgeLL(lt, rb);
 
-			this.getMapField().adjustZoom(CHART_MIN_HEIGHT, 700);
-
-		} else {
-			//Sout.p("GPS coordinates not found");
-			//this.getMapField().setPathCenter(null);
-			//this.getMapField().setSceneCenter(null);
+			this.getMapField().adjustZoom(Chart.MIN_HEIGHT, 700);
 		}
 	}
 
@@ -265,138 +243,172 @@ public class Model implements InitializingBean {
 		AppContext.model = this;
 	}
 
-	/**
-	 * Initialize chart for the given CSV file
-	 *
-	 * @param csvFile CSV file to initialize chart for
-	 */
-	public void initCsvChart(CsvFile csvFile) {
-		if (getCsvChart(csvFile).isPresent()) {
-			return;
-		}
-		var sensorLineChart = createSensorLineChart(csvFile);
-		Platform.runLater(() -> selectAndScrollToChart(sensorLineChart));
-	}
+    // charts
 
-	public void updateCsvChart(CsvFile csvFile) {
-		Optional<SensorLineChart> csvChart = getCsvChart(csvFile);
-		if (csvChart.isEmpty()) {
-			return;
-		}
+    @Nullable
+    public Chart getChart(@Nullable SgyFile file) {
+        return charts.get(file);
+    }
 
-		csvChart.get().reload();
-	}
+    @Nullable
+    public GPRChart getGprChart(TraceFile file) {
+        return charts.get(file) instanceof GPRChart gprChart ? gprChart : null;
+    }
 
-	public void updateCsvChartFile(CsvFile csvFile, File file) {
-		SensorLineChart csvChart = csvFiles.remove(csvFile);
-		csvFile.setFile(file);
-		if (csvChart != null) {
-			csvFiles.put(csvFile, csvChart);
-		}
-	}
+    public SensorLineChart getCsvChart(CsvFile file) {
+        return charts.get(file) instanceof SensorLineChart csvChart ? csvChart : null;
+    }
 
-	public void recreateCsvChart(CsvFile csvFile) {
-		// Remove the old chart if it exists
-		getFileManager().removeFile(csvFile);
-		Optional<SensorLineChart> oldChartOpt = getCsvChart(csvFile);
-		oldChartOpt.ifPresent(oldChart -> {
-			Node oldNode = oldChart.getRootNode();
-			chartsContainer.getChildren().remove(oldNode);
-			csvFiles.remove(csvFile);
-		});
+    public List<SensorLineChart> getSensorCharts() {
+        return charts.values().stream()
+                .filter(c -> c instanceof SensorLineChart)
+                .map(c -> (SensorLineChart) c)
+                .toList();
+    }
 
-		// Create and add the new chart
-		SensorLineChart newChart = createSensorLineChart(csvFile);
-		getFileManager().addFile(csvFile);
+    public String getSelectedSeriesName(@Nullable SgyFile file) {
+        if (file == null) {
+            return null;
+        }
+        if (getChart(file) instanceof SensorLineChart sensorChart) {
+            return Strings.emptyToNull(sensorChart.getSelectedSeriesName());
+        }
+        return null;
+    }
 
-		Platform.runLater(() -> selectAndScrollToChart(newChart));
-	}
+    // create chart
 
-	private SensorLineChart createSensorLineChart(CsvFile csvFile) {
-		// if there is a chart for a given file then put new chart
-		// to the same position as it was before
-		int index = -1;
+    private Chart newChart(SgyFile file) {
+        if (file instanceof TraceFile traceFile) {
+            return new GPRChart(this, traceFile);
+        }
+        if (file instanceof CsvFile csvFile) {
+            return new SensorLineChart(this, csvFile);
+        }
+        if (file instanceof SonarFile sonarFile) {
+            return new SensorLineChart(this, sonarFile);
+        }
+        return null;
+    }
 
-		SensorLineChart chart = csvFiles.get(csvFile);
+    private Chart createChart(SgyFile file) {
+        // if there is a chart for a given file then put new chart
+        // to the same position as it was before
+        int index = -1;
+
+        Chart chart = charts.get(file);
+        if (chart != null) {
+            Node chartBox = chart.getRootNode();
+            if (chartBox != null) {
+                index = chartsContainer.getChildren().indexOf(chartBox);
+            }
+        }
+
+        chart = newChart(file);
+        if (chart == null) {
+            return null;
+        }
+
+        charts.remove(file);
+        charts.put(file, chart);
+
+        // create new chart contents
+        var newChartBox = (VBox)chart.getRootNode();
+
+        // add to container keeping position
+        if (index != -1) {
+            chartsContainer.getChildren().set(index, newChartBox);
+        } else {
+            chartsContainer.getChildren().add(newChartBox);
+        }
+
+        // adjust height
+//        newChartBox.getChildren().forEach(node -> {
+//            if (node instanceof StackPane) {
+//                ((StackPane) node).setPrefHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight()));
+//                ((StackPane) node).setMinHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight() / 2));
+//            }
+//        });
+//        newChartBox.setPrefHeight(Math.max(400, newChartBox.getScene().getHeight()));
+//        newChartBox.setMinHeight(Math.max(400, newChartBox.getScene().getHeight() / 2));
+
+        chart.init();
+        return chart;
+    }
+
+    public Chart initChart(SgyFile file) {
+        Chart chart = charts.get(file);
+        if (chart == null) {
+            chart = createChart(file);
+            fileManager.addFile(file);
+        } else {
+            // recreate chart
+            fileManager.removeFile(file);
+            chartsContainer.getChildren().remove(chart.getRootNode());
+            charts.remove(file);
+
+            chart = createChart(file);
+            fileManager.addFile(file);
+        }
+        updateAuxElements();
+        initField();
+
+        selectAndScrollToChart(chart);
+        return chart;
+    }
+
+    public void updateChartFile(SgyFile sgyFile, File file) {
+        Chart chart = charts.remove(sgyFile);
+        sgyFile.setFile(file);
+        if (chart != null) {
+            charts.put(sgyFile, chart);
+        }
+    }
+
+    // close chart
+
+    public void closeAllCharts() {
+        charts.forEach((file, chart) -> {
+            chart.close(false);
+        });
+        charts.clear();
+    }
+
+    public void removeChart(SgyFile sgyFile) {
+        Chart removed = charts.remove(sgyFile);
+        if (removed != null) {
+            removed.getProfileScroll().setVisible(false);
+            chartsContainer.getChildren().remove(removed.getRootNode());
+        }
+
+        // select first file in a list
+        boolean chartSelected = false;
+        List<SgyFile> openedFiles = fileManager.getFiles();
+        if (!openedFiles.isEmpty()) {
+            Chart chart = getChart(openedFiles.getFirst());
+            if (chart != null) {
+                selectAndScrollToChart(chart);
+                chartSelected = true;
+            }
+        }
+        if (!chartSelected) {
+            publishEvent(new FileSelectedEvent(this, (SgyFile) null));
+        }
+    }
+
+    // ----------------
+
+	public void reloadChart(SgyFile file) {
+		Chart chart = charts.get(file);
 		if (chart != null) {
-			Node chartBox = chart.getRootNode();
-			if (chartBox != null) {
-				index = chartsContainer.getChildren().indexOf(chartBox);
-			}
+            chart.reload();
 		}
-
-		chart = new SensorLineChart(this, csvFile);
-		csvFiles.remove(csvFile);
-		csvFiles.put(csvFile, chart);
-
-		// create new chart contents
-		var newChartBox = chart.getRootNode();
-
-		// add to container keeping position
-		if (index != -1) {
-			chartsContainer.getChildren().set(index, newChartBox);
-		} else {
-			chartsContainer.getChildren().add(newChartBox);
-		}
-
-		// adjust height
-		newChartBox.getChildren().forEach(node -> {
-			if (node instanceof StackPane) {
-				((StackPane) node).setPrefHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight()));
-				((StackPane) node).setMinHeight(Math.max(CHART_MIN_HEIGHT, node.getScene().getHeight() / 2));
-			}
-		});
-
-		return chart;
-	}
-
-	/**
-	 * Get chart for the given file if it exists in the model
-	 *
-	 * @param csvFile CSV file to get chart for
-	 * @return Optional of SensorLineChart
-	 */
-	public Optional<SensorLineChart> getCsvChart(CsvFile csvFile) {
-		return Optional.ofNullable(csvFiles.get(csvFile));
-	}
-
-	public Collection<SensorLineChart> getCsvCharts() {
-		return csvFiles.values();
 	}
 
 	public void chartsZoomOut() {
-		csvFiles.forEach((file, chart) -> {
+		charts.forEach((file, chart) -> {
 			chart.zoomToFit();
 		});
-	}
-
-	public void closeAllCharts() {
-		csvFiles.forEach((file, chart) -> {
-			chart.close(false);
-		});
-		csvFiles.clear();
-		gprCharts.clear();
-	}
-
-	public void removeChart(SgyFile file) {
-		if (file instanceof CsvFile csvFile) {
-			csvFiles.remove(csvFile);
-		} else if (file instanceof TraceFile traceFile) {
-			gprCharts.remove(traceFile);
-		}
-		// select first file in a list
-		boolean chartSelected = false;
-		List<SgyFile> openedFiles = fileManager.getFiles();
-		if (!openedFiles.isEmpty()) {
-			Chart chart = getFileChart(openedFiles.getFirst());
-			if (chart != null) {
-				selectAndScrollToChart(chart);
-				chartSelected = true;
-			}
-		}
-		if (!chartSelected) {
-			publishEvent(new FileSelectedEvent(this, (SgyFile) null));
-		}
 	}
 
 	private void setSelectedData(Node node) {
@@ -490,30 +502,12 @@ public class Model implements InitializingBean {
 		eventPublisher.publishEvent(event);
 	}
 
-	@Nullable
-	public GPRChart getGprChart(TraceFile sgyFile) {
-		return gprCharts.get(sgyFile);
-	}
-
-	public GPRChart getOrCreateGprChart(@NonNull TraceFile file) {
-		GPRChart chart = gprCharts.get(file);
-		if (chart != null) {
-			return chart;
-		}
-		chart = new GPRChart(this, file);
-		gprCharts.put(file, chart);
-		return chart;
-	}
-
 	@EventListener
 	private void onChange(WhatChanged event) {
 		if (event.isJustdraw()) {
-			csvFiles.values().forEach(chart ->
-					Platform.runLater(chart::updateChartName)
+			charts.values().forEach(chart ->
+					Platform.runLater(chart::repaint)
 			);
-			gprCharts.values().forEach(chart -> {
-				Platform.runLater(chart::repaint);
-			});
 		}
 	}
 
@@ -524,57 +518,27 @@ public class Model implements InitializingBean {
 
 	@EventListener
 	private void fileClosed(FileClosedEvent event) {
-		Chart chart = getFileChart(event.getSgyFile());
+		Chart chart = getChart(event.getFile());
 		clearSelectedTrace(chart);
 	}
 
 	@EventListener
 	public void onTemplateUnitChanged(TemplateUnitChangedEvent event) {
-		if (event.getUnit() == null || event.getFile() == null) {
-			return;
-		}
 		SgyFile file = event.getFile();
+        TraceUnit unit = event.getUnit();
+        if (file == null || unit == null) {
+            return;
+        }
+
 		String templateName = Templates.getTemplateName(file);
-		if (file instanceof CsvFile) {
-			for (SensorLineChart chart : csvFiles.values()) {
-				CsvFile chartFile = chart.getFile();
-				if (!Objects.equals(file, chartFile)
-						&& Objects.equals(templateName, Templates.getTemplateName(chartFile))) {
-					chart.updateXAxisUnits(event.getUnit());
-				}
-			}
-		}
-		if (file instanceof GprFile) {
-			for (GPRChart chart : gprCharts.values()) {
-				TraceFile chartFile = chart.getFile();
-				if (!Objects.equals(file, chartFile)
-						&& Objects.equals(templateName, Templates.getTemplateName(chartFile))) {
-					HorizontalRulerController xRuler = chart.getHorizontalRulerController();
-					xRuler.setUnit(event.getUnit());
-				}
-			}
-		}
-	}
-
-	// charts
-
-	public List<Chart> getAllFileCharts() {
-		List<Chart> charts = new ArrayList<>();
-		charts.addAll(csvFiles.values());
-		charts.addAll(gprCharts.values());
-		return charts;
-	}
-
-	@Nullable
-	public Chart getFileChart(@Nullable SgyFile file) {
-		if (file instanceof CsvFile csvFile) {
-			return getCsvChart(csvFile).orElse(null);
-		}
-		if (file instanceof TraceFile traceFile) {
-			return getGprChart(traceFile);
-		}
-		return null;
-	}
+        for (Chart chart : charts.values()) {
+            SgyFile chartFile = chart.getFile();
+            if (!Objects.equals(file, chartFile)
+                    && Objects.equals(templateName, Templates.getTemplateName(chartFile))) {
+                chart.setTraceUnit(unit);
+            }
+        }
+}
 
 	// trace selection
 
@@ -588,7 +552,7 @@ public class Model implements InitializingBean {
 			return null;
 		}
 		for (TraceKey trace : selectedTraces) {
-			if (Objects.equals(chart, getFileChart(trace.getFile()))) {
+			if (Objects.equals(chart, getChart(trace.getFile()))) {
 				return trace;
 			}
 		}
@@ -597,7 +561,7 @@ public class Model implements InitializingBean {
 
 	@Nullable
 	public TraceKey getSelectedTraceInCurrentChart() {
-		Chart chart = getFileChart(currentFile);
+		Chart chart = getChart(currentFile);
 		return chart != null
 				? getSelectedTrace(chart)
 				: null;
@@ -625,10 +589,10 @@ public class Model implements InitializingBean {
 		selectedTraces.clear();
 		selectedTraces.add(trace);
 
-		Chart traceChart = getFileChart(trace.getFile());
+		Chart traceChart = getChart(trace.getFile());
 		boolean traceOnSelectedChart = isChartSelected(traceChart);
 
-		for (Chart chart : getAllFileCharts()) {
+		for (Chart chart : charts.values()) {
 			if (Objects.equals(chart, traceChart)) {
 				continue;
 			}
@@ -644,7 +608,7 @@ public class Model implements InitializingBean {
 
 		boolean keepSelection = traceOnSelectedChart;
 		Platform.runLater(() -> {
-			for (Chart chart : getAllFileCharts()) {
+			for (Chart chart : charts.values()) {
 				boolean focusOnTrace = focusOnChart || !Objects.equals(chart, traceChart);
 				updateSelectedTraceOnChart(chart, focusOnTrace);
 			}
@@ -661,14 +625,14 @@ public class Model implements InitializingBean {
 	}
 
 	public void clearSelectedTrace(@Nullable Chart chart) {
-		selectedTraces.removeIf(x -> Objects.equals(chart, getFileChart(x.getFile())));
+		selectedTraces.removeIf(x -> Objects.equals(chart, getChart(x.getFile())));
 		Platform.runLater(() -> updateSelectedTraceOnChart(chart, false));
 	}
 
 	public void clearSelectedTraces() {
 		selectedTraces.clear();
 		Platform.runLater(() -> {
-			for (Chart chart : getAllFileCharts()) {
+			for (Chart chart : charts.values()) {
 				updateSelectedTraceOnChart(chart, false);
 			}
 		});

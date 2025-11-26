@@ -398,6 +398,11 @@
 			<version>2.4</version>
 		</dependency>
 		<dependency>
+			<groupId>net.sf.marineapi</groupId>
+			<artifactId>marineapi</artifactId>
+			<version>0.12.0</version>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-core</artifactId>
 		</dependency>

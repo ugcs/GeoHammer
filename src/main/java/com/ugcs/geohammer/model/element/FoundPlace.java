@@ -74,7 +74,7 @@ public class FoundPlace extends PositionalObject {
 	public boolean mousePressHandle(Point2D point, MapField field) {
 		Rectangle r = getRect(field);
 		if (r.contains(point.getX(), point.getY())) {
-			ScrollableData scrollable = model.getFileChart(trace.getFile());
+			ScrollableData scrollable = model.getChart(trace.getFile());
 			int traceIndex = getTraceIndex();
 			if (scrollable != null) {
 				scrollable.setMiddleTrace(traceIndex);

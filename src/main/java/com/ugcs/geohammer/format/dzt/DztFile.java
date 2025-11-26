@@ -16,13 +16,12 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 
 import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.format.gpr.MetaFile;
+import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.TraceGeoData;
+import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.model.element.BaseObject;
-import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.math.MinMaxAvg;
 import com.ugcs.geohammer.util.AuxElements;
@@ -284,15 +283,13 @@ public class DztFile extends TraceFile {
 
 		List<DzgFile.IndexMapping> mappings = new ArrayList<>();
 		if (metaFile != null) {
-			List<? extends GeoData> values = metaFile.getValues();
+			List<TraceGeoData> values = metaFile.getValues();
 			for (int i = from; i < to; i++) {
-				GeoData value = values.get(i);
-				if (value instanceof TraceGeoData traceGeoData) {
-					int traceIndex = traceGeoData.getTraceIndex();
-					if (dzg.hasIndex(traceIndex)) {
-						mappings.add(new DzgFile.IndexMapping(i - from, traceIndex));
-					}
-				}
+                TraceGeoData value = values.get(i);
+                int traceIndex = value.getTraceIndex();
+                if (dzg.hasIndex(traceIndex)) {
+                    mappings.add(new DzgFile.IndexMapping(i - from, traceIndex));
+                }
 			}
 		} else {
 			for (int i = from; i < to; i++) {
@@ -321,7 +318,7 @@ public class DztFile extends TraceFile {
 		if (metaFile != null) {
 			copy.metaFile = new MetaFile();
 			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
-			copy.metaFile.initTraces(tracesCopy);
+			copy.syncMeta(tracesCopy);
 		}
 
 		if (groundProfile != null) {

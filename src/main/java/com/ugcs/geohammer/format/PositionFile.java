@@ -108,7 +108,7 @@ public class PositionFile {
 	private List<GeoData> parsePositionFile(File file) throws IOException {
 		Check.notNull(file);
 
-		Template template = templates.findTemplate(templates.getTemplates(), file);
+		Template template = templates.findTemplate(file);
 		if (template == null) {
 			throw new RuntimeException("Can`t find template for file " + file.getName());
 		}

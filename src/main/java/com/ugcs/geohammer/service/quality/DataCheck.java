@@ -3,6 +3,7 @@ package com.ugcs.geohammer.service.quality;
 import com.ezylang.evalex.BaseException;
 import com.ezylang.evalex.Expression;
 import com.ezylang.evalex.data.EvaluationValue;
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.LatLon;
 import com.google.common.base.Strings;
@@ -34,18 +35,16 @@ public class DataCheck extends FileQualityCheck {
     }
 
     @Override
-    public List<QualityIssue> checkFile(CsvFile file) {
-        if (file == null) {
+    public List<QualityIssue> checkFile(SgyFile file) {
+        if (file instanceof CsvFile csvFile) {
+            Template template = csvFile.getTemplate();
+            DataValidation validation = DataCheck.buildDataValidation(template);
+            return validation != null
+                    ? checkValues(csvFile.getGeoData(), validation)
+                    : List.of();
+        } else {
             return List.of();
         }
-
-        Template template = file.getTemplate();
-        DataValidation validation = DataCheck.buildDataValidation(template);
-        if (validation == null) {
-            return List.of();
-        }
-
-        return checkValues(file.getGeoData(), validation);
     }
 
     private List<QualityIssue> checkValues(List<GeoData> values, DataValidation validation) {

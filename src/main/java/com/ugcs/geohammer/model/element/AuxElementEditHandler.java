@@ -65,7 +65,7 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 	}
 
 	private void createMark(ActionEvent event) {
-		Chart chart = model.getFileChart(model.getCurrentFile());
+		Chart chart = model.getChart(model.getCurrentFile());
 		if (chart == null) {
 			return;
 		}
@@ -73,7 +73,7 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 	}
 
 	private void removeSelectedMark(ActionEvent event) {
-		Chart chart = model.getFileChart(model.getCurrentFile());
+		Chart chart = model.getChart(model.getCurrentFile());
 		if (chart == null) {
 			return;
 		}
@@ -81,7 +81,7 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 	}
 
 	private void removeAllMarks(ActionEvent event) {
-		Chart chart = model.getFileChart(model.getCurrentFile());
+		Chart chart = model.getChart(model.getCurrentFile());
 		if (chart == null || !confirmMarksRemoval()) {
 			return;
 		}
@@ -104,7 +104,7 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		if (element != null) {
 			if (element instanceof FoundPlace flag) {
 				SgyFile traceFile = flag.getTrace().getFile();
-				Chart chart = model.getFileChart(traceFile);
+				Chart chart = model.getChart(traceFile);
 				if (chart != null) {
 					chart.selectFlag(flag);
 				}

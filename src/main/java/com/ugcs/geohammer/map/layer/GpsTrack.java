@@ -103,7 +103,7 @@ public class GpsTrack extends BaseLayer {
 	private void drawTraceLines(Graphics2D g2, MapField field, SgyFile file) {
 		boolean isSelectedFile = Objects.equals(file, model.getCurrentFile());
 
-		Chart chart = model.getFileChart(file);
+		Chart chart = model.getChart(file);
 		Integer selectedLineIndex = isSelectedFile && chart != null
 				? chart.getSelectedLineIndex()
 				: null;

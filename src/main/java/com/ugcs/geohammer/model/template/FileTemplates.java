@@ -13,6 +13,7 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -205,7 +206,16 @@ public class FileTemplates implements InitializingBean {
         return templates;
     }
 
-    public Template findTemplate(List<Template> templates, File file) {
+    public Template getTemplate(String templateName) {
+        for (Template template : templates) {
+            if (Objects.equals(template.getName(), templateName)) {
+                return template;
+            }
+        }
+        return null;
+    }
+
+    public Template findTemplate(File file) {
         if (file.getName().endsWith(".sgy")) {
             var ot = templates.stream()
                     .filter(t -> FileType.Segy.equals(t.getFileType()))

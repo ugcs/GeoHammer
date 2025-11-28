@@ -56,7 +56,7 @@ public class CsvFile extends SgyFile {
 
     @Override
     public void open(File csvFile) throws IOException {
-        Template template = fileTemplates.findTemplate(fileTemplates.getTemplates(), csvFile);
+        Template template = fileTemplates.findTemplate(csvFile);
         if (template == null) {
             throw new RuntimeException("Can`t find template for file " + csvFile.getName());
         }
@@ -153,10 +153,6 @@ public class CsvFile extends SgyFile {
 		this.setAuxElements(other.getAuxElements());
 		this.setUnsaved(true);
 	}
-
-    public boolean isSameTemplate(CsvFile other) {
-        return Templates.equals(getTemplate(), other.getTemplate());
-    }
 
     public static class Snapshot extends FileSnapshot<CsvFile> {
 

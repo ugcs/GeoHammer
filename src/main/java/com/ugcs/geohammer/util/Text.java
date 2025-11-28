@@ -1,7 +1,4 @@
-package com.ugcs.geohammer.format.csv.parser;
-
-import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.Strings;
+package com.ugcs.geohammer.util;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;

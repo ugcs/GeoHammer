@@ -9,6 +9,7 @@ import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Text;
 
 import java.io.BufferedWriter;
 import java.io.File;

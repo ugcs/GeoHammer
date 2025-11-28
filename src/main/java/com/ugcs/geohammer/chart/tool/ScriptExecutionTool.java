@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.chart;
+package com.ugcs.geohammer.chart.tool;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -15,6 +14,9 @@ import java.util.prefs.Preferences;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptException;
 import com.ugcs.geohammer.service.script.ScriptExecutor;
@@ -28,82 +30,61 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Strings;
 import javafx.application.Platform;
-import javafx.geometry.Pos;
+import javafx.event.ActionEvent;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Nullable;
 
-public class ScriptExecutionView extends VBox {
+@Component
+public class ScriptExecutionTool extends FilterToolView {
 
-	private static final Logger log = LoggerFactory.getLogger(ScriptExecutionView.class);
+	private static final Logger log = LoggerFactory.getLogger(ScriptExecutionTool.class);
 
 	private static final int MAX_OUTPUT_LINES_IN_DIALOG = 7;
 
 	private final Model model;
 
-	@Nullable
-	private SgyFile selectedFile;
-
 	private final ScriptExecutor scriptExecutor;
 
 	private final Status status;
 
-	private final ExecutorService executor = Executors.newCachedThreadPool();
-
-	private final ProgressIndicator progressIndicator;
+	private final ExecutorService executor;
 
 	private final VBox parametersBox;
 
 	private final ComboBox<String> scriptsMetadataSelector;
 
-	private final Button applyButton;
-
-	private final Button applyToAllButton;
-
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
-	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionView.class);
+	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionTool.class);
 
-	public ScriptExecutionView(Model model, Status status, @Nullable SgyFile selectedFile, ScriptExecutor scriptExecutor) {
-		this.model = model;
+	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, ScriptExecutor scriptExecutor) {
+		super(executor);
+
+        this.model = model;
+        this.executor = executor;
 		this.status = status;
 		this.scriptExecutor = scriptExecutor;
-		this.selectedFile = selectedFile;
-
-		setSpacing(OptionPane.DEFAULT_SPACING);
-		setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
-
-		progressIndicator = new ProgressIndicator();
-		progressIndicator.setVisible(false);
 
 		scriptsMetadataSelector = new ComboBox<>();
 		scriptsMetadataSelector.setPromptText("Select script");
 		scriptsMetadataSelector.setMaxWidth(Double.MAX_VALUE);
 
-		parametersBox = new VBox(OptionPane.DEFAULT_SPACING);
-		parametersBox.setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
+		parametersBox = new VBox(Tools.DEFAULT_SPACING);
+		parametersBox.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
 
 		Label parametersLabel = new Label("Parameters:");
 		parametersLabel.setStyle("-fx-font-weight: bold;");
 		parametersLabel.setVisible(false);
-
-		applyButton = new Button("Apply");
-		applyButton.setVisible(false);
-
-		applyToAllButton = new Button("Apply to all");
-		applyToAllButton.setVisible(false);
 
 		scriptsMetadataSelector.setOnAction(e -> {
 			String filename = scriptsMetadataSelector.getValue();
@@ -127,93 +108,76 @@ public class ScriptExecutionView extends VBox {
 					parametersBox.getChildren().add(paramBox);
 				}
 
-				applyButton.setVisible(true);
-				applyToAllButton.setVisible(true);
+                showApply(true);
+                showApplyToAll(true);
 			} else {
 				parametersLabel.setVisible(false);
-				applyButton.setVisible(false);
-				applyToAllButton.setVisible(false);
+                showApply(false);
+                showApplyToAll(false);
 			}
 		});
 
-		applyButton.setOnAction(event -> onApplyClicked());
-		applyToAllButton.setOnAction(event -> onApplyToAllClicked(model));
+        inputContainer.getChildren().setAll(scriptsMetadataSelector, parametersBox);
 
-		HBox buttonsRow = new HBox(5);
-		HBox rightBox = new HBox();
-		HBox leftBox = new HBox(5);
-		leftBox.getChildren().addAll(applyButton);
-		HBox.setHgrow(leftBox, Priority.ALWAYS);
-		rightBox.getChildren().addAll(applyToAllButton);
+        showApply(false);
+        showApplyToAll(false);
 
-		buttonsRow.getChildren().addAll(leftBox, rightBox);
-
-		VBox contentBox = new VBox();
-		contentBox.getChildren().addAll(scriptsMetadataSelector, parametersBox, buttonsRow);
-
-		StackPane stackPane = new StackPane(contentBox, progressIndicator);
-		StackPane.setAlignment(progressIndicator, Pos.CENTER);
-
-		getChildren().add(stackPane);
-
-		updateView(selectedFile);
-
-		setVisible(false);
-		setManaged(false);
+		updateView();
 	}
 
-	private void onApplyClicked() {
-		String filename = scriptsMetadataSelector.getValue();
-		ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-				.filter(sM -> sM.filename().equals(filename))
-				.findFirst()
-				.orElse(null);
-		SgyFile sgyFile = this.selectedFile;
-		if (sgyFile != null) {
-			executeScript(scriptMetadata, List.of(sgyFile));
-		} else {
-			MessageBoxHelper.showError("No file selected",
-					"Please select a file to apply the script");
-		}
-	}
+    @Override
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile || file instanceof TraceFile;
+    }
 
-	private void onApplyToAllClicked(Model model) {
-		String filename = scriptsMetadataSelector.getValue();
-		ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-				.filter(sM -> sM.filename().equals(filename))
-				.findFirst()
-				.orElse(null);
-		List<SgyFile> filesToProcess = getFilesToProcess(model);
-		executeScript(scriptMetadata, filesToProcess);
-	}
+    @Override
+    protected void onApply(ActionEvent event) {
+        String filename = scriptsMetadataSelector.getValue();
+        ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+                .filter(sM -> sM.filename().equals(filename))
+                .findFirst()
+                .orElse(null);
+        SgyFile sgyFile = selectedFile;
+        if (sgyFile != null) {
+            executeScript(scriptMetadata, List.of(sgyFile));
+        } else {
+            MessageBoxHelper.showError("No file selected",
+                    "Please select a file to apply the script");
+        }
+    }
+
+    @Override
+    protected void onApplyToAll(ActionEvent event) {
+        String filename = scriptsMetadataSelector.getValue();
+        ScriptMetadata scriptMetadata = scriptsMetadata.stream()
+                .filter(sM -> sM.filename().equals(filename))
+                .findFirst()
+                .orElse(null);
+        List<SgyFile> filesToProcess = getFilesToProcess(model);
+        executeScript(scriptMetadata, filesToProcess);
+    }
 
 	private List<SgyFile> getFilesToProcess(Model model) {
-		SgyFile sgyFile = this.selectedFile;
-		String template = Templates.getTemplateName(sgyFile);
-		List<SgyFile> filesToProcess = model.getFileManager().getFiles();
-		if (template != null) {
-			filesToProcess = filesToProcess.stream().filter(file -> {
-				String fileTemplate = Templates.getTemplateName(file);
-				return template.equals(fileTemplate);
-			}).toList();
-		}
-		return filesToProcess;
+		SgyFile sgyFile = selectedFile;
+		return model.getFileManager().getFiles().stream()
+                .filter(file -> Templates.equals(file, sgyFile))
+                .toList();
 	}
 
-	public void updateView(@Nullable SgyFile sgyFile) {
-		this.selectedFile = sgyFile;
+    @Override
+	public void updateView() {
+        SgyFile file = selectedFile;
 		try {
 			List<ScriptMetadata> loadedScriptsMetadata = getLoadedScriptsMetadata();
-			this.scriptsMetadata = filterScriptsByTemplate(sgyFile, loadedScriptsMetadata);
+			scriptsMetadata = filterScriptsByTemplate(file, loadedScriptsMetadata);
 		} catch (Exception e) {
-			this.scriptsMetadata = List.of();
+			scriptsMetadata = List.of();
 			MessageBoxHelper.showError("Scripts Directory Error",
 					"Failed to load scripts metadata: " + e.getMessage());
 		}
 
 		restoreScriptSelection();
-
-		refreshExecutionStatus(sgyFile);
+		refreshExecutionStatus(file);
 	}
 
 	private List<ScriptMetadata> getLoadedScriptsMetadata() throws IOException {
@@ -222,8 +186,8 @@ public class ScriptExecutionView extends VBox {
 		return scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
 	}
 
-	private List<ScriptMetadata> filterScriptsByTemplate(@Nullable SgyFile sgyFile, List<ScriptMetadata> scriptsMetadata) {
-		String fileTemplate = Templates.getTemplateName(sgyFile);
+	private List<ScriptMetadata> filterScriptsByTemplate(@Nullable SgyFile file, List<ScriptMetadata> scriptsMetadata) {
+		String fileTemplate = Templates.getTemplateName(file);
 		if (fileTemplate == null) {
 			return scriptsMetadata;
 		} else {
@@ -248,17 +212,17 @@ public class ScriptExecutionView extends VBox {
 		}
 	}
 
-	private void refreshExecutionStatus(@Nullable SgyFile sgyFile) {
-		if (scriptExecutor.isExecuting(sgyFile)) {
-			setExecutingProgress(true);
-			String executingScriptName = scriptExecutor.getExecutingScriptName(sgyFile);
+	private void refreshExecutionStatus(@Nullable SgyFile file) {
+		if (scriptExecutor.isExecuting(file)) {
+            disableAndShowProgress();
+			String executingScriptName = scriptExecutor.getExecutingScriptName(file);
 			if (executingScriptName != null) {
 				scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
 			} else {
 				scriptsMetadataSelector.getSelectionModel().clearSelection();
 			}
 		} else {
-			setExecutingProgress(false);
+            enableAndHideProgress();
 		}
 	}
 
@@ -336,10 +300,7 @@ public class ScriptExecutionView extends VBox {
 			status.showMessage(line, scriptMetadata.displayName());
 		};
 
-		Platform.runLater(() -> {
-			setExecutingProgress(true);
-			applyToAllButton.setDisable(true);
-		});
+		Platform.runLater(this::disableAndShowProgress);
 
 		AtomicInteger remainingFiles = new AtomicInteger(files.size());
 		Future<Void> future = executor.submit(() -> {
@@ -354,10 +315,7 @@ public class ScriptExecutionView extends VBox {
 					showError(scriptMetadata, e, scriptOutput);
 				} finally {
 					if (remainingFiles.decrementAndGet() == 0) {
-						Platform.runLater(() -> {
-							setExecutingProgress(false);
-							applyToAllButton.setDisable(false);
-						});
+						Platform.runLater(this::enableAndHideProgress);
 					}
 				}
 			}
@@ -434,11 +392,8 @@ public class ScriptExecutionView extends VBox {
 		};
 	}
 
-	private void setExecutingProgress(boolean inProgress) {
-		progressIndicator.setVisible(inProgress);
-		progressIndicator.setManaged(inProgress);
-		parametersBox.setDisable(inProgress);
-		scriptsMetadataSelector.setDisable(inProgress);
-		applyButton.setDisable(inProgress);
-	}
+    @EventListener
+    private void onFileSelected(FileSelectedEvent event) {
+        Platform.runLater(() -> selectFile(event.getFile()));
+    }
 }

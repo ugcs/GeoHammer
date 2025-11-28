@@ -1,11 +1,12 @@
 package com.ugcs.geohammer.model.event;
 
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.util.Check;
 
 public class SeriesUpdatedEvent extends BaseEvent {
 
-	private final CsvFile file;
+	private final SgyFile file;
 
 	private final String seriesName;
 
@@ -13,7 +14,7 @@ public class SeriesUpdatedEvent extends BaseEvent {
 
 	private final boolean seriesSelected;
 
-	public SeriesUpdatedEvent(Object source, CsvFile file, String seriesName,
+	public SeriesUpdatedEvent(Object source, SgyFile file, String seriesName,
 			boolean seriesVisible, boolean seriesSelected) {
 		super(source);
 
@@ -26,7 +27,7 @@ public class SeriesUpdatedEvent extends BaseEvent {
 		this.seriesSelected = seriesSelected;
 	}
 
-	public CsvFile getFile() {
+	public SgyFile getFile() {
 		return file;
 	}
 

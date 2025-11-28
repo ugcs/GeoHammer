@@ -1,52 +1,30 @@
 package com.ugcs.geohammer.service.gridding;
 
-import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.chart.OptionPane;
-import com.ugcs.geohammer.model.event.GriddingParamsSetted;
-import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.DataPoint;
-import com.ugcs.geohammer.util.Check;
 import edu.mines.jtk.interp.SplinesGridder2;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class GriddingService {
 
-    private final Model model;
-
-    public GriddingService(Model model) {
-        Check.notNull(model);
-
-        this.model = model;
+    public GriddingService() {
     }
 
-    public Map<File, GriddingResult> runGridding(CsvFile csvFile, String seriesName,
-            GriddingParamsSetted params, OptionPane.GriddingRange range) {
-        Check.notNull(csvFile);
-        Check.notNull(seriesName);
-
+    public GriddingResult runGridding(Collection<SgyFile> files, String seriesName, GriddingParams params) {
         var startFiltering = System.currentTimeMillis();
 
-        Set<CsvFile> targetFiles = params.isToAll()
-                ? model.getFileManager().getCsvFiles()
-                .stream()
-                .filter(f -> f.isSameTemplate(csvFile))
-                .collect(Collectors.toSet())
-                : Collections.singleton(csvFile);
-
         List<DataPoint> dataPoints = new ArrayList<>();
-        for (CsvFile targetFile : targetFiles) {
-            dataPoints.addAll(getDataPoints(targetFile, seriesName));
+        for (SgyFile file : files) {
+            dataPoints.addAll(getDataPoints(file, seriesName));
         }
 
         dataPoints = getMedianValues(dataPoints);
@@ -68,12 +46,12 @@ public class GriddingService {
         int gridSizeX = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
                 new LatLon(maxLat, minLon).getDistance(new LatLon(maxLat, maxLon)));
 
-        gridSizeX = (int) (gridSizeX / params.getCellSize());
+        gridSizeX = (int) (gridSizeX / params.cellSize());
 
         int gridSizeY = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
                 new LatLon(minLat, maxLon).getDistance(new LatLon(maxLat, maxLon)));
 
-        gridSizeY = (int) (gridSizeY / params.getCellSize());
+        gridSizeY = (int) (gridSizeY / params.cellSize());
 
         double lonStep = (maxLon - minLon) / gridSizeX;
         double latStep = (maxLat - minLat) / gridSizeY;
@@ -96,8 +74,8 @@ public class GriddingService {
             points.computeIfAbsent(key, (k -> new ArrayList<>())).add(point.value());
         }
 
-        var gridBDx = gridSizeX / (gridSizeX * params.getCellSize() / params.getBlankingDistance());
-        var gridBDy = gridSizeY / (gridSizeY * params.getCellSize() / params.getBlankingDistance());
+        var gridBDx = gridSizeX / (gridSizeX * params.cellSize() / params.blankingDistance());
+        var gridBDy = gridSizeY / (gridSizeY * params.cellSize() / params.blankingDistance());
         var visiblePoints = new boolean[gridSizeX][gridSizeY];
 
         for (Map.Entry<String, List<Double>> entry : points.entrySet()) {
@@ -192,34 +170,17 @@ public class GriddingService {
             }
         }
 
-        // Store the gridding result for the affected files
-        GriddingResult result = new GriddingResult(
-                gridData, // Deep cloning is done in the constructor
+        return new GriddingResult(
+                seriesName,
+                gridData,
                 applyLowPassFilter(gridData),
                 minLatLon,
-                maxLatLon,
-                params.getCellSize(),
-                params.getBlankingDistance(),
-                (float) range.lowValue(),
-                (float) range.highValue(),
-                seriesName,
-                params.isAnalyticSignalEnabled(),
-                params.isHillShadingEnabled(),
-                params.isSmoothingEnabled(),
-                params.getHillShadingAzimuth(),
-                params.getHillShadingAltitude(),
-                params.getHillShadingIntensity()
+                maxLatLon
         );
-
-        HashMap<File, GriddingResult> results = new HashMap<>();
-        for (CsvFile targetFile : targetFiles) {
-            results.put(targetFile.getFile(), result);
-        }
-        return results;
     }
 
-    private List<DataPoint> getDataPoints(CsvFile csvFile, String seriesName) {
-        return csvFile.getGeoData().stream()
+    private List<DataPoint> getDataPoints(SgyFile file, String seriesName) {
+        return file.getGeoData().stream()
                 .filter(gd -> gd.getNumber(seriesName) != null)
                 .map(gd -> new DataPoint(gd.getLatitude(), gd.getLongitude(), gd.getNumber(seriesName).doubleValue()))
                 .toList();

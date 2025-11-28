@@ -1,12 +1,7 @@
-package com.ugcs.geohammer.format.gpr;
+package com.ugcs.geohammer.format.meta;
 
-import com.ugcs.geohammer.format.GeoData;
-import com.ugcs.geohammer.format.gpr.meta.TraceLine;
-import com.ugcs.geohammer.format.gpr.meta.TraceMark;
-import com.ugcs.geohammer.format.gpr.meta.TraceMeta;
-import com.ugcs.geohammer.model.LatLon;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LineSchema;
-import com.ugcs.geohammer.format.TraceGeoData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.GsonConfig;
@@ -14,7 +9,6 @@ import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.Traces;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +38,17 @@ public class MetaFile {
     // mark position indices in a local values list
     private Set<Integer> marks = new HashSet<>();
 
+    private final ColumnSchema valueSchema;
+
     private List<TraceGeoData> values = new ArrayList<>();
+
+    public MetaFile() {
+        this(TraceGeoData.SCHEMA);
+    }
+
+    public MetaFile(ColumnSchema valueSchema) {
+        this.valueSchema = valueSchema;
+    }
 
     public @Nullable IndexRange getSampleRange() {
         return sampleRange;
@@ -52,6 +56,18 @@ public class MetaFile {
 
     public void setSampleRange(@Nullable IndexRange sampleRange) {
         this.sampleRange = sampleRange;
+    }
+
+    public @Nullable Double getContrast() { return contrast; }
+
+    public void setContrast(Double contrast) { this.contrast = contrast; }
+
+    public @Nullable Range getAmplitudeRange() {
+        return amplitudeRange;
+    }
+
+    public void setAmplitudeRange(Range amplitudeRange) {
+        this.amplitudeRange = amplitudeRange;
     }
 
     public Set<Integer> getMarks() {
@@ -62,27 +78,15 @@ public class MetaFile {
         this.marks = marks;
     }
 
-	public @Nullable Double getContrast() { return contrast; }
-
-	public void setContrast(Double contrast) { this.contrast = contrast; }
-
-	public @Nullable Range getAmplitudeRange() {
-		return amplitudeRange;
-	}
-
-	public void setAmplitudeRange(Range amplitudeRange) {
-		this.amplitudeRange = amplitudeRange;
-	}
-
-	public List<? extends GeoData> getValues() {
+	public List<TraceGeoData> getValues() {
         return values;
     }
 
-    public int numTraces() {
+    public int numValues() {
         return values.size();
     }
 
-    // global trace index for ith value
+    // global trace index of the ith value
     public int getTraceIndex(int index) {
         TraceGeoData value = values.get(index);
         return value.getTraceIndex();
@@ -95,38 +99,6 @@ public class MetaFile {
         String metaFileName = Strings.nullToEmpty(sourceBase) + META_FILE_EXTENSION;
 
         return new File(source.getParentFile(), metaFileName).toPath();
-    }
-
-    public void initTraces(List<Trace> traces) {
-        initLocations(traces);
-        initSampleRanges(traces);
-    }
-
-    private void initLocations(List<Trace> traces) {
-        if (traces == null) {
-            return;
-        }
-
-        for (TraceGeoData value : values) {
-            int traceIndex = value.getTraceIndex();
-            Trace trace = traces.get(traceIndex);
-
-            LatLon latLon = trace.getLatLon();
-            if (latLon != null) {
-                value.setLatLon(trace.getLatLon());
-            }
-        }
-    }
-
-    private void initSampleRanges(List<Trace> traces) {
-        for (Trace trace : Nulls.toEmpty(traces)) {
-            trace.setSampleRange(sampleRange);
-        }
-    }
-
-    public void init(List<Trace> traces) {
-        TraceMeta meta = getMetaFromTraces(traces);
-        setMetaToState(meta);
     }
 
     public void load(Path path) throws IOException {
@@ -143,44 +115,7 @@ public class MetaFile {
         writeMeta(meta, path);
     }
 
-    private TraceMeta getMetaFromTraces(List<Trace> traces) {
-        traces = Nulls.toEmpty(traces);
-
-        TraceMeta meta = new TraceMeta();
-
-        // sample range
-        IndexRange maxSampleRange = Traces.maxSampleRange(traces);
-        meta.setSampleRange(maxSampleRange);
-
-        // lines
-        TraceLine line = new TraceLine();
-        line.setLineIndex(0);
-        line.setFrom(0);
-        line.setTo(traces.size());
-        meta.setLines(List.of(line));
-
-        // marks
-        List<TraceMark> traceMarks = new ArrayList<>();
-        for (int i = 0; i < traces.size(); i++) {
-            Trace trace = traces.get(i);
-            if (trace.isMarked()) {
-                TraceMark traceMark = new TraceMark();
-                traceMark.setTraceIndex(i);
-                traceMarks.add(traceMark);
-            }
-        }
-        meta.setMarks(traceMarks);
-
-        return meta;
-    }
-
-    public TraceMeta getMetaFromState() {
-        TraceMeta meta = new TraceMeta();
-
-        // sample range
-        meta.setSampleRange(sampleRange);
-
-        // lines
+    private static List<TraceLine> buildLinesFor(List<TraceGeoData> values) {
         var lineRanges = LineSchema.getLineRanges(values);
         List<TraceLine> lines = new ArrayList<>();
         for (Map.Entry<Integer, IndexRange> e : lineRanges.entrySet()) {
@@ -198,6 +133,18 @@ public class MetaFile {
 
             lines.add(line);
         }
+        return lines;
+    }
+
+    public TraceMeta getMetaFromState() {
+        TraceMeta meta = new TraceMeta();
+
+        meta.setSampleRange(sampleRange);
+        meta.setContrast(contrast);
+        meta.setAmplitudeRange(amplitudeRange);
+
+        // lines
+        List<TraceLine> lines = buildLinesFor(values);
         meta.setLines(lines);
 
         // marks
@@ -215,17 +162,15 @@ public class MetaFile {
         }
         meta.setMarks(traceMarks);
 
-		meta.setContrast(contrast);
-		meta.setAmplitudeRange(amplitudeRange);
-
         return meta;
     }
 
     public void setMetaToState(TraceMeta meta) {
         Check.notNull(meta);
 
-        // sample range
-        this.sampleRange = meta.getSampleRange();
+        sampleRange = meta.getSampleRange();
+        contrast = meta.getContrast();
+        amplitudeRange = meta.getAmplitudeRange();
 
         // lines
         List<TraceLine> lines = Nulls.toEmpty(meta.getLines());
@@ -238,24 +183,22 @@ public class MetaFile {
         }
 
         int lineIndex = 0;
-        List<TraceGeoData> values = new ArrayList<>(numValues);
+        values = new ArrayList<>(numValues);
         for (TraceLine line : lines) {
             for (int i = line.getFrom(); i < line.getTo(); i++) {
-                TraceGeoData value = new TraceGeoData(i);
+                TraceGeoData value = new TraceGeoData(valueSchema, i);
                 value.setLine(lineIndex);
                 values.add(value);
             }
             lineIndex++;
         }
-        this.values = values;
 
         // marks
         Set<Integer> traceMarks = new HashSet<>();
         for (TraceMark traceMark : Nulls.toEmpty(meta.getMarks())) {
             traceMarks.add(traceMark.getTraceIndex());
         }
-
-        Set<Integer> marks = new HashSet<>();
+        marks = new HashSet<>();
         for (int i = 0; i < values.size(); i++) {
             TraceGeoData value = values.get(i);
             int traceIndex = value.getTraceIndex();
@@ -263,9 +206,6 @@ public class MetaFile {
                 marks.add(i);
             }
         }
-        this.marks = marks;
-		this.contrast = meta.getContrast();
-		this.amplitudeRange = meta.getAmplitudeRange();
     }
 
     private TraceMeta readMeta(Path path) throws IOException {

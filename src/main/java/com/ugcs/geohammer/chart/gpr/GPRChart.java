@@ -1,11 +1,14 @@
 package com.ugcs.geohammer.chart.gpr;
 
+import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.ProfileView;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.gpr.axis.HorizontalRulerController;
 import com.ugcs.geohammer.chart.gpr.axis.HorizontalRulerDrawer;
 import com.ugcs.geohammer.chart.gpr.axis.LeftRulerController;
 import com.ugcs.geohammer.chart.gpr.axis.VerticalRulerDrawer;
-import com.ugcs.geohammer.format.gpr.MetaFile;
+import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.TraceKey;
@@ -42,6 +45,7 @@ import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.checkerframework.checker.units.qual.min;
 import org.jfree.fx.FXGraphics2D;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -161,6 +165,30 @@ public class GPRChart extends Chart {
     }
 
     @Override
+    public void init() {
+        vbox.setPrefHeight(Math.max(Chart.MIN_HEIGHT, vbox.getScene().getHeight()));
+        vbox.setMinHeight(Math.max(Chart.MIN_HEIGHT, vbox.getScene().getHeight() / 2));
+
+        ProfileView profileView = AppContext.getInstance(ProfileView.class);
+        setSize(
+                (int)(profileView.getCenter().getWidth() - 21),
+                (int)(Math.max(400, vbox.getHeight()) - 4));
+        fitFull();
+    }
+
+    @Override
+    public void repaint() {
+        draw(width, height);
+    }
+
+    public void repaintEvent() {
+        if (!model.isLoading() && getField().getGprTracesCount() > 0) {
+            //controller.render();
+            Platform.runLater(this::repaint);
+        }
+    }
+
+    @Override
     public void reload() {
         profileField.updateMaxHeightInSamples();
     }
@@ -218,14 +246,11 @@ public class GPRChart extends Chart {
 		MetaFile meta = traceFile.getMetaFile();
 		Range savedRange = meta != null ? meta.getAmplitudeRange() : null;
 		if (savedRange != null) {
-			Number min = savedRange.getMin();
-			Number max = savedRange.getMax();
-			if (min == null || max == null) {
-				return;
-			}
+			double min = savedRange.getMin();
+            double max = savedRange.getMax();
 			var profileSettings = profileField.getProfileSettings();
-			profileSettings.hpage = max.intValue() - min.intValue();
-			profileSettings.setLayer(min.intValue());
+			profileSettings.hpage = (int)max - (int)min;
+			profileSettings.setLayer((int)min);
 		}
 	}
 
@@ -502,6 +527,11 @@ public class GPRChart extends Chart {
         return horizontalRulerController;
     }
 
+    @Override
+    public void setTraceUnit(TraceUnit traceUnit) {
+        horizontalRulerController.setUnit(traceUnit);
+    }
+
     private void drawAxis(Graphics2D g2) {
         var field = getField();
 
@@ -610,17 +640,6 @@ public class GPRChart extends Chart {
 
     public void setCursor(Cursor cursor) {
         canvas.setCursor(cursor);
-    }
-
-    public void repaint() {
-        draw(width, height);
-    }
-
-    public void repaintEvent() {
-        if (!model.isLoading() && getField().getGprTracesCount() > 0) {
-            //controller.render();
-            Platform.runLater(this::repaint);
-        }
     }
 
     private Point2D getLocalCoords(MouseEvent event) {

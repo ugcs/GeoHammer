@@ -10,8 +10,6 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 @Service
@@ -70,23 +68,6 @@ public class PrefSettings {
         return properties.getProperty(propertyKey);
     }
 
-    public Map<String, Map<String, String>> getAllSettings() {
-        Map<String, Map<String, String>> groupedSettings = new HashMap<>();
-        for (String key : properties.stringPropertyNames()) {
-            if (key.startsWith(prefix)) {
-                String[] parts = key.substring(prefix.length()).split("\\.", 2);
-                if (parts.length == 2) {
-                    String group = parts[0];
-                    String setting = parts[1];
-                    groupedSettings
-                            .computeIfAbsent(group, k -> new HashMap<>())
-                            .put(setting, properties.getProperty(key));
-                }
-            }
-        }
-        return groupedSettings;
-    }
-
     private void setSetting(String group, String name, @Nullable Object value) {
         String propertyKey = getPropertyKey(group, name);
         String propertyValue = value != null
@@ -102,13 +83,6 @@ public class PrefSettings {
 
     public void saveSetting(String group, String name, @Nullable Object value) {
         setSetting(group, name, value);
-        saveProperties(properties, path);
-    }
-
-    public void saveSetting(String group, Map<String, ?> values) {
-        for (Map.Entry<String, ?> entry : values.entrySet()) {
-            setSetting(group, entry.getKey(), entry.getValue());
-        }
         saveProperties(properties, path);
     }
 }

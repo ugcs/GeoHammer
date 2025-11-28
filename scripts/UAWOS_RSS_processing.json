@@ -1,0 +1,7 @@
+{
+  "filename": "UAWOS_RSS_processing.py",
+  "display_name": "RSS data processing",
+  "parameters": [
+  ],
+  "templates": ["sgy"]
+}

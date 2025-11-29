@@ -178,7 +178,7 @@ public class FileTemplates implements InitializingBean {
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            log.info("Template file modified: " + templateName);
+                            log.debug("Template file modified: " + templateName);
                             status.showMessage("Template updated: " + templateName, "Templates");
                         } else {
                             continue;
@@ -203,7 +203,10 @@ public class FileTemplates implements InitializingBean {
     }
 
     public List<Template> getTemplates() {
-        return templates;
+        if (templates == null) {
+			return null;
+		}
+		return templates;
     }
 
     public Template getTemplate(String templateName) {

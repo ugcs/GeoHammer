@@ -19,7 +19,7 @@ public class PositionSourceFileIdentifier {
 		this.model = model;
 	}
 
-	boolean isPositionFile(File file) {
+	public boolean isPositionFile(File file) {
 		FileManager fileManager = model.getFileManager();
 		List<Template> templates = fileManager.getFileTemplates().getTemplates();
 		Template template = fileManager.getFileTemplates().findTemplate(templates, file);

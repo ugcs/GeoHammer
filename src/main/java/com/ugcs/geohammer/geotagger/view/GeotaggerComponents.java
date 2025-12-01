@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.geotagger;
+package com.ugcs.geohammer.geotagger.view;
 
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import javafx.geometry.Pos;
@@ -15,11 +15,10 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
-class GeotaggerViewHelper {
-
+public class GeotaggerComponents {
 	private static final String SEPARATOR_STYLE = "-fx-background-color: #cccccc;";
 
-	 protected static Node createDragAndDropPlaceholder(String text) {
+	public static Node createDragAndDropPlaceholder(String text) {
 		VBox box = new VBox(5);
 		box.setAlignment(Pos.CENTER);
 		ImageView uploadImage = ResourceImageHolder.getImageView("upload_file.png");
@@ -42,26 +41,26 @@ class GeotaggerViewHelper {
 		imageView.setEffect(blend);
 	}
 
-	protected static Label headerLabel(String text, int width) {
+	public static Label headerLabel(String text, int width) {
 		Label label = new Label(text);
 		label.setPrefWidth(width);
 		label.setMinWidth(width);
 		return label;
 	}
 
-	protected static Label fixedLabel(String text, int width) {
+	public static Label fixedLabel(String text, int width) {
 		Label label = new Label(text == null ? "-" : text);
 		label.setPrefWidth(width);
 		return label;
 	}
 
-	protected static Region spacer() {
+	public static Region spacer() {
 		Region region = new Region();
 		HBox.setHgrow(region, Priority.ALWAYS);
 		return region;
 	}
 
-	protected static Region createVerticalSeparator() {
+	public static Region createVerticalSeparator() {
 		Region separator = new Region();
 		separator.setPrefWidth(1);
 		separator.setStyle(SEPARATOR_STYLE);

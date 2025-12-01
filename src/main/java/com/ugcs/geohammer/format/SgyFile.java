@@ -3,9 +3,6 @@ package com.ugcs.geohammer.format;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -117,24 +114,6 @@ public abstract class SgyFile {
 
 	public void setAuxElements(List<BaseObject> auxElements) {
 		this.auxElements = auxElements;
-	}
-
-	@Nullable
-	public Instant getStartTime() {
-		LocalDateTime dateTime = getGeoData().stream().map(GeoData::getDateTime)
-				.filter(Objects::nonNull)
-				.min(LocalDateTime::compareTo)
-				.orElse(null);
-		return dateTime != null ? dateTime.toInstant(ZoneOffset.UTC) : null;
-	}
-
-	@Nullable
-	public Instant getEndTime() {
-		LocalDateTime dateTime = getGeoData().stream().map(GeoData::getDateTime)
-				.filter(Objects::nonNull)
-				.max(LocalDateTime::compareTo)
-				.orElse(null);
-		return dateTime != null ? dateTime.toInstant(ZoneOffset.UTC) : null;
 	}
 
 	@Override

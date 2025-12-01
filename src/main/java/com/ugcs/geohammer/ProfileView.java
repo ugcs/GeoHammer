@@ -14,7 +14,7 @@ import com.ugcs.geohammer.chart.gpr.ProfileField;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
-import com.ugcs.geohammer.geotagger.GeotaggerView;
+import com.ugcs.geohammer.geotagger.view.GeotaggerView;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
@@ -23,25 +23,24 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.stage.Stage;
-import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
-
-import javafx.beans.value.ChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 @Component
 public class ProfileView implements InitializingBean {

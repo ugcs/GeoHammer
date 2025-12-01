@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.geotagger;
+package com.ugcs.geohammer.geotagger.domain;
 
 public enum CoverageStatus {
 	NotCovered("Not Covered"),

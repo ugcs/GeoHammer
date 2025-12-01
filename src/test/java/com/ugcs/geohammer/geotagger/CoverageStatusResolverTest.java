@@ -7,6 +7,7 @@ import java.util.List;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.geotagger.domain.CoverageStatus;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.FileManager;
 import com.ugcs.geohammer.model.Model;
@@ -27,109 +28,109 @@ class CoverageStatusResolverTest {
 	}
 
 	@Test
-	void resolve_shouldReturnNotCovered_whenDataFileIsNull() {
+	void determineCoverageStatus_shouldReturnNotCovered_whenDataFileIsNull() {
 		List<SgyFile> positionFiles = List.of(createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00"));
 
-		CoverageStatus result = CoverageStatusResolver.resolve(positionFiles, null);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(positionFiles, null);
 
 		assertEquals(CoverageStatus.NotCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnNotCovered_whenPositionFilesIsNull() {
+	void determineCoverageStatus_shouldReturnNotCovered_whenPositionFilesIsNull() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(null, dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(null, dataFile);
 
 		assertEquals(CoverageStatus.NotCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnNotCovered_whenPositionFilesIsEmpty() {
+	void determineCoverageStatus_shouldReturnNotCovered_whenPositionFilesIsEmpty() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(Collections.emptyList(), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(Collections.emptyList(), dataFile);
 
 		assertEquals(CoverageStatus.NotCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnNull_whenDataFileHasNoStartTime() {
+	void determineCoverageStatus_shouldReturnNull_whenDataFileHasNoStartTime() {
 		SgyFile dataFile = createSgyFileWithNoDateTime();
 		List<SgyFile> positionFiles = List.of(createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00"));
 
-		CoverageStatus result = CoverageStatusResolver.resolve(positionFiles, dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(positionFiles, dataFile);
 
 		assertNull(result);
 	}
 
 	@Test
-	void resolve_shouldReturnFullyCovered_whenPositionFileCoversDataFileCompletely() {
+	void determineCoverageStatus_shouldReturnFullyCovered_whenPositionFileCoversDataFileCompletely() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T09:00:00", "2024-01-01T12:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(List.of(positionFile), dataFile);
 
 		assertEquals(CoverageStatus.FullyCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnFullyCovered_whenDataFileAndPositionFileHaveSameTimeRange() {
+	void determineCoverageStatus_shouldReturnFullyCovered_whenDataFileAndPositionFileHaveSameTimeRange() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(List.of(positionFile), dataFile);
 
 		assertEquals(CoverageStatus.FullyCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnPartiallyCovered_whenPositionFileCoversOnlyStart() {
+	void determineCoverageStatus_shouldReturnPartiallyCovered_whenPositionFileCoversOnlyStart() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T12:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T09:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(List.of(positionFile), dataFile);
 
 		assertEquals(CoverageStatus.PartiallyCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnPartiallyCovered_whenPositionFileCoversOnlyEnd() {
+	void determineCoverageStatus_shouldReturnPartiallyCovered_whenPositionFileCoversOnlyEnd() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T12:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T11:00:00", "2024-01-01T13:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(List.of(positionFile), dataFile);
 
 		assertEquals(CoverageStatus.PartiallyCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnPartiallyCovered_whenPositionFileIsWithinDataFile() {
+	void determineCoverageStatus_shouldReturnPartiallyCovered_whenPositionFileIsWithinDataFile() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T14:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T11:00:00", "2024-01-01T12:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(List.of(positionFile), dataFile);
 
 		assertEquals(CoverageStatus.PartiallyCovered, result);
 	}
 
 	@Test
-	void resolve_shouldReturnNotCovered_whenPositionFileDoesNotOverlap() {
+	void determineCoverageStatus_shouldReturnNotCovered_whenPositionFileDoesNotOverlap() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T12:00:00", "2024-01-01T13:00:00");
 
-		CoverageStatus result = CoverageStatusResolver.resolve(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(List.of(positionFile), dataFile);
 
 		assertEquals(CoverageStatus.NotCovered, result);
 	}
 
 	@Test
-	void resolve_shouldIgnorePositionFilesWithNoDateTime() {
+	void determineCoverageStatus_shouldIgnorePositionFilesWithNoDateTime() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFileValid = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFileInvalid = createSgyFileWithNoDateTime();
 
-		CoverageStatus result = CoverageStatusResolver.resolve(List.of(positionFileValid, positionFileInvalid), dataFile);
+		CoverageStatus result = CoverageStatusResolver.determineCoverageStatus(List.of(positionFileValid, positionFileInvalid), dataFile);
 
 		assertEquals(CoverageStatus.FullyCovered, result);
 	}

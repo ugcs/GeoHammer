@@ -2,7 +2,7 @@ package com.ugcs.geohammer.model.event;
 
 public class WhatChanged extends BaseEvent {
 
-	private Change change;
+	private final Change change;
 
 	@Override
 	public String toString() {
@@ -54,10 +54,6 @@ public class WhatChanged extends BaseEvent {
 		return change == Change.traceValues;
 	}
 
-	public boolean isCsvDataFiltered() {
-		return change == Change.csvDataFiltered;
-	}
-
 	public boolean isCsvDataZoom() {
 		return change == Change.csvDataZoom;
 	}
@@ -79,7 +75,6 @@ public class WhatChanged extends BaseEvent {
 		adjusting,
 		updateButtons,
 		fileSelected,
-		csvDataFiltered,
 		csvDataZoom,
 		traceSelected;
 	}

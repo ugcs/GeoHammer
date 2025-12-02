@@ -43,6 +43,8 @@ public class OptionPane extends VBox {
         seriesControl = new StackPane(seriesSelectorView);
         seriesControl.setPadding(new Insets(10, 16, 10, 16));
         seriesControl.setStyle("-fx-background-color: #666666;");
+        seriesControl.setVisible(false);
+        seriesControl.setManaged(false);
 
         toolContainer = new VBox(2 * Tools.DEFAULT_SPACING,
                 new ToolToggleBox(statisticsTool, "Statistics"),
@@ -65,6 +67,13 @@ public class OptionPane extends VBox {
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
         SgyFile file = event.getFile();
+
+        // series control
+        boolean seriesControlVisible = file != null;
+        seriesControl.setVisible(seriesControlVisible);
+        seriesControl.setManaged(seriesControlVisible);
+
+        // tools
         for (Node node : toolContainer.getChildren()) {
             if (node instanceof ToolToggleBox toggleBox) {
                 ToolView tool = toggleBox.getTool();

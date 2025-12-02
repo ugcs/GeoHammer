@@ -11,6 +11,7 @@ import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
+import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.view.MessageBoxHelper;
@@ -527,7 +528,7 @@ public class SensorLineChart extends Chart {
             }
         }
         if (model.isChartSelected(this)) {
-            selectFile();
+            model.publishEvent(new SeriesSelectedEvent(this, file, seriesName));
         }
     }
 
@@ -1041,9 +1042,9 @@ public class SensorLineChart extends Chart {
             }
             // keep display range of the source series
             syncDisplayRange(filteredSeriesName);
+            filteredChart.updateData();
             model.publishEvent(new SeriesUpdatedEvent(this, file,
                     filteredSeriesName, true, true));
-            filteredChart.updateData();
         });
     }
 

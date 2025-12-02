@@ -20,20 +20,24 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
-
 public class MainGeoHammer extends Application {
 
 	private static final String TITLE_VERSION = "GeoHammer v.";
 
+    private ApplicationContext context;
+
 	private Model model;
-	//private RootControls rootControls;
-	private ApplicationContext context;
+
+    private BuildInfo appBuildInfo;
 
 	private FileTemplates fileTemplates;
 
 	private Loader loader;
+
 	private SceneContent sceneContent;
+
 	private EventSender eventSender;
+
 	private EventsFactory eventsFactory;
 
 	public static void main(String[] args) {
@@ -43,13 +47,10 @@ public class MainGeoHammer extends Application {
 	@Override
     public void init() {
 		//create all classes
-		//context = new ClassPathXmlApplicationContext("spring.xml");
 		context = new AnnotationConfigApplicationContext("com.ugcs");
 		
 		model = context.getBean(Model.class);
 		  
-		//rootControls = context.getBean(RootControls.class);
-
 		appBuildInfo = context.getBean(BuildInfo.class);
 
 		fileTemplates = context.getBean(FileTemplates.class);
@@ -93,6 +94,11 @@ public class MainGeoHammer extends Application {
                 return;
             }
 
+            // close context
+            if (context instanceof AnnotationConfigApplicationContext appContext) {
+                appContext.close();
+            }
+
             Platform.exit();
             System.exit(0);
         });
@@ -111,6 +117,4 @@ public class MainGeoHammer extends Application {
 
 		eventSender.send(eventsFactory.createAppStartedEvent(appBuildInfo.getBuildVersion()));
 	}
-
-	private BuildInfo appBuildInfo;
 }

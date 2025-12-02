@@ -53,6 +53,10 @@ public class GriddingService {
 
         gridSizeY = (int) (gridSizeY / params.cellSize());
 
+        if (gridSizeX == 0 || gridSizeY == 0) {
+            return null;
+        }
+
         double lonStep = (maxLon - minLon) / gridSizeX;
         double latStep = (maxLat - minLat) / gridSizeY;
 
@@ -175,7 +179,8 @@ public class GriddingService {
                 gridData,
                 applyLowPassFilter(gridData),
                 minLatLon,
-                maxLatLon
+                maxLatLon,
+                params
         );
     }
 

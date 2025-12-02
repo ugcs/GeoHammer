@@ -260,7 +260,7 @@ public class Saver implements ToolProducer, InitializingBean {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open file");
 
-		var lastOpenFolderPath = prefSettings.getSetting(
+		var lastOpenFolderPath = prefSettings.getString(
 				SAVER_SETTINGS_GROUP_KEY,
 				LAST_OPEN_FOLDER_SETTING_KEY);
 
@@ -277,7 +277,7 @@ public class Saver implements ToolProducer, InitializingBean {
 				.showOpenMultipleDialog(AppContext.stage));
 		if (!selectedFiles.isEmpty()) {
 			lastOpenFolderPath = selectedFiles.getFirst().getParentFile().getAbsolutePath();
-			prefSettings.saveSetting(
+			prefSettings.setValue(
 					SAVER_SETTINGS_GROUP_KEY,
 					LAST_OPEN_FOLDER_SETTING_KEY,
 					lastOpenFolderPath);

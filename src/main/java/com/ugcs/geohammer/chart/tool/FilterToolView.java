@@ -99,7 +99,13 @@ public abstract class FilterToolView extends ToolView {
     }
 
     protected <T> Future<T> submitAction(Callable<T> action) {
-        disableAndShowProgress();
+        return submitAction(action, true);
+    }
+
+    protected <T> Future<T> submitAction(Callable<T> action, boolean showProgress) {
+        if (showProgress) {
+            disableAndShowProgress();
+        }
         return executor.submit(() -> {
             savePreferences();
             try {
@@ -108,7 +114,9 @@ public abstract class FilterToolView extends ToolView {
                 log.error("Error", e);
                 throw e;
             } finally {
-                Platform.runLater(this::enableAndHideProgress);
+                if (showProgress) {
+                    Platform.runLater(this::enableAndHideProgress);
+                }
             }
         });
     }

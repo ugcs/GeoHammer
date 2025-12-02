@@ -13,7 +13,6 @@ import com.ugcs.geohammer.service.quality.LineDistanceCheck;
 import com.ugcs.geohammer.service.quality.QualityCheck;
 import com.ugcs.geohammer.service.quality.QualityControl;
 import com.ugcs.geohammer.service.quality.QualityIssue;
-import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
@@ -130,14 +129,14 @@ public class QualityControlTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            Nulls.ifPresent(preferences.getSetting("quality_max_line_distance", templateName),
-                    maxLineDistanceInput::setText);
-            Nulls.ifPresent(preferences.getSetting("quality_line_distance_tolerance", templateName),
-                    lineDistanceToleranceInput::setText);
-            Nulls.ifPresent(preferences.getSetting("quality_max_altitude", templateName),
-                    maxAltitudeInput::setText);
-            Nulls.ifPresent(preferences.getSetting("quality_altitude_tolerance", templateName),
-                    altitudeToleranceInput::setText);
+            maxLineDistanceInput.setText(preferences.getStringOrDefault(
+                    "quality_max_line_distance", templateName, Strings.empty()));
+            lineDistanceToleranceInput.setText(preferences.getStringOrDefault(
+                    "quality_line_distance_tolerance", templateName, Strings.empty()));
+            maxAltitudeInput.setText(preferences.getStringOrDefault(
+                    "quality_max_altitude", templateName, Strings.empty()));
+            altitudeToleranceInput.setText(preferences.getStringOrDefault(
+                    "quality_altitude_tolerance", templateName, Strings.empty()));
         }
     }
 
@@ -145,13 +144,13 @@ public class QualityControlTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.saveSetting("quality_max_line_distance", templateName,
+            preferences.setValue("quality_max_line_distance", templateName,
                     maxLineDistanceInput.getText());
-            preferences.saveSetting("quality_line_distance_tolerance", templateName,
+            preferences.setValue("quality_line_distance_tolerance", templateName,
                     lineDistanceToleranceInput.getText());
-            preferences.saveSetting("quality_max_altitude", templateName,
+            preferences.setValue("quality_max_altitude", templateName,
                     maxAltitudeInput.getText());
-            preferences.saveSetting("quality_altitude_tolerance", templateName,
+            preferences.setValue("quality_altitude_tolerance", templateName,
                     altitudeToleranceInput.getText());
         }
     }

@@ -266,7 +266,7 @@ public class Model implements InitializingBean {
                 .toList();
     }
 
-    public String getSelectedSeriesName(@Nullable SgyFile file) {
+    public @Nullable String getSelectedSeriesName(@Nullable SgyFile file) {
         if (file == null) {
             return null;
         }

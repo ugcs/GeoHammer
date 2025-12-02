@@ -7,6 +7,7 @@ public record GriddingResult(
         float[][] gridData,
         float[][] smoothedGridData,
         LatLon minLatLon,
-        LatLon maxLatLon
+        LatLon maxLatLon,
+        GriddingParams params
 ) {
 }

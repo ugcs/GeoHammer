@@ -15,11 +15,7 @@ public abstract class ToolView extends StackPane {
     }
 
     public void selectFile(SgyFile file) {
-        selectFile(file, true);
-    }
-
-    public void selectFile(SgyFile file, boolean skipSelfUpdates) {
-        if (skipSelfUpdates && Objects.equals(selectedFile, file)) {
+        if (Objects.equals(selectedFile, file)) {
             return;
         }
         selectedFile = file;

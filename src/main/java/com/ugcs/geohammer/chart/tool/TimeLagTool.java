@@ -6,8 +6,6 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
-import com.ugcs.geohammer.model.event.WhatChanged;
-import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import javafx.application.Platform;
@@ -72,8 +70,8 @@ public class TimeLagTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            Nulls.ifPresent(preferences.getSetting("timelag", templateName),
-                    shiftInput::setText);
+            shiftInput.setText(preferences.getStringOrDefault(
+                    "timelag", templateName, Strings.empty()));
         }
     }
 
@@ -81,7 +79,7 @@ public class TimeLagTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.saveSetting("timelag", templateName, shiftInput.getText());
+            preferences.setValue("timelag", templateName, shiftInput.getText());
         }
     }
 
@@ -94,7 +92,6 @@ public class TimeLagTool extends FilterToolView {
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
             submitAction(() -> {
                 sensorChart.applyTimeLag(sensorChart.getSelectedSeriesName(), shift);
-                model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
                 return null;
             });
         }
@@ -112,7 +109,6 @@ public class TimeLagTool extends FilterToolView {
                 model.getSensorCharts().stream()
                         .filter(c -> Templates.equals(c.getFile(), selectedFile))
                         .forEach(c -> c.applyTimeLag(seriesName, shift));
-                model.publishEvent(new WhatChanged(this, WhatChanged.Change.csvDataFiltered));
                 return null;
             });
         }

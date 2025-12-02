@@ -1,7 +1,6 @@
 package com.ugcs.geohammer.model.event;
 
 import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.util.Check;
 
 public class SeriesUpdatedEvent extends BaseEvent {

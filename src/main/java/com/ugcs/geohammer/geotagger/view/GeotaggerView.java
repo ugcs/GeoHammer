@@ -2,7 +2,6 @@
 package com.ugcs.geohammer.geotagger.view;
 
 import java.io.File;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -11,6 +10,7 @@ import java.util.stream.Stream;
 
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.geotagger.Geotagger;
 import com.ugcs.geohammer.geotagger.PositionSourceFileIdentifier;
 import com.ugcs.geohammer.geotagger.SgyFileInfoExtractor;
 import com.ugcs.geohammer.geotagger.view.section.DataFileSectionStrategy;
@@ -43,6 +43,7 @@ public class GeotaggerView {
 	private final Scene scene;
 
 	public GeotaggerView(Model model, StatusBar statusBar,
+						 Geotagger geotagger,
 						 PositionSourceFileIdentifier positionSourceFileIdentifier,
 						 ProcessingController processingController,
 						 SgyFileInfoExtractor fileInfoExtractor) {
@@ -54,6 +55,8 @@ public class GeotaggerView {
 		root.setPadding(new Insets(12));
 
 		positionPanel = new FileSectionPanel(
+				model,
+				geotagger,
 				"Position Files",
 				new PositionFileSectionStrategy(
 						this::getOwnerStage,
@@ -64,6 +67,8 @@ public class GeotaggerView {
 		);
 
 		dataPanel = new FileSectionPanel(
+				model,
+				geotagger,
 				"Data Files",
 				new DataFileSectionStrategy(this::getOwnerStage, fileInfoExtractor, positionPanel),
 				statusBar

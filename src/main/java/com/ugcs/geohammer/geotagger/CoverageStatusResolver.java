@@ -27,7 +27,7 @@ public class CoverageStatusResolver {
 		TimeRange dataFileTimeRange = toTimeRange(dataFile);
 
 		if (dataFileTimeRange == null) {
-			throw new IllegalArgumentException("Data file has no valid time range");
+			return CoverageStatus.NotCovered;
 		}
 
 		Set<SgyFile> coverageFiles = positionFiles.stream()

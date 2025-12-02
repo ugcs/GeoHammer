@@ -10,9 +10,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import org.springframework.stereotype.Component;
 
-@Component
 public class ProcessView extends HBox {
 
 	private final ProgressBar progressBar;

@@ -21,23 +21,19 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
-@Component
+
 public class FileSectionPanel extends VBox {
 	private final ListView<SgyFile> listView;
 	private final FileSectionStrategy strategy;
 	private final Label headerLabel;
 	private final StatusBar statusBar;
+	private final Geotagger geotagger;
+	private final Model model;
 
-	@Autowired
-	private Geotagger geotagger;
-
-	@Autowired
-	private Model model;
-
-	public FileSectionPanel(String title, FileSectionStrategy strategy, StatusBar statusBar) {
+	public FileSectionPanel(Model model, Geotagger geotagger, String title, FileSectionStrategy strategy, StatusBar statusBar) {
+		this.model = model;
+		this.geotagger = geotagger;
 		this.strategy = strategy;
 		this.headerLabel = new Label(title);
 		this.listView = createListView();

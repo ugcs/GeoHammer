@@ -96,10 +96,6 @@ public class Geotagger {
 			Position right = sortedPositions.get(rightIdx);
 			dataPoint.interpolateCoordinatesFrom(left, right, targetTime);
 		}
-
-		if (leftIdx < 0 || rightIdx < 0) {
-			throw new IllegalStateException("Cannot interpolate position for time: " + targetTime);
-		}
 	}
 
 	private int findLeftIndex(List<Position> sortedPositions, long targetTime) {
@@ -110,8 +106,8 @@ public class Geotagger {
 		if (index >= 0) {
 			return index;
 		} else {
-			int insertionPoint = -(index + 1);
-			return insertionPoint - 1;
+		int insertionPoint = -(index + 1);
+		return insertionPoint - 1;
 		}
 	}
 
@@ -123,8 +119,8 @@ public class Geotagger {
 		if (index >= 0) {
 			return index + 1 < sortedPositions.size() ? index + 1 : -1;
 		} else {
-			int insertionPoint = -(index + 1);
-			return insertionPoint < sortedPositions.size() ? insertionPoint : -1;
+		int insertionPoint = -(index + 1);
+		return insertionPoint < sortedPositions.size() ? insertionPoint : -1;
 		}
 	}
 

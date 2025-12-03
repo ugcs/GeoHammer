@@ -99,6 +99,16 @@ public class PrefSettings {
         return value != null ? value : defaultValue;
     }
 
+    public @Nullable Double getDouble(String group, String name) {
+        String value = getString(group, name);
+        return !Strings.isNullOrEmpty(value) ? Double.parseDouble(value) : null;
+    }
+
+    public double getDoubleOrDefault(String group, String name, double defaultValue) {
+        Double value = getDouble(group, name);
+        return value != null ? value : defaultValue;
+    }
+
     public @Nullable Boolean getBoolean(String group, String name) {
         String value = getString(group, name);
         return !Strings.isNullOrEmpty(value) ? Boolean.parseBoolean(value) : null;

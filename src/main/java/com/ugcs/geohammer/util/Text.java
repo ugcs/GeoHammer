@@ -28,11 +28,29 @@ public final class Text {
         return format;
     }
 
+    public static DecimalFormat createNumberFormat(int minFractionDigits, int maxFractionDigits) {
+        DecimalFormat format = new DecimalFormat(
+                "0.#################",
+                DecimalFormatSymbols.getInstance(Locale.US));
+        format.setGroupingUsed(false);
+        format.setMinimumFractionDigits(minFractionDigits);
+        format.setMaximumFractionDigits(maxFractionDigits);
+        return format;
+    }
+
     public static String formatNumber(Number number) {
         if (number == null) {
             return Strings.empty();
         }
         return NUMBER_FORMAT.get().format(number);
+    }
+
+    public static String formatNumber(Number number, int numFractionDigits) {
+        if (number == null) {
+            return Strings.empty();
+        }
+        DecimalFormat format = createNumberFormat(numFractionDigits, numFractionDigits);
+        return format.format(number);
     }
 
     public static String matchPattern(String value, String regex) {

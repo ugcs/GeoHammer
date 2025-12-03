@@ -7,7 +7,6 @@ import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.map.layer.GridLayer;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.Range;
-import com.ugcs.geohammer.model.TemplateSeriesKey;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesUpdatedEvent;
@@ -17,6 +16,7 @@ import com.ugcs.geohammer.service.gridding.GriddingFilter;
 import com.ugcs.geohammer.service.gridding.GriddingParams;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
 import com.ugcs.geohammer.service.gridding.GriddingService;
+import com.ugcs.geohammer.util.Formats;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
@@ -26,10 +26,12 @@ import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -40,9 +42,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,9 +63,6 @@ public class GriddingTool extends FilterToolView {
     private final GriddingService griddingService;
 
     private final TaskService taskService;
-
-    // range preferences are not persisted
-    private final Map<TemplateSeriesKey, Range> rangePreferences = new HashMap<>();
 
     // shows that input events from the filter
     // controls should be ignored;
@@ -130,15 +127,29 @@ public class GriddingTool extends FilterToolView {
         HBox.setHgrow(labelSeparator, Priority.ALWAYS);
         labelAndReset.getChildren().addAll(label, labelSeparator, resetButton);
 
-        Label minLabel = new Label("Min");
-        Label maxLabel = new Label("Max");
+        Label minLabel = new Label("min");
+        minLabel.setStyle("-fx-text-fill: #888888;");
+
+        TextField minInput = new TextField();
+        minInput.setMinWidth(50);
+        minInput.setPrefWidth(80);
+
+        Label maxLabel = new Label("max");
+        maxLabel.setStyle("-fx-text-fill: #888888;");
+
+        TextField maxInput = new TextField();
+        maxInput.setAlignment(Pos.BASELINE_RIGHT);
+        maxInput.setMinWidth(50);
+        maxInput.setPrefWidth(80);
+
         Region minMaxSeparator = new Region();
         HBox.setHgrow(minMaxSeparator, Priority.ALWAYS);
 
         HBox minMaxContainer = new HBox(Tools.DEFAULT_SPACING);
-        minMaxContainer.getChildren().addAll(minLabel, minMaxSeparator, maxLabel);
+        minMaxContainer.setAlignment(Pos.BASELINE_CENTER);
+        minMaxContainer.getChildren().addAll(minLabel, minInput, minMaxSeparator, maxInput, maxLabel);
 
-        rangeSlider = createRangeSlider(minLabel, maxLabel);
+        rangeSlider = createRangeSlider(minInput, maxInput);
         VBox rangeContainer = new VBox(10, labelAndReset, rangeSlider, minMaxContainer);
 
         // post-processing
@@ -157,8 +168,8 @@ public class GriddingTool extends FilterToolView {
                 smoothing,
                 analyticSignal
         );
-        postProcessingContainer.setPadding(new Insets(Tools.DEFAULT_SPACING, 0, Tools.DEFAULT_SPACING, 0));
-        postProcessingContainer.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 5;");
+        postProcessingContainer.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 8;");
+        VBox.setMargin(postProcessingContainer,  new Insets(Tools.DEFAULT_SPACING, 0, Tools.DEFAULT_SPACING, 0));
 
         inputContainer.getChildren().setAll(
                 warning,
@@ -176,7 +187,7 @@ public class GriddingTool extends FilterToolView {
         return file instanceof CsvFile;
     }
 
-    private RangeSlider createRangeSlider(Label minLabel, Label maxLabel) {
+    private RangeSlider createRangeSlider(TextField minInput, TextField maxInput) {
         RangeSlider slider = new RangeSlider();
         slider.setShowTickLabels(true);
         slider.setShowTickMarks(true);
@@ -186,14 +197,14 @@ public class GriddingTool extends FilterToolView {
         slider.setShowTickMarks(false);
 
         slider.lowValueProperty().addListener((observable, oldValue, newValue) -> {
-            setFormattedValue(newValue, "Min: ", minLabel);
+            minInput.setText(Formats.prettyForRange(newValue, rangeSlider.getMin(), rangeSlider.getMax()));
             if (!ignoreFilterEvents.get()) {
                 applyFilter();
             }
         });
 
         slider.highValueProperty().addListener((observable, oldValue, newValue) -> {
-            setFormattedValue(newValue, "Max: ", maxLabel);
+            maxInput.setText(Formats.prettyForRange(newValue, rangeSlider.getMin(), rangeSlider.getMax()));
             if (!ignoreFilterEvents.get()) {
                 applyFilter();
             }
@@ -203,20 +214,37 @@ public class GriddingTool extends FilterToolView {
             expandRangeSlider();
         });
 
-        return slider;
-    }
+        minInput.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                Double low = Text.parseDouble(minInput.getText());
+                if (low != null) {
+                    setRangeSliderLow(low);
+                }
+                event.consume();
+            }
+            if (event.getCode() == KeyCode.ESCAPE) {
+                minInput.setText(Formats.prettyForRange(
+                        rangeSlider.getLowValue(), rangeSlider.getMin(), rangeSlider.getMax()));
+                event.consume();
+            }
+        });
 
-    private void setFormattedValue(Number newVal, String prefix, Label label) {
-        double range = rangeSlider.getMax() - rangeSlider.getMin();
-        String valueText;
-        if (range < 10) {
-            valueText = String.format(prefix + "%.2f", newVal.doubleValue());
-        } else if (range < 100) {
-            valueText = String.format(prefix + "%.1f", newVal.doubleValue());
-        } else {
-            valueText = prefix + newVal.intValue();
-        }
-        label.setText(valueText);
+        maxInput.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                Double high = Text.parseDouble(maxInput.getText());
+                if (high != null) {
+                    setRangeSliderHigh(high);
+                }
+                event.consume();
+            }
+            if (event.getCode() == KeyCode.ESCAPE) {
+                minInput.setText(Formats.prettyForRange(
+                        rangeSlider.getHighValue(), rangeSlider.getMin(), rangeSlider.getMax()));
+                event.consume();
+            }
+        });
+
+        return slider;
     }
 
     private void onCellSizeChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -314,6 +342,32 @@ public class GriddingTool extends FilterToolView {
         }
     }
 
+    private void setRangeSliderLow(double low) {
+        if (low < rangeSlider.getMin()) {
+            rangeSlider.setMin(low);
+        } else if (low > rangeSlider.getHighValue()) {
+            if (low > rangeSlider.getMax()) {
+                rangeSlider.setMax(low);
+            }
+            rangeSlider.setHighValue(low);
+        }
+        rangeSlider.setLowValue(low);
+        expandRangeSlider();
+    }
+
+    private void setRangeSliderHigh(double high) {
+        if (high > rangeSlider.getMax()) {
+            rangeSlider.setMax(high);
+        } else if (high < rangeSlider.getLowValue()) {
+            if (high < rangeSlider.getMin()) {
+                rangeSlider.setMin(high);
+            }
+            rangeSlider.setLowValue(high);
+        }
+        rangeSlider.setHighValue(high);
+        expandRangeSlider();
+    }
+
     private void updateRangeSlider(Range range) {
         rangeSlider.setMin(range.getMin());
         rangeSlider.setMax(range.getMax());
@@ -407,15 +461,25 @@ public class GriddingTool extends FilterToolView {
     }
 
     private void loadRangePreferences() {
-        TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(
-                selectedFile,
-                model.getSelectedSeriesName(selectedFile));
-        Range range = templateSeries != null
-                ? rangePreferences.get(templateSeries)
-                : null;
+        String templateName = Templates.getTemplateName(selectedFile);
+        String seriesName = model.getSelectedSeriesName(selectedFile);
+
+        Range range = null;
+        if (!Strings.isNullOrEmpty(templateName) && !Strings.isNullOrEmpty(seriesName)) {
+            // range
+            Double rangeMin = preferences.getDouble(
+                    "gridding_range_min", templateName + "." + seriesName);
+            Double rangeMax = preferences.getDouble(
+                    "gridding_range_max", templateName + "." + seriesName);
+            if (rangeMin != null && rangeMax != null) {
+                range = new Range(rangeMin, rangeMax);
+            }
+        }
+        // use default series range if no persisted values found
         if (range == null) {
             range = getSelectedSeriesRange();
         }
+        // apply range
         if (range != null) {
             updateRangeSlider(range);
         }
@@ -441,12 +505,14 @@ public class GriddingTool extends FilterToolView {
     }
 
     private void saveRangePreferences() {
-        TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(
-                selectedFile,
-                model.getSelectedSeriesName(selectedFile));
-        if (templateSeries != null) {
-            Range range = new Range(rangeSlider.getLowValue(), rangeSlider.getHighValue());
-            rangePreferences.put(templateSeries, range);
+        String templateName = Templates.getTemplateName(selectedFile);
+        String seriesName = model.getSelectedSeriesName(selectedFile);
+
+        if (!Strings.isNullOrEmpty(templateName) && !Strings.isNullOrEmpty(seriesName)) {
+            preferences.setValue("gridding_range_min", templateName + "." + seriesName,
+                    Text.formatNumber(rangeSlider.getLowValue()));
+            preferences.setValue("gridding_range_max", templateName + "." + seriesName,
+                    Text.formatNumber(rangeSlider.getHighValue()));
         }
     }
 

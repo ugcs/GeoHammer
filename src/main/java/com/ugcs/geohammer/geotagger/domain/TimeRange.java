@@ -1,23 +1,52 @@
 package com.ugcs.geohammer.geotagger.domain;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
 
-public record TimeRange(Instant start, Instant end) {
+import com.ugcs.geohammer.format.GeoData;
+import com.ugcs.geohammer.format.SgyFile;
+
+public record TimeRange(Instant from, Instant to) {
 
 	public TimeRange {
-		if (start == null || end == null) {
-			throw new IllegalArgumentException("Start and end times must not be null");
+		if (from == null || to == null) {
+			throw new IllegalArgumentException("Start and to times must not be null");
 		}
-		if (start.isAfter(end)) {
-			throw new IllegalArgumentException("Start time must not be after end time");
+		if (from.isAfter(to)) {
+			throw new IllegalArgumentException("Start time must not be after to time");
 		}
 	}
 
 	public boolean overlaps(TimeRange other) {
-		return !other.end.isBefore(this.start) && !other.start.isAfter(this.end);
+		return !other.to.isBefore(this.from) && !other.from.isAfter(this.to);
 	}
 
 	public boolean covers(TimeRange other) {
-		return !this.start().isAfter(other.start()) && !this.end().isBefore(other.end());
+		return !this.from().isAfter(other.from()) && !this.to().isBefore(other.to());
+	}
+
+	public static TimeRange of(SgyFile file) {
+		List<GeoData> geoData = file.getGeoData();
+
+		Instant start = null;
+		Instant end = null;
+		for (GeoData value : geoData) {
+			if (value != null && value.getDateTime() != null) {
+				start = value.getDateTime().toInstant(ZoneOffset.UTC);
+				break;
+			}
+		}
+		for (int i = geoData.size() - 1; i >= 0; i--) {
+			GeoData value = geoData.get(i);
+			if (value != null && value.getDateTime() != null) {
+				end = value.getDateTime().toInstant(ZoneOffset.UTC);
+				break;
+			}
+		}
+		if (start == null || end == null) {
+			return null;
+		}
+		return new TimeRange(start, end);
 	}
 }

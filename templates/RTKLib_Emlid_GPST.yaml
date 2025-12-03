@@ -7,7 +7,7 @@
   # Applies to the first 10 not empty lines of the file to detect template
   match-regex: "(^% program   : ES 1\\.?).*?(^%  GPST).*?"
   # Indicates that position data can come from a source
-  has-positions-source: true
+  can-provide-geodata: true
   file-format:
   # The symbol which uses to make a comment
     comment-prefix: '%'

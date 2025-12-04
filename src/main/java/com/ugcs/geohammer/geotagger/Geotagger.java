@@ -16,7 +16,6 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.geotagger.domain.Position;
 import com.ugcs.geohammer.geotagger.domain.Segment;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.model.event.WhatChanged;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
@@ -128,15 +127,9 @@ public class Geotagger {
 	}
 
 	private void save(SgyFile sgyFile, @Nullable File tempFile) throws IOException {
-		File file;
-		if (tempFile != null) {
-			file = tempFile;
-		} else {
-			file = sgyFile.getFile();
-		}
+		File file = tempFile != null ? tempFile : sgyFile.getFile();
 		if (file != null) {
 			sgyFile.save(file);
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 		}
 	}
 

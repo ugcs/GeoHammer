@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -13,6 +16,8 @@ import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.chart.Chart;
+import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -239,7 +244,7 @@ public class ScriptExecutionTool extends FilterToolView {
 		return paramBox;
 	}
 
-	private static Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
+	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
 		Node inputNode = switch (param.type()) {
 			case STRING, FILE_PATH -> {
 				TextField textField = new TextField(initialValue);
@@ -261,6 +266,32 @@ public class ScriptExecutionTool extends FilterToolView {
 				checkBox.setSelected(Boolean.parseBoolean(initialValue));
 				checkBox.setText(labelText);
 				yield checkBox;
+			}
+			case COLUMN_NAME -> {
+				ComboBox<String> comboBox = new ComboBox<>();
+				comboBox.setPromptText("Select column");
+				comboBox.setMaxWidth(Double.MAX_VALUE);
+
+				if (selectedFile instanceof CsvFile csvFile) {
+					Set<String> seriesNames = new HashSet<>();
+					for (SgyFile file : model.getFileManager().getFiles()) {
+						if (Objects.equals(Templates.getTemplateName(file), Templates.getTemplateName(csvFile))) {
+							Chart chart = model.getChart(file);
+							if (chart instanceof SensorLineChart sensorChart) {
+								seriesNames.addAll(sensorChart.getSeriesNames());
+							}
+						}
+					}
+					comboBox.getItems().setAll(seriesNames);
+				}
+
+				if (!initialValue.isEmpty() && comboBox.getItems().contains(initialValue)) {
+					comboBox.setValue(initialValue);
+				} else if (!param.defaultValue().isEmpty() && comboBox.getItems().contains(param.defaultValue())) {
+					comboBox.setValue(param.defaultValue());
+				}
+
+				yield comboBox;
 			}
 		};
 
@@ -388,6 +419,10 @@ public class ScriptExecutionTool extends FilterToolView {
 		return switch (node) {
 			case TextField textField -> textField.getText();
 			case CheckBox checkBox -> String.valueOf(checkBox.isSelected());
+			case ComboBox<?> comboBox -> {
+				Object value = comboBox.getValue();
+				yield value != null ? value.toString() : "";
+			}
 			default -> "";
 		};
 	}

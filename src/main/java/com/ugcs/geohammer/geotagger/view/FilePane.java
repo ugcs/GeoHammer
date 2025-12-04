@@ -3,15 +3,19 @@ package com.ugcs.geohammer.geotagger.view;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.FileTypes;
+import com.ugcs.geohammer.view.ResourceImageHolder;
+import com.ugcs.geohammer.view.Views;
+import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,22 +24,28 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 
 public abstract class FilePane extends VBox {
 
-    private final Model model;
+	protected static final String HEADER_STYLE = "-fx-background-color: linear-gradient(to bottom, #fafafa, #e5e5e5) ;-fx-padding: 5;";
 
-    private final StatusBar statusBar;
+	private final Model model;
 
-    private final ListView<SgyFile> listView;
+	private final StatusBar statusBar;
 
-    private final Label headerLabel;
+	private final ListView<SgyFile> listView;
+
+	private final Label headerLabel;
 
 	public FilePane(Model model, StatusBar statusBar, String title) {
 		this.model = model;
@@ -49,7 +59,7 @@ public abstract class FilePane extends VBox {
 	}
 
 	private void setupUI() {
-		headerLabel.setStyle("-fx-font-size: 16px;");
+		headerLabel.setStyle("-fx-font-size: 14px;");
 
 		HBox columnHeaders = createHeader();
 		HBox buttons = createButtonBar();
@@ -80,12 +90,15 @@ public abstract class FilePane extends VBox {
 
 		Button removeButton = new Button("Remove");
 		removeButton.setOnAction(e -> removeSelected());
+		removeButton.disableProperty().bind(Bindings.isEmpty(listView.getItems()));
 
 		Button clearButton = new Button("Clear");
 		clearButton.setOnAction(e -> clear());
+		clearButton.disableProperty().bind(Bindings.isEmpty(listView.getItems()));
 
 		HBox buttonBar = new HBox(8, addButton, addFolderButton, removeButton, clearButton);
 		buttonBar.setAlignment(Pos.CENTER_LEFT);
+		buttonBar.setPadding(new Insets(5, 0, 0, 0));
 		return buttonBar;
 	}
 
@@ -102,7 +115,7 @@ public abstract class FilePane extends VBox {
 
 		if (dragboard.hasFiles()) {
 			List<File> files = dragboard.getFiles();
-			files.forEach(this::addFile);
+			addFiles(files);
 			success = true;
 		}
 
@@ -118,13 +131,30 @@ public abstract class FilePane extends VBox {
 		selectAndAddFolder(this::addFiles);
 	}
 
-	private SgyFile openFile(File file, FileTemplates fileTemplates) throws IOException {
+	public void addGeohammerFiles() {
+		List<File> files = model.getFileManager().getFiles().stream()
+				.filter(sgyFile -> sgyFile != null && sgyFile.getFile() != null)
+				.map(SgyFile::getFile)
+				.toList();
+		addFiles(files);
+	}
+
+	private boolean containsFile(File file) {
+		for (SgyFile listFile : listView.getItems()) {
+			if (Objects.equals(listFile.getFile(), file)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private SgyFile openFile(File file) throws IOException {
 		if (FileTypes.isGprFile(file)) {
 			GprFile sgyFile = new GprFile();
 			sgyFile.open(file);
 			return sgyFile;
 		} else if (FileTypes.isCsvFile(file)) {
-			CsvFile sgyFile = new CsvFile(fileTemplates);
+			CsvFile sgyFile = new CsvFile(model.getFileManager().getFileTemplates());
 			sgyFile.open(file);
 			return sgyFile;
 		} else {
@@ -133,22 +163,33 @@ public abstract class FilePane extends VBox {
 	}
 
 	public void addFile(File file) {
-		if (file == null || !canAdd(file)) {
+		if (file == null) {
+			return;
+		}
+		if (containsFile(file)) {
 			return;
 		}
 
-		try {
-			SgyFile sgyFile = openFile(file, model.getFileManager().getFileTemplates());
-			if (sgyFile != null && !listView.getItems().contains(sgyFile)) {
-				listView.getItems().add(sgyFile);
+		SgyFile sgyFile = model.getFileManager().getFile(file);
+		if (sgyFile == null) {
+			// open
+			try {
+				sgyFile = openFile(file);
+			} catch (IOException e) {
+				statusBar.showMessage("Failed to open file: " + file.getName(), "Error");
 			}
-		} catch (IOException e) {
-			statusBar.showMessage("Failed to open file: " + file.getName(), "Error");
+		}
+		if (sgyFile != null) {
+			listView.getItems().add(sgyFile);
 		}
 	}
 
 	private void addFiles(List<File> files) {
-		files.forEach(this::addFile);
+		for (File file : files) {
+			if (canAdd(file)) {
+				addFile(file);
+			}
+		}
 	}
 
 	public void removeSelected() {
@@ -166,29 +207,59 @@ public abstract class FilePane extends VBox {
 		return listView.getItems();
 	}
 
-    protected abstract HBox createHeader();
+	protected abstract HBox createHeader();
 
-    protected abstract HBox createDataRow(SgyFile file);
+	protected abstract HBox createDataRow(SgyFile file);
 
-    protected abstract boolean canAdd(File file);
+	protected abstract boolean canAdd(File file);
 
-    protected abstract Node createPlaceholder();
+	protected Node createPlaceholder() {
+		VBox box = new VBox(5);
+		box.setAlignment(Pos.CENTER);
+		ImageView uploadImage = ResourceImageHolder.getImageView("upload_file.png");
+		if (uploadImage == null) {
+			return null;
+		}
+		uploadImage.setFitHeight(32);
+		uploadImage.setFitWidth(32);
+		Views.tintImage(uploadImage, Color.GRAY);
+		Label label = new Label("Drag and drop files here");
+		label.setTextFill(Color.GRAY);
+		box.getChildren().addAll(uploadImage, label);
+		return box;
+	}
 
-    protected abstract void selectAndAddFile(Consumer<List<File>> addFiles);
+	protected void selectAndAddFile(Consumer<List<File>> consumer) {
+		FileChooser fileChooser = new FileChooser();
+		fileChooser.setTitle("Select Files");
+		List<File> files = fileChooser.showOpenMultipleDialog(AppContext.stage);
+		if (files != null && !files.isEmpty())
+			consumer.accept(files);
+	}
 
-    protected abstract void selectAndAddFolder(Consumer<List<File>> addFiles);
+	protected void selectAndAddFolder(Consumer<List<File>> consumer) {
+		DirectoryChooser directoryChooser = new DirectoryChooser();
+		directoryChooser.setTitle("Select Folder");
+		File dir = directoryChooser.showDialog(AppContext.stage);
+		if (dir != null && dir.isDirectory()) {
+			File[] files = dir.listFiles(File::isFile);
+			if (files != null) {
+				consumer.accept(List.of(files));
+			}
+		}
+	}
 
-    class FileListCell extends ListCell<SgyFile> {
+	class FileListCell extends ListCell<SgyFile> {
 
-        @Override
-        protected void updateItem(SgyFile item, boolean empty) {
-            super.updateItem(item, empty);
+		@Override
+		protected void updateItem(SgyFile item, boolean empty) {
+			super.updateItem(item, empty);
 
-            if (empty || item == null) {
-                setGraphic(null);
-            } else {
-                setGraphic(createDataRow(item));
-            }
-        }
-    }
+			if (empty || item == null) {
+				setGraphic(null);
+			} else {
+				setGraphic(createDataRow(item));
+			}
+		}
+	}
 }

@@ -37,7 +37,7 @@ public class Template {
 
     private boolean reorderByTime = false;
 
-	private boolean canProvideGeodata = false;
+	private boolean positional = false;
 
     /**
      * Initialize template on load
@@ -286,12 +286,12 @@ public class Template {
         this.reorderByTime = reorderByTime;
     }
 
-	public boolean canProvideGeodata() {
-		return canProvideGeodata;
+	public boolean isPositional() {
+		return positional;
 	}
 
-	public void setCanProvideGeodata(boolean isSource) {
-		this.canProvideGeodata = isSource;
+	public void setPositional(boolean positional) {
+		this.positional = positional;
 	}
 
 	/**
@@ -305,7 +305,7 @@ public class Template {
                 "name='" + name + '\'' +
                 ", code='" + code + '\'' +
                 ", fileType=" + fileType +
-				", hasPositionsSource=" + canProvideGeodata +
+				", positional=" + positional +
                 ", matchRegex='" + matchRegex + '\'' +
                 ", fileFormat=" + fileFormat +
                 ", dataValidation=" + dataValidation +

@@ -1,17 +1,12 @@
 
 package com.ugcs.geohammer.geotagger.view;
 
-import java.io.File;
-import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.ugcs.geohammer.StatusBar;
-import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.geotagger.Geotagger;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
@@ -26,13 +21,16 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 
 @Component
 public class GeotaggerView {
 
-	private static final String TITLE = "GeoTagger";
+	private static final String TITLE = "Geotagging";
+	private static final Logger log = LoggerFactory.getLogger(GeotaggerView.class);
 
 	private final Model model;
 
@@ -102,7 +100,7 @@ public class GeotaggerView {
 		HBox buttonBox = new HBox(10, closeButton, processButton);
 		buttonBox.setAlignment(Pos.CENTER_RIGHT);
 
-		Region spacer = GeotaggerComponents.spacer();
+		Region spacer = Views.createSpacer();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
 		HBox controlPane = new HBox(10);
@@ -119,7 +117,7 @@ public class GeotaggerView {
 		if (stage == null) {
 			stage = new Stage();
 			stage.initModality(Modality.NONE);
-			stage.setTitle("GeoTagger");
+			stage.setTitle(TITLE);
 			stage.setScene(scene);
 			stage.setOnCloseRequest(event -> closeWindow());
 		}
@@ -129,7 +127,8 @@ public class GeotaggerView {
 		stage.toFront();
 		stage.requestFocus();
 
-		addAlreadyOpenedFiles();
+		positionPane.addGeohammerFiles();
+		dataPane.addGeohammerFiles();
 		return stage;
 	}
 
@@ -140,28 +139,6 @@ public class GeotaggerView {
 			stage.close();
 			stage = null;
 		}
-	}
-
-	private void addAlreadyOpenedFiles() {
-		Set<File> existingFiles = Stream.concat(
-						positionPane.getFiles().stream(),
-						dataPane.getFiles().stream()
-				)
-				.map(SgyFile::getFile)
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
-
-		model.getFileManager().getFiles().stream()
-				.filter(sgyFile -> sgyFile != null && sgyFile.getFile() != null)
-				.map(SgyFile::getFile)
-				.filter(file -> !existingFiles.contains(file))
-				.forEach(file -> {
-					if (positionPane.canAdd(file)) {
-						positionPane.addFile(file);
-					} else if (dataPane.canAdd(file)) {
-						dataPane.addFile(file);
-					}
-				});
 	}
 
 	private void showProgress() {
@@ -195,7 +172,7 @@ public class GeotaggerView {
 						this::updateProgress);
 				statusBar.showMessage("Processing finished successfully", TITLE);
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.warn("Processing failed", e);
 				String message = "Processing failed: " + e.getMessage();
 				statusBar.showMessage(message, TITLE);
 			} finally {

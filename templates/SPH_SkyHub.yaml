@@ -8,7 +8,7 @@
   match-regex: >-
     ^.*Elapsed,Date,Time,Pitch,Roll,.*Latitude,Longitude,Altitude,.*Velocity.*RTK.*
   # Indicates that position data can come from a source
-  can-provide-geodata: true
+  positional: true
   file-format:
   # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true

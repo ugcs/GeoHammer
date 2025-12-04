@@ -93,4 +93,15 @@ public class FileManager {
 		}
 		return null;
 	}
+
+	public Map<File, SgyFile> getIndex() {
+		Map<File, SgyFile> index = new HashMap<>(files.size());
+		for (SgyFile sgyFile : files) {
+			File file = sgyFile.getFile();
+			if (file != null) {
+				index.put(file, sgyFile);
+			}
+		}
+		return index;
+	}
 }

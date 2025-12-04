@@ -39,6 +39,8 @@ public class Template {
 
 	private boolean positional = false;
 
+    private boolean gpsTime = false;
+
     /**
      * Initialize template on load
      */
@@ -294,7 +296,15 @@ public class Template {
 		this.positional = positional;
 	}
 
-	/**
+    public boolean isGpsTime() {
+        return gpsTime;
+    }
+
+    public void setGpsTime(boolean gpsTime) {
+        this.gpsTime = gpsTime;
+    }
+
+    /**
      * Returns a string representation of the template.
      *
      * @return a string representation of the template.

@@ -8,6 +8,8 @@
   match-regex: "^.*RTKPOST-QT ver.+ Emlid b33$"
   # Indicates that position data can come from a source
   positional: true
+  # Apply leap second correction
+  gps-time: true
   file-format:
   # The symbol which uses to make a comment
     comment-prefix: '%'
@@ -20,7 +22,6 @@
       header: "%  GPST"
       index: 0
       format: 'yyyy/MM/dd HH:mm:ss.fff'
-      type: UTC
     latitude:
       header: "latitude(deg)"
       index: 1

@@ -33,6 +33,7 @@ import com.ugcs.geohammer.model.template.data.Date;
 import com.ugcs.geohammer.model.template.data.DateTime;
 import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.GpsTime;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
@@ -289,8 +290,13 @@ public abstract class Parser {
     }
 
     private GeoData parseValues(String[] tokens, ColumnSchema columns) {
+        LocalDateTime time = parseDateTime(tokens);
+        if (time != null && template.isGpsTime()) {
+            time = GpsTime.gpsToUtc(time);
+        }
+
         GeoData geoData = new GeoData(columns);
-        geoData.setDateTime(parseDateTime(tokens));
+        geoData.setDateTime(time);
 
         for (Column column : columns) {
             String header = column.getHeader();
@@ -412,11 +418,7 @@ public abstract class Parser {
         DateTime dateTimeColumn = mapping.getDateTime();
         if (hasHeader(dateTimeColumn)) {
             String value = getString(values, dateTimeColumn);
-            if (dateTimeColumn.getType() == DateTime.Type.GPST) {
-                dateTime = Text.parseGpsDateTime(value);
-            } else {
-                dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
-            }
+            dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
         }
         if (dateTime != null) {
             return dateTime;

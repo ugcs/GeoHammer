@@ -14,8 +14,6 @@ public class DateTime extends BaseData {
 
     private List<String> formats;
 
-    private Type type;
-
     public String getFormat() {
         return format;
     }
@@ -43,18 +41,5 @@ public class DateTime extends BaseData {
         combined.add(format);
         combined.addAll(formats);
         return combined;
-    }
-
-    public Type getType() {
-        return type;
-    }
-
-    public void setType(Type type) {
-        this.type = type;
-    }
-
-    public enum Type {
-        UTC,
-        GPST
     }
 }

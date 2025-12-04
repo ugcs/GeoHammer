@@ -20,7 +20,6 @@
       header: "%  GPST"
       index: 0
       format: 'yyyy/MM/dd HH:mm:ss.fff'
-      type: UTC
     latitude:
       header: "latitude(deg)"
       index: 1

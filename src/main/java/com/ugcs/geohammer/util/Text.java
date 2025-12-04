@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 
 public final class Text {
 
+    public static final String GPST_FORMAT = "GPST";
+
     private static final ThreadLocal<DecimalFormat> NUMBER_FORMAT
             = ThreadLocal.withInitial(Text::defaultNumberFormat);
 
@@ -134,6 +136,9 @@ public final class Text {
             return null;
         }
         Check.notNull(format);
+        if (format.equals(GPST_FORMAT)) {
+            return parseGpsDateTime(value);
+        }
         format = format.replaceAll("f", "S");
         try {
             return LocalDateTime.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));

@@ -1,11 +1,16 @@
-package com.ugcs.geohammer.chart;
+package com.ugcs.geohammer.chart.tool;
 
+import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
+import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.template.DataMapping;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.model.template.data.SensorData;
@@ -15,6 +20,8 @@ import com.ugcs.geohammer.math.SegmentTree;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Templates;
+import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -30,13 +37,16 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.List;
 import java.util.Objects;
 
-public class StatisticsView extends VBox {
+@Component
+public class StatisticsTool extends ToolView {
 
     private static final String NO_VALUE = "n/a";
     private static final String NO_SERIES = "No series";
@@ -55,11 +65,8 @@ public class StatisticsView extends VBox {
 
     private int chartDecimals = SensorData.DEFAULT_DECIMALS;
 
-    public StatisticsView(Model model) {
+    public StatisticsTool(Model model) {
         this.model = model;
-
-        setSpacing(OptionPane.DEFAULT_SPACING);
-        setPadding(OptionPane.DEFAULT_OPTIONS_INSETS);
 
         // name and value
         seriesName = new Label(NO_SERIES);
@@ -73,35 +80,38 @@ public class StatisticsView extends VBox {
         value.setStyle("-fx-font-weight: bold;-fx-font-size: 14px;");
 
         HBox valueGroup = new HBox(seriesName, spacer, value);
-        valueGroup.setSpacing(OptionPane.DEFAULT_SPACING);
+        valueGroup.setSpacing(Tools.DEFAULT_SPACING);
 
         // metrics
         metricsView = new MetricsView();
         metricsContextSelector = new MetricsContextSelector();
         BorderPane metricsGroup = createMetricsGroup(metricsView, metricsContextSelector);
 
-        VBox.setMargin(metricsGroup, new Insets(OptionPane.DEFAULT_SPACING, 0, 0, 0));
+        VBox.setMargin(metricsGroup, new Insets(Tools.DEFAULT_SPACING, 0, 0, 0));
 
-        getChildren().addAll(
-                valueGroup,
-                metricsGroup);
+        VBox container = new VBox(Tools.DEFAULT_SPACING, valueGroup, metricsGroup);
+        container.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
 
-        setVisible(false);
-        setManaged(false);
+        getChildren().add(container);
+
+        // show by default
+        show(true);
     }
 
-    private int getDecimals(CsvFile csvFile, String header) {
-        SensorData sensorData = getSensorDataByHeader(csvFile, header);
+    @Override
+    public boolean isVisibleFor(SgyFile file) {
+        return file instanceof CsvFile || file instanceof SonarFile;
+    }
+
+    private int getDecimals(SgyFile file, String header) {
+        SensorData sensorData = getSensorDataByHeader(file, header);
         return sensorData != null
                 ? sensorData.getDecimals()
                 : SensorData.DEFAULT_DECIMALS;
     }
 
-    private SensorData getSensorDataByHeader(CsvFile csvFile, String header) {
-        if (csvFile == null) {
-            return null;
-        }
-        Template template = csvFile.getTemplate();
+    private SensorData getSensorDataByHeader(SgyFile file, String header) {
+        Template template = Templates.getTemplate(file);
         if (template == null) {
             return null;
         }
@@ -112,16 +122,16 @@ public class StatisticsView extends VBox {
         return dataMapping.getDataValueByHeader(header);
     }
 
-    public void update(SgyFile selectedFile) {
-        chartDecimals = SensorData.DEFAULT_DECIMALS;
-        if (selectedFile instanceof CsvFile csvFile) {
-            chart = model.getCsvChart(csvFile).orElse(null);
-            if (chart != null) {
-                chartDecimals = getDecimals(csvFile, chart.getSelectedSeriesName());
-            }
-        } else {
-            chart = null;
-        }
+    @Override
+    public void updateView() {
+        SgyFile file = selectedFile;
+        Chart selectedChart = model.getChart(file);
+        chart = selectedChart instanceof SensorLineChart sensorChart
+                ? sensorChart
+                : null;
+        chartDecimals = file != null && chart != null
+                ? getDecimals(file, chart.getSelectedSeriesName())
+                : SensorData.DEFAULT_DECIMALS;
 
         if (chart == null) {
             seriesName.setText(NO_SERIES);
@@ -214,6 +224,25 @@ public class StatisticsView extends VBox {
         return container;
     }
 
+    @EventListener
+    private void onFileSelected(FileSelectedEvent event) {
+        Platform.runLater(() -> selectFile(event.getFile()));
+    }
+
+    @EventListener
+    private void onSeriesSelected(SeriesSelectedEvent event) {
+        if (Objects.equals(selectedFile, event.getFile())) {
+            Platform.runLater(this::updateView);
+        }
+    }
+
+    @EventListener
+    private void onChange(WhatChanged changed) {
+        if (changed.isCsvDataZoom() || changed.isTraceCut() || changed.isTraceSelected()) {
+            Platform.runLater(this::updateView);
+        }
+    }
+
     enum MetricsContext {
         VISIBLE_AREA("Visible Area"),
         LINE("Line"),
@@ -276,7 +305,7 @@ public class StatisticsView extends VBox {
                 getColumnConstraints().add(columnConstraints);
             }
 
-            setVgap(OptionPane.DEFAULT_SPACING);
+            setVgap(Tools.DEFAULT_SPACING);
             setMaxWidth(Double.MAX_VALUE);
         }
 
@@ -450,7 +479,7 @@ public class StatisticsView extends VBox {
         }
     }
 
-    class GeoDataAdapter extends AbstractList<Double> {
+    static class GeoDataAdapter extends AbstractList<Double> {
 
         final List<GeoData> values;
 

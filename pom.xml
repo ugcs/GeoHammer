@@ -398,6 +398,11 @@
 			<version>2.4</version>
 		</dependency>
 		<dependency>
+			<groupId>net.sf.marineapi</groupId>
+			<artifactId>marineapi</artifactId>
+			<version>0.12.0</version>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-core</artifactId>
 		</dependency>
@@ -570,7 +575,7 @@
 							<jre>
 								<minVersion>21.0.1</minVersion>
 								<path>jre21</path>
-								<maxHeapSize>4096</maxHeapSize>
+								<maxHeapSize>16384</maxHeapSize>
 							</jre>
 							<versionInfo>
 								<fileVersion>1.0.0.0</fileVersion>
@@ -687,7 +692,7 @@
 										<argument>--name</argument> <argument>${project.name}</argument>
 										<argument>--main-class</argument> <argument>com.ugcs.geohammer.MainGeoHammer</argument>
 										<argument>--main-jar</argument> <argument>${project.artifactId}-jar-with-dependencies.jar</argument>
-										<argument>--java-options</argument> <argument>"-splash:splash_screen.jpg -Xmx4096m"</argument>
+										<argument>--java-options</argument> <argument>"-splash:splash_screen.jpg -Xmx16384m"</argument>
 										<argument>--runtime-image</argument> <argument>${project.build.directory}/jre21</argument>
 										<argument>--app-version</argument> <argument>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
 										<argument>--vendor</argument> <argument>"SPH Engeneering"</argument>

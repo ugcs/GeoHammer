@@ -1,7 +1,6 @@
 package com.ugcs.geohammer.util;
 
 import com.ugcs.geohammer.model.IndexRange;
-import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.element.PositionalObject;
@@ -19,20 +18,20 @@ public final class AuxElements {
     private AuxElements() {
     }
 
-    public static List<BaseObject> copy(List<BaseObject> elements, @Nullable Range range) {
+    public static List<BaseObject> copy(List<BaseObject> elements, @Nullable IndexRange range) {
         elements = Nulls.toEmpty(elements);
 
         List<BaseObject> newElements = new ArrayList<>();
         for (BaseObject element : elements) {
             if (range != null && element instanceof PositionalObject positional) {
-                int fromIndex = range.getMin().intValue();
-                int toIndex = range.getMax().intValue() + 1; // exclusive
+                int fromIndex = range.from();
+                int toIndex = range.to(); // exclusive
                 int traceIndex = positional.getTraceIndex();
                 if (traceIndex < fromIndex || traceIndex >= toIndex) {
                     continue; // filter out
                 }
             }
-            int offset = range != null ? range.getMin().intValue() : 0;
+            int offset = range != null ? range.from() : 0;
             BaseObject copy = element.copy(offset);
             if (copy != null) {
                 newElements.add(copy);

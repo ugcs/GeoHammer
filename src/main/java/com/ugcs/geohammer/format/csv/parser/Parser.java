@@ -35,6 +35,7 @@ import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Text;
 import org.jspecify.annotations.Nullable;
 
 public abstract class Parser {

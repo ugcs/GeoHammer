@@ -1,6 +1,5 @@
 package com.ugcs.geohammer.model;
 
-import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
@@ -22,21 +21,20 @@ public class TemplateSettings {
         this.settings = settings;
     }
 
-    public @Nullable String getSelectedSeriesName(Template template) {
-        return settings.getSetting(template.getName(),"selected");
+    public @Nullable String getSelectedSeriesName(String templateName) {
+        return settings.getString(templateName,"selected");
     }
 
-    public void setSelectedSeriesName(Template template, String seriesName) {
-        settings.saveSetting(template.getName(), "selected", seriesName);
+    public void setSelectedSeriesName(String templateName, String seriesName) {
+        settings.setValue(templateName, "selected", seriesName);
     }
 
-    public @Nullable Boolean isSeriesVisible(Template template, String seriesName) {
-        String s = settings.getSetting(template.getName() + "." + seriesName, "visible");
-        return !Strings.isNullOrEmpty(s) ? Boolean.parseBoolean(s) : null;
+    public @Nullable Boolean isSeriesVisible(String templateName, String seriesName) {
+        return settings.getBoolean(templateName + "." + seriesName, "visible");
     }
 
-    public void setSeriesVisible(Template template, String seriesName, boolean visible) {
-        settings.saveSetting(template.getName() + "." + seriesName, "visible", visible);
+    public void setSeriesVisible(String templateName, String seriesName, boolean visible) {
+        settings.setValue(templateName + "." + seriesName, "visible", visible);
     }
 
     public void setTraceUnit(String templateName, TraceUnit traceUnit) {

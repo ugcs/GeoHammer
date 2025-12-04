@@ -3,12 +3,10 @@ package com.ugcs.geohammer;
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.ProfileScroll;
-import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
 import com.ugcs.geohammer.format.SgyFile;
@@ -95,21 +93,21 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void fitCurrentFile(ActionEvent actionEvent) {
-		Chart chart = model.getFileChart(currentFile);
+		Chart chart = model.getChart(currentFile);
 		if (chart != null) {
 			chart.zoomToFit();
 		}
 	}
 
 	private void zoomIn(ActionEvent event) {
-		Chart chart = model.getFileChart(currentFile);
+		Chart chart = model.getChart(currentFile);
 		if (chart != null) {
 			chart.zoomIn();
 		}
 	}
 
 	private void zoomOut(ActionEvent event) {
-		Chart chart = model.getFileChart(currentFile);
+		Chart chart = model.getChart(currentFile);
 		if (chart != null) {
 			chart.zoomOut();
 		}
@@ -171,7 +169,7 @@ public class ProfileView implements InitializingBean {
 		toolBar.getItems().getLast().setDisable(false);
 
 		// crop samples
-		Chart chart = model.getFileChart(currentFile);
+		Chart chart = model.getChart(currentFile);
 		cropSamples.setDisable(!(chart instanceof GPRChart));
 	}
 
@@ -180,7 +178,7 @@ public class ProfileView implements InitializingBean {
 	private VBox profileScrollContainer;
 
 	//center
-	public Node getCenter() {
+	public VBox getCenter() {
 		if (center == null) {
 			center = new VBox();
 			center.setMinWidth(100);
@@ -223,30 +221,15 @@ public class ProfileView implements InitializingBean {
 
 	@EventListener
 	private void fileClosed(FileClosedEvent event) {
-		SgyFile closedFile = event.getSgyFile();
+		SgyFile closedFile = event.getFile();
+        if (closedFile == null) {
+            return;
+        }
 
-		if (closedFile instanceof TraceFile traceFile) {
-			model.getFileManager().removeFile(traceFile);
-			GPRChart gprChart = model.getGprChart(traceFile);
-			if (gprChart != null) {
-				clearChartContainer(gprChart);
-				if (traceFile.equals(currentFile)) {
-					currentFile = null;
-				}
-			}
-		}
-
-		if (closedFile instanceof CsvFile csvFile) {
-			model.getFileManager().removeFile(csvFile);
-			Optional<SensorLineChart> csvChartOpt = model.getCsvChart(csvFile);
-			if (csvChartOpt.isPresent()) {
-				clearChartContainer(csvChartOpt.get());
-
-				if (csvFile.equals(currentFile)) {
-					currentFile = null;
-				}
-			}
-		}
+        model.getFileManager().removeFile(closedFile);
+        if (closedFile.equals(currentFile)) {
+            currentFile = null;
+        }
 
 		model.removeChart(closedFile);
 		model.updateAuxElements();
@@ -254,42 +237,8 @@ public class ProfileView implements InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
 	}
 
-	private void clearChartContainer(Chart chart) {
-		chart.getProfileScroll().setVisible(false);
-
-		VBox vbox = (VBox) chart.getRootNode();
-		model.getChartsContainer().getChildren().remove(vbox);
-	}
-
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
-
-		List<File> openedFiles = event.getFiles();
-		openedFiles.stream().flatMap(f -> f.isDirectory() ? Stream.of(f.listFiles()) : Stream.of(f)).forEach(file -> {
-			System.out.println("ProfileView.fileOpened " + file.getAbsolutePath());
-			model.getFileManager().getGprFiles().stream().filter(f -> f.getFile().equals(file)).findFirst().ifPresent(f -> {
-				System.out.println("Loaded traces: " + f.getTraces().size());
-				var gprChart = model.getOrCreateGprChart(f);
-				var vbox = (VBox) gprChart.getRootNode();
-
-				//TODO:
-				//gprPane.clear();
-				//model.updateSgyFileOffsets();
-
-				if (!model.getChartsContainer().getChildren().contains(vbox)) {
-					model.getChartsContainer().getChildren().add(vbox);
-					vbox.setPrefHeight(Math.max(400, vbox.getScene().getHeight()));
-					vbox.setMinHeight(Math.max(400, vbox.getScene().getHeight() / 2));
-				}
-
-				updateGprChartSize(gprChart);
-				gprChart.fitFull();
-
-				fileSelected(new FileSelectedEvent(this, f));
-				model.selectAndScrollToChart(gprChart);
-			});
-		});
-
 		enableToolbar();
 	}
 
@@ -315,19 +264,10 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private ProfileScroll getFileProfileScroll(SgyFile file) {
-		if (file instanceof TraceFile traceFile) {
-			var gprChart = model.getGprChart(traceFile);
-			return gprChart != null
-					? gprChart.getProfileScroll()
-					: null;
-		}
-		if (file instanceof CsvFile csvFile) {
-			var csvChart = model.getCsvChart(csvFile);
-			return csvChart.isPresent()
-					? csvChart.get().getProfileScroll()
-					: null;
-		}
-		return null;
+        var chart = model.getChart(file);
+        return chart != null
+                ? chart.getProfileScroll()
+                : null;
 	}
 
 	@EventListener

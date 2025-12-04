@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.csv.axis;
 
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.format.GeoData;
@@ -34,14 +35,14 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
 
     private final DecimalFormat formatter = new DecimalFormat("#0.00");
 
-    private final CsvFile file;
+    private final SgyFile file;
 
     private final int numTicks;
 
     @Nullable
     private Button labelButton = null;
 
-    public SensorLineChartXAxis(Model model, CsvFile file, int numTicks) {
+    public SensorLineChartXAxis(Model model, SgyFile file, int numTicks) {
         Check.notNull(file);
 
         this.model = model;
@@ -65,7 +66,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
     }
 
     public TraceUnit getUnit() {
-        String templateName = Templates.getCsvTemplateName(file);
+        String templateName = Templates.getTemplateName(file);
         TemplateSettings templateSettings = model.getTemplateSettings();
         return templateSettings.getTraceUnit(templateName);
     }
@@ -75,7 +76,7 @@ public class SensorLineChartXAxis extends ValueAxis<Number> {
             return;
         }
 
-        String templateName = Templates.getCsvTemplateName(file);
+        String templateName = Templates.getTemplateName(file);
         TemplateSettings templateSettings = model.getTemplateSettings();
         templateSettings.setTraceUnit(templateName, traceUnit);
 

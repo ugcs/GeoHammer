@@ -359,7 +359,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		}
 
 		// clear selection
-		Chart chart = model.getFileChart(file);
+		Chart chart = model.getChart(file);
 		if (chart != null) {
 			model.clearSelectedTrace(chart);
 		}

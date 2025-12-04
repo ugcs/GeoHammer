@@ -19,15 +19,15 @@ public abstract class ThrQueue {
     private final ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<Runnable>());
-    private final Dimension windowSize;
     Model model;
     BufferedImage frontImg;
     BufferedImage backImg;
+    Dimension backImgSize
+            = new Dimension(512, 512);
     ThrFront actual;
 
-    public ThrQueue(Model model, MapView mapView) {
+    public ThrQueue(Model model) {
         this.model = model;
-        this.windowSize = mapView.getWndSize();
     }
 
     public ThrFront getFront() {
@@ -80,17 +80,21 @@ public abstract class ThrQueue {
         System.out.println("ready");
     }
 
+    public void setBackImgSize(Dimension size) {
+        this.backImgSize = size;
+    }
+
     public void setBackImg(BufferedImage backImg) {
         this.backImg = backImg;
     }
 
     protected void actualizeBackImg() {
         if (backImg != null
-                && backImg.getWidth() == windowSize.width
-                && backImg.getHeight() == windowSize.height) {
+                && backImg.getWidth() == backImgSize.width
+                && backImg.getHeight() == backImgSize.height) {
 
         } else {
-            backImg = new BufferedImage(Math.max(1, windowSize.width), Math.max(1, windowSize.height), BufferedImage.TYPE_INT_ARGB);
+            backImg = new BufferedImage(Math.max(1, backImgSize.width), Math.max(1, backImgSize.height), BufferedImage.TYPE_INT_ARGB);
         }
 
         if (backImg != null) {

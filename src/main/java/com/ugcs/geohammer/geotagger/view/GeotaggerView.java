@@ -116,10 +116,11 @@ public class GeotaggerView {
 	public Stage showWindow() {
 		if (stage == null) {
 			stage = new Stage();
-			stage.initModality(Modality.NONE);
-			stage.setTitle(TITLE);
-			stage.setScene(scene);
-			stage.setOnCloseRequest(event -> closeWindow());
+            stage.initModality(Modality.NONE);
+            stage.setTitle(TITLE);
+            stage.setScene(scene);
+            stage.setOnHiding(event -> closeWindow());
+            stage.setOnCloseRequest(event -> closeWindow());
 		}
 		if (!stage.isShowing()) {
 			stage.show();

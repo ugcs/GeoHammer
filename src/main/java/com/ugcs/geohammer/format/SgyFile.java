@@ -69,20 +69,6 @@ public abstract class SgyFile {
 		distanceEstimator = null;
 	}
 
-	public File copyToTempFile() throws IOException {
-		File originalFile = this.getFile();
-		Check.notNull(originalFile);
-
-		Path tempPath = Files.createTempFile(
-				FileNames.removeExtension(originalFile.getName()),
-				"." + FileNames.getExtension(originalFile.getName())
-		);
-
-		Files.copy(originalFile.toPath(), tempPath, StandardCopyOption.REPLACE_EXISTING);
-		return tempPath.toFile();
-	}
-
-
 	public abstract int numTraces();
 
 	public abstract void open(File file) throws IOException;

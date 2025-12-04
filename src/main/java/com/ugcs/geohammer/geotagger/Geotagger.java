@@ -1,5 +1,18 @@
 package com.ugcs.geohammer.geotagger;
 
+import com.ugcs.geohammer.format.GeoData;
+import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.gpr.Trace;
+import com.ugcs.geohammer.geotagger.domain.Position;
+import com.ugcs.geohammer.geotagger.domain.Segment;
+import com.ugcs.geohammer.model.LatLon;
+import com.ugcs.geohammer.model.Model;
+import javafx.application.Platform;
+import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Service;
+
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -10,30 +23,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-import com.ugcs.geohammer.Loader;
-import com.ugcs.geohammer.format.GeoData;
-import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
-import com.ugcs.geohammer.format.gpr.Trace;
-import com.ugcs.geohammer.geotagger.domain.Position;
-import com.ugcs.geohammer.geotagger.domain.Segment;
-import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.model.Model;
-import org.jspecify.annotations.Nullable;
-import org.springframework.stereotype.Service;
-
 @Service
 public class Geotagger {
 
 	private final Model model;
-	private final Loader loader;
 
-
-	public Geotagger(Model model, Loader loader) {
+	public Geotagger(Model model) {
 		this.model = model;
-		this.loader = loader;
 	}
+
+    private boolean isOpenedInGeohammer(SgyFile file) {
+        return model.getFileManager().getFiles().contains(file);
+    }
 
 	public List<Position> getPositions(SgyFile file) {
 		return file.getGeoData().stream()
@@ -56,89 +57,68 @@ public class Geotagger {
 			BiConsumer<Integer, Integer> onProgress) throws IOException {
 		List<Position> positions = getPositions(positionFiles);
 
-		int totalRows = dataFiles.stream()
-				.mapToInt(sgyFile -> sgyFile.getGeoData().size())
+		int totalValues = dataFiles.stream()
+				.mapToInt(SgyFile::numTraces)
 				.sum();
-		Progress progress = new Progress(totalRows, onProgress);
+		Progress progress = new Progress(totalValues, onProgress);
 		for (SgyFile dataFile : dataFiles) {
-			File tempFile = createTempFileIfNeeded(dataFile);
-			interpolateAndUpdatePositions(dataFile, positions, progress);
-			save(dataFile, tempFile);
-			reloadFromTempIfNeeded(dataFile, tempFile);
+			if (dataFile instanceof CsvFile csvFile) {
+                interpolateAndUpdatePositions(csvFile, positions, progress);
+            } else if (dataFile instanceof TraceFile traceFile) {
+                interpolateAndUpdatePositions(traceFile, positions, progress);
+            }
+            if (isOpenedInGeohammer(dataFile)) {
+                reload(dataFile);
+            } else {
+                save(dataFile);
+            }
 		}
 	}
 
-	@Nullable
-	private File createTempFileIfNeeded(SgyFile sgyFile) throws IOException {
-		File tempFile = null;
-		if (isOpenedInGeohammer(sgyFile)) {
-			tempFile = sgyFile.copyToTempFile();
-		}
-		return tempFile;
-	}
+    private void interpolateAndUpdatePositions(CsvFile csvFile, List<Position> positions, Progress progress) {
+        for (GeoData value : csvFile.getGeoData()) {
+            Position interpolated = interpolate(value, positions);
+            if (interpolated != null) {
+                value.setLatitude(interpolated.latitude());
+                value.setLongitude(interpolated.longitude());
+                value.setAltitude(interpolated.altitude());
+            }
+            progress.increment();
+        }
+    }
 
-	private boolean isOpenedInGeohammer(SgyFile file) {
-		return model.getFileManager().getFiles().contains(file);
-	}
+    // TODO
+    private void interpolateAndUpdatePositions(TraceFile traceFile, List<Position> positions, Progress progress) {
+        for (int i = 0; i < traceFile.getTraces().size(); i++) {
+            Trace trace = traceFile.getTraces().get(i);
+            GeoData value = traceFile.getGeoData().get(i);
 
-	private void interpolateAndUpdatePositions(
-			SgyFile dataFile,
-			List<Position> positions,
-			Progress progress
-	) {
-		// todo for SGY file use traces + sync meta
-		if (dataFile instanceof CsvFile csvFile) {
-			for (GeoData value : csvFile.getGeoData()) {
-				interpolateAndUpdate(value, positions);
-				progress.increment();
-			}
-		} else if (dataFile instanceof TraceFile traceFile) {
-			for (int i = 0; i < traceFile.getTraces().size(); i++) {
-				Trace trace = traceFile.getTraces().get(i);
-				GeoData geodata = traceFile.getGeoData().get(trace.getIndex());
-				interpolateAndUpdate(trace, geodata, positions);
-				traceFile.syncMeta();
-				progress.increment();
-			}
-		}
-	}
+            Position interpolated = interpolate(value, positions);
+            if (interpolated != null) {
+                trace.setLatLon(
+                        new LatLon(
+                                interpolated.latitude(),
+                                interpolated.longitude()
+                        )
+                );
+            }
+            progress.increment();
+        }
+        traceFile.syncMeta();
+    }
 
-	private void interpolateAndUpdate(GeoData value, List<Position> positions) {
-		LocalDateTime dateTime = value.getDateTime();
-		if (dateTime == null) {
-			return;
-		}
-		long time = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
-		Segment segment = findSegment(positions, time);
-		if (segment == null) {
-			return;
-		}
-		Position interpolated = segment.interpolatePosition(time);
-		// update value
-		value.setLatitude(interpolated.latitude());
-		value.setLongitude(interpolated.longitude());
-		value.setAltitude(interpolated.altitude());
-	}
-
-	private void interpolateAndUpdate(Trace trace, GeoData geoData, List<Position> positions) {
-		LocalDateTime dateTime = geoData.getDateTime();
-		if (dateTime == null) {
-			return;
-		}
-		long time = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
-		Segment segment = findSegment(positions, time);
-		if (segment == null) {
-			return;
-		}
-		Position interpolated = segment.interpolatePosition(time);
-		// update value
-		trace.setLatLon(
-				new LatLon(
-						interpolated.latitude(),
-						interpolated.longitude()
-				)
-		);
-	}
+    private @Nullable Position interpolate(GeoData value, List<Position> positions) {
+        LocalDateTime dateTime = value.getDateTime();
+        if (dateTime == null) {
+            return null;
+        }
+        long time = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        Segment segment = findSegment(positions, time);
+        if (segment == null) {
+            return null;
+        }
+        return segment.interpolatePosition(time);
+    }
 
 	@Nullable
 	private Segment findSegment(List<Position> positions, long time) {
@@ -160,16 +140,15 @@ public class Geotagger {
 		);
 	}
 
-	private void save(SgyFile sgyFile, @Nullable File tempFile) throws IOException {
-		File file = tempFile != null ? tempFile : sgyFile.getFile();
+	private void save(SgyFile sgyFile) throws IOException {
+		File file = sgyFile.getFile();
 		if (file != null) {
 			sgyFile.save(file);
 		}
 	}
 
-	private void reloadFromTempIfNeeded(SgyFile sgyFile, @Nullable File tempFile) throws IOException {
-		if (isOpenedInGeohammer(sgyFile) && tempFile != null) {
-			loader.loadFrom(sgyFile, tempFile);
-		}
+	private void reload(SgyFile sgyFile) {
+        sgyFile.setUnsaved(true);
+        Platform.runLater(() -> model.reload(sgyFile));
 	}
 }

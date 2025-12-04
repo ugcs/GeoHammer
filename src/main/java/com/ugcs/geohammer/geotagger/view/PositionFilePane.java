@@ -85,7 +85,7 @@ public class PositionFilePane extends FilePane {
 					: null;
 		} else {
 			FileTemplates fileTemplates = fileManager.getFileTemplates();
-			template = fileTemplates.findTemplate(fileTemplates.getTemplates(), file);
+			template = fileTemplates.findTemplate(file);
 		}
 		return template != null && template.isPositional();
     }

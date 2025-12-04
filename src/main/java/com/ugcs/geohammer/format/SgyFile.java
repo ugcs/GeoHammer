@@ -3,6 +3,8 @@ package com.ugcs.geohammer.format;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -68,18 +70,18 @@ public abstract class SgyFile {
 	}
 
 	public File copyToTempFile() throws IOException {
-		SgyFile sgyFile = this;
-		Check.notNull(sgyFile);
+		File originalFile = this.getFile();
+		Check.notNull(originalFile);
 
-		File file = Check.notNull(sgyFile.getFile());
-		String fileName = file.getName();
-		String prefix = FileNames.removeExtension(fileName);
-		String suffix = "." + FileNames.getExtension(fileName);
+		Path tempPath = Files.createTempFile(
+				FileNames.removeExtension(originalFile.getName()),
+				"." + FileNames.getExtension(originalFile.getName())
+		);
 
-		File tempFile = Files.createTempFile(prefix, suffix).toFile();
-		sgyFile.save(tempFile);
-		return tempFile;
+		Files.copy(originalFile.toPath(), tempPath, StandardCopyOption.REPLACE_EXISTING);
+		return tempPath.toFile();
 	}
+
 
 	public abstract int numTraces();
 

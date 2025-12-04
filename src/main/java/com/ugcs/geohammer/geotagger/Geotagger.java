@@ -11,24 +11,18 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 import com.ugcs.geohammer.Loader;
-import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.geotagger.domain.Position;
 import com.ugcs.geohammer.geotagger.domain.Segment;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.model.event.FileUpdatedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
-import javafx.application.Platform;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class Geotagger {
 
-	private static final Logger log = LoggerFactory.getLogger(Geotagger.class);
 	private final Model model;
 	private final Loader loader;
 
@@ -148,20 +142,7 @@ public class Geotagger {
 
 	private void reloadFromTempIfNeeded(SgyFile sgyFile, @Nullable File tempFile) throws IOException {
 		if (isOpenedInGeohammer(sgyFile) && tempFile != null) {
-//			loader.loadFrom(sgyFile, tempFile);
-
-			sgyFile.setUnsaved(true);
-			sgyFile.tracesChanged();
-
-			Chart chart = model.getFileChart(sgyFile);
-			if (chart != null) {
-				Platform.runLater(chart::reload);
-			}
-
-			model.updateAuxElements();
-
-			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-			model.publishEvent(new FileUpdatedEvent(this, sgyFile));
+			loader.loadFrom(sgyFile, tempFile);
 		}
 	}
 }

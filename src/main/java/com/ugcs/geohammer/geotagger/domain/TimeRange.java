@@ -6,6 +6,9 @@ import java.util.List;
 
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.gpr.Trace;
 
 public record TimeRange(Instant from, Instant to) {
 
@@ -27,7 +30,17 @@ public record TimeRange(Instant from, Instant to) {
 	}
 
 	public static TimeRange of(SgyFile file) {
-		List<GeoData> geoData = file.getGeoData();
+		if (file instanceof CsvFile csvFile) {
+			return of(csvFile);
+		} else if (file instanceof TraceFile traceFile) {
+			return of(traceFile);
+		} else {
+			throw new IllegalArgumentException("Unsupported file type: " + file.getClass().getName());
+		}
+	}
+
+	public static TimeRange of(CsvFile csvFile) {
+		List<GeoData> geoData = csvFile.getGeoData();
 
 		Instant start = null;
 		Instant end = null;
@@ -41,6 +54,32 @@ public record TimeRange(Instant from, Instant to) {
 			GeoData value = geoData.get(i);
 			if (value != null && value.getDateTime() != null) {
 				end = value.getDateTime().toInstant(ZoneOffset.UTC);
+				break;
+			}
+		}
+		if (start == null || end == null) {
+			return null;
+		}
+		return new TimeRange(start, end);
+	}
+
+	public static TimeRange of(TraceFile traceFile) {
+		List<Trace> traces = traceFile.getTraces();
+
+		Instant start = null;
+		Instant end = null;
+		for (Trace trace : traces) {
+			GeoData geoData = traceFile.getGeoData().get(trace.getIndex());
+			if (geoData != null && geoData.getDateTime() != null) {
+				start = geoData.getDateTime().toInstant(ZoneOffset.UTC);
+				break;
+			}
+		}
+		for (int i = traces.size() - 1; i >= 0; i--) {
+			Trace trace = traces.get(i);
+			GeoData geoData = traceFile.getGeoData().get(trace.getIndex());
+			if (geoData != null && geoData.getDateTime() != null) {
+				end = geoData.getDateTime().toInstant(ZoneOffset.UTC);
 				break;
 			}
 		}

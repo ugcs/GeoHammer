@@ -5,7 +5,10 @@ public enum Semantic {
     LINE("Line"),
     ALTITUDE_AGL("Altitude AGL"),
     TMI("TMI"),
-    MARK("Mark");
+    MARK("Mark"),
+    LATITUDE("Latitude"),
+    LONGITUDE("Longitude"),
+    ALTITUDE("Altitude");
 
     private final String name;
 

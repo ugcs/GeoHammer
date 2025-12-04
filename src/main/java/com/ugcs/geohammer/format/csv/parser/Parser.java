@@ -212,11 +212,7 @@ public abstract class Parser {
     private ColumnSchema buildColumnSchema() {
         DataMapping mapping = template.getDataMapping();
 
-        Set<String> metaHeaders = new HashSet<>();
-        for (BaseData metaValue : mapping.getMetaValues()) {
-            metaHeaders.add(metaValue.getHeader());
-        }
-
+        Map<String, BaseData> metaValues = mapping.getMetaValuesByHeader();
         ColumnSchema columns = new ColumnSchema();
 
         // add all file columns
@@ -228,9 +224,11 @@ public abstract class Parser {
                 column.setUnit(Strings.emptyToNull(dataValue.getUnits()));
                 column.setReadOnly(dataValue.isReadOnly());
             }
-            // mark meta columns read-only
-            if (metaHeaders.contains(header)) {
+            BaseData metaValue = metaValues.get(header);
+            if (metaValue != null) {
+                // mark meta columns read-only
                 column.setReadOnly(true);
+                column.setSemantic(metaValue.getSemantic());
             }
             columns.addColumn(column);
         }
@@ -291,19 +289,7 @@ public abstract class Parser {
     }
 
     private GeoData parseValues(String[] tokens, ColumnSchema columns) {
-        Double latitude = parseLatitude(tokens);
-        Double longitude = parseLongitude(tokens);
-        if (latitude == null || longitude == null) {
-            return null;
-        }
-        if (latitude == 0.0 && longitude == 0.0) {
-            return null;
-        }
-
         GeoData geoData = new GeoData(columns);
-        geoData.setLatitude(latitude);
-        geoData.setLongitude(longitude);
-		geoData.setAltitude(parseAltitude(tokens));
         geoData.setDateTime(parseDateTime(tokens));
 
         for (Column column : columns) {
@@ -317,6 +303,15 @@ public abstract class Parser {
             }
         }
 
+        // position check
+        Double latitude = geoData.getLatitude();
+        Double longitude = geoData.getLongitude();
+        if (latitude == null || longitude == null) {
+            return null;
+        }
+        if (latitude == 0.0 && longitude == 0.0) {
+            return null;
+        }
         return geoData;
     }
 

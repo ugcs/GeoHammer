@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.format.csv.parser;
 
-import com.ugcs.geohammer.format.GeoCoordinates;
+import com.ugcs.geohammer.format.GeoData;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,7 +19,7 @@ class CsvParserTest extends BaseParsersTest {
     private CsvParser csvParser;
     private String oldFile;
     private String newFile;
-    private Iterable<GeoCoordinates> coordinates;
+    private Iterable<GeoData> coordinates;
 
     @BeforeEach
     void setUp() {

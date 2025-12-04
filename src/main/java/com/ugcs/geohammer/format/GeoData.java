@@ -2,14 +2,19 @@ package com.ugcs.geohammer.format;
 
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
+import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
+import org.jspecify.annotations.Nullable;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 
-public class GeoData extends GeoCoordinates {
+public class GeoData {
 
     // values layout schema
     private final ColumnSchema schema;
@@ -17,6 +22,9 @@ public class GeoData extends GeoCoordinates {
     // contains numbers for parsed data values
     // and strings for unparsed values
     private Object[] values;
+
+    // -1 for empty value
+    private long timestamp = -1;
 
     public GeoData(ColumnSchema schema) {
         Check.notNull(schema);
@@ -26,13 +34,12 @@ public class GeoData extends GeoCoordinates {
     }
 
     public GeoData(ColumnSchema schema, GeoData other) {
-        super(other);
-
         Check.notNull(schema);
         Check.notNull(other);
 
         this.schema = schema;
         this.values = new Object[schema.numColumns()];
+        this.timestamp = other.timestamp;
 
         // copy values based on a new schema
         for (Column column : schema) {
@@ -43,6 +50,18 @@ public class GeoData extends GeoCoordinates {
 
     public ColumnSchema getSchema() {
         return schema;
+    }
+
+    public LocalDateTime getDateTime() {
+        return timestamp != -1
+                ? LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
+                : null;
+    }
+
+    public void setDateTime(LocalDateTime dateTime) {
+        timestamp = dateTime != null
+                ? dateTime.toInstant(ZoneOffset.UTC).toEpochMilli()
+                : -1;
     }
 
     private void ensureCapacity() {
@@ -135,6 +154,47 @@ public class GeoData extends GeoCoordinates {
     }
 
     // common semantics
+
+    public LatLon getLatLon() {
+        Double latitude = getLatitude();
+        Double longitude = getLongitude();
+        return latitude != null && longitude != null
+                ? new LatLon(latitude, longitude)
+                : null;
+    }
+
+    public void setLatLon(LatLon latLon) {
+        setLatitude(latLon != null ? latLon.getLatDgr() : null);
+        setLongitude(latLon != null ? latLon.getLonDgr() : null);
+    }
+
+    public Double getLatitude() {
+        Number latitude = getNumberBySemantic(Semantic.LATITUDE.getName());
+        return latitude != null ? latitude.doubleValue() : null;
+    }
+
+    public void setLatitude(Double latitude) {
+        setValueBySemantic(Semantic.LATITUDE.getName(), latitude);
+    }
+
+    public Double getLongitude() {
+        Number longitude = getNumberBySemantic(Semantic.LONGITUDE.getName());
+        return longitude != null ? longitude.doubleValue() : null;
+
+    }
+
+    public void setLongitude(Double longitude) {
+        setValueBySemantic(Semantic.LONGITUDE.getName(), longitude);
+    }
+
+    public Double getAltitude() {
+        Number altitude = getNumberBySemantic(Semantic.ALTITUDE.getName());
+        return altitude != null ? altitude.doubleValue() : null;
+    }
+
+    public void setAltitude(@Nullable Double altitude) {
+        setValueBySemantic(Semantic.ALTITUDE.getName(), altitude);
+    }
 
     public Integer getLine() {
         Number line = getNumberBySemantic(Semantic.LINE.getName());

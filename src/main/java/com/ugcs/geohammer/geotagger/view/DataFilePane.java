@@ -1,5 +1,9 @@
 package com.ugcs.geohammer.geotagger.view;
 
+import java.io.File;
+import java.time.Instant;
+import java.util.List;
+
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.geotagger.Formatters;
@@ -12,10 +16,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.layout.HBox;
 import org.springframework.stereotype.Component;
-
-import java.io.File;
-import java.time.Instant;
-import java.util.List;
 
 @Component
 public class DataFilePane extends FilePane {
@@ -73,7 +73,7 @@ public class DataFilePane extends FilePane {
 
     private String calculateCoverageStatus(SgyFile file) {
         List<SgyFile> positionFiles = getFiles();
-        return CoverageStatus.determine(positionFiles, file).getDisplayName();
+        return CoverageStatus.compute(file, positionFiles).getDisplayName();
     }
 
     @Override

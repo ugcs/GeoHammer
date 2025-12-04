@@ -27,174 +27,174 @@ class CoverageStatusTest {
 	}
 
 	@Test
-	void determine_returnNotCovered_whenDataFileIsNull() {
+	void compute_returnNotCovered_whenDataFileIsNull() {
 		List<SgyFile> positionFiles = List.of(createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00"));
 
-		CoverageStatus result = CoverageStatus.determine(positionFiles, null);
+		CoverageStatus result = CoverageStatus.compute(null, positionFiles);
 
 		assertEquals(CoverageStatus.NOT_COVERED, result);
 	}
 
 	@Test
-	void determine_returnNotCovered_whenPositionFilesIsNull() {
+	void compute_returnNotCovered_whenPositionFilesIsNull() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(null, dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, null);
 
 		assertEquals(CoverageStatus.NOT_COVERED, result);
 	}
 
 	@Test
-	void determine_returnNotCovered_whenPositionFilesIsEmpty() {
+	void compute_returnNotCovered_whenPositionFilesIsEmpty() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(Collections.emptyList(), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, Collections.emptyList());
 
 		assertEquals(CoverageStatus.NOT_COVERED, result);
 	}
 
 	@Test
-	void determine_returnNull_whenDataFileHasNoStartTime() {
+	void compute_returnNull_whenDataFileHasNoStartTime() {
 		SgyFile dataFile = createSgyFileWithNoDateTime();
 		List<SgyFile> positionFiles = List.of(createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00"));
 
-		CoverageStatus result = CoverageStatus.determine(positionFiles, dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, positionFiles);
 
 		assertEquals(CoverageStatus.NOT_COVERED, result);
 	}
 
 	@Test
-	void determine_returnFullyCovered_whenPositionFileCoversDataFileCompletely() {
+	void compute_returnFullyCovered_whenPositionFileCoversDataFileCompletely() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T09:00:00", "2024-01-01T12:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile));
 
 		assertEquals(CoverageStatus.FULLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnFullyCovered_whenDataFileAndPositionFileHaveSameTimeRange() {
+	void compute_returnFullyCovered_whenDataFileAndPositionFileHaveSameTimeRange() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile));
 
 		assertEquals(CoverageStatus.FULLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnFullyCovered_whenMultiplePositionFilesCoverDataFileWithoutGaps() {
+	void compute_returnFullyCovered_whenMultiplePositionFilesCoverDataFileWithoutGaps() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T15:00:00");
 		SgyFile positionFile1 = createSgyFile("2024-01-01T09:00:00", "2024-01-01T12:00:00");
 		SgyFile positionFile2 = createSgyFile("2024-01-01T12:00:00", "2024-01-01T16:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile1, positionFile2), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile1, positionFile2));
 
 		assertEquals(CoverageStatus.FULLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnFullyCovered_whenMultipleOverlappingPositionFilesCoverDataFile() {
+	void compute_returnFullyCovered_whenMultipleOverlappingPositionFilesCoverDataFile() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T15:00:00");
 		SgyFile positionFile1 = createSgyFile("2024-01-01T09:00:00", "2024-01-01T13:00:00");
 		SgyFile positionFile2 = createSgyFile("2024-01-01T12:00:00", "2024-01-01T16:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile1, positionFile2), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile1, positionFile2));
 
 		assertEquals(CoverageStatus.FULLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnPartiallyCovered_whenPositionFileCoversOnlyStart() {
+	void compute_returnPartiallyCovered_whenPositionFileCoversOnlyStart() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T12:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T09:00:00", "2024-01-01T11:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile));
 
 		assertEquals(CoverageStatus.PARTIALLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnPartiallyCovered_whenPositionFileCoversOnlyEnd() {
+	void compute_returnPartiallyCovered_whenPositionFileCoversOnlyEnd() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T12:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T11:00:00", "2024-01-01T13:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile));
 
 		assertEquals(CoverageStatus.PARTIALLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnPartiallyCovered_whenPositionFileIsWithinDataFile() {
+	void compute_returnPartiallyCovered_whenPositionFileIsWithinDataFile() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T14:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T11:00:00", "2024-01-01T12:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile));
 
 		assertEquals(CoverageStatus.PARTIALLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnPartiallyCovered_whenMultiplePositionFilesHaveGap() {
+	void compute_returnPartiallyCovered_whenMultiplePositionFilesHaveGap() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T15:00:00");
 		SgyFile positionFile1 = createSgyFile("2024-01-01T09:00:00", "2024-01-01T12:00:00");
 		SgyFile positionFile2 = createSgyFile("2024-01-01T13:00:00", "2024-01-01T16:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile1, positionFile2), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile1, positionFile2));
 
 		assertEquals(CoverageStatus.PARTIALLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnNotCovered_whenPositionFilesDoNotOverlap() {
+	void compute_returnNotCovered_whenPositionFilesDoNotOverlap() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile1 = createSgyFile("2024-01-01T11:00:00", "2024-01-01T13:00:00");
 		SgyFile positionFile2 = createSgyFile("2024-01-01T09:00:00", "2024-01-01T10:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile1, positionFile2), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile1, positionFile2));
 
 		assertEquals(CoverageStatus.PARTIALLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnNotCovered_whenPositionFilesAreBeforeDataFile() {
+	void compute_returnNotCovered_whenPositionFilesAreBeforeDataFile() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T08:00:00", "2024-01-01T09:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile));
 
 		assertEquals(CoverageStatus.NOT_COVERED, result);
 	}
 
 	@Test
-	void determine_returnNotCovered_whenPositionFilesAreAfterDataFile() {
+	void compute_returnNotCovered_whenPositionFilesAreAfterDataFile() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile = createSgyFile("2024-01-01T12:00:00", "2024-01-01T13:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile));
 
 		assertEquals(CoverageStatus.NOT_COVERED, result);
 	}
 
 	@Test
-	void determine_shouldIgnorePositionFilesWithNoDateTime() {
+	void compute_shouldIgnorePositionFilesWithNoDateTime() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFileValid = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFileInvalid = createSgyFileWithNoDateTime();
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFileValid, positionFileInvalid), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFileValid, positionFileInvalid));
 
 		assertEquals(CoverageStatus.FULLY_COVERED, result);
 	}
 
 	@Test
-	void determine_returnPartiallyCovered_whenPositionFilesTouchAtBoundaries() {
+	void compute_returnPartiallyCovered_whenPositionFilesTouchAtBoundaries() {
 		SgyFile dataFile = createSgyFile("2024-01-01T10:00:00", "2024-01-01T15:00:00");
 		SgyFile positionFile1 = createSgyFile("2024-01-01T10:00:00", "2024-01-01T11:00:00");
 		SgyFile positionFile2 = createSgyFile("2024-01-01T14:00:00", "2024-01-01T15:00:00");
 
-		CoverageStatus result = CoverageStatus.determine(List.of(positionFile1, positionFile2), dataFile);
+		CoverageStatus result = CoverageStatus.compute(dataFile, List.of(positionFile1, positionFile2));
 
 		assertEquals(CoverageStatus.PARTIALLY_COVERED, result);
 	}

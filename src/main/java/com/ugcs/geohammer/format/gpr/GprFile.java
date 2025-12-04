@@ -6,7 +6,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -14,22 +18,22 @@ import java.util.concurrent.CancellationException;
 import com.github.thecoldwine.sigrun.common.BinaryHeader;
 import com.github.thecoldwine.sigrun.common.ConverterFactory;
 import com.github.thecoldwine.sigrun.common.TraceHeader;
-import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
 import com.github.thecoldwine.sigrun.converters.SeismicValuesConverter;
 import com.github.thecoldwine.sigrun.serialization.BinaryHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.BinaryHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
+import com.ugcs.geohammer.format.HorizontalProfile;
+import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
 import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
-import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.element.BaseObject;
-import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Traces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,8 +149,9 @@ public class GprFile extends TraceFile {
 
         float[] values = converter.convert(binTrace.data);
         LatLon latLon = getLatLon(header);
+		Instant time = getTimestamp(header);
 
-        Trace trace = new Trace(binHeader, header, values, latLon);
+        Trace trace = new Trace(binHeader, header, values, latLon, time);
         if (binHeader[MARK_BYTE_POS] != 0) {
         	trace.setMarked(true);
         }
@@ -170,6 +175,41 @@ public class GprFile extends TraceFile {
 		double rlat = convertDegreeFraction(lat);
 
 		return new LatLon(rlat, rlon);
+	}
+
+	private Instant getTimestamp(TraceHeader header) {
+		Short year = header.getYearDataRecorded();
+		Short dayOfYear = header.getDayOfYear();
+		Short hours = header.getHourOfDay();
+		Short minutes = header.getMinuteOfHour();
+		Short seconds = header.getSecondOfMinute();
+		Short mSeconds = 0;
+
+		int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+
+		LocalDateTime date = LocalDateTime.of(1, 1, 1, 0, 0, 0, 0);
+		if (isTimeParameterValid(year, 0, currentYear + 1) &&
+				isTimeParameterValid(dayOfYear, 0, 367) &&
+				isTimeParameterValid(hours, -1, 24) &&
+				isTimeParameterValid(minutes, -1, 59) &&
+				isTimeParameterValid(seconds, -1, 60) &&
+				isTimeParameterValid(mSeconds, -1, 1000)) {
+
+			date = date.plusYears(year);
+			date = date.plusDays(dayOfYear - 1);
+			date = date.plusHours(hours);
+			date = date.plusMinutes(minutes);
+			date = date.plusSeconds(seconds);
+			date = date.plusNanos(mSeconds * 1_000_000L);
+		}
+		return date.toInstant(ZoneOffset.UTC);
+	}
+
+	private boolean isTimeParameterValid(Short value, int min, int max) {
+		if (value == null) {
+			return false;
+		}
+		return value > min && value < max;
 	}
 
 	private double retrieveVal(Double v1, Float v2) {

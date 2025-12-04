@@ -1,8 +1,6 @@
 package com.ugcs.geohammer.geotagger.domain;
 
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import com.ugcs.geohammer.format.SgyFile;
@@ -22,44 +20,23 @@ public enum CoverageStatus {
 		return displayName;
 	}
 
-	public static CoverageStatus determine(List<SgyFile> positionFiles, SgyFile dataFile) {
-		if (dataFile == null || positionFiles == null || positionFiles.isEmpty()) {
+	public static CoverageStatus compute(SgyFile file, List<SgyFile> positionFiles) {
+		if (file == null || positionFiles == null || positionFiles.isEmpty()) {
 			return NOT_COVERED;
 		}
-
-		TimeRange dataFileTimeRange = TimeRange.of(dataFile);
-		if (dataFileTimeRange == null) {
+		TimeRange range = TimeRange.of(file);
+		if (range == null) {
 			return NOT_COVERED;
 		}
-
-		List<TimeRange> overlappingRanges = new ArrayList<>();
+		List<TimeRange> positionRanges = new ArrayList<>();
 		for (SgyFile positionFile : positionFiles) {
-			TimeRange range = TimeRange.of(positionFile);
-			if (range != null && range.overlaps(dataFileTimeRange)) {
-				overlappingRanges.add(range);
+			TimeRange positionRange = TimeRange.of(positionFile);
+			if (positionRange != null && positionRange.overlaps(range)) {
+				positionRanges.add(positionRange);
 			}
 		}
-		overlappingRanges.sort(Comparator.comparing(TimeRange::from));
-
-		if (overlappingRanges.isEmpty()) {
-			return NOT_COVERED;
-		}
-
-		return isCovered(dataFileTimeRange, overlappingRanges) ? FULLY_COVERED : PARTIALLY_COVERED;
-	}
-
-	private static boolean isCovered(TimeRange dataRange, List<TimeRange> ranges) {
-		Instant datafrom = dataRange.from();
-
-		for (TimeRange range : ranges) {
-			if (range.from().isAfter(datafrom)) {
-				return false;
-			}
-			if (range.to().isAfter(datafrom)) {
-				datafrom = range.to();
-			}
-		}
-
-		return !datafrom.isBefore(dataRange.to());
+		return range.isCoveredBy(positionRanges)
+				? FULLY_COVERED
+				: PARTIALLY_COVERED;
 	}
 }

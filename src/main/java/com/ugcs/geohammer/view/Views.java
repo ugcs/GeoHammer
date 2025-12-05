@@ -6,6 +6,13 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.effect.Blend;
+import javafx.scene.effect.BlendMode;
+import javafx.scene.effect.ColorInput;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -79,4 +86,40 @@ public final class Views {
 
         return button;
     }
+
+	public static void tintImage(ImageView imageView, @SuppressWarnings("SameParameterValue") Color tint) {
+		Image image = imageView.getImage();
+		if (image == null) {
+			return;
+		}
+		ColorInput colorInput = new ColorInput(0, 0, image.getWidth(), image.getHeight(), tint);
+		Blend blend = new Blend(BlendMode.SRC_ATOP, null, colorInput);
+		imageView.setEffect(blend);
+	}
+
+	public static Label createLabel(String text, int width) {
+		Label label = new Label(text == null ? "-" : text);
+		label.setPrefWidth(width);
+		return label;
+	}
+
+	public static Label createFixedLabel(String text, int width) {
+		Label label = new Label(text);
+		label.setPrefWidth(width);
+		label.setMinWidth(width);
+		return label;
+	}
+
+	public static Region createSpacer() {
+		Region region = new Region();
+		HBox.setHgrow(region, Priority.ALWAYS);
+		return region;
+	}
+
+	public static Region createVerticalSeparator() {
+		Region separator = new Region();
+		separator.setPrefWidth(1);
+		separator.setStyle("-fx-background-color: #cccccc;");
+		return separator;
+	}
 }

@@ -620,6 +620,7 @@ public class SensorLineChart extends Chart {
         }
 
         applyViewport(false);
+		updateChartName();
     }
 
     private void close() {

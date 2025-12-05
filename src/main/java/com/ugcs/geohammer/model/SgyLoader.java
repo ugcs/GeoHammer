@@ -95,9 +95,13 @@ public class SgyLoader {
                 .withNumberOfSamplesFormat(FormatEntry.create(114, 116))
                 //117-118     59            119 isiptr   * "Sample interval in us for this trace".
                 .withSampleIntervalInMcsFormat(FormatEntry.create(116, 118))
-                .withSecondOfMinuteFormat(FormatEntry.create(164, 166))
-                .withDelayRecordingTimeFormat(FormatEntry.create(164, 166))
-
+				.withYearDataRecordedFormat(FormatEntry.create(156, 158))
+				.withDayOfYearFormat(FormatEntry. create(158, 160))
+				.withHourOfDayFormat(FormatEntry.create(160, 162))
+				. withMinuteOfHourFormat(FormatEntry.create(162, 164))
+				.withSecondOfMinuteFormat(FormatEntry.create(164, 166))
+				.withDelayRecordingTimeFormat(FormatEntry.create(164, 166))
+				.withTraceWeightingFactorFormat(FormatEntry.create(168, 170))
                 .build();
     }
 

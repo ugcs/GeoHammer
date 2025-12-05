@@ -6,6 +6,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -14,22 +17,22 @@ import java.util.concurrent.CancellationException;
 import com.github.thecoldwine.sigrun.common.BinaryHeader;
 import com.github.thecoldwine.sigrun.common.ConverterFactory;
 import com.github.thecoldwine.sigrun.common.TraceHeader;
-import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
 import com.github.thecoldwine.sigrun.converters.SeismicValuesConverter;
 import com.github.thecoldwine.sigrun.serialization.BinaryHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.BinaryHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
+import com.ugcs.geohammer.format.HorizontalProfile;
+import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
 import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
-import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.element.BaseObject;
-import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Traces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class GprFile extends TraceFile {
 
 	private static final Logger log = LoggerFactory.getLogger(GprFile.class);
-	
+
 	private static final int MARK_BYTE_POS = 238;
 
 	private static final Charset charset = StandardCharsets.UTF_8;
@@ -48,7 +51,7 @@ public class GprFile extends TraceFile {
 	private static final TraceHeaderFormat traceHeaderFormat
     	= SgyLoader.makeTraceHeaderFormat();
 
-    public static final TextHeaderReader textHeaderReader 
+    public static final TextHeaderReader textHeaderReader
     	= new TextHeaderReader(charset);
 
 	public static final BinaryHeaderReader binaryHeaderReader
@@ -56,12 +59,12 @@ public class GprFile extends TraceFile {
 
 	public static final TraceHeaderReader traceHeaderReader
     	= new TraceHeaderReader(traceHeaderFormat);
-	
+
     // unchanged blocks from original file
     private byte[] txtHdr;
 
 	private byte[] binHdr;
-    
+
     private BinaryHeader binaryHeader;
 
     private SampleNormalizer sampleNormalizer = new SampleNormalizer();
@@ -90,12 +93,12 @@ public class GprFile extends TraceFile {
 		Check.notNull(file);
 
 		setFile(file);
-		
+
 		BinFile binFile = BinFile.load(file);
-		
+
 		txtHdr = binFile.getTxtHdr();
 		binHdr = binFile.getBinHdr();
-		
+
 		binaryHeader = binaryHeaderReader.read(binFile.getBinHdr());
 
 		log.debug("Sample interval: {}", binaryHeader.getSampleInterval());
@@ -113,7 +116,7 @@ public class GprFile extends TraceFile {
 		updateTraces();
 		copyMarkedTracesToAuxElements();
 		updateTraceDistances();
-		
+
 		setUnsaved(false);
 
 		log.debug("opened '{}', load size: {}, actual size: {}", file.getName(), getTraces().size(), binFile.getTraces().size());
@@ -138,15 +141,16 @@ public class GprFile extends TraceFile {
 		}
 		return traces;
 	}
-    
+
 	private Trace readTrace(BinTrace binTrace, SeismicValuesConverter converter) {
 		byte[] binHeader = binTrace.header;
         TraceHeader header = traceHeaderReader.read(binHeader);
 
         float[] values = converter.convert(binTrace.data);
         LatLon latLon = getLatLon(header);
+		Instant time = getTimestamp(header);
 
-        Trace trace = new Trace(binHeader, header, values, latLon);
+        Trace trace = new Trace(binHeader, header, values, latLon, time);
         if (binHeader[MARK_BYTE_POS] != 0) {
         	trace.setMarked(true);
         }
@@ -170,6 +174,43 @@ public class GprFile extends TraceFile {
 		double rlat = convertDegreeFraction(lat);
 
 		return new LatLon(rlat, rlon);
+	}
+
+	private Instant getTimestamp(TraceHeader header) {
+		Short year = header.getYearDataRecorded();
+		Short day = header.getDayOfYear();
+		Short hours = header.getHourOfDay();
+		Short minutes = header.getMinuteOfHour();
+		Short seconds = header.getSecondOfMinute();
+		Short millis = header.getTraceWeightingFactor();
+
+		if (!isValidTimestamp(year, day, hours, minutes, seconds, millis)) {
+			return null;
+		}
+
+		return LocalDateTime.of(year, 1, 1, 0, 0, 0, 0)
+				.withDayOfYear(day)
+				.withHour(hours)
+				.withMinute(minutes)
+				.withSecond(seconds)
+				.withNano(millis * 1_000_000)
+				.toInstant(ZoneOffset.UTC);
+	}
+
+	private boolean isValidTimestamp(Short year, Short day, Short hours,
+									 Short minutes, Short seconds, Short millis) {
+		int currentYear = LocalDateTime.now().getYear();
+
+		return isInRange(year, 1, currentYear)
+				&& isInRange(day, 1, 366)
+				&& isInRange(hours, 0, 23)
+				&& isInRange(minutes, 0, 59)
+				&& isInRange(seconds, 0, 59)
+				&& isInRange(millis, 0, 999);
+	}
+
+	private boolean isInRange(Short value, int min, int max) {
+		return value != null && value >= min && value <= max;
 	}
 
 	private double retrieveVal(Double v1, Float v2) {
@@ -244,7 +285,7 @@ public class GprFile extends TraceFile {
 			// set or clear mark
 			binTrace.header[MARK_BYTE_POS] =
 					(byte) (marks.contains(trace.getIndex()) ? -1 : 0);
-			
+
 			binTrace.data = converter.valuesToByteBuffer(trace).array();
 			binFile.getTraces().add(binTrace);
 		}

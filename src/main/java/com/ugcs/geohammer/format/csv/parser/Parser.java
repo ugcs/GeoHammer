@@ -33,9 +33,11 @@ import com.ugcs.geohammer.model.template.data.Date;
 import com.ugcs.geohammer.model.template.data.DateTime;
 import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.GpsTime;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
+import org.jspecify.annotations.Nullable;
 
 public abstract class Parser {
 
@@ -211,11 +213,7 @@ public abstract class Parser {
     private ColumnSchema buildColumnSchema() {
         DataMapping mapping = template.getDataMapping();
 
-        Set<String> metaHeaders = new HashSet<>();
-        for (BaseData metaValue : mapping.getMetaValues()) {
-            metaHeaders.add(metaValue.getHeader());
-        }
-
+        Map<String, BaseData> metaValues = mapping.getMetaValuesByHeader();
         ColumnSchema columns = new ColumnSchema();
 
         // add all file columns
@@ -227,9 +225,11 @@ public abstract class Parser {
                 column.setUnit(Strings.emptyToNull(dataValue.getUnits()));
                 column.setReadOnly(dataValue.isReadOnly());
             }
-            // mark meta columns read-only
-            if (metaHeaders.contains(header)) {
+            BaseData metaValue = metaValues.get(header);
+            if (metaValue != null) {
+                // mark meta columns read-only
                 column.setReadOnly(true);
+                column.setSemantic(metaValue.getSemantic());
             }
             columns.addColumn(column);
         }
@@ -290,19 +290,13 @@ public abstract class Parser {
     }
 
     private GeoData parseValues(String[] tokens, ColumnSchema columns) {
-        Double latitude = parseLatitude(tokens);
-        Double longitude = parseLongitude(tokens);
-        if (latitude == null || longitude == null) {
-            return null;
-        }
-        if (latitude == 0.0 && longitude == 0.0) {
-            return null;
+        LocalDateTime time = parseDateTime(tokens);
+        if (time != null && template.isGpsTime()) {
+            time = GpsTime.gpsToUtc(time);
         }
 
         GeoData geoData = new GeoData(columns);
-        geoData.setLatitude(latitude);
-        geoData.setLongitude(longitude);
-        geoData.setDateTime(parseDateTime(tokens));
+        geoData.setDateTime(time);
 
         for (Column column : columns) {
             String header = column.getHeader();
@@ -315,6 +309,15 @@ public abstract class Parser {
             }
         }
 
+        // position check
+        Double latitude = geoData.getLatitude();
+        Double longitude = geoData.getLongitude();
+        if (latitude == null || longitude == null) {
+            return null;
+        }
+        if (latitude == 0.0 && longitude == 0.0) {
+            return null;
+        }
         return geoData;
     }
 
@@ -373,6 +376,16 @@ public abstract class Parser {
         return Text.parseDouble(getString(values, longitudeColumn));
     }
 
+	@Nullable
+	public Double parseAltitude(String[] values) {
+		BaseData altitudeColumn = template.getDataMapping().getAltitude();
+		String altitudeStr = getString(values, altitudeColumn);
+		if (Strings.isNullOrBlank(altitudeStr)) {
+			return null;
+		}
+		return Text.parseDouble(getString(values, altitudeColumn));
+	}
+
     public LocalDate parseDateFromFilename(String filename) {
         Date dateColumn = template.getDataMapping().getDate();
         String value = Text.matchPattern(filename, dateColumn.getRegex(), false);
@@ -405,11 +418,7 @@ public abstract class Parser {
         DateTime dateTimeColumn = mapping.getDateTime();
         if (hasHeader(dateTimeColumn)) {
             String value = getString(values, dateTimeColumn);
-            if (dateTimeColumn.getType() == DateTime.Type.GPST) {
-                dateTime = Text.parseGpsDateTime(value);
-            } else {
-                dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
-            }
+            dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
         }
         if (dateTime != null) {
             return dateTime;

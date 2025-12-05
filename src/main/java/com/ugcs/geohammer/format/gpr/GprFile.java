@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -41,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class GprFile extends TraceFile {
 
 	private static final Logger log = LoggerFactory.getLogger(GprFile.class);
-	
+
 	private static final int MARK_BYTE_POS = 238;
 
 	private static final Charset charset = StandardCharsets.UTF_8;
@@ -52,7 +51,7 @@ public class GprFile extends TraceFile {
 	private static final TraceHeaderFormat traceHeaderFormat
     	= SgyLoader.makeTraceHeaderFormat();
 
-    public static final TextHeaderReader textHeaderReader 
+    public static final TextHeaderReader textHeaderReader
     	= new TextHeaderReader(charset);
 
 	public static final BinaryHeaderReader binaryHeaderReader
@@ -60,12 +59,12 @@ public class GprFile extends TraceFile {
 
 	public static final TraceHeaderReader traceHeaderReader
     	= new TraceHeaderReader(traceHeaderFormat);
-	
+
     // unchanged blocks from original file
     private byte[] txtHdr;
 
 	private byte[] binHdr;
-    
+
     private BinaryHeader binaryHeader;
 
     private SampleNormalizer sampleNormalizer = new SampleNormalizer();
@@ -94,12 +93,12 @@ public class GprFile extends TraceFile {
 		Check.notNull(file);
 
 		setFile(file);
-		
+
 		BinFile binFile = BinFile.load(file);
-		
+
 		txtHdr = binFile.getTxtHdr();
 		binHdr = binFile.getBinHdr();
-		
+
 		binaryHeader = binaryHeaderReader.read(binFile.getBinHdr());
 
 		log.debug("Sample interval: {}", binaryHeader.getSampleInterval());
@@ -117,7 +116,7 @@ public class GprFile extends TraceFile {
 		updateTraces();
 		copyMarkedTracesToAuxElements();
 		updateTraceDistances();
-		
+
 		setUnsaved(false);
 
 		log.debug("opened '{}', load size: {}, actual size: {}", file.getName(), getTraces().size(), binFile.getTraces().size());
@@ -142,7 +141,7 @@ public class GprFile extends TraceFile {
 		}
 		return traces;
 	}
-    
+
 	private Trace readTrace(BinTrace binTrace, SeismicValuesConverter converter) {
 		byte[] binHeader = binTrace.header;
         TraceHeader header = traceHeaderReader.read(binHeader);
@@ -179,37 +178,39 @@ public class GprFile extends TraceFile {
 
 	private Instant getTimestamp(TraceHeader header) {
 		Short year = header.getYearDataRecorded();
-		Short dayOfYear = header.getDayOfYear();
+		Short day = header.getDayOfYear();
 		Short hours = header.getHourOfDay();
 		Short minutes = header.getMinuteOfHour();
 		Short seconds = header.getSecondOfMinute();
-		Short mSeconds = 0;
+		Short millis = header.getTraceWeightingFactor();
 
-		int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-
-		LocalDateTime date = LocalDateTime.of(1, 1, 1, 0, 0, 0, 0);
-		if (isTimeParameterValid(year, 0, currentYear + 1) &&
-				isTimeParameterValid(dayOfYear, 0, 367) &&
-				isTimeParameterValid(hours, -1, 24) &&
-				isTimeParameterValid(minutes, -1, 59) &&
-				isTimeParameterValid(seconds, -1, 60) &&
-				isTimeParameterValid(mSeconds, -1, 1000)) {
-
-			date = date.plusYears(year);
-			date = date.plusDays(dayOfYear - 1);
-			date = date.plusHours(hours);
-			date = date.plusMinutes(minutes);
-			date = date.plusSeconds(seconds);
-			date = date.plusNanos(mSeconds * 1_000_000L);
+		if (!isValidTimestamp(year, day, hours, minutes, seconds, millis)) {
+			return null;
 		}
-		return date.toInstant(ZoneOffset.UTC);
+
+		return LocalDateTime.of(year, 1, 1, 0, 0, 0, 0)
+				.withDayOfYear(day)
+				.withHour(hours)
+				.withMinute(minutes)
+				.withSecond(seconds)
+				.withNano(millis * 1_000_000)
+				.toInstant(ZoneOffset.UTC);
 	}
 
-	private boolean isTimeParameterValid(Short value, int min, int max) {
-		if (value == null) {
-			return false;
-		}
-		return value > min && value < max;
+	private boolean isValidTimestamp(Short year, Short day, Short hours,
+									 Short minutes, Short seconds, Short millis) {
+		int currentYear = LocalDateTime.now().getYear();
+
+		return isInRange(year, 1, currentYear)
+				&& isInRange(day, 1, 366)
+				&& isInRange(hours, 0, 23)
+				&& isInRange(minutes, 0, 59)
+				&& isInRange(seconds, 0, 59)
+				&& isInRange(millis, 0, 999);
+	}
+
+	private boolean isInRange(Short value, int min, int max) {
+		return value != null && value >= min && value <= max;
 	}
 
 	private double retrieveVal(Double v1, Float v2) {
@@ -284,7 +285,7 @@ public class GprFile extends TraceFile {
 			// set or clear mark
 			binTrace.header[MARK_BYTE_POS] =
 					(byte) (marks.contains(trace.getIndex()) ? -1 : 0);
-			
+
 			binTrace.data = converter.valuesToByteBuffer(trace).array();
 			binFile.getTraces().add(binTrace);
 		}

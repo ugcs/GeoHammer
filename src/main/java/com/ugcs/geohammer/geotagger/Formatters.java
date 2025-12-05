@@ -11,7 +11,7 @@ import com.ugcs.geohammer.util.Templates;
 
 public final class Formatters {
 
-	private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+	private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
 	private static final String DEFAULT_VALUE = "-";
 
 	public static String formatFileName(SgyFile sgyFile) {
@@ -30,7 +30,7 @@ public final class Formatters {
 		return templateName;
 	}
 
-	public static String formatTime(Instant time) {
+	public static String formatDateTime(Instant time) {
 		if (time == null) {
 			return DEFAULT_VALUE;
 		}

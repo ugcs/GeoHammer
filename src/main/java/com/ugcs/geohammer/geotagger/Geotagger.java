@@ -87,7 +87,6 @@ public class Geotagger {
         }
     }
 
-    // TODO
     private void interpolateAndUpdatePositions(TraceFile traceFile, List<Position> positions, Progress progress) {
         for (int i = 0; i < traceFile.getTraces().size(); i++) {
             Trace trace = traceFile.getTraces().get(i);

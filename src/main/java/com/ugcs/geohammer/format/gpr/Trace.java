@@ -36,7 +36,7 @@ public class Trace {
 
     private LatLon latLonOrigin;
 
-	private Instant time;
+	private Instant dateTime;
 
     //tmp for loading
     private boolean marked = false;
@@ -47,7 +47,7 @@ public class Trace {
     private int maxindex;
 
     public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header,
-				 float[] samples, LatLon latLon, Instant time) {
+				 float[] samples, LatLon latLon, Instant dateTime) {
         this.binHeader = binHeader;
         this.header = header;
 
@@ -57,7 +57,7 @@ public class Trace {
 
         this.latLonOrigin = latLon;
         this.latLon = latLon;
-		this.time = time;
+		this.dateTime = dateTime;
     }
 
     public Trace copy() {
@@ -66,7 +66,7 @@ public class Trace {
                 header,
                 Arrays.copyOf(samples, samples.length),
                 latLon,
-				time);
+				dateTime);
         copy.index = index;
         copy.sampleRange = sampleRange;
         copy.prevDist = prevDist;
@@ -160,12 +160,12 @@ public class Trace {
         return latLonOrigin;
     }
 
-	public Instant getTime() {
-		return time;
+	public Instant getDateTime() {
+		return dateTime;
 	}
 
-	public void setTime(Instant time) {
-		this.time = time;
+	public void setDateTime(Instant dateTime) {
+		this.dateTime = dateTime;
 	}
 
 	public boolean isMarked() {

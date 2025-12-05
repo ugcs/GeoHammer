@@ -28,6 +28,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,6 +127,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
             if (latLon != null) {
                 value.setLatLon(trace.getLatLon());
             }
+
+			Instant dateTime = trace.getDateTime();
+			if (dateTime != null) {
+				value.setDateTime(LocalDateTime.ofInstant(dateTime, ZoneOffset.UTC));
+			}
+
         }
 
         // init sample ranges

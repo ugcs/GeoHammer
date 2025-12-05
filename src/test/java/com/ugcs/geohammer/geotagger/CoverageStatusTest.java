@@ -208,9 +208,7 @@ class CoverageStatusTest {
 		GeoData endData = new GeoData(columnSchema);
 		endData.setDateTime(LocalDateTime.parse(endDateTime));
 
-		List<GeoData> geoData = file.getGeoData();
-		geoData.add(startData);
-		geoData.add(endData);
+		List<GeoData> geoData = List.of(startData, endData);
 		file.setGeoData(geoData);
 
 		return file;
@@ -220,9 +218,7 @@ class CoverageStatusTest {
 		CsvFile file = new CsvFile(fileManager.getFileTemplates());
 		ColumnSchema columnSchema = new ColumnSchema();
 		GeoData data = new GeoData(columnSchema);
-		List<GeoData> geoData = file.getGeoData();
-		geoData.add(data);
-		file.setGeoData(geoData);
+		file.setGeoData(List.of(data));
 		return file;
 	}
 }

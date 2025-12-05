@@ -35,6 +35,9 @@ public enum CoverageStatus {
 				positionRanges.add(positionRange);
 			}
 		}
+		if (positionRanges.isEmpty()) {
+			return NOT_COVERED;
+		}
 		return range.isCoveredBy(positionRanges)
 				? FULLY_COVERED
 				: PARTIALLY_COVERED;

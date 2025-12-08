@@ -69,9 +69,12 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private final ComboBox<String> scriptsMetadataSelector;
 
+	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionTool.class);
+
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
-	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionTool.class);
+	private volatile boolean isUpdatingColumns = false;
+
 
 	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, ScriptExecutor scriptExecutor) {
 		super(executor);
@@ -249,55 +252,70 @@ public class ScriptExecutionTool extends FilterToolView {
 		Node inputNode = switch (param.type()) {
 			case STRING, FILE_PATH -> {
 				TextField textField = new TextField(initialValue);
+				textField.setUserData(param.name());
 				textField.setPromptText(param.displayName());
 				yield textField;
 			}
 			case INTEGER -> {
 				TextField textField = new TextField(initialValue);
+				textField.setUserData(param.name());
 				textField.setPromptText("Enter integer value");
 				yield textField;
 			}
 			case DOUBLE -> {
 				TextField textField = new TextField(initialValue);
+				textField.setUserData(param.name());
 				textField.setPromptText("Enter decimal value");
 				yield textField;
 			}
 			case BOOLEAN -> {
 				CheckBox checkBox = new CheckBox();
+				checkBox.setUserData(param.name());
 				checkBox.setSelected(Boolean.parseBoolean(initialValue));
 				checkBox.setText(labelText);
 				yield checkBox;
 			}
-			case COLUMN_NAME -> {
-				ComboBox<String> comboBox = new ComboBox<>();
-				comboBox.setPromptText("Select column");
-				comboBox.setMaxWidth(Double.MAX_VALUE);
-
-				if (selectedFile instanceof CsvFile csvFile) {
-					Set<String> seriesNames = new HashSet<>();
-					for (SgyFile file : model.getFileManager().getFiles()) {
-						if (Objects.equals(Templates.getTemplateName(file), Templates.getTemplateName(csvFile))) {
-							Chart chart = model.getChart(file);
-							if (chart instanceof SensorLineChart sensorChart) {
-								seriesNames.addAll(sensorChart.getSeriesNames());
-							}
-						}
-					}
-					comboBox.getItems().setAll(seriesNames);
-				}
-
-				if (!initialValue.isEmpty() && comboBox.getItems().contains(initialValue)) {
-					comboBox.setValue(initialValue);
-				} else if (!param.defaultValue().isEmpty() && comboBox.getItems().contains(param.defaultValue())) {
-					comboBox.setValue(param.defaultValue());
-				}
-
-				yield comboBox;
-			}
+			case COLUMN_NAME -> createColumnSelector(param, initialValue);
 		};
 
-		inputNode.setUserData(param.name());
 		return inputNode;
+	}
+
+	private ComboBox<String> createColumnSelector(ScriptParameter param, String initialValue) {
+		ComboBox<String> comboBox = new ComboBox<>();
+		comboBox.setUserData(param);
+		comboBox.setPromptText("Select column");
+		comboBox.setMaxWidth(Double.MAX_VALUE);
+
+		if (selectedFile instanceof CsvFile csvFile) {
+			Set<String> columns = getAvailableColumnsForFile(csvFile);
+			comboBox.getItems().setAll(columns);
+
+			if (columns.isEmpty()) {
+				comboBox.setPromptText("No columns available");
+				comboBox.setDisable(true);
+			} else {
+				if (initialValue != null) {
+					comboBox.setValue(initialValue);
+				}
+			}
+		}
+
+		return comboBox;
+	}
+
+	private Set<String> getAvailableColumnsForFile(CsvFile csvFile) {
+		Set<String> seriesNames = new HashSet<>();
+		for (SgyFile file : model.getFileManager().getFiles()) {
+			if (Objects.equals(file, csvFile)) {
+				Chart chart = model.getChart(file);
+				if (chart instanceof SensorLineChart sensorChart) {
+					seriesNames.addAll(sensorChart.getSeriesNames());
+				}
+			}
+		}
+
+		return seriesNames;
 	}
 
 	private String loadStoredParamValue(@Nullable String scriptFilename, String paramName, String defaultValue) {
@@ -396,7 +414,11 @@ public class ScriptExecutionTool extends FilterToolView {
 			}
 
 			for (Node inputNode : ((VBox) paramBox).getChildren()) {
-				String paramName = (String) inputNode.getUserData();
+				String paramName = switch (inputNode.getUserData()) {
+					case ScriptParameter param -> param.name();
+					case String name -> name;
+					case null, default -> null;
+				};
 				if (paramName == null) {
 					continue;
 				}
@@ -439,6 +461,57 @@ public class ScriptExecutionTool extends FilterToolView {
 		if (!Objects.equals(file, selectedFile)) {
 			return;
 		}
-		Platform.runLater(this::updateView);
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return;
+		}
+		if (isUpdatingColumns) {
+			return;
+		}
+
+		Platform.runLater(() -> {
+			try {
+				isUpdatingColumns = true;
+				updateColumnSelectorsIfNeeded(csvFile);
+			} finally {
+				isUpdatingColumns = false;
+			}
+		});
+	}
+
+	private void updateColumnSelectorsIfNeeded(CsvFile csvFile) {
+		Set<String> availableColumns = getAvailableColumnsForFile(csvFile);
+
+		//noinspection unchecked
+		parametersBox.getChildren().stream()
+				.filter(VBox.class::isInstance)
+				.map(VBox.class::cast)
+				.flatMap(vbox -> vbox.getChildren().stream())
+				.filter(ComboBox.class::isInstance)
+				.map(node -> (ComboBox<String>) node)
+				.findFirst()
+				.ifPresent(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns));
+	}
+
+	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> newItems) {
+		Set<String> currentItems = new HashSet<>(comboBox. getItems());
+
+		if (!currentItems.equals(newItems)) {
+			String currentValue = comboBox.getValue();
+
+			comboBox.getItems().setAll(newItems);
+
+			if (currentValue != null && newItems.contains(currentValue)) {
+				comboBox.setValue(currentValue);
+			} else if (comboBox.getUserData() instanceof ScriptParameter param) {
+				String defaultValue = param.defaultValue();
+				if (!defaultValue.isEmpty() && newItems.contains(defaultValue)) {
+					comboBox.setValue(defaultValue);
+				} else {
+					comboBox.setValue(null);
+				}
+			} else {
+				comboBox.setValue(null);
+			}
+		}
 	}
 }

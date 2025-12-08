@@ -128,7 +128,7 @@ def cluster_by_radius_2d(
 def main():
     parser = argparse.ArgumentParser(description="Find extrema and return index->range mapping.")
     parser.add_argument("file_path", help="Input CSV path")
-    parser.add_argument("-c", "--column", required=True, help="Column to analyze (e.g., TMI or TMI_anomaly)")
+    parser.add_argument("-c", "--column", required=True, help="Column to analyze (e.g., TMI or TMI_RM)")
     parser.add_argument("-t", "--threshold", required=True, type=float, help="Threshold (range)")
     parser.add_argument("-w", "--window", required=True, type=int, help="Window (samples)")
     parser.add_argument("-r", "--radius", required=True, type=float, help="Clustering radius (meters)")

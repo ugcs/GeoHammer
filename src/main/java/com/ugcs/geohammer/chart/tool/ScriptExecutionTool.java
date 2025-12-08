@@ -249,7 +249,7 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
-		Node inputNode = switch (param.type()) {
+		return switch (param.type()) {
 			case STRING, FILE_PATH -> {
 				TextField textField = new TextField(initialValue);
 				textField.setUserData(param.name());
@@ -277,45 +277,43 @@ public class ScriptExecutionTool extends FilterToolView {
 			}
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
 		};
-
-		return inputNode;
 	}
 
 	private ComboBox<String> createColumnSelector(ScriptParameter param, String initialValue) {
-		ComboBox<String> comboBox = new ComboBox<>();
-		comboBox.setUserData(param);
-		comboBox.setPromptText("Select column");
-		comboBox.setMaxWidth(Double.MAX_VALUE);
+		ComboBox<String> columnSelector = new ComboBox<>();
+		columnSelector.setUserData(param);
+		columnSelector.setPromptText("Select column");
+		columnSelector.setMaxWidth(Double.MAX_VALUE);
 
 		if (selectedFile instanceof CsvFile csvFile) {
 			Set<String> columns = getAvailableColumnsForFile(csvFile);
-			comboBox.getItems().setAll(columns);
+			columnSelector.getItems().setAll(columns);
 
 			if (columns.isEmpty()) {
-				comboBox.setPromptText("No columns available");
-				comboBox.setDisable(true);
+				columnSelector.setPromptText("No columns available");
+				columnSelector.setDisable(true);
 			} else {
 				if (initialValue != null) {
-					comboBox.setValue(initialValue);
+					columnSelector.setValue(initialValue);
 				}
 			}
 		}
 
-		return comboBox;
+		return columnSelector;
 	}
 
 	private Set<String> getAvailableColumnsForFile(CsvFile csvFile) {
-		Set<String> seriesNames = new HashSet<>();
+		Set<String> availableColumnNames = new HashSet<>();
 		for (SgyFile file : model.getFileManager().getFiles()) {
 			if (Objects.equals(file, csvFile)) {
 				Chart chart = model.getChart(file);
 				if (chart instanceof SensorLineChart sensorChart) {
-					seriesNames.addAll(sensorChart.getSeriesNames());
+					availableColumnNames.addAll(sensorChart.getSeriesNames());
 				}
 			}
 		}
 
-		return seriesNames;
+		return availableColumnNames;
 	}
 
 	private String loadStoredParamValue(@Nullable String scriptFilename, String paramName, String defaultValue) {
@@ -471,14 +469,14 @@ public class ScriptExecutionTool extends FilterToolView {
 		Platform.runLater(() -> {
 			try {
 				isUpdatingColumns = true;
-				updateColumnSelectorsIfNeeded(csvFile);
+				refreshColumnSelectors(csvFile);
 			} finally {
 				isUpdatingColumns = false;
 			}
 		});
 	}
 
-	private void updateColumnSelectorsIfNeeded(CsvFile csvFile) {
+	private void refreshColumnSelectors(CsvFile csvFile) {
 		Set<String> availableColumns = getAvailableColumnsForFile(csvFile);
 
 		//noinspection unchecked
@@ -492,19 +490,19 @@ public class ScriptExecutionTool extends FilterToolView {
 				.ifPresent(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns));
 	}
 
-	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> newItems) {
+	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns) {
 		Set<String> currentItems = new HashSet<>(comboBox. getItems());
 
-		if (!currentItems.equals(newItems)) {
+		if (!currentItems.equals(availableColumns)) {
 			String currentValue = comboBox.getValue();
 
-			comboBox.getItems().setAll(newItems);
+			comboBox.getItems().setAll(availableColumns);
 
-			if (currentValue != null && newItems.contains(currentValue)) {
+			if (currentValue != null && availableColumns.contains(currentValue)) {
 				comboBox.setValue(currentValue);
 			} else if (comboBox.getUserData() instanceof ScriptParameter param) {
 				String defaultValue = param.defaultValue();
-				if (!defaultValue.isEmpty() && newItems.contains(defaultValue)) {
+				if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
 					comboBox.setValue(defaultValue);
 				} else {
 					comboBox.setValue(null);

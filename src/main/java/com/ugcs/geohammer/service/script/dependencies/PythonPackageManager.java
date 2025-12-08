@@ -6,32 +6,32 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 import com.ugcs.geohammer.service.script.CommandExecutionException;
-import com.ugcs.geohammer.service.script.ProcessCommandExecutor;
+import com.ugcs.geohammer.service.script.CommandExecutor;
 import com.ugcs.geohammer.service.script.PythonExecutorPathResolver;
 
 public class PythonPackageManager {
 
 	private final ExecutorService executorService;
 
-	private final PythonExecutorPathResolver pythonExecutorPathResolver;
+	private final PythonExecutorPathResolver pythonPathResolver;
 
-	private final ProcessCommandExecutor processCommandExecutor;
+	private final CommandExecutor commandExecutor;
 
 	public PythonPackageManager(ExecutorService executorService,
-								PythonExecutorPathResolver pythonExecutorPathResolver,
-								ProcessCommandExecutor processCommandExecutor) {
+								PythonExecutorPathResolver pythonPathResolver,
+								CommandExecutor commandExecutor) {
 		this.executorService = executorService;
-		this.pythonExecutorPathResolver = pythonExecutorPathResolver;
-		this.processCommandExecutor = processCommandExecutor;
+		this.pythonPathResolver = pythonPathResolver;
+		this.commandExecutor = commandExecutor;
 
 	}
 
 	public boolean isInstalled(String packageName) throws InterruptedException, IOException {
-		String pythonExecutorPath = pythonExecutorPathResolver.getPath(executorService).toString();
+		String pythonExecutorPath = pythonPathResolver.getPythonExecutablePath(executorService).toString();
 		List<String> command = List.of(pythonExecutorPath, "-m", "pip", "show", packageName);
 
 		try {
-			processCommandExecutor.executeCommand(command, null);
+			commandExecutor.executeCommand(command, null);
 			return true;
 		} catch (CommandExecutionException e) {
 			return false;
@@ -39,8 +39,8 @@ public class PythonPackageManager {
 	}
 
 	public void install(String packageName, Consumer<String> onOutput) throws InterruptedException, IOException {
-		String pythonExecutorPath = pythonExecutorPathResolver.getPath(executorService).toString();
+		String pythonExecutorPath = pythonPathResolver.getPythonExecutablePath(executorService).toString();
 		List<String> command = List.of(pythonExecutorPath, "-m", "pip", "install", packageName);
-		processCommandExecutor.executeCommand(command, onOutput);
+		commandExecutor.executeCommand(command, onOutput);
 	}
 }

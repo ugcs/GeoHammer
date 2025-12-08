@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
-import com.ugcs.geohammer.service.script.ProcessCommandExecutor;
+import com.ugcs.geohammer.service.script.CommandExecutor;
 import com.ugcs.geohammer.service.script.PythonExecutorPathResolver;
 import com.ugcs.geohammer.util.FileNames;
 import org.slf4j.Logger;
@@ -20,7 +20,7 @@ public class PythonDependenciesInstaller {
 
 	private static final Logger log = LoggerFactory.getLogger(PythonDependenciesInstaller.class);
 
-	private static final String DEPENDENCY_ANALYZER_PACKAGE_NAME = "pipreqs";
+	private static final String REQUIREMENTS_ANALYZER = "pipreqs";
 
 	private final DependencyResolver dependencyResolver;
 
@@ -30,15 +30,15 @@ public class PythonDependenciesInstaller {
 
 	public PythonDependenciesInstaller(ExecutorService executorService,
 									   PythonExecutorPathResolver pythonExecutorPathResolver,
-									   ProcessCommandExecutor processCommandExecutor) {
+									   CommandExecutor commandExecutor) {
 		this.dependencyResolver = new PipreqsDependencyResolver(
 				executorService,
 				pythonExecutorPathResolver,
-				processCommandExecutor);
+				commandExecutor);
 		this.pythonPackageManager = new PythonPackageManager(
 				executorService,
 				pythonExecutorPathResolver,
-				processCommandExecutor);
+				commandExecutor);
 	}
 
 	/**
@@ -59,9 +59,9 @@ public class PythonDependenciesInstaller {
 		}
 
 
-		if (!pythonPackageManager.isInstalled(DEPENDENCY_ANALYZER_PACKAGE_NAME)) {
+		if (!pythonPackageManager.isInstalled(REQUIREMENTS_ANALYZER)) {
 			try {
-				pythonPackageManager.install(DEPENDENCY_ANALYZER_PACKAGE_NAME, onOutput);
+				pythonPackageManager.install(REQUIREMENTS_ANALYZER, onOutput);
 			} catch (Exception e) {
 				log.warn("Pipreqs library installation failed (possibly offline). Continuing without dependency check.", e);
 				return;
@@ -75,7 +75,6 @@ public class PythonDependenciesInstaller {
 		try {
 			dependencyResolver.generateRequirementsFile(tempDirectory, onOutput);
 			dependencyResolver.installDependenciesFromRequirements(tempDirectory, onOutput);
-			installedScripts.add(cacheKey);
 			onOutput.accept("Dependencies installed successfully for script " + filename);
 		} catch (Exception e) {
 			log.warn("Dependency installation failed (possibly offline). Assuming dependencies are already installed.", e);

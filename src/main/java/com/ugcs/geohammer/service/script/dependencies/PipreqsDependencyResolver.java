@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
-import com.ugcs.geohammer.service.script.ProcessCommandExecutor;
+import com.ugcs.geohammer.service.script.CommandExecutor;
 import com.ugcs.geohammer.service.script.PythonExecutorPathResolver;
-import com.ugcs.geohammer.util.OsUtil;
+import com.ugcs.geohammer.util.OperatingSystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,24 +20,24 @@ class PipreqsDependencyResolver implements DependencyResolver {
 
 	private final ExecutorService executorService;
 
-	private final PythonExecutorPathResolver pythonExecutorPathResolver;
+	private final PythonExecutorPathResolver pythonPathResolver;
 
-	private final ProcessCommandExecutor processCommandExecutor;
+	private final CommandExecutor commandExecutor;
 
 	public PipreqsDependencyResolver(ExecutorService executorService,
-									 PythonExecutorPathResolver pythonExecutorPathResolver,
-									 ProcessCommandExecutor processCommandExecutor) {
+									 PythonExecutorPathResolver pythonPathResolver,
+									 CommandExecutor commandExecutor) {
 		this.executorService = executorService;
-		this.pythonExecutorPathResolver = pythonExecutorPathResolver;
-		this.processCommandExecutor = processCommandExecutor;
+		this.pythonPathResolver = pythonPathResolver;
+		this.commandExecutor = commandExecutor;
 	}
 
 	public void generateRequirementsFile(Path directory, Consumer<String> onOutput) throws IOException,
 			InterruptedException {
-		Path pythonDir = pythonExecutorPathResolver.getPath(executorService).getParent();
+		Path pythonDir = pythonPathResolver.getPythonExecutablePath(executorService).getParent();
 
-		String pipreqsExecutable = OsUtil.toExecutableName("pipreqs");
-		Path pipreqsPath = pythonDir.resolve(OsUtil.getScriptsDirectory()).resolve(pipreqsExecutable);
+		String pipreqsExecutable = OperatingSystemUtils.toExecutableName("pipreqs");
+		Path pipreqsPath = pythonDir.resolve(OperatingSystemUtils.getScriptsDirectory()).resolve(pipreqsExecutable);
 
 		String pipreqsCommand;
 		if (Files.exists(pipreqsPath)) {
@@ -52,14 +52,14 @@ class PipreqsDependencyResolver implements DependencyResolver {
 				"--mode",
 				"no-pin"
 		);
-		processCommandExecutor.executeCommand(command, onOutput);
+		commandExecutor.executeCommand(command, onOutput);
 	}
 
 	public void installDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,
 			InterruptedException {
 		Path requirementsPath = directory.resolve("requirements.txt");
 		if (Files.exists(requirementsPath)) {
-			String pythonExecutorPath = pythonExecutorPathResolver.getPath(executorService).toString();
+			String pythonExecutorPath = pythonPathResolver.getPythonExecutablePath(executorService).toString();
 			List<String> command = List.of(
 					pythonExecutorPath,
 					"-m",
@@ -68,7 +68,7 @@ class PipreqsDependencyResolver implements DependencyResolver {
 					"-r",
 					requirementsPath.toString()
 			);
-			processCommandExecutor.executeCommand(command, onOutput);
+			commandExecutor.executeCommand(command, onOutput);
 		} else {
 			log.warn("No requirements.txt found in {}, skipping dependency installation.", directory);
 		}

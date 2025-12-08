@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 
 
 @Component
-public class ProcessCommandExecutor {
-	private static final Logger log = LoggerFactory. getLogger(ProcessCommandExecutor. class);
+public class CommandExecutor {
+	private static final Logger log = LoggerFactory. getLogger(CommandExecutor. class);
 
 	public void executeCommand(List<String> command, Consumer<String> onOutput) throws IOException, InterruptedException {
 		log.debug("Executing command: {}", String.join(" ", command));

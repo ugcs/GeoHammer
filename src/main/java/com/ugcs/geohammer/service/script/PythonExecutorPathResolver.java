@@ -17,7 +17,7 @@ public class PythonExecutorPathResolver {
 		this.pythonConfig = pythonConfig;
 	}
 
-	public Path getPath(ExecutorService executor) throws InterruptedException {
+	public Path getPythonExecutablePath(ExecutorService executor) throws InterruptedException {
 		String pythonPath = pythonConfig.getPythonExecutorPath();
 		if (pythonPath == null || pythonPath.isEmpty()) {
 			try {

@@ -44,26 +44,29 @@ public class ScriptExecutor {
 
 	private final EventsFactory eventsFactory;
 
-	private final ProcessCommandExecutor processCommandExecutor;
+	private final CommandExecutor commandExecutor;
 
-	private final PythonExecutorPathResolver pythonExecutorPathResolver;
+	private final PythonExecutorPathResolver pythonPathResolver;
 
 	private final PythonDependenciesInstaller pythonDependenciesInstaller;
 
 	// sgyFile -> scriptName
 	private final Map<SgyFile, String> executingScripts = new ConcurrentHashMap<>();
 
-	public ScriptExecutor(Loader loader, EventSender eventSender, EventsFactory eventsFactory, ProcessCommandExecutor processCommandExecutor, PythonExecutorPathResolver pythonExecutorPathResolver) {
+	public ScriptExecutor(Loader loader, EventSender eventSender, EventsFactory eventsFactory,
+						  CommandExecutor commandExecutor,
+						  PythonExecutorPathResolver pythonPathResolver) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
-		this.processCommandExecutor = processCommandExecutor;
-		this.pythonExecutorPathResolver = pythonExecutorPathResolver;
-		this.pythonDependenciesInstaller = new PythonDependenciesInstaller(executor, pythonExecutorPathResolver, processCommandExecutor);
+		this.commandExecutor = commandExecutor;
+		this.pythonPathResolver = pythonPathResolver;
+		this.pythonDependenciesInstaller = new PythonDependenciesInstaller(executor, pythonPathResolver,
+				commandExecutor);
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
-			Consumer<String> onScriptOutput) throws IOException, InterruptedException {
+							  Consumer<String> onScriptOutput) throws IOException, InterruptedException {
 		Check.notNull(sgyFile);
 		Check.notNull(scriptMetadata);
 
@@ -85,7 +88,7 @@ public class ScriptExecutor {
 
 			List<String> command = buildCommand(scriptFile.toPath(), scriptMetadata, parameters, tempFile.toPath());
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
-			processCommandExecutor.executeCommand(command, onScriptOutput);
+			commandExecutor.executeCommand(command, onScriptOutput);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}
@@ -101,28 +104,29 @@ public class ScriptExecutor {
 		}
 	}
 
-    private File copyToTempFile(SgyFile sgyFile) throws IOException {
-        Check.notNull(sgyFile);
+	private File copyToTempFile(SgyFile sgyFile) throws IOException {
+		Check.notNull(sgyFile);
 
-        File file = Check.notNull(sgyFile.getFile());
-        String fileName = file.getName();
-        String prefix = FileNames.removeExtension(fileName);
-        String suffix = "." + FileNames.getExtension(fileName);
+		File file = Check.notNull(sgyFile.getFile());
+		String fileName = file.getName();
+		String prefix = FileNames.removeExtension(fileName);
+		String suffix = "." + FileNames.getExtension(fileName);
 
-        File tempFile = Files.createTempFile(prefix, suffix).toFile();
-        sgyFile.save(tempFile);
-        return tempFile;
-    }
+		File tempFile = Files.createTempFile(prefix, suffix).toFile();
+		sgyFile.save(tempFile);
+		return tempFile;
+	}
 
 	/**
 	 * Builds the process command:
 	 * [python, <scripts/path>/<script.py>, <workingCopy>, --key value | --flag]
 	 */
-	private List<String> buildCommand(Path scriptPath, ScriptMetadata scriptMetadata, Map<String, String> parameters, Path filePath)
-            throws InterruptedException {
+	private List<String> buildCommand(Path scriptPath, ScriptMetadata scriptMetadata, Map<String, String> parameters,
+									  Path filePath)
+			throws InterruptedException {
 		List<String> command = new ArrayList<>();
 
-		String pythonPath = pythonExecutorPathResolver.getPath(executor).toString();
+		String pythonPath = pythonPathResolver.getPythonExecutablePath(executor).toString();
 		command.add(pythonPath);
 
 		command.add(scriptPath.toString());
@@ -165,11 +169,11 @@ public class ScriptExecutor {
 		// Fallback to target/scripts (for packaged app)
 		URI codeSource;
 		try {
-            codeSource = FileTemplates.class.getProtectionDomain().getCodeSource().getLocation().toURI();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-        Path currentDir = Paths.get(codeSource).getParent();
+			codeSource = FileTemplates.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+		} catch (URISyntaxException e) {
+			throw new RuntimeException(e);
+		}
+		Path currentDir = Paths.get(codeSource).getParent();
 		return currentDir.resolve(SCRIPTS_DIRECTORY);
 	}
 

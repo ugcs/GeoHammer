@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
+import com.ugcs.geohammer.service.script.CommandExecutionException;
 import com.ugcs.geohammer.service.script.CommandExecutor;
 import com.ugcs.geohammer.service.script.PythonExecutorPathResolver;
 import com.ugcs.geohammer.util.FileNames;
@@ -76,9 +77,13 @@ public class PythonDependenciesInstaller {
 			dependencyResolver.generateRequirementsFile(tempDirectory, onOutput);
 			dependencyResolver.installDependenciesFromRequirements(tempDirectory, onOutput);
 			onOutput.accept("Dependencies installed successfully for script " + filename);
-		} catch (Exception e) {
-			log.warn("Dependency installation failed (possibly offline). Assuming dependencies are already installed.", e);
+		} catch (IOException | CommandExecutionException e) {
+			log.warn("Dependency installation failed (possibly offline): {}", e.getMessage(), e);
 			installedScripts.remove(cacheKey);
+		} catch (InterruptedException e) {
+			log.warn("Dependency installation was interrupted", e);
+			installedScripts.remove(cacheKey);
+			Thread.currentThread().interrupt();
 		} finally {
 			cleanupTempDirectory(tempDirectory, filename);
 		}

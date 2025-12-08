@@ -40,15 +40,32 @@ public class TraceTransform {
     public void cropLines(Collection<SgyFile> files, MapField field, List<Point2D> cropArea) {
         Check.notNull(files);
 
+        // filter files by crop area intersection
+        files = files.stream()
+                .filter(file -> hasValuesInArea(file, field, cropArea))
+                .toList();
+
         if (files.isEmpty()) {
             return;
         }
 
         undoModel.saveSnapshot(files);
 
-        for (SgyFile file : model.getFileManager().getFiles()) {
+        for (SgyFile file : files) {
             cropLines(file, field, cropArea);
         }
+    }
+
+    private boolean hasValuesInArea(SgyFile file, MapField field, List<Point2D> area) {
+        if (file == null) {
+            return false;
+        }
+        for (GeoData value : Nulls.toEmpty(file.getGeoData())) {
+            if (isGeoDataInsideSelection(field, area, value)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void cropLines(SgyFile file, MapField field, List<Point2D> cropArea) {

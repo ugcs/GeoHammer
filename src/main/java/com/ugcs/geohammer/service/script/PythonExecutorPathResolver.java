@@ -27,6 +27,6 @@ public class PythonExecutorPathResolver {
 				throw new RuntimeException(e);
 			}
 		}
-		return Path.of(pythonPath).getParent();
+		return Path.of(pythonPath);
 	}
 }

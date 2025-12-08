@@ -71,8 +71,7 @@ public class PythonDependenciesInstaller {
 			installedScripts.add(cacheKey);
 			onOutput.accept("Dependencies installed successfully for script " + filename);
 		} catch (Exception e) {
-			log.warn("Dependency installation failed (possibly offline). Assuming dependencies are already installed."
-					, e);
+			log.warn("Dependency installation failed (possibly offline). Assuming dependencies are already installed.", e);
 		} finally {
 			cleanupTempDirectory(tempDirectory, filename);
 		}

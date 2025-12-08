@@ -6,7 +6,7 @@ package com.ugcs.geohammer.util;
  */
 public final class OsUtil {
 
-	private static final String OS_NAME = System.getProperty("os. name").toLowerCase();
+	private static final String OS_NAME = System.getProperty("os.name").toLowerCase();
 
 	private static final boolean IS_WINDOWS = OS_NAME.contains("win");
 	private static final boolean IS_MAC = OS_NAME.contains("mac");

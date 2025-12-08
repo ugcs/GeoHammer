@@ -15,19 +15,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 
-import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.format.meta.MetaFile;
-import com.ugcs.geohammer.format.gpr.Trace;
-
-import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.meta.TraceGeoData;
-import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.format.HorizontalProfile;
+import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.gpr.Trace;
+import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.math.MinMaxAvg;
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.LatLon;
+import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Traces;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -195,7 +194,7 @@ public class DztFile extends TraceFile {
 		}
 
 		LatLon latLon = dzg.getLatLon(traceIndex);
-		return new Trace(null, null, samples, latLon);
+		return new Trace(null, null, samples, latLon, null);
 	}
 
 	@Override

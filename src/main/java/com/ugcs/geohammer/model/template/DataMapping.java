@@ -1,8 +1,11 @@
 package com.ugcs.geohammer.model.template;
 
+import com.ugcs.geohammer.model.template.data.Altitude;
 import com.ugcs.geohammer.model.template.data.BaseData;
 import com.ugcs.geohammer.model.template.data.Date;
 import com.ugcs.geohammer.model.template.data.DateTime;
+import com.ugcs.geohammer.model.template.data.Latitude;
+import com.ugcs.geohammer.model.template.data.Longitude;
 import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
@@ -19,11 +22,11 @@ import java.util.Map;
 @NullUnmarked
 public class DataMapping {
 
-    private BaseData latitude;
+    private Latitude latitude;
 
-    private BaseData longitude;
+    private Longitude longitude;
 
-    private BaseData altitude;
+    private Altitude altitude;
 
     private Date date;
 
@@ -65,27 +68,27 @@ public class DataMapping {
         this.dataValues = dataValues;
     }
 
-    public BaseData getLatitude() {
+    public Latitude getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(BaseData latitude) {
+    public void setLatitude(Latitude latitude) {
         this.latitude = latitude;
     }
 
-    public BaseData getLongitude() {
+    public Longitude getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(BaseData longitude) {
+    public void setLongitude(Longitude longitude) {
         this.longitude = longitude;
     }
 
-    public BaseData getAltitude() {
+    public Altitude getAltitude() {
         return altitude;
     }
 
-    public void setAltitude(BaseData altitude) {
+    public void setAltitude(Altitude altitude) {
         this.altitude = altitude;
     }
 
@@ -142,6 +145,18 @@ public class DataMapping {
         Nulls.ifPresent(traceNumber, values::add);
 
         return values;
+    }
+
+    public Map<String, BaseData> getMetaValuesByHeader() {
+        List<BaseData> metaValues = getMetaValues();
+        Map<String, BaseData> metaValuesByHeader = new HashMap<>(metaValues.size());
+        for (BaseData metaValue : metaValues) {
+            String header = metaValue.getHeader();
+            if (!Strings.isNullOrBlank(header)) {
+                metaValuesByHeader.put(header, metaValue);
+            }
+        }
+        return metaValuesByHeader;
     }
 
     public List<@Nullable BaseData> getIndexedValues() {

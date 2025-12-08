@@ -11,30 +11,34 @@ import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.geotagger.view.GeotaggerView;
+import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TraceTransform;
+import com.ugcs.geohammer.view.ResourceImageHolder;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
-
-import com.ugcs.geohammer.view.ResourceImageHolder;
-import com.ugcs.geohammer.model.Model;
-
-import javafx.beans.value.ChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 @Component
 public class ProfileView implements InitializingBean {
@@ -43,23 +47,30 @@ public class ProfileView implements InitializingBean {
 	private final Navigator navigator;
 	private final Saver saver;
 	private final TraceTransform traceTransform;
+	private final GeotaggerView geotaggerView;
 
 	private final ToolBar toolBar = new ToolBar();
-	
+
 	private final Button zoomInBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ZOOM_IN, new Button());
 	private final Button zoomOutBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ZOOM_OUT, new Button());
 	private final Button fitBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.FIT_CHART, new Button());
 
 	private final Button cropSamples = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP_SAMPLES, new Button());
 
+	private final Button geotaggerBtn = new Button("Geotagging");
+
 	private SgyFile currentFile;
 
+	@Nullable
+	private Stage geotaggerStage;
+
 	public ProfileView(Model model, Navigator navigator,
-                       Saver saver, TraceTransform traceTransform) {
+					   Saver saver, TraceTransform traceTransform, GeotaggerView geotaggerView) {
 		this.model = model;
-        this.navigator = navigator;
+		this.navigator = navigator;
 		this.saver = saver;
 		this.traceTransform = traceTransform;
+		this.geotaggerView = geotaggerView;
 	}
 
 	@Override
@@ -75,6 +86,10 @@ public class ProfileView implements InitializingBean {
 
 		cropSamples.setTooltip(new Tooltip("Crop samples"));
 		cropSamples.setOnAction(this::cropSamples);
+
+		geotaggerBtn.setTooltip(new Tooltip("Geotagging tool"));
+		geotaggerBtn.setOnAction(this::showGeotaggerWindow);
+
 	}
 
 	private void fitCurrentFile(ActionEvent actionEvent) {
@@ -112,22 +127,34 @@ public class ProfileView implements InitializingBean {
 		}
 	}
 
+	private void showGeotaggerWindow(ActionEvent actionEvent) {
+		if (geotaggerStage != null && geotaggerStage.isShowing()) {
+			geotaggerStage.close();
+		}
+		geotaggerStage = geotaggerView.showWindow();
+
+		geotaggerStage.setOnCloseRequest(e -> geotaggerStage = null);
+	}
+
 	private void prepareToolbar() {
 		toolBar.getItems().addAll(saver.getToolNodes());
-		toolBar.getItems().add(getSpacer());
-		
+		toolBar.getItems().add(getFixedWidthSpacer());
+
 		toolBar.getItems().addAll(model.getAuxEditHandler().getRightPanelTools());
-		toolBar.getItems().add(getSpacer());
+		toolBar.getItems().add(getFixedWidthSpacer());
 
 		toolBar.getItems().addAll(navigator.getToolNodes());
-		toolBar.getItems().add(getSpacer());
+		toolBar.getItems().add(getFixedWidthSpacer());
 
 		toolBar.getItems().add(zoomInBtn);
 		toolBar.getItems().add(zoomOutBtn);
 		toolBar.getItems().add(fitBtn);
-		toolBar.getItems().add(getSpacer());
+		toolBar.getItems().add(getFixedWidthSpacer());
 
 		toolBar.getItems().add(cropSamples);
+		toolBar.getItems().add(getFlexibleSpacer());
+
+		toolBar.getItems().add(geotaggerBtn);
 
 		enableToolbar();
 	}
@@ -137,6 +164,9 @@ public class ProfileView implements InitializingBean {
 
 		// open file
 		toolBar.getItems().getFirst().setDisable(false);
+
+		//geotagger
+		toolBar.getItems().getLast().setDisable(false);
 
 		// crop samples
 		Chart chart = model.getChart(currentFile);
@@ -274,9 +304,15 @@ public class ProfileView implements InitializingBean {
 				(int) (Math.max(400, ((VBox) chart.getRootNode()).getHeight()) - 4));
 	}
 
-	private Region getSpacer() {
+	private Region getFixedWidthSpacer() {
 		Region r3 = new Region();
 		r3.setPrefWidth(7);
 		return r3;
+	}
+
+	private Node getFlexibleSpacer() {
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		return spacer;
 	}
 }

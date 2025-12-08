@@ -1,11 +1,12 @@
 package com.ugcs.geohammer.format.gpr;
 
-import com.github.thecoldwine.sigrun.common.TraceHeader;
-import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.model.IndexRange;
-import org.jspecify.annotations.Nullable;
-
+import java.time.Instant;
 import java.util.Arrays;
+
+import com.github.thecoldwine.sigrun.common.TraceHeader;
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.LatLon;
+import org.jspecify.annotations.Nullable;
 
 public class Trace {
 
@@ -35,6 +36,8 @@ public class Trace {
 
     private LatLon latLonOrigin;
 
+	private Instant dateTime;
+
     //tmp for loading
     private boolean marked = false;
     
@@ -44,7 +47,7 @@ public class Trace {
     private int maxindex;
 
     public Trace(byte @Nullable [] binHeader, @Nullable TraceHeader header,
-                 float[] samples, LatLon latLon) {
+				 float[] samples, LatLon latLon, Instant dateTime) {
         this.binHeader = binHeader;
         this.header = header;
 
@@ -54,6 +57,7 @@ public class Trace {
 
         this.latLonOrigin = latLon;
         this.latLon = latLon;
+		this.dateTime = dateTime;
     }
 
     public Trace copy() {
@@ -61,7 +65,8 @@ public class Trace {
                 binHeader,
                 header,
                 Arrays.copyOf(samples, samples.length),
-                latLon);
+                latLon,
+				dateTime);
         copy.index = index;
         copy.sampleRange = sampleRange;
         copy.prevDist = prevDist;
@@ -155,7 +160,15 @@ public class Trace {
         return latLonOrigin;
     }
 
-    public boolean isMarked() {
+	public Instant getDateTime() {
+		return dateTime;
+	}
+
+	public void setDateTime(Instant dateTime) {
+		this.dateTime = dateTime;
+	}
+
+	public boolean isMarked() {
         return marked;
     }
 

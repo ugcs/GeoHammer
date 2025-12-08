@@ -46,4 +46,8 @@ public class BaseData {
     public void setDecimals(int decimals) {
         this.decimals = decimals;
     }
+
+    public String getSemantic() {
+        return null;
+    }
 }

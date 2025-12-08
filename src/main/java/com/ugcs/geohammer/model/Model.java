@@ -25,8 +25,10 @@ import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.BaseEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.FileUpdatedEvent;
 import com.ugcs.geohammer.model.event.TemplateUnitChangedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Nulls;
@@ -266,7 +268,7 @@ public class Model implements InitializingBean {
                 .toList();
     }
 
-    public String getSelectedSeriesName(@Nullable SgyFile file) {
+    public @Nullable String getSelectedSeriesName(@Nullable SgyFile file) {
         if (file == null) {
             return null;
         }
@@ -396,7 +398,17 @@ public class Model implements InitializingBean {
         }
     }
 
-    // ----------------
+    public void reload(SgyFile sgyFile) {
+        sgyFile.tracesChanged();
+
+        reloadChart(sgyFile);
+
+        updateAuxElements();
+
+        publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+        publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+        publishEvent(new FileUpdatedEvent(this, sgyFile));
+    }
 
 	public void reloadChart(SgyFile file) {
 		Chart chart = charts.get(file);

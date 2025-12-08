@@ -5,9 +5,9 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import com.ugcs.geohammer.model.TemplateSeriesKey;
 import com.ugcs.geohammer.format.SgyFile;
@@ -64,9 +64,9 @@ public final class GridLayer extends BaseLayer {
     @Nullable
     private SgyFile selectedFile;
 
-    private final Map<File, GriddingResult> results = new HashMap<>();
+    private final ConcurrentMap<File, GriddingResult> results = new ConcurrentHashMap<>();
 
-    private final Map<TemplateSeriesKey, GriddingFilter> filters = new HashMap<>();
+    private final ConcurrentMap<TemplateSeriesKey, GriddingFilter> filters = new ConcurrentHashMap<>();
 
     public GridLayer(Model model) {
         this.model = model;
@@ -84,37 +84,38 @@ public final class GridLayer extends BaseLayer {
         };
     }
 
-    public synchronized boolean hasResult(SgyFile file) {
+    public boolean hasResult(SgyFile file) {
         return file != null && results.containsKey(file.getFile());
     }
 
-    public synchronized GriddingResult getResult(SgyFile file) {
+    public GriddingResult getResult(SgyFile file) {
         if (file != null) {
             return results.get(file.getFile());
         }
         return null;
     }
 
-    public synchronized void setResult(SgyFile file, GriddingResult result) {
+    public void setResult(SgyFile file, GriddingResult result) {
         if (file != null) {
             results.put(file.getFile(), result);
         }
     }
 
-    private synchronized void removeResult(SgyFile file) {
+    private void removeResult(SgyFile file) {
         if (file != null) {
             results.remove(file.getFile());
         }
     }
 
-    private synchronized void moveResult(SgyFile file, File oldFile) {
-        GriddingResult result = results.remove(oldFile);
+    private void moveResult(SgyFile file, File oldFile) {
+        GriddingResult result = results.get(oldFile);
         if (result != null) {
             results.put(file.getFile(), result);
+            results.remove(oldFile, result); // only removes if still points to same value
         }
     }
 
-    public synchronized GriddingFilter getFilter(SgyFile file, String seriesName) {
+    public GriddingFilter getFilter(SgyFile file, String seriesName) {
         TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(file, seriesName);
         if (templateSeries != null) {
             return filters.get(templateSeries);
@@ -122,7 +123,7 @@ public final class GridLayer extends BaseLayer {
         return null;
     }
 
-    public synchronized void setFilter(SgyFile file, String seriesName, GriddingFilter filter) {
+    public void setFilter(SgyFile file, String seriesName, GriddingFilter filter) {
         TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(file, seriesName);
         if (templateSeries != null) {
             filters.put(templateSeries, filter);
@@ -147,7 +148,6 @@ public final class GridLayer extends BaseLayer {
             return;
         }
 
-        // TODO draw only files of the same template
         SgyFile last = selectedFile; // to draw on top
         for (SgyFile file : model.getFileManager().getFiles()) {
             if (!Objects.equals(file, last) && hasResult(file)) {
@@ -162,7 +162,7 @@ public final class GridLayer extends BaseLayer {
     /**
      * Draws the grid visualization for a given file on the map field.
      */
-    synchronized private void drawFileOnMapField(Graphics2D g2, MapField field, SgyFile file) {
+    private void drawFileOnMapField(Graphics2D g2, MapField field, SgyFile file) {
         // show last result for the file
         GriddingResult result = getResult(file);
         if (result == null) {
@@ -182,7 +182,10 @@ public final class GridLayer extends BaseLayer {
         var maxLatLon = grid.maxLatLon;
 
         int gridWidth = grid.values.length;
-        int gridHeight = grid.values[0].length;
+        int gridHeight = gridWidth > 0 ? grid.values[0].length : 0;
+        if (gridWidth == 0 || gridHeight == 0) {
+            return;
+        }
 
         double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
         double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
@@ -192,8 +195,6 @@ public final class GridLayer extends BaseLayer {
 
         double cellWidth = Math.abs(minLatLonPoint.getX() - nextLatLonPoint.getX()) + 1; //3; //width / gridSizeX;
         double cellHeight = Math.abs(minLatLonPoint.getY() - nextLatLonPoint.getY()) + 1; //3; //height / gridSizeY;
-
-        System.out.println("cellWidth = " + cellWidth + " cellHeight = " + cellHeight);
 
         for (int i = 0; i < gridWidth; i++) {
             for (int j = 0; j < gridHeight; j++) {

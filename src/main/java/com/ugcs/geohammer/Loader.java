@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 
-import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.PositionFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
@@ -23,7 +22,6 @@ import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.format.dzt.DztFile;
 import com.ugcs.geohammer.model.event.FileOpenErrorEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
-import com.ugcs.geohammer.model.event.FileUpdatedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TaskRunner;
 import com.ugcs.geohammer.service.TaskService;
@@ -356,23 +354,6 @@ public class Loader {
 			default -> throw new IllegalArgumentException(
 					"Unsupported file type: " + sgyFile.getClass().getSimpleName());
 		}
-		Platform.runLater(() -> notifyFileChanged(sgyFile));
-	}
-
-	private void notifyFileChanged(SgyFile sgyFile) {
-		Check.notNull(sgyFile);
-
-		sgyFile.tracesChanged();
-
-		Chart chart = model.getChart(sgyFile);
-		if (chart != null) {
-			chart.reload();
-		}
-
-		model.updateAuxElements();
-
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		model.publishEvent(new FileUpdatedEvent(this, sgyFile));
+		Platform.runLater(() -> model.reload(sgyFile));
 	}
 }

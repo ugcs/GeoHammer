@@ -7,7 +7,6 @@ import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
-import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import javafx.application.Platform;
@@ -72,8 +71,8 @@ public class LowPassTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            Nulls.ifPresent(preferences.getSetting("lowpass", templateName),
-                    orderInput::setText);
+            orderInput.setText(preferences.getStringOrDefault(
+                    "lowpass", templateName, Strings.empty()));
         }
     }
 
@@ -81,7 +80,7 @@ public class LowPassTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.saveSetting("lowpass", templateName, orderInput.getText());
+            preferences.setValue("lowpass", templateName, orderInput.getText());
         }
     }
 
@@ -94,8 +93,6 @@ public class LowPassTool extends FilterToolView {
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
             submitAction(() -> {
                 sensorChart.applyLowPass(sensorChart.getSelectedSeriesName(), order);
-                // TODO
-                //showGridInputDataChangedWarning(true);
                 return null;
             });
         }
@@ -113,8 +110,6 @@ public class LowPassTool extends FilterToolView {
                 model.getSensorCharts().stream()
                         .filter(c -> Templates.equals(c.getFile(), selectedFile))
                         .forEach(c -> c.applyLowPass(seriesName, order));
-                // TODO
-                //showGridInputDataChangedWarning(true);
                 return null;
             });
         }

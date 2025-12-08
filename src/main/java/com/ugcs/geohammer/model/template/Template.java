@@ -37,6 +37,10 @@ public class Template {
 
     private boolean reorderByTime = false;
 
+	private boolean positional = false;
+
+    private boolean gpsTime = false;
+
     /**
      * Initialize template on load
      */
@@ -284,6 +288,22 @@ public class Template {
         this.reorderByTime = reorderByTime;
     }
 
+	public boolean isPositional() {
+		return positional;
+	}
+
+	public void setPositional(boolean positional) {
+		this.positional = positional;
+	}
+
+    public boolean isGpsTime() {
+        return gpsTime;
+    }
+
+    public void setGpsTime(boolean gpsTime) {
+        this.gpsTime = gpsTime;
+    }
+
     /**
      * Returns a string representation of the template.
      *
@@ -295,6 +315,7 @@ public class Template {
                 "name='" + name + '\'' +
                 ", code='" + code + '\'' +
                 ", fileType=" + fileType +
+				", positional=" + positional +
                 ", matchRegex='" + matchRegex + '\'' +
                 ", fileFormat=" + fileFormat +
                 ", dataValidation=" + dataValidation +

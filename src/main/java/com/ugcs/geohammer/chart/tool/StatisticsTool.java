@@ -9,6 +9,7 @@ import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.template.DataMapping;
 import com.ugcs.geohammer.model.template.Template;
@@ -225,7 +226,14 @@ public class StatisticsTool extends ToolView {
 
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
-        Platform.runLater(() -> selectFile(event.getFile(), false));
+        Platform.runLater(() -> selectFile(event.getFile()));
+    }
+
+    @EventListener
+    private void onSeriesSelected(SeriesSelectedEvent event) {
+        if (Objects.equals(selectedFile, event.getFile())) {
+            Platform.runLater(this::updateView);
+        }
     }
 
     @EventListener

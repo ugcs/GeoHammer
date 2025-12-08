@@ -6,7 +6,6 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
-import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import javafx.application.Platform;
@@ -71,8 +70,8 @@ public class RunningMedianTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            Nulls.ifPresent(preferences.getSetting("median_correction", templateName),
-                    windowInput::setText);
+            windowInput.setText(preferences.getStringOrDefault(
+                    "median_correction", templateName, Strings.empty()));
         }
     }
 
@@ -80,7 +79,7 @@ public class RunningMedianTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.saveSetting("median_correction", templateName, windowInput.getText());
+            preferences.setValue("median_correction", templateName, windowInput.getText());
         }
     }
 
@@ -92,11 +91,7 @@ public class RunningMedianTool extends FilterToolView {
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
             submitAction(() -> {
-                // TODO
-                //var rangeBefore = getSelectedSeriesRange();
                 sensorChart.applyRunningMedian(sensorChart.getSelectedSeriesName(), window);
-                //Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
-                //showGridInputDataChangedWarning(true);
                 return null;
             });
         }
@@ -109,15 +104,11 @@ public class RunningMedianTool extends FilterToolView {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
-            // TODO
-            //var rangeBefore = getSelectedSeriesRange();
             String seriesName = sensorChart.getSelectedSeriesName();
             submitAction(() -> {
                 model.getSensorCharts().stream()
                         .filter(c -> Templates.equals(c.getFile(), selectedFile))
                         .forEach(c -> c.applyRunningMedian(seriesName, window));
-                //Platform.runLater(() -> updateGriddingMinMaxPreserveUserRange(rangeBefore));
-                //showGridInputDataChangedWarning(true);
                 return null;
             });
         }

@@ -82,7 +82,7 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		});
 
 		menuItem2.setOnAction(e -> {
-			model.getMapField().setMapProvider(new HereMapProvider(prefSettings.getSetting("maps", "here_api_key")));
+			model.getMapField().setMapProvider(new HereMapProvider(prefSettings.getString("maps", "here_api_key")));
 			setActive(model.getMapField().getMapProvider() != null);
 			clearTiles();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));

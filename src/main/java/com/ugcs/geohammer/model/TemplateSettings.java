@@ -22,20 +22,19 @@ public class TemplateSettings {
     }
 
     public @Nullable String getSelectedSeriesName(String templateName) {
-        return settings.getSetting(templateName,"selected");
+        return settings.getString(templateName,"selected");
     }
 
     public void setSelectedSeriesName(String templateName, String seriesName) {
-        settings.saveSetting(templateName, "selected", seriesName);
+        settings.setValue(templateName, "selected", seriesName);
     }
 
     public @Nullable Boolean isSeriesVisible(String templateName, String seriesName) {
-        String s = settings.getSetting(templateName + "." + seriesName, "visible");
-        return !Strings.isNullOrEmpty(s) ? Boolean.parseBoolean(s) : null;
+        return settings.getBoolean(templateName + "." + seriesName, "visible");
     }
 
     public void setSeriesVisible(String templateName, String seriesName, boolean visible) {
-        settings.saveSetting(templateName + "." + seriesName, "visible", visible);
+        settings.setValue(templateName + "." + seriesName, "visible", visible);
     }
 
     public void setTraceUnit(String templateName, TraceUnit traceUnit) {

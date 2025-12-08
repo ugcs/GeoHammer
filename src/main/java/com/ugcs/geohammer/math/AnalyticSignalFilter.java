@@ -19,7 +19,7 @@ public class AnalyticSignalFilter {
         Check.notNull(grid);
 
         this.m = grid.length;
-        this.n = grid[0].length;
+        this.n = m > 0 ? grid[0].length : 0;
         // copy within given range
         this.grid = copy(grid);
         this.gridOrigin = grid;

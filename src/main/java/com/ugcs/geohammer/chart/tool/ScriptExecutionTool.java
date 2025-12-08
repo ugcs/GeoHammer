@@ -21,19 +21,20 @@ import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
+import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptException;
 import com.ugcs.geohammer.service.script.ScriptExecutor;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptParameter;
+import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.view.MessageBoxHelper;
 import com.ugcs.geohammer.view.status.Status;
-import com.ugcs.geohammer.service.TaskService;
-import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.util.Templates;
-import com.ugcs.geohammer.util.Strings;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -431,4 +432,13 @@ public class ScriptExecutionTool extends FilterToolView {
     private void onFileSelected(FileSelectedEvent event) {
         Platform.runLater(() -> selectFile(event.getFile()));
     }
+
+	@EventListener
+	private void onSeriesSelected(SeriesSelectedEvent event) {
+		SgyFile file = event.getFile();
+		if (!Objects.equals(file, selectedFile)) {
+			return;
+		}
+		Platform.runLater(this::updateView);
+	}
 }

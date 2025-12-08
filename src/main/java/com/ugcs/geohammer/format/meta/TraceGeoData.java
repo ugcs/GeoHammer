@@ -18,6 +18,14 @@ public class TraceGeoData extends GeoData {
                 .withSemantic(Semantic.LINE.getName())
                 .withDisplay(true)
                 .withReadOnly(true));
+        schema.addColumn(new Column(Semantic.LATITUDE.getName())
+                .withSemantic(Semantic.LATITUDE.getName())
+                .withDisplay(false)
+                .withReadOnly(true));
+        schema.addColumn(new Column(Semantic.LONGITUDE.getName())
+                .withSemantic(Semantic.LONGITUDE.getName())
+                .withDisplay(false)
+                .withReadOnly(true));
         return schema;
     }
 

@@ -9,7 +9,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -94,20 +93,18 @@ public class ScriptExecutor {
 		}
 	}
 
-	private File copyToTempFile(SgyFile sgyFile) throws IOException {
-		Check.notNull(sgyFile);
+    private File copyToTempFile(SgyFile sgyFile) throws IOException {
+        Check.notNull(sgyFile);
 
-		File originalFile = sgyFile.getFile();
-		Check.notNull(originalFile);
+        File file = Check.notNull(sgyFile.getFile());
+        String fileName = file.getName();
+        String prefix = FileNames.removeExtension(fileName);
+        String suffix = "." + FileNames.getExtension(fileName);
 
-		Path tempPath = Files.createTempFile(
-				FileNames.removeExtension(originalFile.getName()),
-				"." + FileNames.getExtension(originalFile.getName())
-		);
-
-		Files.copy(originalFile.toPath(), tempPath, StandardCopyOption.REPLACE_EXISTING);
-		return tempPath.toFile();
-	}
+        File tempFile = Files.createTempFile(prefix, suffix).toFile();
+        sgyFile.save(tempFile);
+        return tempFile;
+    }
 
 	private void runScript(List<String> command, Consumer<String> onOutput) throws IOException, InterruptedException {
 		log.info("Executing script: {}", String.join(" ", command));

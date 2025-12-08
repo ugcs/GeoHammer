@@ -2,16 +2,21 @@ package com.ugcs.geohammer.format;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Objects;
 
+import com.ugcs.geohammer.chart.csv.axis.DistanceEstimator;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.model.element.BaseObject;
-import com.ugcs.geohammer.chart.csv.axis.DistanceEstimator;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
-import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Nulls;
 import org.jspecify.annotations.Nullable;
 
@@ -79,7 +84,7 @@ public abstract class SgyFile {
 		return file;
 	}
 
-	public void setFile(File file) {
+	public void setFile(@Nullable File file) {
 		this.file = file;
 	}
 

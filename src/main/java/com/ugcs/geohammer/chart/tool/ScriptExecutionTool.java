@@ -18,7 +18,7 @@ import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
-import com.ugcs.geohammer.service.script.ScriptException;
+import com.ugcs.geohammer.service.script.CommandExecutionException;
 import com.ugcs.geohammer.service.script.ScriptExecutor;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
@@ -343,9 +343,9 @@ public class ScriptExecutionTool extends FilterToolView {
 		String title = "Script Execution Error";
 		String message;
 
-        if (e instanceof ScriptException scriptException) {
+        if (e instanceof CommandExecutionException commandExecutionException) {
             message = "Script '" + scriptMetadata.filename()
-                    + "' failed with exit code " + scriptException.getExitCode() + ".";
+                    + "' failed with exit code " + commandExecutionException.getExitCode() + ".";
             if (!Strings.isNullOrEmpty(scriptOutput)) {
                 message += System.lineSeparator() + "Output:"
                         + System.lineSeparator() + scriptOutput;

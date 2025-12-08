@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.service.script.dependecies;
+package com.ugcs.geohammer.service.script.dependencies;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,17 +18,23 @@ class PipreqsDependencyResolver implements DependencyResolver {
 
 	private static final Logger log = LoggerFactory.getLogger(PipreqsDependencyResolver.class);
 
-	private final PythonExecutorPathResolver pythonExecutorPathResolver;
-
 	private final ExecutorService executorService;
 
-	public PipreqsDependencyResolver(ExecutorService executorService, PythonExecutorPathResolver pythonExecutorPathResolver) {
+	private final PythonExecutorPathResolver pythonExecutorPathResolver;
+
+	private final ProcessCommandExecutor processCommandExecutor;
+
+	public PipreqsDependencyResolver(ExecutorService executorService,
+									 PythonExecutorPathResolver pythonExecutorPathResolver,
+									 ProcessCommandExecutor processCommandExecutor) {
 		this.executorService = executorService;
 		this.pythonExecutorPathResolver = pythonExecutorPathResolver;
+		this.processCommandExecutor = processCommandExecutor;
 	}
 
-	public void generateRequirementsFile(Path directory, Consumer<String> onOutput) throws IOException, InterruptedException {
-		Path pythonDir = pythonExecutorPathResolver.getPath(executorService);
+	public void generateRequirementsFile(Path directory, Consumer<String> onOutput) throws IOException,
+			InterruptedException {
+		Path pythonDir = pythonExecutorPathResolver.getPath(executorService).getParent();
 
 		String pipreqsExecutable = OsUtil.toExecutableName("pipreqs");
 		Path pipreqsPath = pythonDir.resolve(OsUtil.getScriptsDirectory()).resolve(pipreqsExecutable);
@@ -46,7 +52,7 @@ class PipreqsDependencyResolver implements DependencyResolver {
 				"--mode",
 				"no-pin"
 		);
-		ProcessCommandExecutor.executeCommand(command, onOutput);
+		processCommandExecutor.executeCommand(command, onOutput);
 	}
 
 	public void installDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,
@@ -62,7 +68,7 @@ class PipreqsDependencyResolver implements DependencyResolver {
 					"-r",
 					requirementsPath.toString()
 			);
-			ProcessCommandExecutor.executeCommand(command, onOutput);
+			processCommandExecutor.executeCommand(command, onOutput);
 		} else {
 			log.warn("No requirements.txt found in {}, skipping dependency installation.", directory);
 		}

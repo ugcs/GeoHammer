@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.service.script.dependecies;
+package com.ugcs.geohammer.service.script.dependencies;
 
 import java.io.IOException;
 import java.nio.file.Path;

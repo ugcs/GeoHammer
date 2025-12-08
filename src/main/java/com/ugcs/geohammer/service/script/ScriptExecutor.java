@@ -20,7 +20,7 @@ import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.template.FileTemplates;
-import com.ugcs.geohammer.service.script.dependecies.PythonDependenciesInstaller;
+import com.ugcs.geohammer.service.script.dependencies.PythonDependenciesInstaller;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import org.slf4j.Logger;
@@ -44,6 +44,8 @@ public class ScriptExecutor {
 
 	private final EventsFactory eventsFactory;
 
+	private final ProcessCommandExecutor processCommandExecutor;
+
 	private final PythonExecutorPathResolver pythonExecutorPathResolver;
 
 	private final PythonDependenciesInstaller pythonDependenciesInstaller;
@@ -51,12 +53,13 @@ public class ScriptExecutor {
 	// sgyFile -> scriptName
 	private final Map<SgyFile, String> executingScripts = new ConcurrentHashMap<>();
 
-	public ScriptExecutor(Loader loader, EventSender eventSender, EventsFactory eventsFactory, PythonExecutorPathResolver pythonExecutorPathResolver) {
+	public ScriptExecutor(Loader loader, EventSender eventSender, EventsFactory eventsFactory, ProcessCommandExecutor processCommandExecutor, PythonExecutorPathResolver pythonExecutorPathResolver) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
+		this.processCommandExecutor = processCommandExecutor;
 		this.pythonExecutorPathResolver = pythonExecutorPathResolver;
-		this.pythonDependenciesInstaller = new PythonDependenciesInstaller(executor, pythonExecutorPathResolver);
+		this.pythonDependenciesInstaller = new PythonDependenciesInstaller(executor, pythonExecutorPathResolver, processCommandExecutor);
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
@@ -82,7 +85,7 @@ public class ScriptExecutor {
 
 			List<String> command = buildCommand(scriptFile.toPath(), scriptMetadata, parameters, tempFile.toPath());
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
-			ProcessCommandExecutor.executeCommand(command, onScriptOutput);
+			processCommandExecutor.executeCommand(command, onScriptOutput);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}

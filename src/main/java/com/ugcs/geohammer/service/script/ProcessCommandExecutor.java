@@ -8,13 +8,14 @@ import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 
+@Component
 public class ProcessCommandExecutor {
+	private static final Logger log = LoggerFactory. getLogger(ProcessCommandExecutor. class);
 
-	private static final Logger log = LoggerFactory.getLogger(ProcessCommandExecutor.class);
-
-	public static void executeCommand(List<String> command, Consumer<String> onOutput) throws IOException, InterruptedException {
+	public void executeCommand(List<String> command, Consumer<String> onOutput) throws IOException, InterruptedException {
 		log.debug("Executing command: {}", String.join(" ", command));
 		ProcessBuilder processBuilder = new ProcessBuilder(command);
 		processBuilder.redirectErrorStream(true);
@@ -37,7 +38,10 @@ public class ProcessCommandExecutor {
 				throw new CommandExecutionException(exitCode);
 			}
 		} finally {
-			process.destroy();
+			if (process.isAlive()) {
+				process. destroyForcibly();
+				log.warn("Process forcibly destroyed: {}", String.join(" ", command));
+			}
 		}
 	}
 }

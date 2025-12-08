@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.service.script.dependecies;
+package com.ugcs.geohammer.service.script.dependencies;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
+import com.ugcs.geohammer.service.script.ProcessCommandExecutor;
 import com.ugcs.geohammer.service.script.PythonExecutorPathResolver;
 import com.ugcs.geohammer.util.FileNames;
 import org.slf4j.Logger;
@@ -28,25 +29,31 @@ public class PythonDependenciesInstaller {
 	private final Set<String> installedScripts = ConcurrentHashMap.newKeySet();
 
 	public PythonDependenciesInstaller(ExecutorService executorService,
-									   PythonExecutorPathResolver pythonExecutorPathResolver) {
-		this.dependencyResolver = new PipreqsDependencyResolver(executorService, pythonExecutorPathResolver);
-		this.pythonPackageManager = new PythonPackageManager(pythonExecutorPathResolver, executorService);
+									   PythonExecutorPathResolver pythonExecutorPathResolver,
+									   ProcessCommandExecutor processCommandExecutor) {
+		this.dependencyResolver = new PipreqsDependencyResolver(
+				executorService,
+				pythonExecutorPathResolver,
+				processCommandExecutor);
+		this.pythonPackageManager = new PythonPackageManager(
+				executorService,
+				pythonExecutorPathResolver,
+				processCommandExecutor);
 	}
 
 	/**
 	 * Installs the required Python dependencies for the given script file if they are not already installed.
 	 *
-	 * @param file           the script file
-	 * @param onOutput       a consumer to handle output messages
+	 * @param file     the script file
+	 * @param onOutput a consumer to handle output messages
 	 * @throws IOException          if an I/O error occurs
 	 * @throws InterruptedException if the operation is interrupted
 	 */
 	public void installIfNeeded(File file, Consumer<String> onOutput) throws IOException, InterruptedException {
 		String cacheKey = generateCacheKey(file);
-
 		String filename = file.getName();
 
-		if (installedScripts.contains(cacheKey)) {
+		if (!installedScripts.add(cacheKey)) {
 			log.debug("Dependencies already installed for script {}", filename);
 			return;
 		}
@@ -72,6 +79,7 @@ public class PythonDependenciesInstaller {
 			onOutput.accept("Dependencies installed successfully for script " + filename);
 		} catch (Exception e) {
 			log.warn("Dependency installation failed (possibly offline). Assuming dependencies are already installed.", e);
+			installedScripts.remove(cacheKey);
 		} finally {
 			cleanupTempDirectory(tempDirectory, filename);
 		}

@@ -12,6 +12,6 @@ public record ScriptParameter(
         boolean required
 ) {
     public enum ParameterType {
-        STRING, INTEGER, DOUBLE, BOOLEAN, FILE_PATH
+        STRING, INTEGER, DOUBLE, BOOLEAN, FILE_PATH, COLUMN_NAME
     }
 }

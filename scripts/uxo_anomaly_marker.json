@@ -5,8 +5,8 @@
     {
       "name": "column",
       "display_name": "Column name",
-      "type": "STRING",
-      "default_value": "TMI_anomaly",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI_RM",
       "required": true
     },
     {

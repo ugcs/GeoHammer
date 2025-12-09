@@ -208,6 +208,7 @@ public class ScriptExecutionTool extends FilterToolView {
 			scriptsMetadataSelector.getSelectionModel().select(prevSelectedScript);
 		} else {
 			scriptsMetadataSelector.getSelectionModel().clearSelection();
+			scriptsMetadataSelector.setValue(null);
 			scriptsMetadataSelector.setPromptText("Select script");
 		}
 	}
@@ -220,6 +221,7 @@ public class ScriptExecutionTool extends FilterToolView {
 				scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
 			} else {
 				scriptsMetadataSelector.getSelectionModel().clearSelection();
+				scriptsMetadataSelector.setValue(null);
 			}
 		} else {
             enableAndHideProgress();

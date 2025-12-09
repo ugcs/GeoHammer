@@ -487,8 +487,9 @@ public class ScriptExecutionTool extends FilterToolView {
 				.flatMap(vbox -> vbox.getChildren().stream())
 				.filter(ComboBox.class::isInstance)
 				.map(node -> (ComboBox<String>) node)
-				.findFirst()
-				.ifPresent(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns, null));
+				.forEach(comboBox ->
+						updateComboBoxIfChanged(comboBox, availableColumns, null)
+				);
 	}
 
 	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns, @Nullable String initialValue) {

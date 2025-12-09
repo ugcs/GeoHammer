@@ -7,8 +7,6 @@
   # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
     ^.*Date,Time,.*Latitude,Longitude,Heading,.*Altitude,Altitude AGL,.*alid,TMI.*
-  # Indicates that position data can come from a source
-  positional: true
   file-format:
   # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true

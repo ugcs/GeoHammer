@@ -34,6 +34,12 @@ import javax.annotation.Nullable;
 @Component
 public class SettingsView implements ToolProducer {
 
+	private static final String PREF_PYTHON_EXECUTOR = "python_executor";
+
+	private static final String PREF_PYTHON_EXECUTOR_PATH = "path";
+
+	private final PrefSettings prefSettings;
+
 	private final PythonConfig pythonConfig;
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -41,10 +47,16 @@ public class SettingsView implements ToolProducer {
 	@Nullable
 	private Stage settingsStage = null;
 
+	@Nullable
+	private TextField pythonPathField = null;
+
+	private String originalPythonPath = "";
+
 	private final ToggleButton toggleButton =
 			ResourceImageHolder.setButtonImage(ResourceImageHolder.SETTINGS, new ToggleButton());
 
-	public SettingsView(PythonConfig pythonConfig) {
+	public SettingsView(PrefSettings prefSettings, PythonConfig pythonConfig) {
+		this.prefSettings = prefSettings;
 		this.pythonConfig = pythonConfig;
 
 		toggleButton.setTooltip(new Tooltip("Settings"));
@@ -68,6 +80,7 @@ public class SettingsView implements ToolProducer {
 			if (settingsStage == null) {
 				settingsStage = createSettingsStage();
 				settingsStage.initOwner(AppContext.stage);
+				settingsStage.setOnHiding(event -> onClose(settingsStage));
 			}
 			settingsStage.show();
 		});
@@ -87,7 +100,9 @@ public class SettingsView implements ToolProducer {
 
 		Node pythonPathSetting = createPythonPathPane(stage);
 
-		VBox root = new VBox(pythonPathSetting);
+		HBox buttonsRow = createButtonsRow(stage);
+
+		VBox root = new VBox(10, pythonPathSetting, buttonsRow);
 		Scene scene = new Scene(root, 700, 120);
 
 		stage.setScene(scene);
@@ -96,14 +111,17 @@ public class SettingsView implements ToolProducer {
 
 	private Node createPythonPathPane(Stage settingsStage) {
 		Label pythonLabel = new Label("Python Executor Path:");
-		TextField pythonPathField = new TextField();
+		pythonPathField = new TextField();
 		pythonPathField.setEditable(false);
 		pythonPathField.setPrefWidth(400);
 
 		String pythonPath = "";
-		String configPath = pythonConfig.getPythonExecutorPath();
+		@Nullable String configPath = pythonConfig.getPythonExecutorPath();
+		@Nullable String prefPath = loadPythonExecutorPath();
 		if (configPath != null && !configPath.isEmpty()) {
 			pythonPath = configPath;
+		} else if (prefPath != null && !prefPath.isEmpty()) {
+			pythonPath = prefPath;
 		} else {
 			try {
 				Future<String> future = executor.submit(PythonLocator::getPythonExecutorPath);
@@ -114,17 +132,28 @@ public class SettingsView implements ToolProducer {
 		}
 
 		pythonPathField.setText(pythonPath);
+		originalPythonPath = pythonPath;
 
-		return createPythonPathRow(settingsStage, pythonPathField, pythonLabel);
+		return createPythonPathRow(settingsStage, pythonLabel);
 	}
 
-	private @NotNull HBox createPythonPathRow(Stage settingsStage, TextField pythonPathField, Label pythonLabel) {
+	private @Nullable String loadPythonExecutorPath() {
+		return prefSettings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
+	}
+
+	private void savePythonExecutorPath(@Nullable String pythonPath) {
+		if (pythonPath != null && !pythonPath.isEmpty()) {
+			prefSettings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
+		}
+	}
+
+	private @NotNull HBox createPythonPathRow(Stage settingsStage, Label pythonLabel) {
 		Button browseButton = new Button("Browse...");
-		browseButton.setOnAction(event -> onBrowseClicked(settingsStage, pythonPathField));
+		browseButton.setOnAction(event -> onBrowseClicked(settingsStage));
 
 		Button pasteButton = ResourceImageHolder.setButtonImage(ResourceImageHolder.PASTE, new Button());
 		pasteButton.setTooltip(new Tooltip("Paste path from clipboard"));
-		pasteButton.setOnAction(event -> onPasteClicked(pythonPathField));
+		pasteButton.setOnAction(event -> onPasteClicked());
 
 		HBox row = new HBox(10, pythonLabel, pythonPathField, pasteButton, browseButton);
 		row.setPadding(new Insets(20, 20, 20, 20));
@@ -132,22 +161,60 @@ public class SettingsView implements ToolProducer {
 		return row;
 	}
 
-	private void onBrowseClicked(Stage settingsStage, TextField pythonPathField) {
+	private void onBrowseClicked(Stage settingsStage) {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Select Python Executable");
 		File file = fileChooser.showOpenDialog(settingsStage);
 		if (file != null) {
-			pythonPathField.setText(file.getAbsolutePath());
-			pythonConfig.setPythonExecutorPath(file.getAbsolutePath());
+			String path = file.getAbsolutePath();
+			if (pythonPathField != null) {
+				pythonPathField.setText(path);
+			}
 		}
 	}
 
-	private void onPasteClicked(TextField pythonPathField) {
+	private void onPasteClicked() {
 		Clipboard clipboard = Clipboard.getSystemClipboard();
 		if (clipboard.hasString()) {
 			String path = clipboard.getString();
-			pythonPathField.setText(path);
-			pythonConfig.setPythonExecutorPath(path);
+			if (pythonPathField != null) {
+				pythonPathField.setText(path);
+			}
 		}
+	}
+
+	private HBox createButtonsRow(Stage settingsStage) {
+		Button okButton = new Button("OK");
+		okButton.setPrefWidth(60);
+		okButton.setOnAction(event -> onSave(settingsStage));
+
+		Button closeButton = new Button("Close");
+		closeButton.setPrefWidth(60);
+		closeButton.setOnAction(event -> onClose(settingsStage));
+
+		HBox buttonsBox = new HBox(10, okButton, closeButton);
+		buttonsBox.setAlignment(Pos.CENTER_RIGHT);
+		buttonsBox.setPadding(new Insets(0, 20, 20, 20));
+		return buttonsBox;
+	}
+
+	private void onSave(Stage settingsStage) {
+		if (pythonPathField != null) {
+			String path = pythonPathField.getText();
+			savePythonExecutorPath(path);
+			pythonConfig.setPythonExecutorPath(path);
+			originalPythonPath = path;
+		}
+		toggleButton.setSelected(false);
+		settingsStage.close();
+	}
+
+	private void onClose(Stage settingsStage) {
+		if (pythonPathField != null) {
+			pythonPathField.setText(originalPythonPath);
+			pythonConfig.setPythonExecutorPath(originalPythonPath);
+		}
+		toggleButton.setSelected(false);
+		settingsStage.close();
 	}
 }

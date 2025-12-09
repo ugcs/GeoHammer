@@ -71,13 +71,14 @@ public class ScriptExecutor {
 		executingScripts.put(sgyFile, scriptMetadata);
 		File tempFile = null;
 		try {
-			tempFile = copyToTempFile(sgyFile);
 			File scriptFile = new File(getScriptsPath().toFile(), scriptMetadata.filename());
 			if (!scriptFile.exists()) {
 				throw new IOException("Script file not found: " + scriptFile.getAbsolutePath());
 			}
 
 			pythonService.installDependencies(scriptFile, onScriptOutput);
+
+			tempFile = copyToTempFile(sgyFile);
 
 			List<String> command = buildCommand(scriptFile.toPath(), scriptMetadata, parameters, tempFile.toPath());
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));

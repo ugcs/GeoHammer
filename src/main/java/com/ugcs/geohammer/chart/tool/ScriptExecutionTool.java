@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.prefs.Preferences;
@@ -43,6 +44,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -73,7 +75,7 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
-	private volatile boolean isUpdatingColumns = false;
+	private final AtomicBoolean isUpdatingColumns = new AtomicBoolean(false);
 
 
 	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, ScriptExecutor scriptExecutor) {
@@ -250,70 +252,64 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
 		return switch (param.type()) {
-			case STRING, FILE_PATH -> {
-				TextField textField = new TextField(initialValue);
-				textField.setUserData(param.name());
-				textField.setPromptText(param.displayName());
-				yield textField;
-			}
-			case INTEGER -> {
-				TextField textField = new TextField(initialValue);
-				textField.setUserData(param.name());
-				textField.setPromptText("Enter integer value");
-				yield textField;
-			}
-			case DOUBLE -> {
-				TextField textField = new TextField(initialValue);
-				textField.setUserData(param.name());
-				textField.setPromptText("Enter decimal value");
-				yield textField;
-			}
-			case BOOLEAN -> {
-				CheckBox checkBox = new CheckBox();
-				checkBox.setUserData(param.name());
-				checkBox.setSelected(Boolean.parseBoolean(initialValue));
-				checkBox.setText(labelText);
-				yield checkBox;
-			}
+			case STRING, FILE_PATH -> createTextField(param, initialValue);
+			case INTEGER -> createIntegerField(param, initialValue);
+			case DOUBLE -> createDoubleField(param, initialValue);
+			case BOOLEAN -> createCheckBox(param, initialValue, labelText);
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
 		};
 	}
 
+	private static @NotNull TextField createTextField(ScriptParameter param, String initialValue) {
+		TextField textField = new TextField(initialValue);
+		textField.setUserData(param);
+		textField.setPromptText(param.displayName());
+		return textField;
+	}
+
+	private static @NotNull TextField createIntegerField(ScriptParameter param, String initialValue) {
+		TextField textField = new TextField(initialValue);
+		textField.setUserData(param);
+		textField.setPromptText("Enter integer value");
+		return textField;
+	}
+
+	private static @NotNull TextField createDoubleField(ScriptParameter param, String initialValue) {
+		TextField textField = new TextField(initialValue);
+		textField.setUserData(param);
+		textField.setPromptText("Enter decimal value");
+		return textField;
+	}
+
+	private static @NotNull CheckBox createCheckBox(ScriptParameter param, String initialValue, String labelText) {
+		CheckBox checkBox = new CheckBox();
+		checkBox.setUserData(param);
+		checkBox.setSelected(Boolean.parseBoolean(initialValue));
+		checkBox.setText(labelText);
+		return checkBox;
+	}
+
 	private ComboBox<String> createColumnSelector(ScriptParameter param, String initialValue) {
 		ComboBox<String> columnSelector = new ComboBox<>();
-		columnSelector.setUserData(param);
 		columnSelector.setPromptText("Select column");
 		columnSelector.setMaxWidth(Double.MAX_VALUE);
 
+		columnSelector.setUserData(param);
+
 		if (selectedFile instanceof CsvFile csvFile) {
 			Set<String> columns = getAvailableColumnsForFile(csvFile);
-			columnSelector.getItems().setAll(columns);
-
-			if (columns.isEmpty()) {
-				columnSelector.setPromptText("No columns available");
-				columnSelector.setDisable(true);
-			} else {
-				if (initialValue != null) {
-					columnSelector.setValue(initialValue);
-				}
-			}
+			updateComboBoxIfChanged(columnSelector, columns, initialValue);
 		}
 
 		return columnSelector;
 	}
 
 	private Set<String> getAvailableColumnsForFile(CsvFile csvFile) {
-		Set<String> availableColumnNames = new HashSet<>();
-		for (SgyFile file : model.getFileManager().getFiles()) {
-			if (Objects.equals(file, csvFile)) {
-				Chart chart = model.getChart(file);
-				if (chart instanceof SensorLineChart sensorChart) {
-					availableColumnNames.addAll(sensorChart.getSeriesNames());
-				}
-			}
+		Chart chart = model.getChart(csvFile);
+		if (chart instanceof SensorLineChart sensorChart) {
+			return sensorChart.getSeriesNames();
 		}
-
-		return availableColumnNames;
+		return Set.of();
 	}
 
 	private String loadStoredParamValue(@Nullable String scriptFilename, String paramName, String defaultValue) {
@@ -414,7 +410,6 @@ public class ScriptExecutionTool extends FilterToolView {
 			for (Node inputNode : ((VBox) paramBox).getChildren()) {
 				String paramName = switch (inputNode.getUserData()) {
 					case ScriptParameter param -> param.name();
-					case String name -> name;
 					case null, default -> null;
 				};
 				if (paramName == null) {
@@ -462,18 +457,11 @@ public class ScriptExecutionTool extends FilterToolView {
 		if (!(selectedFile instanceof CsvFile csvFile)) {
 			return;
 		}
-		if (isUpdatingColumns) {
+		if (isUpdatingColumns.get()) {
 			return;
 		}
 
-		Platform.runLater(() -> {
-			try {
-				isUpdatingColumns = true;
-				refreshColumnSelectors(csvFile);
-			} finally {
-				isUpdatingColumns = false;
-			}
-		});
+		Platform.runLater(() -> refreshColumnSelectors(csvFile));
 	}
 
 	private void refreshColumnSelectors(CsvFile csvFile) {
@@ -487,22 +475,33 @@ public class ScriptExecutionTool extends FilterToolView {
 				.filter(ComboBox.class::isInstance)
 				.map(node -> (ComboBox<String>) node)
 				.findFirst()
-				.ifPresent(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns));
+				.ifPresent(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns, null));
 	}
 
-	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns) {
-		Set<String> currentItems = new HashSet<>(comboBox. getItems());
+	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns, @Nullable String initialValue) {
+		Set<String> currentItems = new HashSet<>(comboBox.getItems());
+
+		if (availableColumns.isEmpty()) {
+			comboBox.setPromptText("No columns available");
+			comboBox.setDisable(true);
+			return;
+		} else {
+			comboBox.setDisable(false);
+		}
 
 		if (!currentItems.equals(availableColumns)) {
-			String currentValue = comboBox.getValue();
+			isUpdatingColumns.set(true);
+			String value = comboBox.getValue();
 
 			comboBox.getItems().setAll(availableColumns);
 
-			if (currentValue != null && availableColumns.contains(currentValue)) {
-				comboBox.setValue(currentValue);
+			if (value != null && availableColumns.contains(value)) {
+				comboBox.setValue(value);
 			} else if (comboBox.getUserData() instanceof ScriptParameter param) {
 				String defaultValue = param.defaultValue();
-				if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
+				if (initialValue != null && availableColumns.contains(initialValue)) {
+					comboBox.setValue(initialValue);
+				} else if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
 					comboBox.setValue(defaultValue);
 				} else {
 					comboBox.setValue(null);
@@ -510,6 +509,7 @@ public class ScriptExecutionTool extends FilterToolView {
 			} else {
 				comboBox.setValue(null);
 			}
+			isUpdatingColumns.set(false);
 		}
 	}
 }

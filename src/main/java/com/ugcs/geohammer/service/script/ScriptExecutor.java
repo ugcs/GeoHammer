@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import com.ugcs.geohammer.Loader;
@@ -20,8 +18,6 @@ import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.template.FileTemplates;
-import com.ugcs.geohammer.service.script.dependencies.PythonDependenciesInstaller;
-import com.ugcs.geohammer.service.script.dependencies.PythonDependenciesInstaller;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import org.slf4j.Logger;
@@ -37,8 +33,6 @@ public class ScriptExecutor {
 
 	public static final String SCRIPTS_DIRECTORY = "scripts";
 
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
-
 	private final Loader loader;
 
 	private final EventSender eventSender;
@@ -47,23 +41,21 @@ public class ScriptExecutor {
 
 	private final CommandExecutor commandExecutor;
 
-	private final PythonExecutorPathResolver pythonPathResolver;
-
-	private final PythonDependenciesInstaller pythonDependenciesInstaller;
+	private final PythonService pythonService;
 
 	// sgyFile -> scriptMetadata
 	private final Map<SgyFile, ScriptMetadata> executingScripts = new ConcurrentHashMap<>();
 
-	public ScriptExecutor(Loader loader, EventSender eventSender, EventsFactory eventsFactory,
+	public ScriptExecutor(Loader loader,
+						  EventSender eventSender,
+						  EventsFactory eventsFactory,
 						  CommandExecutor commandExecutor,
-						  PythonExecutorPathResolver pythonPathResolver) {
+						  PythonService pythonService) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
 		this.commandExecutor = commandExecutor;
-		this.pythonPathResolver = pythonPathResolver;
-		this.pythonDependenciesInstaller = new PythonDependenciesInstaller(executor, pythonPathResolver,
-				commandExecutor);
+		this.pythonService = pythonService;
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
@@ -85,7 +77,7 @@ public class ScriptExecutor {
 				throw new IOException("Script file not found: " + scriptFile.getAbsolutePath());
 			}
 
-			pythonDependenciesInstaller.installIfNeeded(scriptFile, onScriptOutput);
+			pythonService.installDependencies(scriptFile, onScriptOutput);
 
 			List<String> command = buildCommand(scriptFile.toPath(), scriptMetadata, parameters, tempFile.toPath());
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
@@ -127,7 +119,7 @@ public class ScriptExecutor {
 			throws InterruptedException {
 		List<String> command = new ArrayList<>();
 
-		String pythonPath = pythonPathResolver.getPythonExecutablePath(executor).toString();
+		String pythonPath = pythonService.getPythonExecutorPath().toString();
 		command.add(pythonPath);
 
 		command.add(scriptPath.toString());

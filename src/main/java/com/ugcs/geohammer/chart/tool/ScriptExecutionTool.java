@@ -68,8 +68,6 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private final ExecutorService executor;
 
-	private final Label parametersLabel;
-
 	private final VBox parametersBox;
 
 	private final ComboBox<ScriptMetadata> scriptsMetadataSelector;
@@ -95,10 +93,6 @@ public class ScriptExecutionTool extends FilterToolView {
 
 		parametersBox = new VBox(Tools.DEFAULT_SPACING);
 		parametersBox.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
-
-		parametersLabel = new Label("Parameters:");
-		parametersLabel.setStyle("-fx-font-weight: bold;");
-		parametersLabel.setVisible(false);
 
 		scriptsMetadataSelector.setCellFactory(param -> createScriptMetadataCell());
 		scriptsMetadataSelector.setButtonCell(createScriptMetadataCell());
@@ -133,13 +127,6 @@ public class ScriptExecutionTool extends FilterToolView {
 		parametersBox.getChildren().clear();
 
 		if (scriptMetadata != null) {
-			if (scriptMetadata.parameters().isEmpty()) {
-				parametersLabel.setVisible(false);
-			} else {
-				parametersLabel.setVisible(true);
-				parametersBox.getChildren().add(parametersLabel);
-			}
-
 			for (ScriptParameter param : scriptMetadata.parameters()) {
 				String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
 						param.defaultValue());
@@ -150,7 +137,6 @@ public class ScriptExecutionTool extends FilterToolView {
 			showApply(true);
 			showApplyToAll(true);
 		} else {
-			parametersLabel.setVisible(false);
 			showApply(false);
 			showApplyToAll(false);
 		}

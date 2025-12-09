@@ -15,9 +15,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.prefs.Preferences;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
@@ -27,12 +27,13 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.service.TaskService;
-import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.CommandExecutionException;
+import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptExecutor;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptParameter;
+import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.view.MessageBoxHelper;
@@ -61,6 +62,8 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private static final int MAX_OUTPUT_LINES_IN_DIALOG = 7;
 
+	private static final String PREFS_NODE_NAME = "script_execution_tool";
+
 	private final Model model;
 
 	private final ScriptExecutor scriptExecutor;
@@ -69,23 +72,24 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private final ExecutorService executor;
 
+	private final PrefSettings preferences;
+
 	private final VBox parametersBox;
 
 	private final ComboBox<ScriptMetadata> scriptsMetadataSelector;
-
-	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionTool.class);
 
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
 	private final AtomicBoolean isUpdatingColumns = new AtomicBoolean(false);
 
 
-	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, ScriptExecutor scriptExecutor) {
+	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, PrefSettings preferences, ScriptExecutor scriptExecutor) {
 		super(executor);
 
         this.model = model;
         this.executor = executor;
 		this.status = status;
+		this.preferences = preferences;
 		this.scriptExecutor = scriptExecutor;
 
 		scriptsMetadataSelector = new ComboBox<>();
@@ -315,11 +319,14 @@ public class ScriptExecutionTool extends FilterToolView {
 		if (scriptFilename == null) {
 			return defaultValue;
 		}
-		return prefs.get(scriptFilename + "." + paramName, defaultValue);
+		String filename = FileNames.removeExtension(scriptFilename);
+		return preferences.getStringOrDefault(PREFS_NODE_NAME, filename + "." + paramName, defaultValue);
 	}
 
 	private void storeParamValues(String scriptFilename, Map<String, String> params) {
-		params.forEach((name, value) -> prefs.put(scriptFilename + "." + name, value));
+		String filename = FileNames.removeExtension(scriptFilename);
+		params.forEach((name, value) ->
+				preferences.setValue(PREFS_NODE_NAME, filename + "." + name, value));
 	}
 
 	private void executeScript(@Nullable ScriptMetadata scriptMetadata, List<SgyFile> files) {

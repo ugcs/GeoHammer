@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -319,7 +320,7 @@ public class ScriptExecutionTool extends FilterToolView {
 	private Set<String> getAvailableColumnsForFile(CsvFile csvFile) {
 		Chart chart = model.getChart(csvFile);
 		if (chart instanceof SensorLineChart sensorChart) {
-			return sensorChart.getSeriesNames();
+			return new TreeSet<>(sensorChart.getSeriesNames());
 		}
 		return Set.of();
 	}

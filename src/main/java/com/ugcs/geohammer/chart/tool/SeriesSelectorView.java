@@ -411,25 +411,34 @@ public class SeriesSelectorView extends VBox {
             }
             visibilitySettings.put(seriesName, seriesVisible);
         }
-        // if no settings defined for template, make first series visible
+        // if no settings defined for template, make default series visible
         if (visibilitySettings.isEmpty() && !seriesNames.isEmpty()) {
-            // try template-defined column
-            Template template = templates.getTemplate(templateName);
-            if (template != null) {
-                for (SensorData column : template.getDataMapping().getDataValues()) {
-                    String seriesName = column.getHeader();
-                    if (seriesNames.contains(seriesName)) {
-                        visibilitySettings.put(seriesName, true);
-                        break;
-                    }
-                }
-            }
-            // peek first in order
-            if (visibilitySettings.isEmpty()) {
-                visibilitySettings.put(orderSeriesNames(seriesNames).getFirst(), true);
+            String defaultSeriesName = getDefaultSeriesName(templateName, seriesNames);
+            if (!Strings.isNullOrEmpty(defaultSeriesName)) {
+                // make default series visible
+                templateSettings.setSeriesVisible(templateName, defaultSeriesName, true);
+                visibilitySettings.put(defaultSeriesName, true);
             }
         }
         return visibilitySettings;
+    }
+
+    private String getDefaultSeriesName(String templateName, Set<String> seriesNames) {
+        if (Nulls.isNullOrEmpty(seriesNames)) {
+            return null;
+        }
+        // try template-defined column
+        Template template = templates.getTemplate(templateName);
+        if (template != null) {
+            for (SensorData column : template.getDataMapping().getDataValues()) {
+                String seriesName = column.getHeader();
+                if (seriesNames.contains(seriesName)) {
+                    return seriesName;
+                }
+            }
+        }
+        // peek first in order
+        return orderSeriesNames(seriesNames).getFirst();
     }
 
     private List<SeriesMeta> getSeriesMetas(@Nullable String templateName) {

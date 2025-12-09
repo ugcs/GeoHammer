@@ -1,0 +1,21 @@
+{
+  "filename": "MagNIMBUS_gradient_calculation.py",
+  "display_name": "Gradient calculation",
+  "parameters": [
+    {
+      "name": "lower-sensor-column",
+      "display_name": "Lower sensor column",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI_LPF",
+      "required": false
+    },
+    {
+      "name": "upper-sensor-column",
+      "display_name": "Upper sensor column",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI_S_LPF",
+      "required": false
+    }
+  ],
+  "templates": ["MagNIMBUS"]
+}

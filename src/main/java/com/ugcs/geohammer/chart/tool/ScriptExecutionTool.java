@@ -35,6 +35,7 @@ import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
@@ -59,9 +60,11 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private final ExecutorService executor;
 
+	private final Label parametersLabel;
+
 	private final VBox parametersBox;
 
-	private final ComboBox<String> scriptsMetadataSelector;
+	private final ComboBox<ScriptMetadata> scriptsMetadataSelector;
 
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
@@ -82,39 +85,15 @@ public class ScriptExecutionTool extends FilterToolView {
 		parametersBox = new VBox(Tools.DEFAULT_SPACING);
 		parametersBox.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
 
-		Label parametersLabel = new Label("Parameters:");
+		parametersLabel = new Label("Parameters:");
 		parametersLabel.setStyle("-fx-font-weight: bold;");
 		parametersLabel.setVisible(false);
 
+		scriptsMetadataSelector.setCellFactory(param -> createScriptMetadataCell());
+		scriptsMetadataSelector.setButtonCell(createScriptMetadataCell());
 		scriptsMetadataSelector.setOnAction(e -> {
-			String filename = scriptsMetadataSelector.getValue();
-			ScriptMetadata selectedScript = scriptsMetadata.stream()
-					.filter(scriptMetadata -> scriptMetadata.filename().equals(filename))
-					.findFirst()
-					.orElse(null);
-			parametersBox.getChildren().clear();
-
-			if (selectedScript != null) {
-				if (selectedScript.parameters().isEmpty()) {
-					parametersLabel.setVisible(false);
-				} else {
-					parametersLabel.setVisible(true);
-					parametersBox.getChildren().add(parametersLabel);
-				}
-
-				for (ScriptParameter param : selectedScript.parameters()) {
-					String initialValue = loadStoredParamValue(selectedScript.filename(), param.name(), param.defaultValue());
-					VBox paramBox = createParameterInput(param, initialValue);
-					parametersBox.getChildren().add(paramBox);
-				}
-
-                showApply(true);
-                showApplyToAll(true);
-			} else {
-				parametersLabel.setVisible(false);
-                showApply(false);
-                showApplyToAll(false);
-			}
+			ScriptMetadata scriptMetadata = scriptsMetadataSelector.getValue();
+			updateParametersBox(scriptMetadata);
 		});
 
         inputContainer.getChildren().setAll(scriptsMetadataSelector, parametersBox);
@@ -125,18 +104,55 @@ public class ScriptExecutionTool extends FilterToolView {
 		updateView();
 	}
 
-    @Override
+	private ListCell<ScriptMetadata> createScriptMetadataCell() {
+		return new ListCell<>() {
+			@Override
+			protected void updateItem(ScriptMetadata item, boolean empty) {
+				super.updateItem(item, empty);
+				if (item == null || empty) {
+					setText(null);
+				} else {
+					setText(item.displayName());
+				}
+			}
+		};
+	}
+
+	private void updateParametersBox(ScriptMetadata scriptMetadata) {
+		parametersBox.getChildren().clear();
+
+		if (scriptMetadata != null) {
+			if (scriptMetadata.parameters().isEmpty()) {
+				parametersLabel.setVisible(false);
+			} else {
+				parametersLabel.setVisible(true);
+				parametersBox.getChildren().add(parametersLabel);
+			}
+
+			for (ScriptParameter param : scriptMetadata.parameters()) {
+				String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
+						param.defaultValue());
+				VBox paramBox = createParameterInput(param, initialValue);
+				parametersBox.getChildren().add(paramBox);
+			}
+
+			showApply(true);
+			showApplyToAll(true);
+		} else {
+			parametersLabel.setVisible(false);
+			showApply(false);
+			showApplyToAll(false);
+		}
+	}
+
+	@Override
     public boolean isVisibleFor(SgyFile file) {
         return file instanceof CsvFile || file instanceof TraceFile;
     }
 
     @Override
     protected void onApply(ActionEvent event) {
-        String filename = scriptsMetadataSelector.getValue();
-        ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-                .filter(sM -> sM.filename().equals(filename))
-                .findFirst()
-                .orElse(null);
+		ScriptMetadata scriptMetadata = scriptsMetadataSelector.getValue();
         SgyFile sgyFile = selectedFile;
         if (sgyFile != null) {
             executeScript(scriptMetadata, List.of(sgyFile));
@@ -148,11 +164,7 @@ public class ScriptExecutionTool extends FilterToolView {
 
     @Override
     protected void onApplyToAll(ActionEvent event) {
-        String filename = scriptsMetadataSelector.getValue();
-        ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-                .filter(sM -> sM.filename().equals(filename))
-                .findFirst()
-                .orElse(null);
+		ScriptMetadata scriptMetadata = scriptsMetadataSelector.getValue();
         List<SgyFile> filesToProcess = getFilesToProcess(model);
         executeScript(scriptMetadata, filesToProcess);
     }
@@ -198,11 +210,9 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private void restoreScriptSelection() {
-		@Nullable String prevSelectedScript = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
+		@Nullable ScriptMetadata prevSelectedScript = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
 		scriptsMetadataSelector.getItems().setAll(
-				scriptsMetadata.stream()
-						.map(ScriptMetadata::filename)
-						.toList()
+				scriptsMetadata
 		);
 		if (prevSelectedScript != null && scriptsMetadataSelector.getItems().contains(prevSelectedScript)) {
 			scriptsMetadataSelector.getSelectionModel().select(prevSelectedScript);
@@ -216,9 +226,9 @@ public class ScriptExecutionTool extends FilterToolView {
 	private void refreshExecutionStatus(@Nullable SgyFile file) {
 		if (scriptExecutor.isExecuting(file)) {
             disableAndShowProgress();
-			String executingScriptName = scriptExecutor.getExecutingScriptName(file);
-			if (executingScriptName != null) {
-				scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
+			ScriptMetadata executingScriptMetadata = scriptExecutor.getExecutingScriptMetadata(file);
+			if (executingScriptMetadata != null) {
+				scriptsMetadataSelector.getSelectionModel().select(executingScriptMetadata);
 			} else {
 				scriptsMetadataSelector.getSelectionModel().clearSelection();
 				scriptsMetadataSelector.setValue(null);

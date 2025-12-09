@@ -229,6 +229,15 @@ public class GriddingTool extends FilterToolView {
             }
         });
 
+        minInput.focusedProperty().addListener((observable, oldValue, newValue) -> {
+           if (!newValue) {
+               Double low = Text.parseDouble(minInput.getText());
+               if (low != null) {
+                   setRangeSliderLow(low);
+               }
+           }
+        });
+
         maxInput.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 Double high = Text.parseDouble(maxInput.getText());
@@ -241,6 +250,15 @@ public class GriddingTool extends FilterToolView {
                 minInput.setText(Formats.prettyForRange(
                         rangeSlider.getHighValue(), rangeSlider.getMin(), rangeSlider.getMax()));
                 event.consume();
+            }
+        });
+
+        maxInput.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue) {
+                Double high = Text.parseDouble(maxInput.getText());
+                if (high != null) {
+                    setRangeSliderHigh(high);
+                }
             }
         });
 

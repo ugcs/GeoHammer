@@ -21,6 +21,7 @@ import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.service.script.dependencies.PythonDependenciesInstaller;
+import com.ugcs.geohammer.service.script.dependencies.PythonDependenciesInstaller;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import org.slf4j.Logger;
@@ -50,8 +51,8 @@ public class ScriptExecutor {
 
 	private final PythonDependenciesInstaller pythonDependenciesInstaller;
 
-	// sgyFile -> scriptName
-	private final Map<SgyFile, String> executingScripts = new ConcurrentHashMap<>();
+	// sgyFile -> scriptMetadata
+	private final Map<SgyFile, ScriptMetadata> executingScripts = new ConcurrentHashMap<>();
 
 	public ScriptExecutor(Loader loader, EventSender eventSender, EventsFactory eventsFactory,
 						  CommandExecutor commandExecutor,
@@ -75,7 +76,7 @@ public class ScriptExecutor {
 			throw new RuntimeException("Script is already running for this file");
 		}
 
-		executingScripts.put(sgyFile, scriptMetadata.filename());
+		executingScripts.put(sgyFile, scriptMetadata);
 		File tempFile = null;
 		try {
 			tempFile = copyToTempFile(sgyFile);
@@ -154,7 +155,7 @@ public class ScriptExecutor {
 	}
 
 	@Nullable
-	public String getExecutingScriptName(SgyFile sgyFile) {
+	public ScriptMetadata getExecutingScriptMetadata(SgyFile sgyFile) {
 		return executingScripts.get(sgyFile);
 	}
 

@@ -4,39 +4,48 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.chart.Chart;
+import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
+import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.CommandExecutionException;
 import com.ugcs.geohammer.service.script.ScriptExecutor;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptParameter;
+import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.view.MessageBoxHelper;
 import com.ugcs.geohammer.view.status.Status;
-import com.ugcs.geohammer.service.TaskService;
-import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.util.Templates;
-import com.ugcs.geohammer.util.Strings;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -59,13 +68,18 @@ public class ScriptExecutionTool extends FilterToolView {
 
 	private final ExecutorService executor;
 
+	private final Label parametersLabel;
+
 	private final VBox parametersBox;
 
-	private final ComboBox<String> scriptsMetadataSelector;
+	private final ComboBox<ScriptMetadata> scriptsMetadataSelector;
+
+	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionTool.class);
 
 	private List<ScriptMetadata> scriptsMetadata = List.of();
 
-	private final Preferences prefs = Preferences.userNodeForPackage(ScriptExecutionTool.class);
+	private final AtomicBoolean isUpdatingColumns = new AtomicBoolean(false);
+
 
 	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, ScriptExecutor scriptExecutor) {
 		super(executor);
@@ -82,39 +96,15 @@ public class ScriptExecutionTool extends FilterToolView {
 		parametersBox = new VBox(Tools.DEFAULT_SPACING);
 		parametersBox.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
 
-		Label parametersLabel = new Label("Parameters:");
+		parametersLabel = new Label("Parameters:");
 		parametersLabel.setStyle("-fx-font-weight: bold;");
 		parametersLabel.setVisible(false);
 
+		scriptsMetadataSelector.setCellFactory(param -> createScriptMetadataCell());
+		scriptsMetadataSelector.setButtonCell(createScriptMetadataCell());
 		scriptsMetadataSelector.setOnAction(e -> {
-			String filename = scriptsMetadataSelector.getValue();
-			ScriptMetadata selectedScript = scriptsMetadata.stream()
-					.filter(scriptMetadata -> scriptMetadata.filename().equals(filename))
-					.findFirst()
-					.orElse(null);
-			parametersBox.getChildren().clear();
-
-			if (selectedScript != null) {
-				if (selectedScript.parameters().isEmpty()) {
-					parametersLabel.setVisible(false);
-				} else {
-					parametersLabel.setVisible(true);
-					parametersBox.getChildren().add(parametersLabel);
-				}
-
-				for (ScriptParameter param : selectedScript.parameters()) {
-					String initialValue = loadStoredParamValue(selectedScript.filename(), param.name(), param.defaultValue());
-					VBox paramBox = createParameterInput(param, initialValue);
-					parametersBox.getChildren().add(paramBox);
-				}
-
-                showApply(true);
-                showApplyToAll(true);
-			} else {
-				parametersLabel.setVisible(false);
-                showApply(false);
-                showApplyToAll(false);
-			}
+			ScriptMetadata scriptMetadata = scriptsMetadataSelector.getValue();
+			updateParametersBox(scriptMetadata);
 		});
 
         inputContainer.getChildren().setAll(scriptsMetadataSelector, parametersBox);
@@ -125,18 +115,55 @@ public class ScriptExecutionTool extends FilterToolView {
 		updateView();
 	}
 
-    @Override
+	private ListCell<ScriptMetadata> createScriptMetadataCell() {
+		return new ListCell<>() {
+			@Override
+			protected void updateItem(ScriptMetadata item, boolean empty) {
+				super.updateItem(item, empty);
+				if (item == null || empty) {
+					setText(null);
+				} else {
+					setText(item.displayName());
+				}
+			}
+		};
+	}
+
+	private void updateParametersBox(ScriptMetadata scriptMetadata) {
+		parametersBox.getChildren().clear();
+
+		if (scriptMetadata != null) {
+			if (scriptMetadata.parameters().isEmpty()) {
+				parametersLabel.setVisible(false);
+			} else {
+				parametersLabel.setVisible(true);
+				parametersBox.getChildren().add(parametersLabel);
+			}
+
+			for (ScriptParameter param : scriptMetadata.parameters()) {
+				String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
+						param.defaultValue());
+				VBox paramBox = createParameterInput(param, initialValue);
+				parametersBox.getChildren().add(paramBox);
+			}
+
+			showApply(true);
+			showApplyToAll(true);
+		} else {
+			parametersLabel.setVisible(false);
+			showApply(false);
+			showApplyToAll(false);
+		}
+	}
+
+	@Override
     public boolean isVisibleFor(SgyFile file) {
         return file instanceof CsvFile || file instanceof TraceFile;
     }
 
     @Override
     protected void onApply(ActionEvent event) {
-        String filename = scriptsMetadataSelector.getValue();
-        ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-                .filter(sM -> sM.filename().equals(filename))
-                .findFirst()
-                .orElse(null);
+		ScriptMetadata scriptMetadata = scriptsMetadataSelector.getValue();
         SgyFile sgyFile = selectedFile;
         if (sgyFile != null) {
             executeScript(scriptMetadata, List.of(sgyFile));
@@ -148,11 +175,7 @@ public class ScriptExecutionTool extends FilterToolView {
 
     @Override
     protected void onApplyToAll(ActionEvent event) {
-        String filename = scriptsMetadataSelector.getValue();
-        ScriptMetadata scriptMetadata = scriptsMetadata.stream()
-                .filter(sM -> sM.filename().equals(filename))
-                .findFirst()
-                .orElse(null);
+		ScriptMetadata scriptMetadata = scriptsMetadataSelector.getValue();
         List<SgyFile> filesToProcess = getFilesToProcess(model);
         executeScript(scriptMetadata, filesToProcess);
     }
@@ -198,16 +221,15 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private void restoreScriptSelection() {
-		@Nullable String prevSelectedScript = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
+		@Nullable ScriptMetadata prevSelectedScript = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
 		scriptsMetadataSelector.getItems().setAll(
-				scriptsMetadata.stream()
-						.map(ScriptMetadata::filename)
-						.toList()
+				scriptsMetadata
 		);
 		if (prevSelectedScript != null && scriptsMetadataSelector.getItems().contains(prevSelectedScript)) {
 			scriptsMetadataSelector.getSelectionModel().select(prevSelectedScript);
 		} else {
 			scriptsMetadataSelector.getSelectionModel().clearSelection();
+			scriptsMetadataSelector.setValue(null);
 			scriptsMetadataSelector.setPromptText("Select script");
 		}
 	}
@@ -215,11 +237,12 @@ public class ScriptExecutionTool extends FilterToolView {
 	private void refreshExecutionStatus(@Nullable SgyFile file) {
 		if (scriptExecutor.isExecuting(file)) {
             disableAndShowProgress();
-			String executingScriptName = scriptExecutor.getExecutingScriptName(file);
-			if (executingScriptName != null) {
-				scriptsMetadataSelector.getSelectionModel().select(executingScriptName);
+			ScriptMetadata executingScriptMetadata = scriptExecutor.getExecutingScriptMetadata(file);
+			if (executingScriptMetadata != null) {
+				scriptsMetadataSelector.getSelectionModel().select(executingScriptMetadata);
 			} else {
 				scriptsMetadataSelector.getSelectionModel().clearSelection();
+				scriptsMetadataSelector.setValue(null);
 			}
 		} else {
             enableAndHideProgress();
@@ -239,33 +262,66 @@ public class ScriptExecutionTool extends FilterToolView {
 		return paramBox;
 	}
 
-	private static Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
-		Node inputNode = switch (param.type()) {
-			case STRING, FILE_PATH -> {
-				TextField textField = new TextField(initialValue);
-				textField.setPromptText(param.displayName());
-				yield textField;
-			}
-			case INTEGER -> {
-				TextField textField = new TextField(initialValue);
-				textField.setPromptText("Enter integer value");
-				yield textField;
-			}
-			case DOUBLE -> {
-				TextField textField = new TextField(initialValue);
-				textField.setPromptText("Enter decimal value");
-				yield textField;
-			}
-			case BOOLEAN -> {
-				CheckBox checkBox = new CheckBox();
-				checkBox.setSelected(Boolean.parseBoolean(initialValue));
-				checkBox.setText(labelText);
-				yield checkBox;
-			}
+	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
+		return switch (param.type()) {
+			case STRING, FILE_PATH -> createTextField(param, initialValue);
+			case INTEGER -> createIntegerField(param, initialValue);
+			case DOUBLE -> createDoubleField(param, initialValue);
+			case BOOLEAN -> createCheckBox(param, initialValue, labelText);
+			case COLUMN_NAME -> createColumnSelector(param, initialValue);
 		};
+	}
 
-		inputNode.setUserData(param.name());
-		return inputNode;
+	private static @NotNull TextField createTextField(ScriptParameter param, String initialValue) {
+		TextField textField = new TextField(initialValue);
+		textField.setUserData(param);
+		textField.setPromptText(param.displayName());
+		return textField;
+	}
+
+	private static @NotNull TextField createIntegerField(ScriptParameter param, String initialValue) {
+		TextField textField = new TextField(initialValue);
+		textField.setUserData(param);
+		textField.setPromptText("Enter integer value");
+		return textField;
+	}
+
+	private static @NotNull TextField createDoubleField(ScriptParameter param, String initialValue) {
+		TextField textField = new TextField(initialValue);
+		textField.setUserData(param);
+		textField.setPromptText("Enter decimal value");
+		return textField;
+	}
+
+	private static @NotNull CheckBox createCheckBox(ScriptParameter param, String initialValue, String labelText) {
+		CheckBox checkBox = new CheckBox();
+		checkBox.setUserData(param);
+		checkBox.setSelected(Boolean.parseBoolean(initialValue));
+		checkBox.setText(labelText);
+		return checkBox;
+	}
+
+	private ComboBox<String> createColumnSelector(ScriptParameter param, String initialValue) {
+		ComboBox<String> columnSelector = new ComboBox<>();
+		columnSelector.setPromptText("Select column");
+		columnSelector.setMaxWidth(Double.MAX_VALUE);
+
+		columnSelector.setUserData(param);
+
+		if (selectedFile instanceof CsvFile csvFile) {
+			Set<String> columns = getAvailableColumnsForFile(csvFile);
+			updateComboBoxIfChanged(columnSelector, columns, initialValue);
+		}
+
+		return columnSelector;
+	}
+
+	private Set<String> getAvailableColumnsForFile(CsvFile csvFile) {
+		Chart chart = model.getChart(csvFile);
+		if (chart instanceof SensorLineChart sensorChart) {
+			return sensorChart.getSeriesNames();
+		}
+		return Set.of();
 	}
 
 	private String loadStoredParamValue(@Nullable String scriptFilename, String paramName, String defaultValue) {
@@ -364,7 +420,10 @@ public class ScriptExecutionTool extends FilterToolView {
 			}
 
 			for (Node inputNode : ((VBox) paramBox).getChildren()) {
-				String paramName = (String) inputNode.getUserData();
+				String paramName = switch (inputNode.getUserData()) {
+					case ScriptParameter param -> param.name();
+					case null, default -> null;
+				};
 				if (paramName == null) {
 					continue;
 				}
@@ -388,6 +447,10 @@ public class ScriptExecutionTool extends FilterToolView {
 		return switch (node) {
 			case TextField textField -> textField.getText();
 			case CheckBox checkBox -> String.valueOf(checkBox.isSelected());
+			case ComboBox<?> comboBox -> {
+				Object value = comboBox.getValue();
+				yield value != null ? value.toString() : "";
+			}
 			default -> "";
 		};
 	}
@@ -396,4 +459,69 @@ public class ScriptExecutionTool extends FilterToolView {
     private void onFileSelected(FileSelectedEvent event) {
         Platform.runLater(() -> selectFile(event.getFile()));
     }
+
+	@EventListener
+	private void onSeriesSelected(SeriesSelectedEvent event) {
+		SgyFile file = event.getFile();
+		if (!Objects.equals(file, selectedFile)) {
+			return;
+		}
+		if (!(selectedFile instanceof CsvFile csvFile)) {
+			return;
+		}
+		if (isUpdatingColumns.get()) {
+			return;
+		}
+
+		Platform.runLater(() -> refreshColumnSelectors(csvFile));
+	}
+
+	private void refreshColumnSelectors(CsvFile csvFile) {
+		Set<String> availableColumns = getAvailableColumnsForFile(csvFile);
+
+		//noinspection unchecked
+		parametersBox.getChildren().stream()
+				.filter(VBox.class::isInstance)
+				.map(VBox.class::cast)
+				.flatMap(vbox -> vbox.getChildren().stream())
+				.filter(ComboBox.class::isInstance)
+				.map(node -> (ComboBox<String>) node)
+				.findFirst()
+				.ifPresent(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns, null));
+	}
+
+	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns, @Nullable String initialValue) {
+		Set<String> currentItems = new HashSet<>(comboBox.getItems());
+
+		if (availableColumns.isEmpty()) {
+			comboBox.setPromptText("No columns available");
+			comboBox.setDisable(true);
+			return;
+		} else {
+			comboBox.setDisable(false);
+		}
+
+		if (!currentItems.equals(availableColumns)) {
+			isUpdatingColumns.set(true);
+			String value = comboBox.getValue();
+
+			comboBox.getItems().setAll(availableColumns);
+
+			if (value != null && availableColumns.contains(value)) {
+				comboBox.setValue(value);
+			} else if (comboBox.getUserData() instanceof ScriptParameter param) {
+				String defaultValue = param.defaultValue();
+				if (initialValue != null && availableColumns.contains(initialValue)) {
+					comboBox.setValue(initialValue);
+				} else if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
+					comboBox.setValue(defaultValue);
+				} else {
+					comboBox.setValue(null);
+				}
+			} else {
+				comboBox.setValue(null);
+			}
+			isUpdatingColumns.set(false);
+		}
+	}
 }

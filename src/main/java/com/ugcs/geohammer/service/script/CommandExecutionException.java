@@ -1,10 +1,10 @@
 package com.ugcs.geohammer.service.script;
 
-public class ScriptException extends RuntimeException {
+public class CommandExecutionException extends RuntimeException {
 
     private final int exitCode;
 
-    public ScriptException(int exitCode) {
+    public CommandExecutionException(int exitCode) {
         this.exitCode = exitCode;
     }
 

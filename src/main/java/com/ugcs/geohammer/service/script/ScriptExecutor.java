@@ -50,8 +50,8 @@ public class ScriptExecutor {
 
 	private final EventsFactory eventsFactory;
 
-	// sgyFile -> scriptName
-	private final Map<SgyFile, String> executingScripts = new ConcurrentHashMap<>();
+	// sgyFile -> scriptMetadata
+	private final Map<SgyFile, ScriptMetadata> executingScripts = new ConcurrentHashMap<>();
 
 	public ScriptExecutor(PythonConfig pythonConfig, Loader loader, EventSender eventSender, EventsFactory eventsFactory) {
 		this.pythonConfig = pythonConfig;
@@ -70,7 +70,7 @@ public class ScriptExecutor {
 			throw new RuntimeException("Script is already running for this file");
 		}
 
-		executingScripts.put(sgyFile, scriptMetadata.filename());
+		executingScripts.put(sgyFile, scriptMetadata);
 		File tempFile = null;
 		try {
 			tempFile = copyToTempFile(sgyFile);
@@ -176,7 +176,7 @@ public class ScriptExecutor {
 	}
 
 	@Nullable
-	public String getExecutingScriptName(SgyFile sgyFile) {
+	public ScriptMetadata getExecutingScriptMetadata(SgyFile sgyFile) {
 		return executingScripts.get(sgyFile);
 	}
 

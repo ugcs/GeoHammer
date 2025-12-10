@@ -115,12 +115,13 @@ public class ScriptExecutor {
 	 * Builds the process command:
 	 * [python, <scripts/path>/<script.py>, <workingCopy>, --key value | --flag]
 	 */
-	private List<String> buildCommand(Path scriptPath, ScriptMetadata scriptMetadata, Map<String, String> parameters,
-									  Path filePath)
-			throws InterruptedException {
+	private List<String> buildCommand(Path scriptPath,
+									  ScriptMetadata scriptMetadata,
+									  Map<String, String> parameters,
+									  Path filePath) throws IOException {
 		List<String> command = new ArrayList<>();
 
-		String pythonPath = pythonService.getPythonExecutorPath().toString();
+		String pythonPath = pythonService.getPythonPath().toString();
 		command.add(pythonPath);
 
 		command.add(scriptPath.toString());

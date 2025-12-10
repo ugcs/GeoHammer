@@ -1,10 +1,9 @@
 package com.ugcs.geohammer;
 
+import com.ugcs.geohammer.service.script.PythonService;
 import com.ugcs.geohammer.view.MessageBoxHelper;
 import com.ugcs.geohammer.view.ResourceImageHolder;
-import com.ugcs.geohammer.service.script.PythonConfig;
 import com.ugcs.geohammer.model.ToolProducer;
-import com.ugcs.geohammer.util.PythonLocator;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -25,24 +24,13 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
 @Component
 public class SettingsView implements ToolProducer {
 
-	private static final String PREF_PYTHON_EXECUTOR = "python_executor";
-
-	private static final String PREF_PYTHON_EXECUTOR_PATH = "path";
-
-	private final PrefSettings prefSettings;
-
-	private final PythonConfig pythonConfig;
-
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final PythonService pythonService;
 
 	@Nullable
 	private Stage settingsStage = null;
@@ -55,9 +43,8 @@ public class SettingsView implements ToolProducer {
 	private final ToggleButton toggleButton =
 			ResourceImageHolder.setButtonImage(ResourceImageHolder.SETTINGS, new ToggleButton());
 
-	public SettingsView(PrefSettings prefSettings, PythonConfig pythonConfig) {
-		this.prefSettings = prefSettings;
-		this.pythonConfig = pythonConfig;
+	public SettingsView(PythonService pythonService) {
+		this.pythonService = pythonService;
 
 		toggleButton.setTooltip(new Tooltip("Settings"));
 		toggleButton.setSelected(false);
@@ -116,35 +103,16 @@ public class SettingsView implements ToolProducer {
 		pythonPathField.setPrefWidth(400);
 
 		String pythonPath = "";
-		@Nullable String configPath = pythonConfig.getPythonExecutorPath();
-		@Nullable String prefPath = loadPythonExecutorPath();
-		if (configPath != null && !configPath.isEmpty()) {
-			pythonPath = configPath;
-		} else if (prefPath != null && !prefPath.isEmpty()) {
-			pythonPath = prefPath;
-		} else {
-			try {
-				Future<String> future = executor.submit(PythonLocator::getPythonExecutorPath);
-				pythonPath = future.get();
-			} catch (Exception e) {
-				MessageBoxHelper.showError("Error", "Could not determine Python executable path: " + e.getMessage());
-			}
+		try {
+			pythonPath = pythonService.getPythonPath().toString();
+		} catch (Exception e) {
+			MessageBoxHelper.showError("Error", "Could not determine Python executable path: " + e.getMessage());
 		}
 
 		pythonPathField.setText(pythonPath);
 		originalPythonPath = pythonPath;
 
 		return createPythonPathRow(settingsStage, pythonLabel);
-	}
-
-	private @Nullable String loadPythonExecutorPath() {
-		return prefSettings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
-	}
-
-	private void savePythonExecutorPath(@Nullable String pythonPath) {
-		if (pythonPath != null && !pythonPath.isEmpty()) {
-			prefSettings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
-		}
 	}
 
 	private @NotNull HBox createPythonPathRow(Stage settingsStage, Label pythonLabel) {
@@ -201,8 +169,7 @@ public class SettingsView implements ToolProducer {
 	private void onSave(Stage settingsStage) {
 		if (pythonPathField != null) {
 			String path = pythonPathField.getText();
-			savePythonExecutorPath(path);
-			pythonConfig.setPythonExecutorPath(path);
+			pythonService.setPythonPath(path);
 			originalPythonPath = path;
 		}
 		toggleButton.setSelected(false);
@@ -212,7 +179,7 @@ public class SettingsView implements ToolProducer {
 	private void onClose(Stage settingsStage) {
 		if (pythonPathField != null) {
 			pythonPathField.setText(originalPythonPath);
-			pythonConfig.setPythonExecutorPath(originalPythonPath);
+			pythonService.setPythonPath(originalPythonPath);
 		}
 		toggleButton.setSelected(false);
 		settingsStage.close();

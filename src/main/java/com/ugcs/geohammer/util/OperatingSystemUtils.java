@@ -66,27 +66,4 @@ public final class OperatingSystemUtils {
 	public static String getOsName() {
 		return OS_NAME;
 	}
-
-	/**
-	 * Gets the appropriate directory separator for scripts/binaries based on OS.
-	 * Windows: "Scripts", Unix-like: "bin"
-	 *
-	 * @return the scripts directory name
-	 */
-	public static String getScriptsDirectory() {
-		return IS_WINDOWS ? "Scripts" : "bin";
-	}
-
-	/**
-	 * Appends the appropriate executable extension to a filename if needed.
-	 *
-	 * @param executableName the base executable name
-	 * @return the executable name with extension on Windows, unchanged on Unix
-	 */
-	public static String toExecutableName(String executableName) {
-		Check.notNull(executableName, "executableName cannot be null");
-		return IS_WINDOWS && !executableName.endsWith(". exe")
-				? executableName + ". exe"
-				: executableName;
-	}
 }

@@ -1,44 +1,47 @@
 package com.ugcs.geohammer.service.script;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
+import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.OperatingSystemUtils;
-import com.ugcs.geohammer.util.PythonLocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import javax.annotation.Nullable;
 
 @Service
 public class PythonService {
 
 	private static final Logger log = LoggerFactory.getLogger(PythonService.class);
 
-	private static final String REQUIREMENTS_ANALYZER = "pipreqs";
+	private static final String PREF_PYTHON_EXECUTOR = "python";
 
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private static final String PREF_PYTHON_EXECUTOR_PATH = "path";
+
+	private static final String REQUIREMENTS_ANALYZER = "pipreqs";
 
 	private final CommandExecutor commandExecutor;
 
-	private final PythonConfig pythonConfig;
+	private final PrefSettings prefSettings;
 
 	private final Set<String> installedDependenciesCache = ConcurrentHashMap.newKeySet();
 
-	public PythonService(CommandExecutor commandExecutor, PythonConfig pythonConfig) {
+	public PythonService(CommandExecutor commandExecutor, PrefSettings prefSettings) {
 		this.commandExecutor = commandExecutor;
-		this.pythonConfig = pythonConfig;
+		this.prefSettings = prefSettings;
 	}
 
 	/**
@@ -64,6 +67,7 @@ public class PythonService {
 				installPackage(REQUIREMENTS_ANALYZER, onOutput);
 			} catch (Exception e) {
 				log.warn("Pipreqs library installation failed (possibly offline). Continuing without dependency check.", e);
+				installedDependenciesCache.remove(cacheKey);
 				return;
 			}
 		}
@@ -89,7 +93,7 @@ public class PythonService {
 	}
 
 	public boolean isPackageInstalled(String packageName) throws InterruptedException, IOException {
-		String pythonExecutorPath = getPythonExecutorPath().toString();
+		String pythonExecutorPath = getPythonPath().toString();
 		List<String> command = List.of(pythonExecutorPath, "-m", "pip", "show", packageName);
 
 		try {
@@ -101,22 +105,35 @@ public class PythonService {
 	}
 
 	public void installPackage(String packageName, Consumer<String> onOutput) throws InterruptedException, IOException {
-		String pythonExecutorPath = getPythonExecutorPath().toString();
+		String pythonExecutorPath = getPythonPath().toString();
 		List<String> command = List.of(pythonExecutorPath, "-m", "pip", "install", packageName);
 		commandExecutor.executeCommand(command, onOutput);
 	}
 
-	public Path getPythonExecutorPath() throws InterruptedException {
-		String pythonPath = pythonConfig.getPythonExecutorPath();
+	public Path getPythonPath() throws IOException {
+		String pythonPath = prefSettings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
 		if (pythonPath == null || pythonPath.isEmpty()) {
-			try {
-				Future<String> future = executorService.submit(PythonLocator::getPythonExecutorPath);
-				pythonPath = future.get();
-			} catch (ExecutionException e) {
-				throw new RuntimeException(e);
+			String[] command;
+			if (OperatingSystemUtils.isWindows()) {
+				command = new String[]{"where", "python"};
+			} else {
+				command = new String[]{"which", "python3"};
+			}
+			Process process = new ProcessBuilder(command).start();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+				pythonPath = reader.readLine();
 			}
 		}
+		if (pythonPath == null || pythonPath.isEmpty()) {
+			throw new IllegalStateException("Python path is not found.");
+		}
 		return Path.of(pythonPath);
+	}
+
+	public void setPythonPath(@Nullable String pythonPath) {
+		if (pythonPath != null && !pythonPath.isEmpty()) {
+			prefSettings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
+		}
 	}
 
 	private String generateCacheKey(File file) {
@@ -126,18 +143,24 @@ public class PythonService {
 				file.length());
 	}
 
+	public Path getPipreqsPath() throws IOException {
+		Path pythonPath = getPythonPath();
+		if (OperatingSystemUtils.isWindows()) {
+			return pythonPath.getParent().resolve(Paths.get("Scripts", "pipreqs.exe"));
+		} else {
+			return pythonPath.getParent().resolve("pipreqs");
+		}
+	}
+
 	private void generateRequirementsFile(Path directory, Consumer<String> onOutput) throws IOException,
 			InterruptedException {
-		Path pythonDir = getPythonExecutorPath().getParent();
-
-		String pipreqsExecutable = OperatingSystemUtils.toExecutableName("pipreqs");
-		Path pipreqsPath = pythonDir.resolve(OperatingSystemUtils.getScriptsDirectory()).resolve(pipreqsExecutable);
+		Path pipreqsPath = getPipreqsPath();
 
 		String pipreqsCommand;
 		if (Files.exists(pipreqsPath)) {
 			pipreqsCommand = pipreqsPath.toString();
 		} else {
-			pipreqsCommand = pipreqsExecutable;
+            throw new IllegalStateException("pipreqs not found in path: " + pipreqsPath);
 		}
 
 		List<String> command = List.of(
@@ -153,7 +176,7 @@ public class PythonService {
 			InterruptedException {
 		Path requirementsPath = directory.resolve("requirements.txt");
 		if (Files.exists(requirementsPath)) {
-			String pythonExecutorPath = getPythonExecutorPath().toString();
+			String pythonExecutorPath = getPythonPath().toString();
 			List<String> command = List.of(
 					pythonExecutorPath,
 					"-m",

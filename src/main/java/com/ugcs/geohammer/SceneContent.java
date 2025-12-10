@@ -4,7 +4,6 @@ import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.chart.tool.OptionPane;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.FileManager;
-import com.ugcs.geohammer.service.script.PythonConfig;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.Model;
 import javafx.application.Platform;
@@ -38,9 +37,6 @@ public class SceneContent extends BorderPane implements InitializingBean {
 
 	@Autowired
 	private Model model;
-
-	@Autowired
-	private PythonConfig pythonConfig;
 
 	private final Label openHint = createOpenHint();
 	

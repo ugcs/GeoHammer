@@ -3,10 +3,19 @@
          xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
-    <description>Custom PMD rules</description>
+
+    <description>
+        Custom PMD ruleset — keep defaults but disable noisy checks.
+    </description>
+
     <rule ref="rulesets/java/quickstart.xml"/>
+
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="GuardLogStatement"/>
+    </rule>
+
     <rule ref="category/java/errorprone.xml">
-        <exclude name="AvoidLiteralsInIfCondition" />
-        <exclude name="ReturnEmptyCollectionRatherThanNull" />
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="ReturnEmptyCollectionRatherThanNull"/>
     </rule>
 </ruleset>

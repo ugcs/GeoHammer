@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import com.ugcs.geohammer.Loader;
 import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
@@ -107,6 +109,12 @@ public class ScriptExecutor {
 		String suffix = "." + FileNames.getExtension(fileName);
 
 		File tempFile = Files.createTempFile(prefix, suffix).toFile();
+		// TODO SGY files should be correctly save into temp file with all headers preserved +
+		// if file cutted during previous operations (saving only traces in range) without errors
+		if (sgyFile instanceof TraceFile) {
+			Files.copy(file.toPath(), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			return tempFile;
+		}
 		sgyFile.save(tempFile);
 		return tempFile;
 	}

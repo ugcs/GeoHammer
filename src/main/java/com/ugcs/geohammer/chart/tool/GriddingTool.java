@@ -335,18 +335,26 @@ public class GriddingTool extends FilterToolView {
 
     private @Nullable Range getSelectedSeriesRange() {
         SgyFile file = selectedFile;
-        double min = Double.POSITIVE_INFINITY;
-        double max = Double.NEGATIVE_INFINITY;
+        if (file == null) {
+            return null;
+        }
+        String seriesName = model.getSelectedSeriesName(file);
+        if (Strings.isNullOrEmpty(seriesName)) {
+            return null;
+        }
 
+        Range range = null;
         for (SensorLineChart chart : model.getSensorCharts()) {
             if (Templates.equals(file, chart.getFile())) {
-                min = Math.min(min, chart.getSeriesMinValue());
-                max = Math.max(max, chart.getSeriesMaxValue());
+                Range chartRange = chart.getSeriesRange(seriesName);
+                if (chartRange == null) {
+                    continue;
+                }
+                range = range != null
+                        ? range.union(chartRange)
+                        : chartRange;
             }
         }
-        Range range = Double.isInfinite(min) || Double.isInfinite(max)
-                ? null
-                : new Range(min, max);
         if (range != null && range.getWidth() == 0) {
             range = range.scaleToWidth(1, 0.5);
         }

@@ -49,4 +49,11 @@ public class Range {
                 max + (1 - centerRatio) * dw
         );
     }
+
+    public Range union(Range range) {
+        return new Range(
+                Math.min(min, range.min),
+                Math.max(max, range.max)
+        );
+    }
 }

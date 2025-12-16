@@ -430,14 +430,9 @@ public class SensorLineChart extends Chart {
         return selectedSeriesName != null ? charts.get(selectedSeriesName) : null;
     }
 
-    public double getSeriesMinValue() {
-        LineChartWithMarkers selectedChart = getSelectedChart();
-        return selectedChart != null ? selectedChart.plot.getDataRange().getMin() : 0.0;
-    }
-
-    public double getSeriesMaxValue() {
-        LineChartWithMarkers selectedChart = getSelectedChart();
-        return selectedChart != null ? selectedChart.plot.getDataRange().getMax() : 0.0;
+    public @Nullable Range getSeriesRange(String seriesName) {
+        LineChartWithMarkers chart = getChart(seriesName);
+        return chart != null ? chart.plot.getDataRange() : null;
     }
 
     @Override
@@ -1446,7 +1441,7 @@ public class SensorLineChart extends Chart {
 
         private final List<@Nullable Number> data;
 
-        private final Range dataRange;
+        private final @Nullable Range dataRange;
 
         private Range displayRange;
 
@@ -1479,7 +1474,7 @@ public class SensorLineChart extends Chart {
             return data;
         }
 
-        public static Range buildDataRange(List<@Nullable Number> data) {
+        public static @Nullable Range buildDataRange(List<@Nullable Number> data) {
             Double min = null;
             Double max = null;
             for (Number value : Nulls.toEmpty(data)) {
@@ -1494,16 +1489,12 @@ public class SensorLineChart extends Chart {
                     max = unboxed;
                 }
             }
-            if (min == null) {
-                min = 0.0;
-            }
-            if (max == null) {
-                max = 0.0;
-            }
-            return new Range(min, max);
+            return min != null && max != null
+                    ? new Range(min, max)
+                    : null;
         }
 
-        public Range getDataRange() {
+        public @Nullable Range getDataRange() {
             return dataRange;
         }
 
@@ -1512,7 +1503,10 @@ public class SensorLineChart extends Chart {
             return Math.pow(10, base);
         }
 
-        public static Range buildDisplayRange(Range dataRange) {
+        public static Range buildDisplayRange(@Nullable Range dataRange) {
+            if (dataRange == null) {
+                return new Range(0, 1); // default display range
+            }
             double min = dataRange.getMin();
             double max = dataRange.getMax();
             // get scale factor and align min max to it

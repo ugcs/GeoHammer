@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.format.svlog;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Strings;
 import net.sf.marineapi.nmea.parser.SentenceFactory;
@@ -8,12 +10,20 @@ import net.sf.marineapi.nmea.sentence.Sentence;
 import net.sf.marineapi.nmea.sentence.TimeSentence;
 import net.sf.marineapi.nmea.util.Position;
 import net.sf.marineapi.nmea.util.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 
 public class SvlogParser {
+
+    private static final Logger log = LoggerFactory.getLogger(SvlogParser.class);
 
     public static String stripNmeaChecksum(String s) {
         if (Strings.isNullOrEmpty(s)) {
@@ -72,5 +82,36 @@ public class SvlogParser {
             return surveyorParser.getDepth(packet);
         }
         return null;
+    }
+
+    public JsonObject parseJson(SvlogPacket packet) {
+        if (packet == null) {
+            return null;
+        }
+        if (packet.getPacketId() == SvlogPacketId.JSON_WRAPPER) {
+            ByteArrayInputStream in = new ByteArrayInputStream(packet.getPayload());
+            try (Reader r = new InputStreamReader(in, StandardCharsets.US_ASCII)) {
+                return JsonParser.parseReader(r).getAsJsonObject();
+            } catch (IOException e) {
+                log.warn("Cannot parse json packet", e);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public boolean isMetaPacket(SvlogPacket packet) {
+        if (packet == null) {
+            return false;
+        }
+        if (packet.getPacketId() == SvlogPacketId.DEVICE_INFORMATION) {
+            return true;
+        }
+        if (packet.getPacketId() == SvlogPacketId.JSON_WRAPPER) {
+            JsonObject json = parseJson(packet);
+            // session packet
+            return json != null && json.has("session_id");
+        }
+        return false;
     }
 }

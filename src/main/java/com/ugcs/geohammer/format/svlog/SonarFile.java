@@ -18,10 +18,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class SonarFile extends SgyFileWithMeta {
@@ -178,10 +176,18 @@ public class SonarFile extends SgyFileWithMeta {
             return;
         }
 
+        Set<Integer> writeIndices = new HashSet<>();
+        for (TraceGeoData value : metaFile.getValues()) {
+            writeIndices.add(value.getTraceIndex());
+        }
+
+        SvlogParser parser = new SvlogParser();
         try (SvlogWriter w = new SvlogWriter(file)) {
-            for (TraceGeoData value : metaFile.getValues()) {
-                SvlogPacket packet = packets.get(value.getTraceIndex());
-                w.writePacket(packet);
+            for (int i = 0; i < packets.size(); i++) {
+                SvlogPacket packet = packets.get(i);
+                if (writeIndices.contains(i) || parser.isMetaPacket(packet)) {
+                    w.writePacket(packet);
+                }
             }
         }
     }

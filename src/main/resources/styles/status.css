@@ -1,0 +1,41 @@
+#version-status {
+    -fx-padding: 4px 12px 4px 12px;
+}
+
+#version-status:hover {
+    -fx-background-color: #e7e7e7;
+}
+
+.release-scroll {
+    -fx-fit-to-width: true;
+    -fx-pref-width: 310;
+    -fx-pref-height: 380;
+    -fx-padding: 7;
+}
+
+.release-rows {
+    -fx-spacing: 2;
+}
+
+.release-row-container {
+    -fx-spacing: 9;
+    -fx-padding: 5 9 5 9;
+    -fx-alignment: center-left;
+}
+
+.release-row {
+    -fx-background-radius: 4;
+    -fx-background-color: transparent;
+}
+
+.release-row:hover {
+    -fx-background-color: #e7e7e7;
+}
+
+.pre-release {
+    -fx-text-fill: #e88b27;
+}
+
+.current-version {
+    -fx-font-weight: bold;
+}

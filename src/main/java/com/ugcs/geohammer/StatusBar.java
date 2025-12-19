@@ -4,12 +4,15 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.stream.Collectors;
 
+import com.ugcs.geohammer.release.ReleaseView;
+import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Toast;
+import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.status.Status;
 import com.ugcs.geohammer.view.status.StatusMessage;
 import javafx.application.Platform;
-import javafx.geometry.HPos;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
@@ -17,66 +20,69 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class StatusBar extends GridPane implements Status {
+public class StatusBar extends HBox implements Status, InitializingBean {
 
 	private static final int MAX_MESSAGES = 50;
 
-	private TextField textField = new TextField();
+	private final TextField textField = new TextField();
+
+    private final Label versionStatus = new Label();
+
+    @Autowired
+    public BuildInfo buildInfo;
+
+    @Autowired
+    public ReleaseView releaseView;
 
 	private final Deque<StatusMessage> messageHistory = new ArrayDeque<>(MAX_MESSAGES);
 
 	private Popup historyPopup;
 
-	{
-		textField.setEditable(false);
-		textField.setStyle("-fx-background-color: transparent; "
-				+ "-fx-border-color: transparent; "
-				+ "-fx-focus-color: transparent; "
-				+ "-fx-faint-focus-color: transparent;"
-		);
-	}
-
 	public StatusBar(TaskStatusView taskStatusView) {
-		ColumnConstraints column1 = new ColumnConstraints(16);
-		this.getColumnConstraints().add(column1);
+        textField.setEditable(false);
+        textField.setMinWidth(150);
+        textField.setPrefWidth(400);
+        textField.setStyle(
+                "-fx-background-color: transparent; " +
+                "-fx-border-color: transparent; " +
+                "-fx-focus-color: transparent; " +
+                "-fx-faint-focus-color: transparent;");
 
-        ColumnConstraints column2 = new ColumnConstraints(150, 150, Double.MAX_VALUE);
-        column2.setHgrow(Priority.ALWAYS);
-        this.getColumnConstraints().add(column2);
+        // Add click handler to show message history
+        textField.setOnMouseClicked(e -> {
+            if (MouseButton.PRIMARY.equals(e.getButton()) && e.getClickCount() != 2) {
+                showMessageHistory(e);
+            }
+        });
+        HBox.setHgrow(textField, Priority.ALWAYS);
 
-        ColumnConstraints column3 = new ColumnConstraints(70, 70, Double.MAX_VALUE);
-        column3.setHgrow(Priority.ALWAYS);
-        this.getColumnConstraints().add(column3);
+        Styles.addResource(versionStatus, Styles.STATUS_STYLE_PATH);
+        versionStatus.setId("version-status");
+        versionStatus.setOnMouseClicked(e -> {
+            releaseView.showAbove(versionStatus);
+            releaseView.update();
+        });
 
-		ColumnConstraints column4 = new ColumnConstraints(300, 300, Double.MAX_VALUE);
-		column3.setHgrow(Priority.ALWAYS);
-		this.getColumnConstraints().add(column4);
-
-		this.add(new Label(), 0, 0);
-		this.add(textField, 1, 0);
-		this.add(new Label(), 2, 0);
-		this.add(taskStatusView, 3, 0);
-
-		GridPane.setHalignment(taskStatusView, HPos.RIGHT);
-		GridPane.setMargin(taskStatusView, new Insets(0, 20, 0, 20));
-
-		// Add click handler to show message history
-		textField.setOnMouseClicked(e -> {
-			if (MouseButton.PRIMARY.equals(e.getButton()) && e.getClickCount() != 2) {
-				showMessageHistory(e);
-			}
-		});
+        setAlignment(Pos.CENTER_LEFT);
+        setPadding(new Insets(0, 16, 0, 16));
+        getChildren().addAll(textField, Views.createSpacer(), taskStatusView, versionStatus);
 
 		AppContext.status = this;
 	}
+
+    @Override
+    public void afterPropertiesSet() {
+        versionStatus.setText(buildInfo.getBuildVersion());
+    }
 
 	/**
 	 * Shows a message in the status bar.

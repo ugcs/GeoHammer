@@ -56,8 +56,7 @@ public class TaskStatusView extends HBox implements InitializingBean {
     private void initView() {
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(7);
-        setPadding(new Insets(0, 10, 0, 10));
-        
+
         title.setAlignment(Pos.BASELINE_RIGHT);
         title.setTranslateY(1); // to align with the cancel button
         title.setMinWidth(Region.USE_PREF_SIZE);

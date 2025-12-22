@@ -50,9 +50,13 @@ public class Release {
     }
 
     public String getBuildVersion() {
-        String version = tagName;
-        if (version != null && version.startsWith("v.")) {
+        String version = Strings.nullToEmpty(tagName);
+        // strip leading v. or v
+        if (version.startsWith("v.")) {
             version = version.substring(2);
+        }
+        if (version.startsWith("v")) {
+            version = version.substring(1);
         }
         return !Strings.isNullOrEmpty(version) ? version : "Undefined";
     }

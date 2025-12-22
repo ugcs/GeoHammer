@@ -1,6 +1,7 @@
 package com.ugcs.geohammer;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.ugcs.geohammer.util.Strings;
 import jakarta.annotation.PostConstruct;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Async;
@@ -30,16 +31,12 @@ public class BuildInfo {
 
     private String computeBuildVersion() {
         String buildVersion = environment.getProperty("build.version");
-        if (buildVersion == null) {
+        if (Strings.isNullOrEmpty(buildVersion)) {
             return "Undefined";
         }
-        String snapshotSuffix = "-SNAPSHOT";
-        if (buildVersion.endsWith(snapshotSuffix)) {
-            buildVersion = buildVersion.substring(0, buildVersion.length() - snapshotSuffix.length());
-            String buildTimestamp = environment.getProperty("build.timestamp");
-            if (buildTimestamp != null) {
-                buildVersion += "." + buildTimestamp;
-            }
+        String buildTimestamp = environment.getProperty("build.timestamp");
+        if (!Strings.isNullOrEmpty(buildTimestamp)) {
+            buildVersion = buildVersion.replace("SNAPSHOT", buildTimestamp);
         }
         return buildVersion;
     }

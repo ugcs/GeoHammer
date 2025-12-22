@@ -8,7 +8,7 @@
 
 .release-scroll {
     -fx-fit-to-width: true;
-    -fx-pref-width: 310;
+    -fx-pref-width: 350;
     -fx-pref-height: 380;
     -fx-padding: 7;
 }

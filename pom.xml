@@ -47,7 +47,7 @@
 		<nullaway.version>0.12.7</nullaway.version>
 
 		<build.timestamp>${maven.build.timestamp}</build.timestamp>
-		<maven.build.timestamp.format>MMddHHmmss</maven.build.timestamp.format>
+		<maven.build.timestamp.format>yyyyMMddHHmmss</maven.build.timestamp.format>
 	</properties>
 
 	<repositories>
@@ -227,7 +227,7 @@
 							<goal>single</goal>
 						</goals>
 						<configuration>
-							<finalName>${project.artifactId}_${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.${maven.build.timestamp}_${platform.suffix}</finalName>
+							<finalName>${project.artifactId}_${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}-${maven.build.timestamp}_${platform.suffix}</finalName>
 							<appendAssemblyId>false</appendAssemblyId>
 							<descriptors>
 								<descriptor>${zip.content}</descriptor>

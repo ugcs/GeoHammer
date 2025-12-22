@@ -22,7 +22,7 @@ import java.util.List;
 
 public class MainGeoHammer extends Application {
 
-	private static final String TITLE_VERSION = "GeoHammer v.";
+	private static final String TITLE_VERSION = "GeoHammer ";
 
     private ApplicationContext context;
 

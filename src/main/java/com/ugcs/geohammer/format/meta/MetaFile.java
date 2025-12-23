@@ -50,6 +50,10 @@ public class MetaFile {
         this.valueSchema = valueSchema;
     }
 
+    public ColumnSchema getSchema() {
+        return valueSchema;
+    }
+
     public @Nullable IndexRange getSampleRange() {
         return sampleRange;
     }

@@ -82,4 +82,36 @@ public class OmniscanParser {
         double depth = start + (length * maxIndex / (double) numResults);
         return depth * 1e-3; // to meters
     }
+
+    public Float getTransducerHeading(SvlogPacket packet) {
+        if (packet.getPacketId() != SvlogPacketId.OMNISCAN_MONO_PROFILE) {
+            return null;
+        }
+        if (packet.getPayload() == null || packet.getPayload().length < 52) {
+            return null;
+        }
+
+        ByteBuffer buf = ByteBuffer
+                .wrap(packet.getPayload())
+                .order(ByteOrder.LITTLE_ENDIAN);
+
+        buf.position(44);
+        return buf.getFloat();
+    }
+
+    public Float getVehicleHeading(SvlogPacket packet) {
+        if (packet.getPacketId() != SvlogPacketId.OMNISCAN_MONO_PROFILE) {
+            return null;
+        }
+        if (packet.getPayload() == null || packet.getPayload().length < 52) {
+            return null;
+        }
+
+        ByteBuffer buf = ByteBuffer
+                .wrap(packet.getPayload())
+                .order(ByteOrder.LITTLE_ENDIAN);
+
+        buf.position(48);
+        return buf.getFloat();
+    }
 }

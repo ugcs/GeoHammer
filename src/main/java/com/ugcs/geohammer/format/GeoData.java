@@ -245,15 +245,18 @@ public class GeoData {
     }
 
     public static Column addColumn(List<GeoData> values, String header) {
+        return addColumn(values, new Column(header));
+    }
+
+    public static Column addColumn(List<GeoData> values, Column newColumn) {
         ColumnSchema schema = getSchema(values);
         if (schema == null) {
             return null;
         }
-        Column column = schema.getColumn(header);
+        Column column = schema.getColumn(newColumn.getHeader());
         if (column != null) {
             return null;
         }
-        Column newColumn = new Column(header);
         schema.addColumn(newColumn);
         // resize values array if necessary
         for (GeoData value : values) {
@@ -276,5 +279,9 @@ public class GeoData {
             value.removeValue(columnIndex);
         }
         return schema.removeColumn(header);
+    }
+
+    public static Column removeColumn(List<GeoData> values, Column column) {
+        return removeColumn(values, column.getHeader());
     }
 }

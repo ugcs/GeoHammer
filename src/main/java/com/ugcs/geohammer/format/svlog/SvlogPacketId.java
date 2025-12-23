@@ -26,6 +26,10 @@ public final class SvlogPacketId {
 
     public static final int OMNISCAN_MONO_PROFILE = 2198;
 
+    public static final int SURVEYOR_WATER_STATS = 118;
+
+    public static final int SURVEYOR_ATTITUDE_REPORT = 504;
+
     public static final int SURVEYOR_ATOF_POINT_DATA = 3012;
 
     private SvlogPacketId() {

@@ -59,4 +59,58 @@ public class SurveyorParser {
         }
         return depth;
     }
+
+    public Attitude getAttitude(SvlogPacket packet) {
+        if (packet.getPacketId() != SvlogPacketId.SURVEYOR_ATTITUDE_REPORT) {
+            return null;
+        }
+        if (packet.getPayload() == null || packet.getPayload().length < 12) {
+            return null;
+        }
+
+        //  0:vec3  up_vec
+        // 12:vec3  reserved
+        // 24:u64   utc_msec
+        // 32:u32   pwr_up_msec
+
+        ByteBuffer buf = ByteBuffer
+                .wrap(packet.getPayload())
+                .order(ByteOrder.LITTLE_ENDIAN);
+
+        float upX = buf.getFloat();
+        float upY = buf.getFloat();
+        float upZ = buf.getFloat();
+
+        float pitch = (float)Math.toDegrees(Math.asin(upX));
+        float roll = (float)Math.toDegrees(Math.atan2(upY, upZ));
+
+        return new Attitude(pitch, roll);
+    }
+
+    public WaterStats getWaterStats(SvlogPacket packet) {
+        if (packet.getPacketId() != SvlogPacketId.SURVEYOR_WATER_STATS) {
+            return null;
+        }
+        if (packet.getPayload() == null || packet.getPayload().length < 8) {
+            return null;
+        }
+
+        // 0:float  temperature
+        // 4:float  pressure
+
+        ByteBuffer buf = ByteBuffer
+                .wrap(packet.getPayload())
+                .order(ByteOrder.LITTLE_ENDIAN);
+
+        float temperature = buf.getFloat();
+        float pressure = buf.getFloat();
+
+        return new WaterStats(temperature, pressure);
+    }
+
+    public record Attitude(float pitch, float roll) {
+    }
+
+    public record WaterStats(float temperature, float pressure) {
+    }
 }

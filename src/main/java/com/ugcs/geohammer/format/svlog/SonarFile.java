@@ -1,11 +1,11 @@
 package com.ugcs.geohammer.format.svlog;
 
+import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMeta;
-import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
@@ -24,10 +24,6 @@ import java.util.Set;
 
 public class SonarFile extends SgyFileWithMeta {
 
-    private static final String DEPTH_HEADER = "Depth";
-
-    private static final ColumnSchema COLUMN_SCHEMA = createSonarColumnSchema();
-
     private List<SvlogPacket> packets = List.of();
 
     @Override
@@ -35,21 +31,12 @@ public class SonarFile extends SgyFileWithMeta {
         return getGeoData().size();
     }
 
-    private static ColumnSchema createSonarColumnSchema() {
-        ColumnSchema schema = ColumnSchema.copy(TraceGeoData.SCHEMA);
-        schema.addColumn(new Column(DEPTH_HEADER)
-                .withUnit("m")
-                .withDisplay(true)
-                .withReadOnly(true));
-        return schema;
-    }
-
     protected void loadMeta() throws IOException {
         File source = getFile();
         Check.notNull(source);
 
         Path metaPath = MetaFile.getMetaPath(source);
-        metaFile = new MetaFile(COLUMN_SCHEMA);
+        metaFile = new MetaFile(SonarSchema.createSchema());
         if (Files.exists(metaPath)) {
             // load existing meta
             metaFile.load(metaPath);
@@ -97,54 +84,82 @@ public class SonarFile extends SgyFileWithMeta {
         SvlogParser parser = new SvlogParser();
 
         // first location and time in a stream
-        LatLon lastLatLon = null;
-        Instant lastTimestamp = null;
+        LatLon firstLatLon = null;
+        Instant firstTimestamp = null;
         for (SvlogPacket packet : packets) {
-            if (lastLatLon == null) {
-                lastLatLon = parser.parseLocation(packet);
+            if (firstLatLon == null) {
+                firstLatLon = parser.parseLocation(packet);
             }
-            if (lastTimestamp == null) {
-                lastTimestamp = parser.parseTime(packet);
+            if (firstTimestamp == null) {
+                firstTimestamp = parser.parseTime(packet);
             }
-            if (lastLatLon != null && lastTimestamp != null) {
+            if (firstLatLon != null && firstTimestamp != null) {
                 break;
             }
         }
-        if (lastLatLon == null && lastTimestamp == null) {
-            return;
+        if (firstLatLon == null && firstTimestamp == null) {
+            throw new IllegalStateException("Cannot parse positional data");
         }
 
-        Double lastDepth = null;
+        SonarState sonarState = new SonarState();
+        sonarState.setLatLon(firstLatLon);
+        sonarState.setTimestamp(firstTimestamp);
+
         int valueIndex = 0;
         for (int i = 0; i < packets.size() && valueIndex < metaFile.numValues(); i++) {
             SvlogPacket packet = packets.get(i);
-
-            LatLon latLon = parser.parseLocation(packet);
-            if (latLon != null) {
-                lastLatLon = latLon;
-            }
-            Instant timestamp = parser.parseTime(packet);
-            if (timestamp != null) {
-                lastTimestamp = timestamp;
-            }
-            Double depth = parser.parseDepth(packet);
-            if (depth != null) {
-                lastDepth = depth;
-            }
+            parser.parseValues(packet, sonarState);
 
             TraceGeoData value = metaFile.getValues().get(valueIndex);
             if (value.getTraceIndex() == i) {
-                if (lastLatLon != null) {
-                    value.setLatLon(lastLatLon);
-                }
-                if (lastTimestamp != null) {
-                    value.setDateTime(LocalDateTime.ofInstant(lastTimestamp, ZoneOffset.UTC));
-                }
-                if (lastDepth != null) {
-                    value.setValue(DEPTH_HEADER, lastDepth);
-                }
+                updateGeoData(value, sonarState);
                 valueIndex++;
             }
+        }
+    }
+
+    private void updateGeoData(TraceGeoData value, SonarState sonarState) {
+        if (sonarState.getLatLon() != null) {
+            value.setLatLon(sonarState.getLatLon());
+        }
+        if (sonarState.getAltitude() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.ALTITUDE_COLUMN);
+            value.setValue(SonarSchema.ALTITUDE_HEADER, sonarState.getAltitude());
+        }
+        if (sonarState.getTimestamp() != null) {
+            value.setDateTime(LocalDateTime.ofInstant(sonarState.getTimestamp(), ZoneOffset.UTC));
+        }
+        if (sonarState.getDepth() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.DEPTH_COLUMN);
+            value.setValue(SonarSchema.DEPTH_HEADER, sonarState.getDepth());
+        }
+        if (sonarState.getVehicleHeading() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.VEHICLE_HEADING_COLUMN);
+            value.setValue(SonarSchema.VEHICLE_HEADING_HEADER, sonarState.getVehicleHeading());
+        }
+        if (sonarState.getTransducerHeading() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.TRANSDUCER_HEADING_COLUMN);
+            value.setValue(SonarSchema.TRANSDUCER_HEADING_HEADER, sonarState.getTransducerHeading());
+        }
+        if (sonarState.getHeading() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.HEADING_COLUMN);
+            value.setValue(SonarSchema.HEADING_HEADER, sonarState.getHeading());
+        }
+        if (sonarState.getPitch() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.PITCH_COLUMN);
+            value.setValue(SonarSchema.PITCH_HEADER, sonarState.getPitch());
+        }
+        if (sonarState.getRoll() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.ROLL_COLUMN);
+            value.setValue(SonarSchema.ROLL_HEADER, sonarState.getRoll());
+        }
+        if (sonarState.getTemperature() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.TEMPERATURE_COLUMN);
+            value.setValue(SonarSchema.TEMPERATURE_HEADER, sonarState.getTemperature());
+        }
+        if (sonarState.getPressure() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.PRESSURE_COLUMN);
+            value.setValue(SonarSchema.PRESSURE_HEADER, sonarState.getPressure());
         }
     }
 
@@ -199,7 +214,7 @@ public class SonarFile extends SgyFileWithMeta {
         copy.setUnsaved(isUnsaved());
 
         if (metaFile != null) {
-            copy.metaFile = new MetaFile(COLUMN_SCHEMA);
+            copy.metaFile = new MetaFile(ColumnSchema.copy(metaFile.getSchema()));
             copy.metaFile.setMetaToState(metaFile.getMetaFromState());
         }
 

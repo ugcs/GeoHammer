@@ -6,7 +6,7 @@
   file-type: CSV
   # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
-    ^.*Date,Time,.*Latitude,Longitude,Heading,Altitude MSL,Altitude AGL,RSS:Direction,RSS:Velocity raw,RSS:Velocity filtered,RSS:Signal,RSS:Q1,RSS:Q2,RSS:Tilt,RSS:Trace
+    ^.*Date,Time,.*Latitude,Longitude,Heading,.*Altitude AGL,RSS:Direction,RSS:Velocity raw,RSS:Velocity filtered,RSS:Signal,RSS:Q1,RSS:Q2,RSS:Tilt,RSS:Trace
   file-format:
   # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true
@@ -17,7 +17,17 @@
     # Applies to CSV type. The symbol to separate values from line in CSV file;
     separator: ','
   # Applied on a quality check to all data values
-  data-validation: '{LX:SNR} > 30 && {LX:SD} < 100'
+  # RSS:Q1: this is an indicator related to the instrument vibrations. 
+  #  0 – Excellent measurement quality
+  #  1 – Good measurement quality
+  #  2 – Low measurement quality
+  #  3 – Unacceptable measurement quality
+  # RSS:Q2: this is an indicator related to the radar signals. 
+  #  0 – Excellent measurement quality
+  #  1 – Good measurement quality
+  #  2 – Low measurement quality
+  #  3 – Unacceptable measurement quality
+  data-validation: '{RSS:Q1} < 2 && {RSS:Q2} < 2'
   # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:
@@ -36,8 +46,6 @@
       - header: "Heading"
         semantic: "Heading"
         units: "deg"
-        read-only: true
-      - header: "Altitude MSL"
         read-only: true
       - header: "Altitude AGL"
         semantic: "Altitude AGL"

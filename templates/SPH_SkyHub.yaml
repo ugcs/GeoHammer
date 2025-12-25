@@ -36,6 +36,7 @@
       - header: "ECHO:Trace Hi"
       - header: "ECHO:Trace Lo"
       - header: "GPR:Trace"
+      - header: "zGPR:Trace"
     data-values:
       - header: "Altitude"
         semantic: "Altitude"
@@ -126,3 +127,4 @@
         read-only: true
       - header: "Longitude RTK"
         read-only: true
+

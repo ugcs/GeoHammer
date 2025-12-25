@@ -43,9 +43,4 @@
       - header: "Line"
         semantic: "Line"
         read-only: true
-      - header: "Time_zone"
-        read-only: true
-      - header: "hAcc"
-        read-only: true
-      - header: "vAcc"
-        read-only: true
+

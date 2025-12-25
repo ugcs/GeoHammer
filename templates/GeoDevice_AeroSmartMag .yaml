@@ -15,7 +15,7 @@
     # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
-    separator: '	'
+    separator: ','
   # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
   data-mapping:
     latitude:

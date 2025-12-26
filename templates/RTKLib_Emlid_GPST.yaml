@@ -28,10 +28,11 @@
     longitude:
       header: "longitude(deg)"
       index: 2
-    altitude:
-      header: "height(m)"
-      index: 3
     data-values:
+      - header: "height(m)"
+        index: 3
+        semantic: "Altitude"
+        read-only: true
       - header: "Q"
         index: 4
         read-only: true

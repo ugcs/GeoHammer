@@ -22,8 +22,6 @@
       header: Lat
     longitude:
       header: Lon
-    altitude:
-      header: Alt
     time:
       header: UTC_time
       type: UTC

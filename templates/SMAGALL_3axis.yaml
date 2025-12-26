@@ -22,8 +22,6 @@
       header: 'latitude'
     longitude:
       header: 'longitude'
-    altitude:
-      header: 'altitude'
     date-time:
       header: 'Time'
       format: 'yyyy-MM-dd [ ]HH:mm:ss[.fff]'

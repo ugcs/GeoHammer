@@ -22,8 +22,6 @@
       header: lat
     longitude:
       header: lon
-    altitude:
-      header: alt
     time:
       header: time
       format: 'HH:mm:ss.ff'

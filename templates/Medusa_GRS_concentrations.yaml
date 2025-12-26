@@ -24,13 +24,11 @@
       header: lat
     longitude:
       header: lon
-    altitude:
-      header: Height
     timestamp:
       header: timestamp
     data-values:
       - header: "Height"
-        semantic: "Height"
+        semantic: "Altitude"
         units: "m"
         read-only: true
       - header: "Total"

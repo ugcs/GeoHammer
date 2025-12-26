@@ -50,6 +50,9 @@ public abstract class TraceFile extends SgyFileWithMeta {
     @Nullable
     private String groundProfileTraceHeader;
 
+    @Nullable
+    private String groundProfileAltitudeHeader;
+
     private boolean spreadCoordinatesNecessary = false;
 
     @Nullable
@@ -196,6 +199,14 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public void setGroundProfileTraceHeader(@Nullable String groundProfileTraceHeader) {
         this.groundProfileTraceHeader = groundProfileTraceHeader;
+    }
+
+    public @Nullable String getGroundProfileAltitudeHeader() {
+        return groundProfileAltitudeHeader;
+    }
+
+    public void setGroundProfileAltitudeHeader(@Nullable String groundProfileAltitudeHeader) {
+        this.groundProfileAltitudeHeader = groundProfileAltitudeHeader;
     }
 
     public HorizontalProfile getGroundProfile() {

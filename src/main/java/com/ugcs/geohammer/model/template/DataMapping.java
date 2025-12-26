@@ -26,8 +26,6 @@ public class DataMapping {
 
     private Longitude longitude;
 
-    private Altitude altitude;
-
     private Date date;
 
     private DateTime time;
@@ -84,14 +82,6 @@ public class DataMapping {
         this.longitude = longitude;
     }
 
-    public Altitude getAltitude() {
-        return altitude;
-    }
-
-    public void setAltitude(Altitude altitude) {
-        this.altitude = altitude;
-    }
-
     public Date getDate() {
         return date;
     }
@@ -137,7 +127,6 @@ public class DataMapping {
 
         Nulls.ifPresent(latitude, values::add);
         Nulls.ifPresent(longitude, values::add);
-        Nulls.ifPresent(altitude, values::add);
         Nulls.ifPresent(date, values::add);
         Nulls.ifPresent(time, values::add);
         Nulls.ifPresent(dateTime, values::add);

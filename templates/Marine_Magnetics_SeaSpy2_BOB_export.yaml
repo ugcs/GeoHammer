@@ -29,8 +29,6 @@
       header: Latitude
     longitude:
       header: Longitude
-    altitude:
-      header: Altitude
     time:
       header: Reading_Time
       format: 'H:mm:ss.fff'

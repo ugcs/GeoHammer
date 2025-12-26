@@ -10,8 +10,6 @@ import java.util.Arrays;
 
 public class HorizontalProfile {
 
-	private static final int SMOOTHING_WINDOW = 7;
-
 	@Nullable
 	private MetaFile metaFile;
 
@@ -28,8 +26,6 @@ public class HorizontalProfile {
 
 		this.depths = depths;
 		this.metaFile = metaFile;
-
-		finish();
 	}
 
 	public HorizontalProfile(HorizontalProfile source, MetaFile metaFile) {
@@ -38,8 +34,6 @@ public class HorizontalProfile {
 		this.depths = Arrays.copyOf(source.depths, source.depths.length);
 		this.offset = source.offset;
 		this.metaFile = metaFile;
-
-		finish();
 	}
 
 	public Color getColor() {
@@ -89,39 +83,6 @@ public class HorizontalProfile {
 		int i = getIndex(index, offset);
 		int depth = i >= 0 && i < depths.length ? depths[i] : 0;
 		return relativeToSampleRange(depth);
-	}
-
-	public void finish() {
-		smooth();
-	}
-
-	private void smooth() {
-		int[] result = new int[depths.length];
-		for (int i = 0; i < depths.length; i++) {
-			result[i] = weightedAverageAt(i);
-		}
-		depths = result;
-	}
-
-	private int weightedAverageAt(int i) {
-		int r = SMOOTHING_WINDOW;
-
-		int from = i - r;
-		from = Math.max(0, from);
-		int to = i + r;
-		to = Math.min(to, depths.length - 1);
-		double sum = 0;
-		double cnt = 0;
-
-		for (int j = from; j <= to; j++) {
-			double kfx = (double)(r + j - i) / (r * 2);
-			double kf = kfx * kfx * (1 - kfx) * (1 - kfx);
-
-			sum += depths[j] * kf;
-			cnt += kf;
-		}
-
-		return (int) Math.round(sum / cnt);
 	}
 
 	public int getLevel() {

@@ -17,6 +17,7 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.view.BaseSlider;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.view.Views;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -24,7 +25,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +59,8 @@ public class LevelFilter implements ToolProducer {
     private Label elevationSourceName;
 
     private ComboBox<String> traceColumnSelector;
+
+    private ComboBox<String> altitudeColumnSelector;
 
     private Button buttonLevelGround;
 
@@ -111,20 +113,32 @@ public class LevelFilter implements ToolProducer {
         if (traceColumnSelector == null) {
             traceColumnSelector = new ComboBox<>();
             traceColumnSelector.setPrefWidth(200);
-            traceColumnSelector.setOnAction(this::traceColumnSelected);
+            traceColumnSelector.setOnAction(event -> updateProfile());
+        }
+        // altitude header
+        if (altitudeColumnSelector == null) {
+            altitudeColumnSelector = new ComboBox<>();
+            altitudeColumnSelector.setPrefWidth(200);
+            altitudeColumnSelector.setOnAction(event -> updateProfile());
         }
 
         HBox traceColumn = new HBox();
         traceColumn.setAlignment(Pos.BASELINE_LEFT);
         traceColumn.setSpacing(8);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
         traceColumn.getChildren().addAll(
                 new Label("Trace column"),
-                spacer,
+                Views.createSpacer(),
                 traceColumnSelector);
+
+        HBox altitudeColumn = new HBox();
+        altitudeColumn.setAlignment(Pos.BASELINE_LEFT);
+        altitudeColumn.setSpacing(8);
+
+        altitudeColumn.getChildren().addAll(
+                new Label("Altitude column"),
+                Views.createSpacer(),
+                altitudeColumnSelector);
 
         VBox elevationSource = new VBox();
         elevationSource.setStyle("-fx-border-color: #cccccc;-fx-border-width: 1px;-fx-border-radius: 6px;");
@@ -132,7 +146,8 @@ public class LevelFilter implements ToolProducer {
         elevationSource.setPadding(new Insets(12));
         elevationSource.getChildren().addAll(
                 elevationSourceName,
-                traceColumn);
+                traceColumn,
+                altitudeColumn);
 
         if (buttonLevelGround == null) {
             buttonLevelGround = new Button("Flatten surface");
@@ -186,6 +201,9 @@ public class LevelFilter implements ToolProducer {
         if (traceColumnSelector != null) {
             initTraceColumnSelector(traceFile);
         }
+        if (altitudeColumnSelector != null) {
+            initAltitudeColumnSelector(traceFile);
+        }
         if (buttonSpreadCoord != null) {
             buttonSpreadCoord.setDisable(!model.isSpreadCoordinatesNecessary());
         }
@@ -225,21 +243,43 @@ public class LevelFilter implements ToolProducer {
         }
 
         // restore change listener
-        traceColumnSelector.setOnAction(this::traceColumnSelected);
+        traceColumnSelector.setOnAction(event -> updateProfile());
     }
 
-    private void traceColumnSelected(ActionEvent event) {
+    private void initAltitudeColumnSelector(TraceFile traceFile) {
+        altitudeColumnSelector.setDisable(!isGroundProfileExists(traceFile));
+        altitudeColumnSelector.setOnAction(null); // clear change listener
+
+        PositionFile positionFile = traceFile != null
+                ? traceFile.getGroundProfileSource()
+                : null;
+
+        if (positionFile != null) {
+            altitudeColumnSelector.getItems().setAll(positionFile.getAvailableAltitudeHeaders());
+            altitudeColumnSelector.setValue(traceFile.getGroundProfileAltitudeHeader());
+        } else {
+            altitudeColumnSelector.getItems().clear();
+            altitudeColumnSelector.setValue(null);
+        }
+
+        // restore change listener
+        altitudeColumnSelector.setOnAction(event -> updateProfile());
+    }
+
+    private void updateProfile() {
         TraceFile traceFile = selectedFile;
         if (traceFile == null) {
             return;
         }
         String traceHeader = traceColumnSelector.getValue();
-        if (Objects.equals(traceHeader, traceFile.getGroundProfileTraceHeader())) {
+        String altitudeHeader = altitudeColumnSelector.getValue();
+        if (Objects.equals(traceHeader, traceFile.getGroundProfileTraceHeader())
+                && Objects.equals(altitudeHeader, traceFile.getGroundProfileAltitudeHeader())) {
             return; // already selected
         }
         PositionFile positionFile = traceFile.getGroundProfileSource();
         if (positionFile != null) {
-            positionFile.setGroundProfile(traceFile, traceHeader);
+            positionFile.setGroundProfile(traceFile, traceHeader, altitudeHeader);
             HorizontalProfile profile = traceFile.getGroundProfile();
             if (profile != null) {
                 // apply offset

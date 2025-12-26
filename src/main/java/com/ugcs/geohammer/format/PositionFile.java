@@ -5,11 +5,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.math.LinearInterpolator;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.template.DataMapping;
 import com.ugcs.geohammer.model.template.Template;
@@ -18,7 +20,6 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
 
 import com.ugcs.geohammer.format.csv.parser.ParserFactory;
-import com.ugcs.geohammer.format.csv.parser.CsvParser;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
@@ -101,9 +102,27 @@ public class PositionFile {
 		this.positionFile = positionFile;
 
 		traceFile.setGroundProfileSource(this);
-		List<String> traceHeaders = getAvailableTraceHeaders();
-		if (!traceHeaders.isEmpty()) {
-			setGroundProfile(traceFile, traceHeaders.getFirst());
+
+        String traceHeader = null;
+        List<String> traceHeaders = getAvailableTraceHeaders();
+        if (!traceHeaders.isEmpty()) {
+            traceHeader = traceHeaders.getFirst();
+        }
+
+        String altitudeHeader = null;
+        ColumnSchema schema = GeoData.getSchema(this.geoData);
+        if (schema != null) {
+            altitudeHeader = schema.getHeaderBySemantic(Semantic.ALTITUDE_AGL.getName());
+            if (Strings.isNullOrEmpty(altitudeHeader)) {
+                List<String> altitudeHeaders = getAvailableAltitudeHeaders();
+                if (!altitudeHeaders.isEmpty()) {
+                    altitudeHeader = altitudeHeaders.getFirst();
+                }
+            }
+        }
+
+		if (!Strings.isNullOrEmpty(traceHeader) && !Strings.isNullOrEmpty(altitudeHeader)) {
+			setGroundProfile(traceFile, traceHeader, altitudeHeader);
 		}
 	}
 
@@ -120,25 +139,24 @@ public class PositionFile {
         return parser.parse(file);
 	}
 
-	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceHeader) {
+	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceHeader, String altitudeHeader) {
 		Check.notNull(traceFile);
 
 		if (Strings.isNullOrEmpty(traceHeader)) {
 			return null;
 		}
+        if (Strings.isNullOrEmpty(altitudeHeader)) {
+            return null;
+        }
 
         // get altitudes mapped to trace index, size of result matches numTraces
-        // missing values are nans
-        double[] altitudes = getAltitudes(traceFile, traceHeader);
-        LinearInterpolator.interpolateNans(altitudes);
+        double[] altitudes = getAltitudes(traceFile, traceHeader, altitudeHeader);
 
 		// sample distance in cm
 		double sampleDistance = traceFile.getSamplesToCmAir();
 		// num samples in a meter
 		double samplesPerMeter = 100.0 / sampleDistance;
 
-		// total number of traces
-		int numTraces = traceFile.traces.size();
 		int[] depths = new int[altitudes.length];
         for (int i = 0; i < depths.length; i++) {
             depths[i] = (int)(samplesPerMeter * altitudes[i]);
@@ -152,7 +170,7 @@ public class PositionFile {
 		return profile;
 	}
 
-    private double[] getAltitudes(TraceFile traceFile, String traceHeader) {
+    private double[] getAltitudes(TraceFile traceFile, String traceHeader, String altitudeHeader) {
         int numTraces = traceFile.traces.size();
         double[] altitudes = new double[numTraces];
         Arrays.fill(altitudes, Double.NaN);
@@ -162,21 +180,30 @@ public class PositionFile {
             if (traceIndex == null || traceIndex.intValue() < 0 || traceIndex.intValue() >= numTraces) {
                 continue;
             }
-            Number altitudeAgl = value.getNumberBySemantic(Semantic.ALTITUDE_AGL.getName());
+            Number altitudeAgl = value.getNumber(altitudeHeader);
             if (altitudeAgl != null) {
                 altitudes[traceIndex.intValue()] = altitudeAgl.doubleValue();
+            }
+        }
+        // interpolate missing values
+        LinearInterpolator.interpolateNans(altitudes);
+        // set remaining nans to zeros
+        for (int i = 0; i < altitudes.length; i++) {
+            if (Double.isNaN(altitudes[i])) {
+                altitudes[i] = 0;
             }
         }
         return altitudes;
     }
 
-	public void setGroundProfile(TraceFile traceFile, String traceHeader) {
+	public void setGroundProfile(TraceFile traceFile, String traceHeader, String altitudeHeader) {
 		Check.notNull(traceFile);
 
-		HorizontalProfile profile = loadGroundProfile(traceFile, traceHeader);
+		HorizontalProfile profile = loadGroundProfile(traceFile, traceHeader, altitudeHeader);
 
 		traceFile.setGroundProfileSource(this);
-		traceFile.setGroundProfileTraceHeader(Strings.emptyToNull(traceHeader));
+        traceFile.setGroundProfileTraceHeader(Strings.emptyToNull(traceHeader));
+        traceFile.setGroundProfileAltitudeHeader(Strings.emptyToNull(altitudeHeader));
 		traceFile.setGroundProfile(profile);
 	}
 
@@ -202,4 +229,14 @@ public class PositionFile {
 		}
 		return traceHeaders;
 	}
+
+    public List<String> getAvailableAltitudeHeaders() {
+        ColumnSchema schema = GeoData.getSchema(geoData);
+        if (schema == null) {
+            return List.of();
+        }
+        List<String> headers = new ArrayList<>(schema.getDisplayHeaders());
+        headers.sort(Comparator.naturalOrder());
+        return headers;
+    }
 }

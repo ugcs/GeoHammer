@@ -376,16 +376,6 @@ public abstract class Parser {
         return Text.parseDouble(getString(values, longitudeColumn));
     }
 
-	@Nullable
-	public Double parseAltitude(String[] values) {
-		BaseData altitudeColumn = template.getDataMapping().getAltitude();
-		String altitudeStr = getString(values, altitudeColumn);
-		if (Strings.isNullOrBlank(altitudeStr)) {
-			return null;
-		}
-		return Text.parseDouble(getString(values, altitudeColumn));
-	}
-
     public LocalDate parseDateFromFilename(String filename) {
         Date dateColumn = template.getDataMapping().getDate();
         String value = Text.matchPattern(filename, dateColumn.getRegex(), false);

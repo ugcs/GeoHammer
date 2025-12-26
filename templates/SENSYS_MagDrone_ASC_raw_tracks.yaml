@@ -26,8 +26,6 @@
       header: 'Latitude [°]'
     longitude:
       header: 'Longitude [°]'
-    altitude:
-      header: 'Altitude [m]'
     timestamp:
       header: 'Timestamp [ms]'
     data-values:

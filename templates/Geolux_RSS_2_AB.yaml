@@ -34,8 +34,6 @@
       header: Latitude
     longitude:
       header: Longitude
-    altitude:
-      header: Altitude AGL
     time:
       header: Time
       format: 'H:mm:ss.fff'

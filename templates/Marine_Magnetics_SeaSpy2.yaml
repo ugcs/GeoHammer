@@ -24,8 +24,6 @@
       header: Mag_Latitude
     longitude:
       header: Mag_Longitude
-    altitude:
-      header: Altitude
     time:
       header: Reading_Time
       format: 'H:mm:ss.fff'

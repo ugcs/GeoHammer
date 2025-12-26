@@ -4,10 +4,12 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import com.ugcs.geohammer.format.csv.parser.Parser;
+import com.ugcs.geohammer.math.LinearInterpolator;
 import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.template.DataMapping;
 import com.ugcs.geohammer.model.template.Template;
@@ -125,6 +127,11 @@ public class PositionFile {
 			return null;
 		}
 
+        // get altitudes mapped to trace index, size of result matches numTraces
+        // missing values are nans
+        double[] altitudes = getAltitudes(traceFile, traceHeader);
+        LinearInterpolator.interpolateNans(altitudes);
+
 		// sample distance in cm
 		double sampleDistance = traceFile.getSamplesToCmAir();
 		// num samples in a meter
@@ -132,19 +139,10 @@ public class PositionFile {
 
 		// total number of traces
 		int numTraces = traceFile.traces.size();
-		int[] depths = new int[numTraces];
-
-		for (GeoData value : Nulls.toEmpty(geoData)) {
-			Number traceIndex = value.getNumber(traceHeader);
-			if (traceIndex == null || traceIndex.intValue() < 0 || traceIndex.intValue() >= numTraces) {
-				continue;
-			}
-			Number altitudeAgl = value.getNumberBySemantic(Semantic.ALTITUDE_AGL.getName());
-			if (altitudeAgl != null) {
-				double altitudeSamples = samplesPerMeter * altitudeAgl.doubleValue();
-				depths[traceIndex.intValue()] = (int)altitudeSamples;
-			}
-		}
+		int[] depths = new int[altitudes.length];
+        for (int i = 0; i < depths.length; i++) {
+            depths[i] = (int)(samplesPerMeter * altitudes[i]);
+        }
 
 		// create horizontal profile
 		HorizontalProfile profile = new HorizontalProfile(
@@ -153,6 +151,24 @@ public class PositionFile {
 		profile.setColor(Color.red);
 		return profile;
 	}
+
+    private double[] getAltitudes(TraceFile traceFile, String traceHeader) {
+        int numTraces = traceFile.traces.size();
+        double[] altitudes = new double[numTraces];
+        Arrays.fill(altitudes, Double.NaN);
+
+        for (GeoData value : Nulls.toEmpty(geoData)) {
+            Number traceIndex = value.getNumber(traceHeader);
+            if (traceIndex == null || traceIndex.intValue() < 0 || traceIndex.intValue() >= numTraces) {
+                continue;
+            }
+            Number altitudeAgl = value.getNumberBySemantic(Semantic.ALTITUDE_AGL.getName());
+            if (altitudeAgl != null) {
+                altitudes[traceIndex.intValue()] = altitudeAgl.doubleValue();
+            }
+        }
+        return altitudes;
+    }
 
 	public void setGroundProfile(TraceFile traceFile, String traceHeader) {
 		Check.notNull(traceFile);

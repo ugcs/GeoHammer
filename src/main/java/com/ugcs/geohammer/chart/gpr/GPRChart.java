@@ -563,23 +563,18 @@ public class GPRChart extends Chart {
                 bottomRuleRect.y + 1);
     }
 
-    private void drawHorizontalProfile(Graphics2D g2,
-            HorizontalProfile pf, int voffset) {
+    private void drawHorizontalProfile(Graphics2D g2, HorizontalProfile pf, int voffset) {
         g2.setColor(pf.getColor());
         Point2D p1 = traceSampleToScreenCenter(new TraceSample(
                 0, pf.getDepth(0) + voffset));
-        int max2 = 0;
 
         for (int i = 1; i < pf.size(); i++) {
-
-            max2 = Math.max(max2, pf.getDepth(i) + voffset);
-
-            Point2D p2 = traceSampleToScreenCenter(new TraceSample(i, max2));
+            Point2D p2 = traceSampleToScreenCenter(new TraceSample(
+                    i, pf.getDepth(i) + voffset));
 
             if (p2.getX() - p1.getX() > 0 || Math.abs(p2.getY() - p1.getY()) > 0) {
                 g2.drawLine((int) p1.getX(), (int) p1.getY(), (int) p2.getX(), (int) p2.getY());
                 p1 = p2;
-                max2 = 0;
             }
         }
     }

@@ -25,9 +25,10 @@ def decode_vendor_header_240(raw240):
 
 # Detect marks using extended header pattern
 
-def detect_marks_and_layout(filename):
+def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_tolerance=2):
     marks = []
     mark_vals = []
+    mark_pos = []
 
     def u16(b, endian="<"):
         return struct.unpack(endian + "H", b)[0]
@@ -60,22 +61,51 @@ def detect_marks_and_layout(filename):
 
         for i in range(int(ntraces)):
             f.seek(3600 + i * trace_size)
-            header_ext = f.read(2000)
-            if len(header_ext) < 4:
+            buf = f.read(scan_bytes)
+            if len(buf) < 4:
                 break
 
-            pos = header_ext.find(pattern)
-            if pos >= 0 and pos + 4 <= len(header_ext):
-                val = u32(header_ext[pos:pos+4], endian)
+            pos = buf.find(pattern)
+            if pos >= 0 and pos + 4 <= len(buf):
+                val = u32(buf[pos:pos + 4], endian)
                 if (val & 0xFFFF) == 0x5555:
                     mark = (val >> 16) & 0xFF
                     if mark == 255:
                         mark = 0
+
                     if mark != 0 and i > 0:
                         marks.append(i - 1)
-                        mark_vals.append(mark)
+                        mark_vals.append(int(mark))
+                        mark_pos.append(int(pos))
 
-    print("Found marks:", len(marks))
+    # ---- False-positive filtering by byte position (keep only the dominant pos) ----
+    if mark_pos:
+        # mode position
+        pos_mode = max(set(mark_pos), key=mark_pos.count)
+
+        keep_idx = [
+            k for k, p in enumerate(mark_pos)
+            if abs(p - pos_mode) <= pos_tolerance
+        ]
+
+        marks = [marks[k] for k in keep_idx]
+        mark_vals = [mark_vals[k] for k in keep_idx]
+        mark_pos = [mark_pos[k] for k in keep_idx]
+
+    # ---- Start skipper: ignore any marks before the first "start_mark" (usually 1) ----
+    if mark_vals and start_mark is not None:
+        try:
+            first_ok = mark_vals.index(start_mark)
+            marks = marks[first_ok:]
+            mark_vals = mark_vals[first_ok:]
+            mark_pos = mark_pos[first_ok:]
+        except ValueError:
+            # no start_mark found -> keep nothing (or keep all; choose what you prefer)
+            marks, mark_vals, mark_pos = [], [], []
+
+    print(f"Found marks after filtering: {len(marks)}")
+    if mark_pos:
+        print(f"Using dominant mark byte position: {max(set(mark_pos), key=mark_pos.count)}")
 
     return marks, mark_vals, dict(
         endian=endian,
@@ -84,7 +114,6 @@ def detect_marks_and_layout(filename):
         trace_size=trace_size,
         ntraces=int(ntraces),
     )
-
 
 # Velocity helpers
 
@@ -241,45 +270,88 @@ def main():
     df["Velocity raw m/s"] = df["Velocity raw cm/s"] / 100.0
     df["Velocity full waveform data m/s"] = df["Velocity full waveform data cm/s"] / 100.0
 
-    if len(df) >= 2:
-        lon0 = df["Longitude (deg)"].iloc[0]
-        lat0 = df["Latitude (deg)"].iloc[0]
-        lonN = df["Longitude (deg)"].iloc[-1]
-        latN = df["Latitude (deg)"].iloc[-1]
+    #Direction calculation 
+    #Use OUTGOING segment (i -> i+1)
+    MAX_LINE_ANGLE_DEG = 20.0 #max angle 20°
+    COS_THR = np.cos(np.deg2rad(MAX_LINE_ANGLE_DEG))
+    EPS_LEN = 1e-15  # avoid zero-length segments
+    MIN_CONSEC_FOR_FLIP = 1  # set to 2 if you want extra anti-noise (if the drone has been very jittery)
 
-        vx = lonN - lon0
-        vy = latN - lat0
-        norm2 = vx * vx + vy * vy
+    n = len(df)
+    if n >= 2:
+        lon = df["Longitude (deg)"].astype(float).to_numpy()
+        lat = df["Latitude (deg)"].astype(float).to_numpy()
 
-        if norm2 > 0:
-            t = []
-            for i in range(len(df)):
-                dx = df["Longitude (deg)"].iloc[i] - lon0
-                dy = df["Latitude (deg)"].iloc[i] - lat0
-                ti = (dx * vx + dy * vy) / norm2
-                t.append(ti)
-            df["AxisCoord"] = t
+        # make angles saner by scaling lon by cos(lat)
+        def vec(i0, i1):
+            latm = 0.5 * (lat[i0] + lat[i1])
+            dx = (lon[i1] - lon[i0]) * np.cos(np.deg2rad(latm))
+            dy = (lat[i1] - lat[i0])
+            return np.array([dx, dy], dtype=float)
 
-            df["AxisSlope"] = df["AxisCoord"].diff()
+        # reference axis = mark1 -> mark2
+        vref = vec(0, 1)
+        nref = np.linalg.norm(vref)
 
-            df["Direction"] = df["AxisSlope"].apply(lambda x: 1 if x >= 0 else -1)
-
-            df["Direction"] = df["Direction"].rolling(
-                window=5, center=True, min_periods=1
-            ).median().astype(int)
-
-            df.drop(columns=["AxisCoord", "AxisSlope"], inplace=True)
+        if not np.isfinite(nref) or nref < EPS_LEN:
+            df["Direction"] = df["Direction (vendor)"].apply(lambda d: -1 if d < 0 else 1)
         else:
-            df["Direction"] = df["Direction (vendor)"].apply(
-                lambda d: -1 if d < 0 else 1
-            )
+            refhat = vref / nref
+
+            direction = np.ones(n, dtype=int)
+            direction[0] = 1  # by definition
+
+            current = 1
+            pending = 0
+            pending_count = 0
+
+            # Direction for mark i comes from segment i -> i+1
+            for i in range(0, n - 1):
+                v = vec(i, i + 1)
+                nv = np.linalg.norm(v)
+
+                if not np.isfinite(nv) or nv < EPS_LEN:
+                    direction[i] = current
+                    continue
+
+                vhat = v / nv
+                c = float(np.dot(vhat, refhat))  # signed cos(angle to ref axis)
+
+                # off-line segment (e.g., 90° hop): do not change direction
+                if abs(c) < COS_THR:
+                    direction[i] = current
+                    pending = 0
+                    pending_count = 0
+                    continue
+
+                seg_sign = 1 if c >= 0 else -1
+
+                # optional hysteresis (consecutive segments required to flip)
+                if seg_sign == current:
+                    pending = 0
+                    pending_count = 0
+                else:
+                    if pending == seg_sign:
+                        pending_count += 1
+                    else:
+                        pending = seg_sign
+                        pending_count = 1
+
+                    if pending_count >= MIN_CONSEC_FOR_FLIP:
+                        current = seg_sign
+                        pending = 0
+                        pending_count = 0
+
+                direction[i] = current
+
+            # last mark: carry previous
+            direction[-1] = direction[-2]
+            df["Direction"] = direction
     else:
-        df["Direction"] = df["Direction (vendor)"].apply(
-            lambda d: -1 if d < 0 else 1
-        )
+        df["Direction"] = df["Direction (vendor)"].apply(lambda d: -1 if d < 0 else 1)
 
     df.drop(columns=["Direction (vendor)"], inplace=True)
-
+ 
     df.to_csv(OUTPUT_CSV, index=False)
     print("\nSaved CSV:", OUTPUT_CSV)
 

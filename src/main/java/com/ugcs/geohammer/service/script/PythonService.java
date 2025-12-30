@@ -9,8 +9,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import com.ugcs.geohammer.PrefSettings;
@@ -33,11 +31,11 @@ public class PythonService {
 
 	private static final String REQUIREMENTS_ANALYZER = "pipreqs";
 
+	private static final String REQUIREMENTS_FILE = "requirements.txt";
+
 	private final CommandExecutor commandExecutor;
 
 	private final PrefSettings prefSettings;
-
-	private final Set<String> installedDependenciesCache = ConcurrentHashMap.newKeySet();
 
 	public PythonService(CommandExecutor commandExecutor, PrefSettings prefSettings) {
 		this.commandExecutor = commandExecutor;
@@ -53,24 +51,17 @@ public class PythonService {
 	 * @throws InterruptedException if the operation is interrupted
 	 */
 	public void installDependencies(File scriptFile, Consumer<String> onOutput) throws IOException, InterruptedException {
-		String cacheKey = generateCacheKey(scriptFile);
 		String filename = scriptFile.getName();
-
-		if (!installedDependenciesCache.add(cacheKey)) {
-			log.debug("Dependencies already installed for script {}", filename);
-			return;
-		}
-
 
 		if (!isPackageInstalled(REQUIREMENTS_ANALYZER)) {
 			try {
 				installPackage(REQUIREMENTS_ANALYZER, onOutput);
 			} catch (Exception e) {
 				log.warn("Pipreqs library installation failed (possibly offline). Continuing without dependency check.", e);
-				installedDependenciesCache.remove(cacheKey);
 				return;
 			}
 		}
+
 		String filenameWithoutExtension = FileNames.removeExtension(filename);
 		Path tempDirectory = Files.createTempDirectory(filenameWithoutExtension);
 		File copyOfScript = new File(tempDirectory.toFile(), filename);
@@ -78,17 +69,55 @@ public class PythonService {
 
 		try {
 			generateRequirementsFile(tempDirectory, onOutput);
+
+			if (!Files.exists(tempDirectory.resolve(REQUIREMENTS_FILE))) {
+				onOutput.accept("No dependencies found for script " + filename);
+				return;
+			}
+
+			if (areAllPackagesInstalled(tempDirectory)) {
+				onOutput.accept("Dependencies already installed for script " + filename);
+				return;
+			}
+
 			installDependenciesFromRequirements(tempDirectory, onOutput);
 			onOutput.accept("Dependencies installed successfully for script " + filename);
 		} catch (IOException | CommandExecutionException e) {
 			log.warn("Dependency installation failed (possibly offline): {}", e.getMessage(), e);
-			installedDependenciesCache.remove(cacheKey);
 		} catch (InterruptedException e) {
 			log.warn("Dependency installation was interrupted", e);
-			installedDependenciesCache.remove(cacheKey);
 			Thread.currentThread().interrupt();
 		} finally {
 			cleanupTempDirectory(tempDirectory, filename);
+		}
+	}
+
+	private boolean areAllPackagesInstalled(Path directory) throws IOException, InterruptedException {
+		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
+		List<String> requiredPackages = Files.readAllLines(requirementsPath).stream()
+				.map(String::trim)
+				.filter(line -> !line.isEmpty() && !line.startsWith("#"))
+				.map(line -> line.split("[=<>~!]")[0].trim())
+				.toList();
+
+		for (String packageName : requiredPackages) {
+			if (!canImportPackage(packageName)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private boolean canImportPackage(String packageName) throws InterruptedException, IOException {
+		String pythonExecutorPath = getPythonPath().toString();
+		String importCommand = String.format("import %s", packageName);
+		List<String> command = List.of(pythonExecutorPath, "-c", importCommand);
+
+		try {
+			commandExecutor.executeCommand(command, null);
+			return true;
+		} catch (CommandExecutionException e) {
+			return false;
 		}
 	}
 
@@ -136,13 +165,6 @@ public class PythonService {
 		}
 	}
 
-	private String generateCacheKey(File file) {
-		return String.format("%s:%d:%d",
-				file.getAbsolutePath(),
-				file.lastModified(),
-				file.length());
-	}
-
 	public Path getPipreqsPath() throws IOException {
 		Path pythonPath = getPythonPath();
 		if (OperatingSystemUtils.isWindows()) {
@@ -174,7 +196,7 @@ public class PythonService {
 
 	private void installDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,
 			InterruptedException {
-		Path requirementsPath = directory.resolve("requirements.txt");
+		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
 		if (Files.exists(requirementsPath)) {
 			String pythonExecutorPath = getPythonPath().toString();
 			List<String> command = List.of(

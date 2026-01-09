@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.OperatingSystemUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -57,7 +58,7 @@ public class PythonService {
 			try {
 				installPackage(REQUIREMENTS_ANALYZER, onOutput);
 			} catch (Exception e) {
-				log.warn("Pipreqs library installation failed (possibly offline). Continuing without dependency check.", e);
+				log.warn("Requirements analyzer library installation failed (possibly offline). Continuing without dependency check.", e);
 				return;
 			}
 		}
@@ -165,13 +166,54 @@ public class PythonService {
 		}
 	}
 
-	public Path getPipreqsPath() throws IOException {
+	public Path getPipreqsPath() throws IOException, InterruptedException {
 		Path pythonPath = getPythonPath();
-		if (OperatingSystemUtils.isWindows()) {
-			return pythonPath.getParent().resolve(Paths.get("Scripts", "pipreqs.exe"));
-		} else {
-			return pythonPath.getParent().resolve("pipreqs");
+
+		Path pipreqsPath;
+		pipreqsPath = findPipreqsNearPython(pythonPath);
+		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
+			return pipreqsPath;
 		}
+
+		pipreqsPath = findSystemPipreqs();
+		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
+			return pipreqsPath;
+		}
+		return null;
+	}
+
+	private static @NotNull Path findPipreqsNearPython(Path pythonPath) {
+		Path pipreqsPath;
+		if (OperatingSystemUtils.isWindows()) {
+			pipreqsPath = pythonPath.getParent().resolve(Paths.get("Scripts", "pipreqs.exe"));
+		} else {
+			pipreqsPath = pythonPath.getParent().resolve("pipreqs");
+		}
+		return pipreqsPath;
+	}
+
+	private @Nullable Path findSystemPipreqs() throws IOException, InterruptedException {
+		List<String> command = OperatingSystemUtils.isWindows()
+				? List.of("where", REQUIREMENTS_ANALYZER)
+				: List.of("which", REQUIREMENTS_ANALYZER);
+
+		StringBuilder output = new StringBuilder();
+		Consumer<String> outputConsumer = line -> {
+			if (output.isEmpty()) {
+				output.append(line);
+			}
+		};
+
+		commandExecutor.executeCommand(command, outputConsumer);
+
+		String pathStr = output.toString().trim();
+		if (!pathStr.isEmpty()) {
+			Path path = Paths.get(pathStr);
+			if (Files.exists(path)) {
+				return path;
+			}
+		}
+		return null;
 	}
 
 	private void generateRequirementsFile(Path directory, Consumer<String> onOutput) throws IOException,
@@ -179,10 +221,10 @@ public class PythonService {
 		Path pipreqsPath = getPipreqsPath();
 
 		String pipreqsCommand;
-		if (Files.exists(pipreqsPath)) {
+		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
 			pipreqsCommand = pipreqsPath.toString();
 		} else {
-            throw new IllegalStateException("pipreqs not found in path: " + pipreqsPath);
+			throw new IllegalStateException("pipreqs not found in path: " + pipreqsPath);
 		}
 
 		List<String> command = List.of(
@@ -197,20 +239,21 @@ public class PythonService {
 	private void installDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,
 			InterruptedException {
 		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
-		if (Files.exists(requirementsPath)) {
-			String pythonExecutorPath = getPythonPath().toString();
-			List<String> command = List.of(
-					pythonExecutorPath,
-					"-m",
-					"pip",
-					"install",
-					"-r",
-					requirementsPath.toString()
-			);
-			commandExecutor.executeCommand(command, onOutput);
-		} else {
+		if (!Files.exists(requirementsPath)) {
 			log.warn("No requirements.txt found in {}, skipping dependency installation.", directory);
+			return;
 		}
+
+		String pythonExecutorPath = getPythonPath().toString();
+		List<String> command = List.of(
+				pythonExecutorPath,
+				"-m",
+				"pip",
+				"install",
+				"-r",
+				requirementsPath.toString()
+		);
+		commandExecutor.executeCommand(command, onOutput);
 	}
 
 	private void cleanupTempDirectory(Path tempDirectory, String scriptFilename) {

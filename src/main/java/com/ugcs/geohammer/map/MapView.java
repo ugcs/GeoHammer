@@ -27,6 +27,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -162,6 +163,15 @@ public class MapView implements InitializingBean {
 	private EventHandler<MouseEvent> mouseClickHandler = event -> {
 		if (!isGpsPresent()) {
 			return;
+		}
+		if (event.getClickCount() == 1 && event.getButton() == MouseButton.SECONDARY) {
+			Point2D point = getLocalCoords(event);
+			for (Layer layer : layers) {
+				if (layer.mouseRightClick(point)) {
+					event.consume();
+					break;
+				}
+			}
 		}
 		if (event.getClickCount() == 2) {
 			Point2D p = getLocalCoords(event);

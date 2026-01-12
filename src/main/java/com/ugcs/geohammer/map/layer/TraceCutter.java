@@ -4,9 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.model.TraceKey;
@@ -41,10 +39,8 @@ public class TraceCutter implements Layer, InitializingBean {
 	private static final int RADIUS = 5;
 
 	private MapField mapField;
-	private List<LatLon> points;
-	private Integer active = null;
-
-	Map<Integer, Boolean> activePoints = new HashMap<>();
+	private List<PolygonPoint> points;
+	private Integer lastActivePointIndex = null;
 
 	private final Model model;
 	private final UndoModel undoModel;
@@ -79,14 +75,21 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	public void clear() {
-		points = null;
-		active = null;
-		activePoints.clear();
+		lastActivePointIndex = null;
+		if (points == null) {
+			return;
+		}
+		points.clear();
 	}
 
 	public void init() {
-		points = new TraceCutInitializer().initialRect(model);
-		activePoints.clear();
+		List<LatLon> initialCoordinates = new TraceCutInitializer().initialRect(model);
+
+		points = new ArrayList<>();
+		for (int i = 0; i < initialCoordinates.size(); i++) {
+			PointType type = i % 2 == 0 ? PointType.CORNER : PointType.MIDDLE;
+			points.add(new PolygonPoint(initialCoordinates.get(i), type));
+		}
 	}
 
 	public void initButtons() {
@@ -163,12 +166,12 @@ public class TraceCutter implements Layer, InitializingBean {
 		for (int i = 0; i < border.size(); i++) {
 			Point2D p = border.get(i);
 			if (point.distance(p) < RADIUS) {
-				active = i;
+				lastActivePointIndex = i;
 				getListener().repaint();
 				return true;
 			}
 		}
-		active = null;
+		lastActivePointIndex = null;
 		return false;
 	}
 
@@ -178,14 +181,16 @@ public class TraceCutter implements Layer, InitializingBean {
 			return false;
 		}
 
-		if (active != null) {
-			if (activePoints != null && activePoints.getOrDefault(active, false)) {
-				activePoints.put(active, false);
-				addMiddlePointsAround(active);
+		if (lastActivePointIndex != null) {
+			PolygonPoint activePoint = points.get(lastActivePointIndex);
+			if (activePoint.isMiddle() && activePoint.isActive()) {
+				activePoint.setType(PointType.CORNER);
+				activePoint.setActive(false);
+				addMiddlePointsAround(lastActivePointIndex);
 			}
-			getListener().repaint();
-			active = null;
 
+			getListener().repaint();
+			lastActivePointIndex = null;
 			return true;
 		}
 		return false;
@@ -193,37 +198,61 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@Override
 	public boolean mouseMove(Point2D point) {
-		if (points == null) {
+		if (points == null || lastActivePointIndex == null) {
 			return false;
 		}
 
-		if (active == null) {
-			return false;
-		}
+		PolygonPoint activePoint = points.get(lastActivePointIndex);
+		activePoint.getLatLon().from(mapField.screenTolatLon(point));
 
-		points.get(active).from(mapField.screenTolatLon(point));
-		if (active % 2 == 0) {
-			if (!isActive(active + 1)) {
-				LatLon point1 = (active + 2) < points.size() ? points.get(active + 2) : points.getFirst();
-				LatLon point2 = mapField.screenTolatLon(point);
-				points.get(active + 1).from(point1.midpoint(point2));
+		if (activePoint.isCorner()) {
+			int nextIndex = getNextPointIndex(lastActivePointIndex);
+			PolygonPoint nextPoint = points.get(nextIndex);
+			if (nextPoint.isMiddle() && !nextPoint.isActive()) {
+				LatLon nextCorner = points.get(getNextPointIndex(nextIndex)).getLatLon();
+				LatLon currentCorner = mapField.screenTolatLon(point);
+				nextPoint.getLatLon().from(nextCorner.midpoint(currentCorner));
 			}
-			if (!isActive(active == 0 ? points.size() - 1 : active - 1)) {
-				LatLon point1 = (active == 0 ? points.get(points.size() - 2) : points.get(active - 2));
-				LatLon point2 = mapField.screenTolatLon(point);
-				(active == 0 ? points.getLast() : points.get(active - 1))
-						.from(point1.midpoint(point2));
+
+			int previousIndex = getPreviousPointIndex(lastActivePointIndex);
+			PolygonPoint previousPoint = points.get(previousIndex);
+			if (previousPoint.isMiddle() && !previousPoint.isActive()) {
+				LatLon previousCorner = points.get(getPreviousPointIndex(previousIndex)).getLatLon();
+				LatLon currentCorner = mapField.screenTolatLon(point);
+				previousPoint.getLatLon().from(previousCorner.midpoint(currentCorner));
 			}
-		} else {
-			activePoints.put(active, !isInTheMiddle(active));
+		} else if (activePoint.isMiddle()) {
+			activePoint.setActive(!isInTheMiddle(lastActivePointIndex));
 		}
 
 		getListener().repaint();
 		return true;
 	}
 
-	private boolean isActive(int pointIndex) {
-		return activePoints.computeIfAbsent(pointIndex, i -> false);
+	private int getNextPointIndex(int index) {
+		return (index + 1) % points.size();
+	}
+
+	private int getPreviousPointIndex(int index) {
+		return (index - 1 + points.size()) % points.size();
+	}
+
+	@Override
+	public boolean mouseRightClick(Point2D point) {
+		if (points == null || points.size() <= 4) {
+			return false;
+		}
+
+		List<Point2D> border = getScreenPoligon(mapField);
+		for (int i = 0; i < border.size(); i++) {
+			Point2D p = border.get(i);
+			if (point.distance(p) < RADIUS) {
+				points.remove(i);
+				getListener().repaint();
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
@@ -235,7 +264,6 @@ public class TraceCutter implements Layer, InitializingBean {
 		List<Point2D> border = getScreenPoligon(mapField);
 
 		for (int i = 0; i < border.size(); i++) {
-
 			Point2D p1 = border.get(i);
 			Point2D p2 = border.get((i + 1) % border.size());
 
@@ -246,8 +274,9 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		for (int i = 0; i < border.size(); i++) {
 			Point2D p1 = border.get(i);
+			PolygonPoint polygonPoint = points.get(i);
 
-			if ((i + 1) % 2 == 0) {
+			if (polygonPoint.isMiddle()) {
 				g2.setColor(Color.GRAY);
 			} else {
 				g2.setColor(Color.WHITE);
@@ -256,7 +285,8 @@ public class TraceCutter implements Layer, InitializingBean {
 			g2.fillOval((int) p1.getX() - RADIUS,
 					(int) p1.getY() - RADIUS,
 					2 * RADIUS, 2 * RADIUS);
-			if (active != null && active == i) {
+
+			if (lastActivePointIndex != null && lastActivePointIndex == i) {
 				g2.setColor(Color.BLUE);
 				g2.drawOval((int) p1.getX() - RADIUS,
 						(int) p1.getY() - RADIUS,
@@ -267,10 +297,10 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	private boolean isInTheMiddle(int pointIndex) {
 		List<Point2D> border = getScreenPoligon(mapField);
-		return isInTheMiddle(
-				border.get(pointIndex - 1),
-				border.get(pointIndex),
-				(pointIndex + 1 < border.size()) ? border.get(pointIndex + 1) : border.get(0));
+		Point2D before = border.get(getPreviousPointIndex(pointIndex));
+		Point2D current = border.get(pointIndex);
+		Point2D after = border.get(getNextPointIndex(pointIndex));
+		return isInTheMiddle(before, current, after);
 	}
 
 	private boolean isInTheMiddle(Point2D before, Point2D current, Point2D after) {
@@ -285,18 +315,20 @@ public class TraceCutter implements Layer, InitializingBean {
 			return;
 		}
 
-		int nextIndex = (index + 1) % points.size();
+		int nextIndex = getNextPointIndex(index);
 
-		LatLon current = points.get(index);
-		LatLon next = points.get(nextIndex);
-		LatLon mid = current.midpoint(next);
+		LatLon current = points.get(index).getLatLon();
+		LatLon next = points.get(nextIndex).getLatLon();
+		PolygonPoint middlePoint = new PolygonPoint(
+				current.midpoint(next),
+				PointType.MIDDLE);
 
-		if (points.contains(mid)) {
+		if (points.contains(middlePoint)) {
 			return;
 		}
 
 		int insertPos = index + 1;
-		points.add(insertPos, mid);
+		points.add(insertPos, middlePoint);
 	}
 
 	private void addMiddlePointsAround(int index) {
@@ -304,19 +336,17 @@ public class TraceCutter implements Layer, InitializingBean {
 			return;
 		}
 
-		int sizeBefore = points.size();
-
-		int leftIndex = (index - 1 + sizeBefore) % sizeBefore;
+		int leftIndex = getPreviousPointIndex(index);
 		addMiddlePoint(leftIndex);
 
-		int rightIndex = (index + 1) % points.size();
+		int rightIndex = getNextPointIndex(index);
 		addMiddlePoint(rightIndex);
 	}
 
 	private List<Point2D> getScreenPoligon(MapField fld) {
-
 		List<Point2D> border = new ArrayList<>();
-		for (LatLon ll : points) {
+		for (PolygonPoint point : points) {
+			LatLon ll = point.getLatLon();
 			border.add(fld.latLonToScreen(ll));
 		}
 		return border;
@@ -404,5 +434,49 @@ public class TraceCutter implements Layer, InitializingBean {
 		Platform.runLater(() -> {
 			buttonUndo.setDisable(!undoModel.canUndo());
 		});
+	}
+
+	private static class PolygonPoint {
+		private final LatLon latLon;
+		private PointType type;
+		private boolean isActive;
+
+		public PolygonPoint(LatLon latLon, PointType type) {
+			this.latLon = latLon;
+			this.type = type;
+		}
+
+		public LatLon getLatLon() {
+			return latLon;
+		}
+
+		public PointType getType() {
+			return type;
+		}
+
+		public void setType(PointType type) {
+			this.type = type;
+		}
+
+		public boolean isActive() {
+			return isActive;
+		}
+
+		public void setActive(boolean active) {
+			isActive = active;
+		}
+
+		public boolean isCorner() {
+			return type == PointType.CORNER;
+		}
+
+		public boolean isMiddle() {
+			return type == PointType.MIDDLE;
+		}
+	}
+
+	private enum PointType {
+		CORNER,
+		MIDDLE
 	}
 }

@@ -297,7 +297,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		int insertPos = index + 1;
 		points.add(insertPos, mid);
-		activePoints.put(insertPos, true);
 	}
 
 	private void addMiddlePointsAround(int index) {

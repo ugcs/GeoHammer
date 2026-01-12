@@ -9,6 +9,8 @@ import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +25,8 @@ import java.util.List;
 import java.util.Set;
 
 public class SonarFile extends SgyFileWithMeta {
+
+    private static final Logger log = LoggerFactory.getLogger(SonarFile.class);
 
     private List<SvlogPacket> packets = List.of();
 
@@ -177,9 +181,14 @@ public class SonarFile extends SgyFileWithMeta {
     private List<SvlogPacket> readPackets(File file) throws IOException {
         List<SvlogPacket> packets = new ArrayList<>();
         try (SvlogReader r = new SvlogReader(file)) {
-            SvlogPacket packet;
-            while ((packet = r.readPacket()) != null) {
-                packets.add(packet);
+            SvlogReader.ReadResult readResult;
+            while ((readResult = r.readPacket()) != null) {
+                if (!readResult.checksumValid()) {
+                    log.warn("Invalid checksum: packet skipped [id {}]",
+                            readResult.packet().getPacketId());
+                    continue;
+                }
+                packets.add(readResult.packet());
             }
         }
         return packets;

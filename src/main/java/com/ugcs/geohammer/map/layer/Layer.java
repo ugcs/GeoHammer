@@ -12,14 +12,16 @@ public interface Layer extends ToolProducer {
 			
 	default boolean mousePressed(Point2D point) {
 		return false;
-	};
+	}
 	
 	default boolean mouseRelease(Point2D point) {
 		return false;
-	};
+	}
 	
 	default boolean mouseMove(Point2D point) {
 		return false;
-	};
+	}
+
+	default boolean mouseRightClick(Point2D point) { return false; }
 
 }

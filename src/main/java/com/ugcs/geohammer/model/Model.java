@@ -28,7 +28,6 @@ import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.FileUpdatedEvent;
 import com.ugcs.geohammer.model.event.TemplateUnitChangedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
-import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Nulls;
@@ -467,8 +466,7 @@ public class Model implements InitializingBean {
 		Node node = fileDataContainer.getRootNode();
 		ScrollPane scrollPane = findScrollPane(node);
 		if (scrollPane != null) {
-			//TODO: implement scroll to chart
-			scrollToChart(scrollPane, node);
+			scrollToNode(scrollPane, node);
 		}
 	}
 
@@ -490,15 +488,24 @@ public class Model implements InitializingBean {
 		return null;
 	}
 
-	private void scrollToChart(ScrollPane scrollPane, Node chart) {
-		Bounds viewportBounds = scrollPane.getViewportBounds();
-		Bounds chartBounds = chart.getBoundsInParent();
+	private void scrollToNode(ScrollPane scrollPane, Node node) {
+		Bounds scrollBounds = scrollPane.getViewportBounds();
+        Bounds contentBounds = chartsContainer.getBoundsInLocal();
 
-		double heightDifference = chartsContainer.getBoundsInParent().getHeight() - viewportBounds.getHeight();
+        double contentHeight = contentBounds.getHeight();
+        double viewportHeight = scrollBounds.getHeight();
+        double heightDifference = contentHeight - viewportHeight;
 
-		double vValue = chartBounds.getMinY() / heightDifference;
+        if (heightDifference <= 0) {
+            scrollPane.setVvalue(0);
+            return;
+        }
 
-		scrollPane.setVvalue(vValue < 0 ? Double.POSITIVE_INFINITY : vValue);
+        Bounds nodeBounds = node.getBoundsInParent();
+        double nodeTop = nodeBounds.getMinY();
+
+		double vValue = nodeTop / heightDifference;
+        scrollPane.setVvalue(Math.clamp(vValue, 0, 1));
 	}
 
 	public void focusMapOnTrace(TraceKey trace) {

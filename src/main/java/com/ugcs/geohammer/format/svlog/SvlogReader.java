@@ -25,7 +25,7 @@ public class SvlogReader implements Closeable {
         in.close();
     }
 
-    public SvlogPacket readPacket() throws IOException {
+    public ReadResult readPacket() throws IOException {
         try {
             int signature0 = in.readUnsignedByte();
             Check.condition(signature0 == SvlogPacket.SIGNATURE_0);
@@ -41,10 +41,14 @@ public class SvlogReader implements Closeable {
             int checksum = in.readUnsignedShort();
 
             SvlogPacket packet = new SvlogPacket(packetId, payload);
-            Check.condition(checksum == packet.computeChecksum(reserved0, reserved1));
-            return packet;
+            int computedChecksum = packet.computeChecksum(reserved0, reserved1);
+
+            return new ReadResult(packet, checksum == computedChecksum);
         } catch (EOFException e) {
             return null;
         }
+    }
+
+    public record ReadResult (SvlogPacket packet, boolean checksumValid) {
     }
 }

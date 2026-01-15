@@ -39,6 +39,10 @@ class PolygonSelector {
 		return selectedIndex != null && selectedIndex == index;
 	}
 
+	boolean hasSelection() {
+		return selectedIndex != null;
+	}
+
 	int numPoints() {
 		return points.size();
 	}
@@ -79,6 +83,8 @@ class PolygonSelector {
 			} else {
 				selectedIndex = closestIndex;
 			}
+		} else {
+			clearSelection();
 		}
 	}
 
@@ -90,6 +96,10 @@ class PolygonSelector {
 			middle = points.get(index).midpoint(points.get(index + 1));
 		}
 		points.add(index + 1, middle);
+	}
+
+	private void clearSelection() {
+		selectedIndex = null;
 	}
 
 	void moveSelection(Point2D to) {
@@ -147,6 +157,11 @@ class PolygonSelector {
 
 		@Override
 		public boolean isSelected(int index) {
+			return false;
+		}
+
+		@Override
+		public boolean hasSelection() {
 			return false;
 		}
 

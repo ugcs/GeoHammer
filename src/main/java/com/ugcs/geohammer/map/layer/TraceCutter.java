@@ -32,7 +32,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 
-import javax.annotation.Nullable;
 
 @Component
 public class TraceCutter implements Layer, InitializingBean {
@@ -46,8 +45,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	private MapField mapField;
 
-	@Nullable
-	private PolygonSelector polygonSelector = null;
+	private PolygonSelector polygonSelector = PolygonSelector.empty();
 
 	private RepaintListener listener;
 
@@ -78,10 +76,8 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	public void clear() {
-		if (polygonSelector != null) {
-			polygonSelector.clear();
-			polygonSelector = null;
-		}
+		polygonSelector.clear();
+		polygonSelector = PolygonSelector.empty();
 	}
 
 	public void init() {
@@ -153,10 +149,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@Override
 	public boolean mousePressed(Point2D point) {
-		if (polygonSelector == null) {
-			return false;
-		}
-
 		polygonSelector.select(point);
 		getListener().repaint();
 		return true;
@@ -164,10 +156,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@Override
 	public boolean mouseMove(Point2D point) {
-		if (polygonSelector == null) {
-			return false;
-		}
-
 		polygonSelector.moveSelection(point);
 		getListener().repaint();
 		return true;
@@ -176,10 +164,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@Override
 	public boolean mouseRightClick(Point2D point) {
-		if (polygonSelector == null) {
-			return false;
-		}
-
 		polygonSelector.remove(point);
 		getListener().repaint();
 		return true;
@@ -187,7 +171,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@Override
 	public void draw(Graphics2D g2, MapField fixedField) {
-		if (polygonSelector == null || polygonSelector.numPoints() == 0) {
+		if (polygonSelector.numPoints() == 0) {
 			return;
 		}
 
@@ -236,10 +220,6 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private void applyCropLines() {
-		if (polygonSelector == null) {
-			return;
-		}
-
 		model.clearSelectedTraces();
 
 		MapField field = new MapField(mapField);
@@ -252,10 +232,6 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private List<Point2D> getScreenPolygon() {
-		if (polygonSelector == null) {
-			return new ArrayList<>();
-		}
-
 		List<Point2D> polygon = new ArrayList<>();
 		for (int i = 0; i < polygonSelector.numPoints(); i++) {
 			polygon.add(polygonSelector.get(i));

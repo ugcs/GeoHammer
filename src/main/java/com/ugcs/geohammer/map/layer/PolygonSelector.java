@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.map.layer;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.ugcs.geohammer.model.LatLon;
@@ -123,5 +124,45 @@ class PolygonSelector {
 
 	void clear() {
 		points.clear();
+	}
+
+	public static PolygonSelector empty() {
+		return new EmptyPolygonSelector();
+	}
+
+	private static class EmptyPolygonSelector extends PolygonSelector {
+		EmptyPolygonSelector() {
+			super(null, new ArrayList<>());
+		}
+
+		@Override
+		public Point2D get(int index) {
+			return new Point2D(0, 0);
+		}
+
+		@Override
+		public Point2D getMiddle(int index) {
+			return new Point2D(0, 0);
+		}
+
+		@Override
+		public boolean isSelected(int index) {
+			return false;
+		}
+
+		@Override
+		public int numPoints() { return 0; }
+
+		@Override
+		public void select(Point2D point) { /* do nothing */ }
+
+		@Override
+		public void moveSelection(Point2D point) { /* do nothing */ }
+
+		@Override
+		public void remove(Point2D point) { /* do nothing */ }
+
+		@Override
+		public void clear() { /* do nothing */ }
 	}
 }

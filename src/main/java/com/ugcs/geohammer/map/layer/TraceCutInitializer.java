@@ -88,11 +88,6 @@ public class TraceCutInitializer {
 		points.add(f.screenTolatLon(new Point2D(
 				Math.cos(ang) * maxrad + center.getX(),
 				Math.sin(ang) * maxrad + center.getY())));
-				
-		points.add(1, points.get(0).midpoint(points.get(1)));
-		points.add(3, points.get(2).midpoint(points.get(3)));
-		points.add(5, points.get(4).midpoint(points.get(5)));
-		points.add(7, points.get(6).midpoint(points.get(0)));
 		
 		return points;
 	}

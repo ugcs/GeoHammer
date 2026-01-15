@@ -24,7 +24,6 @@ import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.map.RepaintListener;
 import com.ugcs.geohammer.model.Model;
 
@@ -33,18 +32,20 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 
+
 @Component
 public class TraceCutter implements Layer, InitializingBean {
-
 	private static final int RADIUS = 5;
 
-	private MapField mapField;
-	private List<PolygonPoint> points;
-	private Integer lastActivePointIndex = null;
-
 	private final Model model;
+
 	private final UndoModel undoModel;
+
 	private final TraceTransform traceTransform;
+
+	private MapField mapField;
+
+	private PolygonSelector polygonSelector = PolygonSelector.empty();
 
 	private RepaintListener listener;
 
@@ -75,21 +76,13 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	public void clear() {
-		lastActivePointIndex = null;
-		if (points == null) {
-			return;
-		}
-		points.clear();
+		polygonSelector.clear();
+		polygonSelector = PolygonSelector.empty();
 	}
 
 	public void init() {
 		List<LatLon> initialCoordinates = new TraceCutInitializer().initialRect(model);
-
-		points = new ArrayList<>();
-		for (int i = 0; i < initialCoordinates.size(); i++) {
-			PointType type = i % 2 == 0 ? PointType.CORNER : PointType.MIDDLE;
-			points.add(new PolygonPoint(initialCoordinates.get(i), type));
-		}
+		polygonSelector = new PolygonSelector(mapField, initialCoordinates);
 	}
 
 	public void initButtons() {
@@ -141,9 +134,7 @@ public class TraceCutter implements Layer, InitializingBean {
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
 
-		buttonSplit.setOnAction(e -> {
-			applySplitLine();
-		});
+		buttonSplit.setOnAction(e -> applySplitLine());
 
 		buttonUndo.setOnAction(e -> {
 			undo();
@@ -158,200 +149,68 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@Override
 	public boolean mousePressed(Point2D point) {
-		if (points == null) {
-			return false;
-		}
-
-		List<Point2D> border = getScreenPoligon(mapField);
-		for (int i = 0; i < border.size(); i++) {
-			Point2D p = border.get(i);
-			if (point.distance(p) < RADIUS) {
-				lastActivePointIndex = i;
-				getListener().repaint();
-				return true;
-			}
-		}
-		lastActivePointIndex = null;
-		return false;
-	}
-
-	@Override
-	public boolean mouseRelease(Point2D point) {
-		if (points == null) {
-			return false;
-		}
-
-		if (lastActivePointIndex != null) {
-			PolygonPoint activePoint = points.get(lastActivePointIndex);
-			if (activePoint.isMiddle() && activePoint.isActive()) {
-				activePoint.setType(PointType.CORNER);
-				activePoint.setActive(false);
-				addMiddlePointsAround(lastActivePointIndex);
-			}
-
-			getListener().repaint();
-			lastActivePointIndex = null;
-			return true;
-		}
-		return false;
-	}
-
-	@Override
-	public boolean mouseMove(Point2D point) {
-		if (points == null || lastActivePointIndex == null) {
-			return false;
-		}
-
-		PolygonPoint activePoint = points.get(lastActivePointIndex);
-		activePoint.getLatLon().from(mapField.screenTolatLon(point));
-
-		if (activePoint.isCorner()) {
-			int nextIndex = getNextPointIndex(lastActivePointIndex);
-			PolygonPoint nextPoint = points.get(nextIndex);
-			if (nextPoint.isMiddle() && !nextPoint.isActive()) {
-				LatLon nextCorner = points.get(getNextPointIndex(nextIndex)).getLatLon();
-				LatLon currentCorner = mapField.screenTolatLon(point);
-				nextPoint.getLatLon().from(nextCorner.midpoint(currentCorner));
-			}
-
-			int previousIndex = getPreviousPointIndex(lastActivePointIndex);
-			PolygonPoint previousPoint = points.get(previousIndex);
-			if (previousPoint.isMiddle() && !previousPoint.isActive()) {
-				LatLon previousCorner = points.get(getPreviousPointIndex(previousIndex)).getLatLon();
-				LatLon currentCorner = mapField.screenTolatLon(point);
-				previousPoint.getLatLon().from(previousCorner.midpoint(currentCorner));
-			}
-		} else if (activePoint.isMiddle()) {
-			activePoint.setActive(!isInTheMiddle(lastActivePointIndex));
-		}
-
+		polygonSelector.select(point);
 		getListener().repaint();
 		return true;
 	}
 
-	private int getNextPointIndex(int index) {
-		return (index + 1) % points.size();
+	@Override
+	public boolean mouseMove(Point2D point) {
+		polygonSelector.moveSelection(point);
+		getListener().repaint();
+		return true;
 	}
 
-	private int getPreviousPointIndex(int index) {
-		return (index - 1 + points.size()) % points.size();
-	}
 
 	@Override
 	public boolean mouseRightClick(Point2D point) {
-		if (points == null || points.size() <= 4) {
-			return false;
-		}
-
-		List<Point2D> border = getScreenPoligon(mapField);
-		for (int i = 0; i < border.size(); i++) {
-			Point2D p = border.get(i);
-			if (point.distance(p) < RADIUS) {
-				points.remove(i);
-				getListener().repaint();
-				return true;
-			}
-		}
-		return false;
+		polygonSelector.remove(point);
+		getListener().repaint();
+		return true;
 	}
 
 	@Override
 	public void draw(Graphics2D g2, MapField fixedField) {
-		if (points == null) {
+		if (polygonSelector.numPoints() == 0) {
 			return;
 		}
 
-		List<Point2D> border = getScreenPoligon(mapField);
+		for (int i = 0; i < polygonSelector.numPoints(); i++) {
+			Point2D polygonPoint = polygonSelector.get(i);
+			Point2D nextPolygonPoint = polygonSelector.get((i + 1) % polygonSelector.numPoints());
 
-		for (int i = 0; i < border.size(); i++) {
-			Point2D p1 = border.get(i);
-			Point2D p2 = border.get((i + 1) % border.size());
+			drawLine(g2, polygonPoint, nextPolygonPoint, Color.YELLOW);
 
-			g2.setColor(Color.YELLOW);
-			g2.drawLine((int) p1.getX(), (int) p1.getY(),
-					(int) p2.getX(), (int) p2.getY());
-		}
+			drawPoint(g2, polygonPoint, Color.WHITE);
 
-		for (int i = 0; i < border.size(); i++) {
-			Point2D p1 = border.get(i);
-			PolygonPoint polygonPoint = points.get(i);
+			Point2D middlePoint = polygonSelector.getMiddle(i);
+			drawPoint(g2, middlePoint, Color.GRAY);
 
-			if (polygonPoint.isMiddle()) {
-				g2.setColor(Color.GRAY);
-			} else {
-				g2.setColor(Color.WHITE);
-			}
-
-			g2.fillOval((int) p1.getX() - RADIUS,
-					(int) p1.getY() - RADIUS,
-					2 * RADIUS, 2 * RADIUS);
-
-			if (lastActivePointIndex != null && lastActivePointIndex == i) {
-				g2.setColor(Color.BLUE);
-				g2.drawOval((int) p1.getX() - RADIUS,
-						(int) p1.getY() - RADIUS,
-						2 * RADIUS, 2 * RADIUS);
+			if (polygonSelector.isSelected(i)) {
+				drawCircleBorder(g2, polygonPoint, Color.BLUE);
 			}
 		}
 	}
 
-	private boolean isInTheMiddle(int pointIndex) {
-		List<Point2D> border = getScreenPoligon(mapField);
-		Point2D before = border.get(getPreviousPointIndex(pointIndex));
-		Point2D current = border.get(pointIndex);
-		Point2D after = border.get(getNextPointIndex(pointIndex));
-		return isInTheMiddle(before, current, after);
+	private void drawLine(Graphics2D graphics, Point2D point1, Point2D point2, Color color) {
+		graphics.setColor(color);
+		graphics.drawLine((int) point1.getX(), (int) point1.getY(),
+				(int) point2.getX(), (int) point2.getY());
 	}
 
-	private boolean isInTheMiddle(Point2D before, Point2D current, Point2D after) {
-		double dist = before.distance(after);
-		double dist1 = before.distance(current);
-		double dist2 = current.distance(after);
-		return Math.abs(dist1 + dist2 - dist) < 0.05;
+	private void drawPoint(Graphics2D graphics, Point2D point, Color color) {
+		graphics.setColor(color);
+		graphics.fillOval((int) point.getX() - RADIUS,
+				(int) point.getY() - RADIUS,
+				2 * RADIUS, 2 * RADIUS);
 	}
 
-	private void addMiddlePoint(int index) {
-		if (points == null || points.size() < 2) {
-			return;
-		}
-
-		int nextIndex = getNextPointIndex(index);
-
-		LatLon current = points.get(index).getLatLon();
-		LatLon next = points.get(nextIndex).getLatLon();
-		PolygonPoint middlePoint = new PolygonPoint(
-				current.midpoint(next),
-				PointType.MIDDLE);
-
-		if (points.contains(middlePoint)) {
-			return;
-		}
-
-		int insertPos = index + 1;
-		points.add(insertPos, middlePoint);
+	private void drawCircleBorder(Graphics2D graphics, Point2D point, Color color) {
+		graphics.setColor(color);
+		graphics.drawOval((int) point.getX() - RADIUS,
+				(int) point.getY() - RADIUS,
+				2 * RADIUS, 2 * RADIUS);
 	}
-
-	private void addMiddlePointsAround(int index) {
-		if (points == null || points.size() < 2) {
-			return;
-		}
-
-		int leftIndex = getPreviousPointIndex(index);
-		addMiddlePoint(leftIndex);
-
-		int rightIndex = getNextPointIndex(index);
-		addMiddlePoint(rightIndex);
-	}
-
-	private List<Point2D> getScreenPoligon(MapField fld) {
-		List<Point2D> border = new ArrayList<>();
-		for (PolygonPoint point : points) {
-			LatLon ll = point.getLatLon();
-			border.add(fld.latLonToScreen(ll));
-		}
-		return border;
-	}
-
 
 	private void undo() {
 		if (undoModel.canUndo()) {
@@ -366,10 +225,18 @@ public class TraceCutter implements Layer, InitializingBean {
 		MapField field = new MapField(mapField);
 		field.setZoom(28);
 
-		List<Point2D> cropArea = getScreenPoligon(field);
+		List<Point2D> cropArea = getScreenPolygon();
 
 		List<SgyFile> files = model.getFileManager().getFiles();
 		traceTransform.cropLines(files, field, cropArea);
+	}
+
+	private List<Point2D> getScreenPolygon() {
+		List<Point2D> polygon = new ArrayList<>();
+		for (int i = 0; i < polygonSelector.numPoints(); i++) {
+			polygon.add(polygonSelector.get(i));
+		}
+		return polygon;
 	}
 
 	private void applySplitLine() {
@@ -396,19 +263,6 @@ public class TraceCutter implements Layer, InitializingBean {
 		traceTransform.splitLine(file, splitIndex);
 	}
 
-	public static List<BaseObject> copyAuxObjects(SgyFile file, SgyFile sgyFile, int begin, int end) {
-		List<BaseObject> auxObjects = new ArrayList<>();
-		for (BaseObject au : file.getAuxElements()) {
-			if (au.isFit(begin, end)) {
-				BaseObject copy = au.copy(begin);
-				if (copy != null) {
-					auxObjects.add(copy);
-				}
-			}
-		}
-		return auxObjects;
-	}
-
 	@EventListener
 	public void onFileOpened(FileOpenedEvent event) {
 		//TODO: maybe we need other event for this
@@ -431,52 +285,6 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@EventListener
 	private void undoStackChanged(UndoStackChanged event) {
-		Platform.runLater(() -> {
-			buttonUndo.setDisable(!undoModel.canUndo());
-		});
-	}
-
-	private static class PolygonPoint {
-		private final LatLon latLon;
-		private PointType type;
-		private boolean isActive;
-
-		public PolygonPoint(LatLon latLon, PointType type) {
-			this.latLon = latLon;
-			this.type = type;
-		}
-
-		public LatLon getLatLon() {
-			return latLon;
-		}
-
-		public PointType getType() {
-			return type;
-		}
-
-		public void setType(PointType type) {
-			this.type = type;
-		}
-
-		public boolean isActive() {
-			return isActive;
-		}
-
-		public void setActive(boolean active) {
-			isActive = active;
-		}
-
-		public boolean isCorner() {
-			return type == PointType.CORNER;
-		}
-
-		public boolean isMiddle() {
-			return type == PointType.MIDDLE;
-		}
-	}
-
-	private enum PointType {
-		CORNER,
-		MIDDLE
+		Platform.runLater(() -> buttonUndo.setDisable(!undoModel.canUndo()));
 	}
 }

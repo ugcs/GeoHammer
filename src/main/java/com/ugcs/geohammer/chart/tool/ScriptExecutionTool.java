@@ -63,6 +63,7 @@ public class ScriptExecutionTool extends FilterToolView {
 	private static final int MAX_OUTPUT_LINES_IN_DIALOG = 7;
 
 	private static final String PREFS_NODE_NAME = "script_execution_tool";
+	public static final String PREFS_LAST_SELECTED_SCRIPT_PREFIX = "last_selected_script";
 
 	private final Model model;
 
@@ -104,6 +105,13 @@ public class ScriptExecutionTool extends FilterToolView {
 		scriptsMetadataSelector.setOnAction(e -> {
 			ScriptMetadata scriptMetadata = scriptsMetadataSelector.getValue();
 			updateParametersBox(scriptMetadata);
+			String templateName = Templates.getTemplateName(selectedFile);
+			if (scriptMetadata != null && templateName != null) {
+				preferences.setValue(
+						PREFS_NODE_NAME,
+						PREFS_LAST_SELECTED_SCRIPT_PREFIX + "_" + templateName,
+						scriptMetadata.filename());
+			}
 		});
 
         inputContainer.getChildren().setAll(scriptsMetadataSelector, parametersBox);
@@ -212,12 +220,17 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private void restoreScriptSelection() {
-		@Nullable ScriptMetadata prevSelectedScript = scriptsMetadataSelector.getSelectionModel().getSelectedItem();
+		String templateName = Templates.getTemplateName(selectedFile);
+		String selectedScriptFilename = preferences.getString(PREFS_NODE_NAME, PREFS_LAST_SELECTED_SCRIPT_PREFIX + "_" + templateName);
+		@Nullable ScriptMetadata selectedScriptMetadata = scriptsMetadata.stream()
+				.filter(scriptMetadata -> scriptMetadata.filename().equals(selectedScriptFilename))
+				.findAny()
+				.orElse(null);
 		scriptsMetadataSelector.getItems().setAll(
 				scriptsMetadata
 		);
-		if (prevSelectedScript != null && scriptsMetadataSelector.getItems().contains(prevSelectedScript)) {
-			scriptsMetadataSelector.getSelectionModel().select(prevSelectedScript);
+		if (selectedScriptMetadata != null && scriptsMetadataSelector.getItems().contains(selectedScriptMetadata)) {
+			scriptsMetadataSelector.getSelectionModel().select(selectedScriptMetadata);
 		} else {
 			scriptsMetadataSelector.getSelectionModel().clearSelection();
 			scriptsMetadataSelector.setValue(null);

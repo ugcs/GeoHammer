@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GPRChart extends Chart {
 
@@ -116,7 +117,7 @@ public class GPRChart extends Chart {
     private final ProfileField profileField;
     private final List<BaseObject> auxElements = new ArrayList<>();
 
-	private volatile boolean needsRepaint = false;
+	private final AtomicBoolean needsRepaint = new AtomicBoolean(false);
 
 	private final AnimationTimer repaintTimer;
 
@@ -165,18 +166,16 @@ public class GPRChart extends Chart {
             }
         });
 
-		// Initialize the repaint timer
 		repaintTimer = new AnimationTimer() {
 			@Override
 			public void handle(long now) {
-				if (needsRepaint) {
-					needsRepaint = false;
+				if (needsRepaint.get()) {
+					needsRepaint.set(false);
 					repaint();
 				}
 			}
 		};
 		repaintTimer.start();
-
 
 		scrollHandler = new CleverViewScrollHandler(this);
         updateAuxElements();
@@ -212,7 +211,7 @@ public class GPRChart extends Chart {
 
 	public void repaintEvent() {
 		if (!model.isLoading() && getField().getGprTracesCount() > 0) {
-			needsRepaint = true;
+			needsRepaint.set(true);
 		}
 	}
 

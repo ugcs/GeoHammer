@@ -54,6 +54,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -118,6 +119,14 @@ public class GPRChart extends Chart {
 	private volatile boolean needsRepaint = false;
 
 	private final AnimationTimer repaintTimer;
+
+	private BufferedImage cachedBufferedImage;
+
+	private int[] cachedBuffer;
+
+	private int cachedWidth = -1;
+
+	private int cachedHeight = -1;
 
     VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
     HorizontalRulerDrawer horizontalRulerDrawer = new HorizontalRulerDrawer(this);
@@ -414,11 +423,14 @@ public class GPRChart extends Chart {
             // fitFull();
         }
 
-        BufferedImage bi = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        int[] buffer = ((DataBufferInt) bi.getRaster().getDataBuffer()).getData();
-        for (int i = 0; i < buffer.length; i++) {
-            buffer[i] = BACK_GROUD_COLOR.getRGB();
-        }
+		if (cachedBufferedImage == null || cachedWidth != width || cachedHeight != height) {
+			cachedBufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+			cachedBuffer = ((DataBufferInt) cachedBufferedImage.getRaster().getDataBuffer()).getData();
+			cachedWidth = width;
+			cachedHeight = height;
+		}
+
+		Arrays.fill(cachedBuffer, BACK_GROUD_COLOR.getRGB());
 
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -434,8 +446,8 @@ public class GPRChart extends Chart {
 
         var mainRect = profileField.getMainRect();
         g2.setClip(mainRect.x, mainRect.y, mainRect.width, mainRect.height);
-        prismDrawer.draw(width, this, g2, buffer, getRealContrast());
-        g2.drawImage(bi, 0, 0, (int) width, (int) height, null);
+        prismDrawer.draw(width, this, g2, cachedBuffer, getRealContrast());
+        g2.drawImage(cachedBufferedImage, 0, 0, width, height, null);
 
         g2.translate(mainRect.x + mainRect.width / 2, 0);
 
@@ -484,13 +496,13 @@ public class GPRChart extends Chart {
         var profileSettings = profileField.getProfileSettings();
 
         int y = (int) traceSampleToScreen(new TraceSample(0, profileSettings.getLayer())).getY();
-        g2.drawLine((int) -width / 2, y, (int) width / 2, y);
+        g2.drawLine(-width / 2, y, width / 2, y);
 
         int bottomSelectedSmp = profileSettings.getLayer() + profileSettings.hpage;
         int y2 = (int) traceSampleToScreen(new TraceSample(
                 0, bottomSelectedSmp)).getY();
 
-        g2.drawLine((int) -width / 2, y2, (int) width / 2, y2);
+        g2.drawLine(-width / 2, y2, width / 2, y2);
     }
 
     private void drawAuxElements(Graphics2D g2) {
@@ -705,7 +717,7 @@ public class GPRChart extends Chart {
 				}
 			};
 
-    private EventHandler<MouseEvent> mouseReleaseHandler =
+    private final EventHandler<MouseEvent> mouseReleaseHandler =
             new EventHandler<>() {
                 @Override
                 public void handle(MouseEvent event) {

@@ -33,7 +33,7 @@ import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.view.BaseSlider;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Range;
-import javafx.application.Platform;
+import javafx.animation.AnimationTimer;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -45,7 +45,6 @@ import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.checkerframework.checker.units.qual.min;
 import org.jfree.fx.FXGraphics2D;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -116,6 +115,10 @@ public class GPRChart extends Chart {
     private final ProfileField profileField;
     private final List<BaseObject> auxElements = new ArrayList<>();
 
+	private volatile boolean needsRepaint = false;
+
+	private final AnimationTimer repaintTimer;
+
     VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
     HorizontalRulerDrawer horizontalRulerDrawer = new HorizontalRulerDrawer(this);
 
@@ -153,15 +156,32 @@ public class GPRChart extends Chart {
             }
         });
 
-        scrollHandler = new CleverViewScrollHandler(this);
+		// Initialize the repaint timer
+		repaintTimer = new AnimationTimer() {
+			@Override
+			public void handle(long now) {
+				if (needsRepaint) {
+					needsRepaint = false;
+					repaint();
+				}
+			}
+		};
+		repaintTimer.start();
+
+
+		scrollHandler = new CleverViewScrollHandler(this);
         updateAuxElements();
     }
 
     public void close() {
-        if (!confirmUnsavedChanges()) {
-            return;
-        }
-        model.publishEvent(new FileClosedEvent(this, getFile()));
+		if (repaintTimer != null) {
+			repaintTimer.stop();
+		}
+
+		if (!confirmUnsavedChanges()) {
+			return;
+		}
+		model.publishEvent(new FileClosedEvent(this, getFile()));
     }
 
     @Override
@@ -181,12 +201,11 @@ public class GPRChart extends Chart {
         draw(width, height);
     }
 
-    public void repaintEvent() {
-        if (!model.isLoading() && getField().getGprTracesCount() > 0) {
-            //controller.render();
-            Platform.runLater(this::repaint);
-        }
-    }
+	public void repaintEvent() {
+		if (!model.isLoading() && getField().getGprTracesCount() > 0) {
+			needsRepaint = true;
+		}
+	}
 
     @Override
     public void reload() {
@@ -670,21 +689,21 @@ public class GPRChart extends Chart {
     };
 
     private final EventHandler<MouseEvent> mousePressHandler =
-            new EventHandler<MouseEvent>() {
-                @Override
-                public void handle(MouseEvent event) {
+			new EventHandler<>() {
+				@Override
+				public void handle(MouseEvent event) {
 
-                    Point2D p = getLocalCoords(event);
-                    if (auxEditHandler.mousePressHandle(p, GPRChart.this)) {
-                        selectedMouseHandler = auxEditHandler;
-                    } else if (scrollHandler.mousePressHandle(p, GPRChart.this)) {
-                        selectedMouseHandler = scrollHandler;
-                    } else {
-                        selectedMouseHandler = null;
-                    }
-                    canvas.setCursor(Cursor.CLOSED_HAND);
-                }
-            };
+					Point2D p = getLocalCoords(event);
+					if (auxEditHandler.mousePressHandle(p, GPRChart.this)) {
+						selectedMouseHandler = auxEditHandler;
+					} else if (scrollHandler.mousePressHandle(p, GPRChart.this)) {
+						selectedMouseHandler = scrollHandler;
+					} else {
+						selectedMouseHandler = null;
+					}
+					canvas.setCursor(Cursor.CLOSED_HAND);
+				}
+			};
 
     private EventHandler<MouseEvent> mouseReleaseHandler =
             new EventHandler<>() {
@@ -701,48 +720,45 @@ public class GPRChart extends Chart {
             };
 
     protected EventHandler<MouseEvent> dragDetectedHandler =
-            new EventHandler<MouseEvent>() {
-                @Override
-                public void handle(MouseEvent mouseEvent) {
-                    canvas.startFullDrag();
-                    canvas.setCursor(Cursor.CLOSED_HAND);
-                }
-            };
+			mouseEvent -> {
+				canvas.startFullDrag();
+				canvas.setCursor(Cursor.CLOSED_HAND);
+			};
 
     protected EventHandler<MouseDragEvent> dragReleaseHandler =
-            new EventHandler<MouseDragEvent>() {
-                @Override
-                public void handle(MouseDragEvent event) {
+			new EventHandler<>() {
+				@Override
+				public void handle(MouseDragEvent event) {
 
-                    Point2D p = getLocalCoords(event);
+					Point2D p = getLocalCoords(event);
 
-                    if (selectedMouseHandler != null) {
-                        selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
-                        selectedMouseHandler = null;
-                    }
+					if (selectedMouseHandler != null) {
+						selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
+						selectedMouseHandler = null;
+					}
 
-                    canvas.setCursor(Cursor.DEFAULT);
+					canvas.setCursor(Cursor.DEFAULT);
 
-                    event.consume();
-                }
-            };
+					event.consume();
+				}
+			};
 
     protected EventHandler<MouseEvent> mouseMoveHandler =
-            new EventHandler<MouseEvent>() {
+			new EventHandler<>() {
 
-                @Override
-                public void handle(MouseEvent event) {
+				@Override
+				public void handle(MouseEvent event) {
 
-                    Point2D p = getLocalCoords(event);
-                    if (selectedMouseHandler != null) {
-                        selectedMouseHandler.mouseMoveHandle(p, GPRChart.this);
-                    } else {
-                        if (!auxEditHandler.mouseMoveHandle(p, GPRChart.this)) {
-                            //do nothing
-                        }
-                    }
-                }
-            };
+					Point2D p = getLocalCoords(event);
+					if (selectedMouseHandler != null) {
+						selectedMouseHandler.mouseMoveHandle(p, GPRChart.this);
+					} else {
+						if (!auxEditHandler.mouseMoveHandle(p, GPRChart.this)) {
+							//do nothing
+						}
+					}
+				}
+			};
 
     @Override
     public int numTraces() {

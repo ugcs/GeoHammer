@@ -412,16 +412,15 @@ public class GPRChart extends Chart {
         model.publishEvent(new FileSelectedEvent(this, profileField.getFile()));
     }
 
-    private void draw(int width, int height) {
-        if (width <= 0 || height <= 0 || !model.isActive() || profileField.getGprTracesCount() == 0) {
-            return;
-        }
+	private void draw(int width, int height) {
+		if (width <= 0 || height <= 0 || !model.isActive() || profileField.getGprTracesCount() == 0) {
+			return;
+		}
 
-        if (!(canvas.getWidth() == width && canvas.getHeight() == height)) {
-            canvas.setWidth(width);
-            canvas.setHeight(height);
-            // fitFull();
-        }
+		if (!(canvas.getWidth() == width && canvas.getHeight() == height)) {
+			canvas.setWidth(width);
+			canvas.setHeight(height);
+		}
 
 		if (cachedBufferedImage == null || cachedWidth != width || cachedHeight != height) {
 			cachedBufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -432,39 +431,39 @@ public class GPRChart extends Chart {
 
 		Arrays.fill(cachedBuffer, BACK_GROUD_COLOR.getRGB());
 
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        g2.setClip(null);
-        g2.setColor(BACK_GROUD_COLOR);
-        g2.fillRect(0, 0, (int) canvas.getWidth(), (int) canvas.getHeight());
+		g2.setClip(null);
+		g2.setColor(BACK_GROUD_COLOR);
+		g2.fillRect(0, 0, (int) canvas.getWidth(), (int) canvas.getHeight());
 
-        drawAxis(g2);
+		drawAxis(g2);
 
-        verticalRulerDrawer.draw(g2);
-        horizontalRulerDrawer.draw(g2);
+		verticalRulerDrawer.draw(g2);
+		horizontalRulerDrawer.draw(g2);
 
         var mainRect = profileField.getMainRect();
-        g2.setClip(mainRect.x, mainRect.y, mainRect.width, mainRect.height);
+		g2.setClip(mainRect.x, mainRect.y, mainRect.width, mainRect.height);
         prismDrawer.draw(width, this, g2, cachedBuffer, getRealContrast());
         g2.drawImage(cachedBufferedImage, 0, 0, width, height, null);
 
-        g2.translate(mainRect.x + mainRect.width / 2, 0);
+		g2.translate(mainRect.x + mainRect.width / 2, 0);
 
-        drawAuxGraphics1(g2);
-        drawAuxElements(g2);
+		drawAuxGraphics1(g2);
+		drawAuxElements(g2);
 
-        var clipTopMainRect = profileField.getClipTopMainRect();
-        g2.setClip(clipTopMainRect.x,
-                clipTopMainRect.y,
-                clipTopMainRect.width,
-                clipTopMainRect.height);
+		var clipTopMainRect = profileField.getClipTopMainRect();
+		g2.setClip(clipTopMainRect.x,
+				clipTopMainRect.y,
+				clipTopMainRect.width,
+				clipTopMainRect.height);
 
-        drawFileName(g2);
-        drawLines(g2);
+		drawFileName(g2);
+		drawLines(g2);
 
-        g2.translate(-(mainRect.x + mainRect.width / 2), 0);
-    }
+		g2.translate(-(mainRect.x + mainRect.width / 2), 0);
+	}
 
     private void drawAuxGraphics1(Graphics2D g2) {
         Rectangle r = profileField.getClipMainRect();
@@ -596,18 +595,22 @@ public class GPRChart extends Chart {
 
     private void drawHorizontalProfile(Graphics2D g2, HorizontalProfile pf, int voffset) {
         g2.setColor(pf.getColor());
-        Point2D p1 = traceSampleToScreenCenter(new TraceSample(
-                0, pf.getDepth(0) + voffset));
+		int trace1 = 0;
+		int sample1 = pf.getDepth(0) + voffset;
+		int x1 = traceToScreen(trace1) + (int) (getHScale() / 2);
+		int y1 = sampleToScreen(sample1) + (int) (getVScale() / 2);
 
-        for (int i = 1; i < pf.size(); i++) {
-            Point2D p2 = traceSampleToScreenCenter(new TraceSample(
-                    i, pf.getDepth(i) + voffset));
+		for (int i = 1; i < pf.size(); i++) {
+			int sample2 = pf.getDepth(i) + voffset;
+			int x2 = traceToScreen(i) + (int) (getHScale() / 2);
+			int y2 = sampleToScreen(sample2) + (int) (getVScale() / 2);
 
-            if (p2.getX() - p1.getX() > 0 || Math.abs(p2.getY() - p1.getY()) > 0) {
-                g2.drawLine((int) p1.getX(), (int) p1.getY(), (int) p2.getX(), (int) p2.getY());
-                p1 = p2;
-            }
-        }
+			if (x2 - x1 > 0 || Math.abs(y2 - y1) > 0) {
+				g2.drawLine(x1, y1, x2, y2);
+				x1 = x2;
+				y1 = y2;
+			}
+		}
     }
 
     private void drawFileName(Graphics2D g2) {
@@ -651,14 +654,13 @@ public class GPRChart extends Chart {
                 g2.setFont(fontP);
             }
 
-            Point2D lineStart = traceSampleToScreen(
-                    new TraceSample(lineRange.from(), 0));
-            if (lineStart.getX() > (double)-mainRect.width / 2) {
-                g2.drawLine((int)lineStart.getX(), mainRect.y,
-                        (int)lineStart.getX(), mainRect.y + lineHeight);
-            }
-        }
-    }
+			int lineX = traceToScreen(lineRange.from());
+
+			if (lineX > -mainRect.width / 2) {
+				g2.drawLine(lineX, mainRect.y, lineX, mainRect.y + lineHeight);
+			}
+		}
+	}
 
     public ProfileField getField() {
         return profileField;

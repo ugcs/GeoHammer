@@ -228,16 +228,17 @@ public class TraceCutter implements Layer, InitializingBean {
 		MapField field = new MapField(mapField);
 		field.setZoom(28);
 
-		List<Point2D> cropArea = getScreenPolygon();
+		List<Point2D> cropArea = getScreenPolygon(field);
 
 		List<SgyFile> files = model.getFileManager().getFiles();
 		traceTransform.cropLines(files, field, cropArea);
 	}
 
-	private List<Point2D> getScreenPolygon() {
+	private List<Point2D> getScreenPolygon(MapField field) {
 		List<Point2D> polygon = new ArrayList<>();
 		for (int i = 0; i < polygonSelector.numPoints(); i++) {
-			polygon.add(polygonSelector.get(i));
+			LatLon latLon = mapField.screenTolatLon(polygonSelector.get(i));
+			polygon.add(field.latLonToScreen(latLon));
 		}
 		return polygon;
 	}

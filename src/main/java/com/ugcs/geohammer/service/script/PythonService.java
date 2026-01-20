@@ -14,7 +14,6 @@ import java.util.function.Consumer;
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.OperatingSystemUtils;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -166,36 +165,18 @@ public class PythonService {
 		}
 	}
 
-	public Path getPipreqsPath() throws IOException, InterruptedException {
-		Path pythonPath = getPythonPath();
-
-		Path pipreqsPath;
-		pipreqsPath = findPipreqsNearPython(pythonPath);
-		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
+	private Path getPipreqsPath() throws IOException, InterruptedException {
+		Path pipreqsPath = findPipreqsExecutable();
+		if (pipreqsPath != null) {
 			return pipreqsPath;
 		}
-
-		pipreqsPath = findSystemPipreqs();
-		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
-			return pipreqsPath;
-		}
-		return null;
+		throw new IllegalStateException("Requirements analyzer package (pipreqs) not found. Please install it manually");
 	}
 
-	private static @NotNull Path findPipreqsNearPython(Path pythonPath) {
-		Path pipreqsPath;
-		if (OperatingSystemUtils.isWindows()) {
-			pipreqsPath = pythonPath.getParent().resolve(Paths.get("Scripts", "pipreqs.exe"));
-		} else {
-			pipreqsPath = pythonPath.getParent().resolve("pipreqs");
-		}
-		return pipreqsPath;
-	}
-
-	private @Nullable Path findSystemPipreqs() throws IOException, InterruptedException {
-		List<String> command = OperatingSystemUtils.isWindows()
-				? List.of("where", REQUIREMENTS_ANALYZER)
-				: List.of("which", REQUIREMENTS_ANALYZER);
+	private @Nullable Path findPipreqsExecutable() throws IOException, InterruptedException {
+		String pythonExecutorPath = getPythonPath().toString();
+		String script = "import shutil; print(shutil.which('" + REQUIREMENTS_ANALYZER + "') or '')";
+		List<String> command = List.of(pythonExecutorPath, "-c", script);
 
 		StringBuilder output = new StringBuilder();
 		Consumer<String> outputConsumer = line -> {
@@ -208,10 +189,7 @@ public class PythonService {
 
 		String pathStr = output.toString().trim();
 		if (!pathStr.isEmpty()) {
-			Path path = Paths.get(pathStr);
-			if (Files.exists(path)) {
-				return path;
-			}
+			return Paths.get(pathStr);
 		}
 		return null;
 	}

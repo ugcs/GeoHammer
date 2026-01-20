@@ -9,7 +9,7 @@ For support:
 - For GeoHammer Pro paid license: if you suspect software bug, or have feature request, please register issue here https://github.com/ugcs/GeoHammer/issues, and/or write to SPH Engineering support (support@sphengeneering.com) 
 
 To run the application:
-- On Windows - run geohammer.exe or start.cmd
+- On Windows - run geohammer.exe
 - On macOS - open GeoHammer.app
 
 This software may collect anonymous usage statistics to improve its functionality and performance. By using GeoHammer, you consent to this data collection. No personally identifiable information is collected.

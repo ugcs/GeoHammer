@@ -110,7 +110,7 @@ public final class Text {
         if (Strings.isNullOrBlank(value)) {
             return null;
         }
-        Check.notNull(format);
+        Check.notNull(format, "Date format is not specified in template");
         try {
             return LocalDate.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
         } catch (DateTimeParseException e) {
@@ -122,7 +122,7 @@ public final class Text {
         if (Strings.isNullOrBlank(value)) {
             return null;
         }
-        Check.notNull(format);
+        Check.notNull(format, "Time format is not specified in template");
         format = format.replaceAll("f", "S");
         try {
             return LocalTime.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
@@ -135,7 +135,7 @@ public final class Text {
         if (Strings.isNullOrBlank(value)) {
             return null;
         }
-        Check.notNull(format);
+        Check.notNull(format, "DateTime format is not specified in template");
         if (format.equals(GPST_FORMAT)) {
             return parseGpsDateTime(value);
         }

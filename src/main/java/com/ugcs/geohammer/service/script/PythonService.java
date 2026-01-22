@@ -166,30 +166,64 @@ public class PythonService {
 	}
 
 	private Path getPipreqsPath() throws IOException, InterruptedException {
-		Path pipreqsPath = findPipreqsExecutable();
+		Path pythonPath = getPythonPath();
+
+		Path pipreqsPath = findPipreqsInPythonDirectory(pythonPath);
+		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
+			return pipreqsPath;
+		}
+
+		pipreqsPath = findPipreqsFromPackageLocation();
 		if (pipreqsPath != null) {
 			return pipreqsPath;
 		}
+
 		throw new IllegalStateException("Requirements analyzer package (pipreqs) not found. Please install it manually");
 	}
 
-	private @Nullable Path findPipreqsExecutable() throws IOException, InterruptedException {
-		String pythonExecutorPath = getPythonPath().toString();
-		String script = "import shutil; print(shutil.which('" + REQUIREMENTS_ANALYZER + "') or '')";
-		List<String> command = List.of(pythonExecutorPath, "-c", script);
+	private Path findPipreqsInPythonDirectory(Path pythonPath) {
+		Path pipreqsPath;
+		if (OperatingSystemUtils.isWindows()) {
+			pipreqsPath = pythonPath.getParent().resolve(Paths.get("Scripts", "pipreqs.exe"));
+		} else {
+			pipreqsPath = pythonPath.getParent().resolve("pipreqs");
+		}
+		return pipreqsPath;
+	}
+
+	private @Nullable Path findPipreqsFromPackageLocation() throws IOException, InterruptedException {
+		String pythonExecutable = getPythonPath().toString();
+		List<String> command = List.of(pythonExecutable, "-m", "pip", "show", REQUIREMENTS_ANALYZER);
 
 		StringBuilder output = new StringBuilder();
-		Consumer<String> outputConsumer = line -> {
-			if (output.isEmpty()) {
-				output.append(line);
-			}
-		};
-
+		Consumer<String> outputConsumer = line -> output.append(line).append("\n");
 		commandExecutor.executeCommand(command, outputConsumer);
 
-		String pathStr = output.toString().trim();
-		if (!pathStr.isEmpty()) {
-			return Paths.get(pathStr);
+		String location = null;
+		for (String line : output.toString().split("\n")) {
+			if (line.startsWith("Location:")) {
+				location = line.substring("Location:".length()).trim();
+				break;
+			}
+		}
+
+		if (location == null || location.isEmpty()) {
+			return null;
+		}
+
+		Path sitePackages = Paths.get(location);
+
+		if (OperatingSystemUtils.isWindows()) {
+			Path scriptsDir = Paths.get("Scripts", "pipreqs.exe");
+			Path pipreqsPath = sitePackages.getParent().resolve(scriptsDir);
+			if (Files.exists(pipreqsPath)) {
+				return pipreqsPath;
+			}
+		} else {
+			Path pipreqsPath = sitePackages.getParent().resolve("pipreqs");
+			if (Files.exists(pipreqsPath)) {
+				return pipreqsPath;
+			}
 		}
 		return null;
 	}

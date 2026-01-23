@@ -81,7 +81,13 @@ public class PythonService {
 			}
 
 			installDependenciesFromRequirements(tempDirectory, onOutput);
-			onOutput.accept("Dependencies installed successfully for script " + filename);
+			if (areAllPackagesInstalled(tempDirectory)) {
+				onOutput.accept("Dependencies installed successfully for script " + filename);
+				return;
+			}
+
+			reinstallDependenciesFromRequirements(tempDirectory, onOutput);
+			onOutput.accept("Dependencies reinstalled successfully for script " + filename);
 		} catch (IOException | CommandExecutionException e) {
 			log.warn("Dependency installation failed (possibly offline): {}", e.getMessage(), e);
 		} catch (InterruptedException e) {
@@ -262,6 +268,28 @@ public class PythonService {
 				"-m",
 				"pip",
 				"install",
+				"-r",
+				requirementsPath.toString()
+		);
+		commandExecutor.executeCommand(command, onOutput);
+	}
+
+	private void reinstallDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,
+			InterruptedException {
+		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
+		if (!Files.exists(requirementsPath)) {
+			log.warn("No requirements.txt found in {}, skipping dependency re-installation.", directory);
+			return;
+		}
+
+		String pythonExecutorPath = getPythonPath().toString();
+		List<String> command = List.of(
+				pythonExecutorPath,
+				"-m",
+				"pip",
+				"install",
+				"--force-reinstall",
+				"--no-cache-dir",
 				"-r",
 				requirementsPath.toString()
 		);

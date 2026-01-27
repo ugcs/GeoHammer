@@ -155,7 +155,7 @@ public class RulerTool extends BaseObjectImpl {
 	public static double distanceVCm(TraceFile file, int tr, double smp1, double smp2) {
 		double grndLevel = 0;
 		if (file.getGroundProfile() != null) {
-			grndLevel = file.getGroundProfile().getDepth(tr);
+			grndLevel = file.getGroundProfile().getSurfaceIndex(file, tr);
 		}
 
 		double h1 = Math.min(smp1, smp2); 
@@ -173,7 +173,7 @@ public class RulerTool extends BaseObjectImpl {
 	public static double distanceCm(TraceFile file, int tr1, int tr2, double smp1, double smp2) {
 		double grndLevel = 0;
 		if (file.getGroundProfile() != null) {
-			grndLevel = file.getGroundProfile().getDepth((tr1 + tr2) / 2);
+			grndLevel = file.getGroundProfile().getSurfaceIndex(file, (tr1 + tr2) / 2);
 		}
 
 		int s = Math.max(0, Math.min(tr1, tr2));

@@ -38,6 +38,9 @@ public class Trace {
 
 	private Instant dateTime;
 
+    // in meters
+    private Double surfaceElevation;
+
     //tmp for loading
     private boolean marked = false;
     
@@ -71,6 +74,7 @@ public class Trace {
         copy.sampleRange = sampleRange;
         copy.prevDist = prevDist;
         copy.maxindex = maxindex;
+        copy.surfaceElevation = surfaceElevation;
         copy.marked = marked;
         return copy;
     }
@@ -132,6 +136,10 @@ public class Trace {
         samples[localToGlobal(index)] = value;
     }
 
+    public float[] getFileSamples() {
+        return samples;
+    }
+
     public byte getEdge(int index) {
         return edges[localToGlobal(index)];
     }
@@ -168,7 +176,15 @@ public class Trace {
 		this.dateTime = dateTime;
 	}
 
-	public boolean isMarked() {
+    public Double getSurfaceElevation() {
+        return surfaceElevation;
+    }
+
+    public void setSurfaceElevation(Double surfaceElevation) {
+        this.surfaceElevation = surfaceElevation;
+    }
+
+    public boolean isMarked() {
         return marked;
     }
 

@@ -1,6 +1,5 @@
 package com.ugcs.geohammer.format;
 
-import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,15 +30,24 @@ public class PositionFile {
 
 	private static final Logger log = LoggerFactory.getLogger(PositionFile.class);
 
-	private FileTemplates templates;
+	private final FileTemplates templates;
 
 	@Nullable
 	private Parser parser;
 
 	@Nullable
-	private File positionFile;
+	private File file;
 
 	private List<GeoData> geoData;
+
+    @Nullable
+    private String traceHeader;
+
+    @Nullable
+    private String altitudeHeader;
+
+    @Nullable
+    private String ellipsoidalHeightHeader;
 
 	public PositionFile(FileTemplates templates) {
 		this.templates = templates;
@@ -51,11 +59,43 @@ public class PositionFile {
 	}
 
 	@Nullable
-	public File getPositionFile() {
-		return positionFile;
+	public File getFile() {
+		return file;
 	}
 
-	private Optional<File> getPositionFileFor(File file) {
+    public List<GeoData> getGeoData() {
+        return geoData;
+    }
+
+    public @Nullable String getTraceHeader() {
+        return traceHeader;
+    }
+
+    public void setTraceHeader(@Nullable String traceHeader) {
+        this.traceHeader = traceHeader;
+    }
+
+    public @Nullable String getAltitudeHeader() {
+        return altitudeHeader;
+    }
+
+    public void setAltitudeHeader(@Nullable String altitudeHeader) {
+        this.altitudeHeader = altitudeHeader;
+    }
+
+    public @Nullable String getEllipsoidalHeightHeader() {
+        return ellipsoidalHeightHeader;
+    }
+
+    public void setEllipsoidalHeightHeader(@Nullable String ellipsoidalHeightHeader) {
+        this.ellipsoidalHeightHeader = ellipsoidalHeightHeader;
+    }
+
+    public static Optional<File> findFor(TraceFile traceFile) {
+        if (traceFile == null) {
+            return Optional.empty();
+        }
+        File file = traceFile.getFile();
 		if (file == null) {
 			return Optional.empty();
 		}
@@ -83,50 +123,17 @@ public class PositionFile {
 		return Optional.empty();
 	}
 
-	public void load(TraceFile traceFile) throws Exception {
-		Check.notNull(traceFile);
+	public void load(File file) throws IOException {
+		Check.notNull(file);
 
-		var positionFile = getPositionFileFor(traceFile.getFile());
-		if (positionFile.isPresent()) {
-			load(traceFile, positionFile.get());
-		} else {
-			log.info("No position file found for {}", traceFile.getFile());
-		}
+        this.file = file;
+		this.geoData = parseFile(file);
+        this.traceHeader = getDefaultTraceHeader();
+        this.altitudeHeader = getDefaultAltitudeHeader();
+        this.ellipsoidalHeightHeader = getDefaultEllipsoidalHeightHeader();
 	}
 
-	private void load(TraceFile traceFile, File positionFile) throws IOException {
-		Check.notNull(traceFile);
-		Check.notNull(positionFile);
-
-		this.geoData = parsePositionFile(positionFile);
-		this.positionFile = positionFile;
-
-		traceFile.setGroundProfileSource(this);
-
-        String traceHeader = null;
-        List<String> traceHeaders = getAvailableTraceHeaders();
-        if (!traceHeaders.isEmpty()) {
-            traceHeader = traceHeaders.getFirst();
-        }
-
-        String altitudeHeader = null;
-        ColumnSchema schema = GeoData.getSchema(this.geoData);
-        if (schema != null) {
-            altitudeHeader = schema.getHeaderBySemantic(Semantic.ALTITUDE_AGL.getName());
-            if (Strings.isNullOrEmpty(altitudeHeader)) {
-                List<String> altitudeHeaders = getAvailableAltitudeHeaders();
-                if (!altitudeHeaders.isEmpty()) {
-                    altitudeHeader = altitudeHeaders.getFirst();
-                }
-            }
-        }
-
-		if (!Strings.isNullOrEmpty(traceHeader) && !Strings.isNullOrEmpty(altitudeHeader)) {
-			setGroundProfile(traceFile, traceHeader, altitudeHeader);
-		}
-	}
-
-	private List<GeoData> parsePositionFile(File file) throws IOException {
+	private List<GeoData> parseFile(File file) throws IOException {
 		Check.notNull(file);
 
 		Template template = templates.findTemplate(file);
@@ -137,74 +144,6 @@ public class PositionFile {
 		log.info("Using position file template: {}", template.getName());
 		parser = ParserFactory.createParser(template);
         return parser.parse(file);
-	}
-
-	private HorizontalProfile loadGroundProfile(TraceFile traceFile, String traceHeader, String altitudeHeader) {
-		Check.notNull(traceFile);
-
-		if (Strings.isNullOrEmpty(traceHeader)) {
-			return null;
-		}
-        if (Strings.isNullOrEmpty(altitudeHeader)) {
-            return null;
-        }
-
-        // get altitudes mapped to trace index, size of result matches numTraces
-        double[] altitudes = getAltitudes(traceFile, traceHeader, altitudeHeader);
-
-		// sample distance in cm
-		double sampleDistance = traceFile.getSamplesToCmAir();
-		// num samples in a meter
-		double samplesPerMeter = 100.0 / sampleDistance;
-
-		int[] depths = new int[altitudes.length];
-        for (int i = 0; i < depths.length; i++) {
-            depths[i] = (int)(samplesPerMeter * altitudes[i]);
-        }
-
-		// create horizontal profile
-		HorizontalProfile profile = new HorizontalProfile(
-				depths,
-				traceFile.getMetaFile());
-		profile.setColor(Color.red);
-		return profile;
-	}
-
-    private double[] getAltitudes(TraceFile traceFile, String traceHeader, String altitudeHeader) {
-        int numTraces = traceFile.traces.size();
-        double[] altitudes = new double[numTraces];
-        Arrays.fill(altitudes, Double.NaN);
-
-        for (GeoData value : Nulls.toEmpty(geoData)) {
-            Number traceIndex = value.getNumber(traceHeader);
-            if (traceIndex == null || traceIndex.intValue() < 0 || traceIndex.intValue() >= numTraces) {
-                continue;
-            }
-            Number altitudeAgl = value.getNumber(altitudeHeader);
-            if (altitudeAgl != null) {
-                altitudes[traceIndex.intValue()] = altitudeAgl.doubleValue();
-            }
-        }
-        // interpolate missing values
-        LinearInterpolator.interpolateNans(altitudes);
-        // set remaining nans to zeros
-        for (int i = 0; i < altitudes.length; i++) {
-            if (Double.isNaN(altitudes[i])) {
-                altitudes[i] = 0;
-            }
-        }
-        return altitudes;
-    }
-
-	public void setGroundProfile(TraceFile traceFile, String traceHeader, String altitudeHeader) {
-		Check.notNull(traceFile);
-
-		HorizontalProfile profile = loadGroundProfile(traceFile, traceHeader, altitudeHeader);
-
-		traceFile.setGroundProfileSource(this);
-        traceFile.setGroundProfileTraceHeader(Strings.emptyToNull(traceHeader));
-        traceFile.setGroundProfileAltitudeHeader(Strings.emptyToNull(altitudeHeader));
-		traceFile.setGroundProfile(profile);
 	}
 
 	public List<String> getAvailableTraceHeaders() {
@@ -230,6 +169,14 @@ public class PositionFile {
 		return traceHeaders;
 	}
 
+    public String getDefaultTraceHeader() {
+        List<String> availableHeaders = getAvailableTraceHeaders();
+        if (!availableHeaders.isEmpty()) {
+            return availableHeaders.getFirst();
+        }
+        return null;
+    }
+
     public List<String> getAvailableAltitudeHeaders() {
         ColumnSchema schema = GeoData.getSchema(geoData);
         if (schema == null) {
@@ -238,5 +185,73 @@ public class PositionFile {
         List<String> headers = new ArrayList<>(schema.getDisplayHeaders());
         headers.sort(Comparator.naturalOrder());
         return headers;
+    }
+
+    public String getDefaultAltitudeHeader() {
+        String altitudeHeader = null;
+        ColumnSchema schema = GeoData.getSchema(geoData);
+        if (schema != null) {
+            altitudeHeader = schema.getHeaderBySemantic(Semantic.ALTITUDE_AGL.getName());
+            if (Strings.isNullOrEmpty(altitudeHeader)) {
+                List<String> availableHeaders = getAvailableAltitudeHeaders();
+                if (!availableHeaders.isEmpty()) {
+                    altitudeHeader = availableHeaders.getFirst();
+                }
+            }
+        }
+        return altitudeHeader;
+    }
+
+    public List<String> getAvailableEllipsoidalHeightHeaders() {
+        ColumnSchema schema = GeoData.getSchema(geoData);
+        if (schema == null) {
+            return List.of();
+        }
+        List<String> headers = new ArrayList<>(schema.getDisplayHeaders());
+        headers.sort(Comparator.naturalOrder());
+        headers.addFirst(Strings.empty());
+        return headers;
+    }
+
+    public String getDefaultEllipsoidalHeightHeader() {
+        String ellipsoidalHeightHeader = null;
+        ColumnSchema schema = GeoData.getSchema(geoData);
+        if (schema != null) {
+            ellipsoidalHeightHeader = schema.getHeaderBySemantic(Semantic.ALTITUDE.getName());
+            if (Strings.isNullOrEmpty(ellipsoidalHeightHeader)) {
+                ellipsoidalHeightHeader = Strings.empty();
+            }
+        }
+        return ellipsoidalHeightHeader;
+    }
+
+    public double[] traceValues(TraceFile traceFile, String header) {
+        if (Strings.isNullOrEmpty(traceHeader) || Strings.isNullOrEmpty(header)) {
+            return new double[0];
+        }
+
+        int numTraces = traceFile.traces.size();
+        double[] values = new double[numTraces];
+        Arrays.fill(values, Double.NaN);
+
+        for (GeoData value : Nulls.toEmpty(geoData)) {
+            Number traceIndex = value.getNumber(traceHeader);
+            if (traceIndex == null || traceIndex.intValue() < 0 || traceIndex.intValue() >= numTraces) {
+                continue;
+            }
+            Number number = value.getNumber(header);
+            if (number != null) {
+                values[traceIndex.intValue()] = number.doubleValue();
+            }
+        }
+        // interpolate missing values
+        LinearInterpolator.interpolateNans(values);
+        // set remaining nans to zeros
+        for (int i = 0; i < values.length; i++) {
+            if (Double.isNaN(values[i])) {
+                values[i] = 0;
+            }
+        }
+        return values;
     }
 }

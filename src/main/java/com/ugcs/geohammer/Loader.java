@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 
+import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.PositionFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
@@ -255,9 +256,8 @@ public class Loader {
 		gprFile.open(file);
 
 		// positions
-		FileTemplates templates = model.getFileManager().getFileTemplates();
 		try {
-			new PositionFile(templates).load(gprFile);
+            gprFile.loadPositionFile(model.getFileManager().getFileTemplates());
 		} catch (Exception e) {
 			log.warn("Error loading positions file", e);
 		}

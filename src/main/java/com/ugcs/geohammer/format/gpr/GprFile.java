@@ -30,6 +30,7 @@ import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
+import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
@@ -277,10 +278,7 @@ public class GprFile extends TraceFile {
 			// upd coordinates
 			ByteBuffer buffer = ByteBuffer.wrap(binTrace.header);
 			buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-			buffer.putShort(114, (short)trace.numSamples());
-			buffer.putDouble(190, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
-			buffer.putDouble(182, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
+            updateTraceBuffer(trace, buffer);
 
 			// set or clear mark
 			binTrace.header[MARK_BYTE_POS] =
@@ -293,8 +291,33 @@ public class GprFile extends TraceFile {
 		binFile.save(file);
 	}
 
+    private void updateTraceBuffer(Trace trace, ByteBuffer buffer) {
+        buffer.putShort(114, (short)trace.numSamples());
+        buffer.putDouble(190, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
+        buffer.putDouble(182, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
+
+        Double elevation = trace.getSurfaceElevation();
+        if (elevation != null) {
+            // convert if file uses feet
+            if (binaryHeader.getMeasurementSystem() == 2) {
+                elevation = TraceUnit.convert(elevation, TraceUnit.FEET);
+            }
+            Short scalar = trace.getHeader().getScalarForElevations();
+            if (scalar == null || scalar == 0) {
+                scalar = -100;
+                buffer.putShort(68, scalar);
+            }
+            int scaledElevation = scalar > 0
+                    ? (int)(elevation / scalar)
+                    : (int)(elevation * -scalar);
+            // Surface elevation at source location
+            buffer.putInt(44, scaledElevation);
+        }
+    }
+
 	@Override
 	public GprFile copy() {
+        // ground profile is not copied
 		GprFile copy = new GprFile();
 		copy.binHdr = this.binHdr;
 		copy.txtHdr = this.txtHdr;
@@ -311,10 +334,6 @@ public class GprFile extends TraceFile {
 			copy.metaFile = new MetaFile();
 			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
 			copy.syncMeta(tracesCopy);
-		}
-
-		if (groundProfile != null) {
-			copy.groundProfile = new HorizontalProfile(groundProfile, copy.metaFile);
 		}
 
 		copy.setTraces(tracesCopy);

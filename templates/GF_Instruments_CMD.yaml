@@ -1,0 +1,36 @@
+  # Template display name
+  name: "GF Instruments CMD"
+  # Code of template
+  code: "GF_Instruments_CMD"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: CSV
+  # Applies to the first 10 non-empty lines of the file to detect template
+  match-regex: >-
+    ^\s*Latitude.*Longitude.*Altitude.*Time.*Cond.*Inph.*
+  file-format:
+  # Applies to CSV type. 'true' if the file has headers, otherwise false
+    has-header: true
+    # The symbol which uses to make a comment
+    comment-prefix: '%'
+    # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+    # Applies to CSV type. The symbol to separate values from line in CSV file;
+    separator: '	'
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  data-mapping:
+    latitude:
+      header: 'Latitude'
+    longitude:
+      header: 'Longitude'
+    time:
+      header: 'Time'
+      format: 'HH:mm:ss.ff'
+    date:
+      header: 'Date'
+      format: 'MM/dd/yyyy'
+    data-values:
+      - header: "Altitude"
+        semantic: "Altitude"
+        read-only: true
+        units: "m"
+

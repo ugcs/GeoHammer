@@ -25,6 +25,10 @@ import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.MessageBoxHelper;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.event.ActionEvent;
+import javafx.geometry.Bounds;
+import javafx.geometry.Pos;
+import javafx.scene.layout.VBox;
+import javafx.stage.Popup;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,14 +149,28 @@ public class Saver implements ToolProducer, InitializingBean {
 		}
 
 		if (selectedFile instanceof TraceFile traceFile) {
-			File toFolder = selectFolder(traceFile.getFile());
-			if (toFolder != null) {
-				String actionName = "Saving GPR to " + toFolder;
-				runAction(actionName, () -> {
-					saveToGpr(traceFile, toFolder);
-					return null;
-				});
-			}
+			showSaveOptionsPopup(
+					() -> {
+						File toFile = selectFile(traceFile.getFile());
+						if (toFile != null) {
+							String actionName = "Saving GPR to file" + toFile;
+							runAction(actionName, () -> {
+								saveAsSingleTraceFile(traceFile, toFile);
+								return null;
+							});
+						}
+					},
+					() -> {
+						File toFolder = selectFolder(traceFile.getFile());
+						if (toFolder != null) {
+							String actionName = "Saving GPR lines to folder" + toFolder;
+							runAction(actionName, () -> {
+								saveAsMultipleFiles(traceFile, toFolder);
+								return null;
+							});
+						}
+					}
+			);
 		}
 
 		if (selectedFile instanceof CsvFile csvFile) {
@@ -166,52 +184,67 @@ public class Saver implements ToolProducer, InitializingBean {
 			}
 		}
 
-        if (selectedFile instanceof SonarFile sonarFile) {
-            File toFile = selectFile(sonarFile.getFile());
-            if (toFile != null) {
-                String actionName = "Saving SVLOG to " + toFile;
-                runAction(actionName, () -> {
-                    saveToSonar(sonarFile, toFile);
-                    return null;
-                });
-            }
-        }
+		if (selectedFile instanceof SonarFile sonarFile) {
+			showSaveOptionsPopup(
+					() -> {
+						File toFile = selectFile(sonarFile.getFile());
+						if (toFile != null) {
+							String actionName = "Saving SVLOG to file" + toFile;
+							runAction(actionName, () -> {
+								saveAsSingleSonarFile(sonarFile, toFile);
+								return null;
+							});
+						}
+					},
+					() -> {
+						File toFolder = selectFolder(sonarFile.getFile());
+						if (toFolder != null) {
+							String actionName = "Saving SVLOG lines to folder" + toFolder;
+							runAction(actionName, () -> {
+								saveAsMultipleFiles(sonarFile, toFolder);
+								return null;
+							});
+						}
+					}
+			);
+		}
 	}
 
-	private void saveToGpr(TraceFile traceFile, File toFolder) throws IOException {
-		Check.notNull(traceFile);
-		Check.notNull(toFolder);
+	private void showSaveOptionsPopup(Runnable onSaveSingleFile, Runnable onSaveMultipleFiles) {
+		Popup popup = new Popup();
+		popup.setAutoHide(true);
 
-		File file = traceFile.getFile();
-		Check.notNull(file);
+		Button singleFileButton = new Button("Single file");
+		Button multipleFilesButton = new Button("Multiple files with separate lines");
 
-		if (!toFolder.exists()) {
-			boolean created = toFolder.mkdirs();
-			if (!created) {
-				throw new IOException("Could not create output directory: " + toFolder);
-			}
-		}
+		singleFileButton.setOnAction(e -> {
+			onSaveSingleFile.run();
+			popup.hide();
+		});
 
-		log.info("Saving GPR lines to {}", toFolder);
+		multipleFilesButton.setOnAction(e -> {
+			onSaveMultipleFiles.run();
+			popup.hide();
+		});
 
-		String baseName = FileNames.removeExtension(file.getName());
-		String extension = FileNames.getExtension(file.getName());
+		singleFileButton.setMaxWidth(Double.MAX_VALUE);
+		multipleFilesButton.setMaxWidth(Double.MAX_VALUE);
+		singleFileButton.setAlignment(Pos.CENTER_LEFT);
+		multipleFilesButton.setAlignment(Pos.CENTER_LEFT);
 
-		// TODO copy required only for denormalization
-		//  of samples before save
-		TraceFile copy = traceFile.copy();
-		copy.denormalize();
+		VBox buttonsContainer = new VBox(5, singleFileButton, multipleFilesButton);
+		buttonsContainer.setStyle(
+				"-fx-background-color: white;" +
+						"-fx-border-color: #cccccc;" +
+						"-fx-border-width: 1;" +
+						"-fx-padding: 5;" +
+						"-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);"
+		);
 
-		NavigableMap<Integer, IndexRange> lineRanges = traceFile.getLineRanges();
-		int lineSequence = 1;
-		for (IndexRange range : lineRanges.values()) {
-			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
-			File rangeFile = new File(toFolder, rangeFileName);
+		popup.getContent().add(buttonsContainer);
 
-			copy.save(rangeFile, range);
-
-			lineSequence++;
-		}
+		Bounds bounds = buttonSaveTo.localToScreen(buttonSaveTo.getBoundsInLocal());
+		popup.show(buttonSaveTo, bounds.getMinX(), bounds.getMaxY());
 	}
 
     private void checkNotOpened(File file) {
@@ -245,16 +278,71 @@ public class Saver implements ToolProducer, InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
-    private void saveToSonar(SonarFile sonarFile, File toFile) throws IOException {
+	private void saveAsSingleTraceFile(TraceFile traceFile, File toFile) throws IOException {
+		Check.notNull(traceFile);
+		Check.notNull(toFile);
+		checkNotOpened(toFile);
+
+		TraceFile copy = traceFile.copy();
+		copy.denormalize();
+		copy.addLineBoundaryMarks();
+		copy.save(toFile);
+	}
+
+    private void saveAsSingleSonarFile(SonarFile sonarFile, File toFile) throws IOException {
         Check.notNull(sonarFile);
         Check.notNull(toFile);
 
         // check that target file is not open
         checkNotOpened(toFile);
 
-        log.info("Saving SVLOG to {}", toFile);
+        log.info("Saving SVLOG to file: {}", toFile);
         sonarFile.save(toFile);
     }
+
+	private void saveAsMultipleFiles(SgyFile sgyFile, File toFolder) throws IOException {
+		Check.notNull(sgyFile);
+		Check.notNull(toFolder);
+
+		File file = sgyFile.getFile();
+		Check.notNull(file);
+
+		if (!toFolder.exists()) {
+			boolean created = toFolder.mkdirs();
+			if (!created) {
+				throw new IOException("Could not create output directory: " + toFolder);
+			}
+		}
+
+		log.info("Saving lines to {}", toFolder);
+
+		String baseName = FileNames.removeExtension(file.getName());
+		String extension = FileNames.getExtension(file.getName());
+
+		TraceFile copy = null;
+		if (sgyFile instanceof TraceFile traceFile) {
+			copy = traceFile.copy();
+			copy.denormalize();
+		}
+
+		NavigableMap<Integer, IndexRange> lineRanges = sgyFile.getLineRanges();
+		int lineSequence = 1;
+		for (IndexRange range : lineRanges.values()) {
+			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
+			File rangeFile = new File(toFolder, rangeFileName);
+
+			if (sgyFile instanceof TraceFile) {
+				Check.notNull(copy);
+				copy.save(rangeFile, range);
+			} else if (sgyFile instanceof SonarFile sonarFile) {
+				sonarFile.save(rangeFile, range);
+			} else {
+				throw new IllegalArgumentException("Unsupported file type for multiple save: " + sgyFile.getClass());
+			}
+
+			lineSequence++;
+		}
+	}
 
 	private List<File> selectFiles() {
 		FileChooser fileChooser = new FileChooser();

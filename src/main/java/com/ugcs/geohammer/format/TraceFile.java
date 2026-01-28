@@ -34,6 +34,7 @@ import java.time.ZoneOffset;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.Set;
 
 public abstract class TraceFile extends SgyFileWithMeta {
@@ -296,6 +297,28 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public int getMaxSamples() {
         return getTraces().getFirst().numSamples();
+    }
+
+    public void addLineBoundaryMarks() {
+        NavigableMap<Integer, IndexRange> lineRanges = getLineRanges();
+        if (lineRanges.size() <= 1) {
+            return;
+        }
+
+        List<IndexRange> ranges = lineRanges.values().stream().toList();
+        for (int i = 0; i < ranges.size(); i++) {
+            IndexRange range = ranges.get(i);
+            // Mark end of each line (except last)
+            if (i < ranges.size() - 1) {
+                TraceKey traceKey = new TraceKey(this, range.to() - 1);
+                getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
+            }
+            // Mark start of each line (except first)
+            if (i > 0) {
+                TraceKey traceKey = new TraceKey(this, range.from());
+                getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
+            }
+        }
     }
 
 	public void loadFrom(TraceFile other) {

@@ -284,7 +284,7 @@ public class GprFile extends TraceFile {
 
 			// set or clear mark
 			binTrace.header[MARK_BYTE_POS] =
-					(byte) (marks.contains(trace.getIndex()) ? -1 : 0);
+					(byte) (marks.contains(i) ? -1 : 0);
 
 			binTrace.data = converter.valuesToByteBuffer(trace).array();
 			binFile.getTraces().add(binTrace);

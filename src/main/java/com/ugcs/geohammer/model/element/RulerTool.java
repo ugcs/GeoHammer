@@ -82,10 +82,8 @@ public class RulerTool extends BaseObjectImpl {
 	
 	@Override
 	public void drawOnCut(Graphics2D g2, ScrollableData profField) {
-		Point2D lt = profField.traceSampleToScreen(new TraceSample(
-				anch1.getTrace(), anch1.getSample()));
-		Point2D rb = profField.traceSampleToScreen(new TraceSample(
-				anch2.getTrace(), anch2.getSample()));
+		Point2D lt = profField.traceSampleToScreen(anch1.getTrace(), anch1.getSample());
+		Point2D rb = profField.traceSampleToScreen(anch2.getTrace(), anch2.getSample());
 		
 		g2.setColor(Color.RED);
 		g2.drawLine((int) lt.getX(), (int) lt.getY(), (int) rb.getX(), (int) rb.getY());

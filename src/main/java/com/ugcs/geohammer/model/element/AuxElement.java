@@ -21,10 +21,9 @@ public class AuxElement {
 	}
 	
 	public void drawOnCut(Graphics2D g2, ScrollableData field) {
-		
-		TraceSample ts = new TraceSample(traceStart.getIndex(),
-				sampleStart != null ? sampleStart : 0);
-		Point2D scr = field.traceSampleToScreen(ts);
+		Point2D scr = field.traceSampleToScreen(
+                traceStart.getIndex(),
+                sampleStart != null ? sampleStart : 0);
 		
 		g2.setColor(Color.MAGENTA);
 		g2.fillOval((int) scr.getX() - r, (int) scr.getY() - r, r * 2, r * 2);

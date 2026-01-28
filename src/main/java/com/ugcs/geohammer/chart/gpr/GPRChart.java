@@ -9,6 +9,7 @@ import com.ugcs.geohammer.chart.gpr.axis.LeftRulerController;
 import com.ugcs.geohammer.chart.gpr.axis.VerticalRulerDrawer;
 import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.model.TraceUnit;
+import com.ugcs.geohammer.view.PaintLimiter;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.TraceKey;
@@ -54,6 +55,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -86,8 +88,11 @@ public class GPRChart extends Chart {
     private final Model model;
     private final AuxElementEditHandler auxEditHandler;
 
+    private BufferedImage drawImage;
     private int width = 800;
     private int height = 600;
+
+    private final PaintLimiter repaintLimiter = new PaintLimiter(60, () -> draw(width, height));
 
     private double contrast = 50;
 
@@ -152,7 +157,7 @@ public class GPRChart extends Chart {
             }
         });
 
-        scrollHandler = new CleverViewScrollHandler(this);
+        scrollHandler = new CleverViewScrollHandler();
         updateAuxElements();
     }
 
@@ -160,6 +165,7 @@ public class GPRChart extends Chart {
         if (!confirmUnsavedChanges()) {
             return;
         }
+        repaintLimiter.stop();
         model.publishEvent(new FileClosedEvent(this, getFile()));
     }
 
@@ -177,7 +183,7 @@ public class GPRChart extends Chart {
 
     @Override
     public void repaint() {
-        draw(width, height);
+        repaintLimiter.requestPaint();
     }
 
     public void repaintEvent() {
@@ -394,11 +400,13 @@ public class GPRChart extends Chart {
             // fitFull();
         }
 
-        BufferedImage bi = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        int[] buffer = ((DataBufferInt) bi.getRaster().getDataBuffer()).getData();
-        for (int i = 0; i < buffer.length; i++) {
-            buffer[i] = BACK_GROUD_COLOR.getRGB();
+        if (drawImage == null
+                || drawImage.getWidth() != width
+                || drawImage.getHeight() != height) {
+            drawImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         }
+        int[] buffer = ((DataBufferInt) drawImage.getRaster().getDataBuffer()).getData();
+        Arrays.fill(buffer, BACK_GROUD_COLOR.getRGB());
 
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -415,7 +423,7 @@ public class GPRChart extends Chart {
         var mainRect = profileField.getMainRect();
         g2.setClip(mainRect.x, mainRect.y, mainRect.width, mainRect.height);
         prismDrawer.draw(width, this, g2, buffer, getRealContrast());
-        g2.drawImage(bi, 0, 0, (int) width, (int) height, null);
+        g2.drawImage(drawImage, 0, 0, width, height, null);
 
         g2.translate(mainRect.x + mainRect.width / 2, 0);
 
@@ -463,14 +471,14 @@ public class GPRChart extends Chart {
 
         var profileSettings = profileField.getProfileSettings();
 
-        int y = (int) traceSampleToScreen(new TraceSample(0, profileSettings.getLayer())).getY();
-        g2.drawLine((int) -width / 2, y, (int) width / 2, y);
+        int y = sampleToScreen(profileSettings.getLayer());
+        g2.drawLine(-width / 2, y, width / 2, y);
 
         int bottomSelectedSmp = profileSettings.getLayer() + profileSettings.hpage;
-        int y2 = (int) traceSampleToScreen(new TraceSample(
-                0, bottomSelectedSmp)).getY();
+        int y2 = sampleToScreen(bottomSelectedSmp);
 
-        g2.drawLine((int) -width / 2, y2, (int) width / 2, y2);
+
+        g2.drawLine(-width / 2, y2, width / 2, y2);
     }
 
     private void drawAuxElements(Graphics2D g2) {
@@ -570,12 +578,10 @@ public class GPRChart extends Chart {
         }
 
         g2.setColor(pf.getColor());
-        Point2D p1 = traceSampleToScreenCenter(new TraceSample(
-                0, pf.getSurfaceIndex(traceFile, 0) + voffset));
+        Point2D p1 = traceSampleToScreenCenter(0, pf.getSurfaceIndex(traceFile, 0) + voffset);
 
         for (int i = 1; i < numTraces; i++) {
-            Point2D p2 = traceSampleToScreenCenter(new TraceSample(
-                    i, pf.getSurfaceIndex(traceFile, i) + voffset));
+            Point2D p2 = traceSampleToScreenCenter(i, pf.getSurfaceIndex(traceFile, i) + voffset);
 
             if (p2.getX() - p1.getX() > 0 || Math.abs(p2.getY() - p1.getY()) > 0) {
                 g2.drawLine((int) p1.getX(), (int) p1.getY(), (int) p2.getX(), (int) p2.getY());
@@ -625,11 +631,9 @@ public class GPRChart extends Chart {
                 g2.setFont(fontP);
             }
 
-            Point2D lineStart = traceSampleToScreen(
-                    new TraceSample(lineRange.from(), 0));
-            if (lineStart.getX() > (double)-mainRect.width / 2) {
-                g2.drawLine((int)lineStart.getX(), mainRect.y,
-                        (int)lineStart.getX(), mainRect.y + lineHeight);
+            int lineX = traceToScreen(lineRange.from());
+            if (lineX > -mainRect.width / 2) {
+                g2.drawLine(lineX, mainRect.y, lineX, mainRect.y + lineHeight);
             }
         }
     }
@@ -842,8 +846,8 @@ public class GPRChart extends Chart {
 
     @Override
     public int numVisibleTraces() {
-        Point2D p = traceSampleToScreen(new TraceSample(0,0));
-        Point2D p2 = new Point2D(p.getX() + getField().getMainRect().width, 0);
+        int x = traceToScreen(0);
+        Point2D p2 = new Point2D(x + getField().getMainRect().width, 0);
         TraceSample t2 = screenToTraceSample(p2);
 
         return t2.getTrace();
@@ -860,14 +864,16 @@ public class GPRChart extends Chart {
         return (int) ((sample - getStartSample()) * getVScale() + getField().getTopMargin());
     }
 
-    public Point2D traceSampleToScreen(TraceSample ts) {
-        return new Point2D(traceToScreen(ts.getTrace()), sampleToScreen(ts.getSample()));
+    @Override
+    public Point2D traceSampleToScreen(int trace, int sample) {
+        return new Point2D(traceToScreen(trace), sampleToScreen(sample));
     }
 
-    public Point2D traceSampleToScreenCenter(TraceSample ts) {
+    @Override
+    public Point2D traceSampleToScreenCenter(int trace, int sample) {
         return new Point2D(
-                traceToScreen(ts.getTrace()) + (int) (getHScale() / 2),
-                sampleToScreen(ts.getSample()) + (int) (getVScale() / 2));
+                traceToScreen(trace) + (int) (getHScale() / 2),
+                sampleToScreen(sample) + (int) (getVScale() / 2));
     }
 
     @Override

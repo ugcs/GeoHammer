@@ -86,8 +86,12 @@ public abstract class ScrollableData {
         throw new NotImplementedException("screenToTraceSample");
     }
 
-    public Point2D traceSampleToScreen(TraceSample traceSample) {
+    public Point2D traceSampleToScreen(int trace, int sample) {
         // for GPRChart
         throw new NotImplementedException("traceSampleToScreen");
+    }
+
+    public Point2D traceSampleToScreenCenter(int trace, int sample) {
+        throw new NotImplementedException("traceSampleToScreenCenter");
     }
 }

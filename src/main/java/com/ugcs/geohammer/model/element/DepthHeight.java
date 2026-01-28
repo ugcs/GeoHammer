@@ -27,11 +27,11 @@ public class DepthHeight extends DepthStart {
 	protected Point2D getCenter(ScrollableData scrollable) {
 		if (scrollable instanceof GPRChart gprChart) {
 			var profField = gprChart.getField();
-			Point2D scr = gprChart.traceSampleToScreen(new TraceSample(
-					0, profField.getProfileSettings().getLayer() + profField.getProfileSettings().hpage));
-			return new Point2D(gprChart.getField().getVisibleStart(), scr.getY());
+            int sample = profField.getProfileSettings().getLayer() + profField.getProfileSettings().hpage;
+            int y = gprChart.sampleToScreen(sample);
+            return new Point2D(gprChart.getField().getVisibleStart(), y);
 		} else {
-			return scrollable.traceSampleToScreen(new TraceSample(0, 0));
+			return scrollable.traceSampleToScreen(0, 0);
 		}
 	}
 }

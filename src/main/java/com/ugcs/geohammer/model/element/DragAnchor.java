@@ -70,8 +70,7 @@ public class DragAnchor extends BaseObjectImpl {
 	}
 
 	private Rectangle getRect(ScrollableData profField) {
-		TraceSample ts = new TraceSample(this.getTrace(), getSample());
-		Point2D scr = profField.traceSampleToScreen(ts);
+		Point2D scr = profField.traceSampleToScreen(this.getTrace(), getSample());
 		Rectangle rect = alignRect.getRect(scr, dim);
 		return rect;
 	}

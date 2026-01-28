@@ -2,6 +2,7 @@ package com.ugcs.geohammer.chart.gpr;
 
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.Arrays;
 import java.util.List;
 
 import com.ugcs.geohammer.format.gpr.Trace;
@@ -68,6 +69,8 @@ public class PrismDrawer {
 		int finishTrace = field.getLastVisibleTrace();
 		int lastSample = field.getLastVisibleSample();
 
+        int baseOffsetX = rect.x + rect.width / 2;
+
 		for (int i = startTrace; i <= finishTrace; i++) {
 			if (i < 0 || i >= traces.size()) {
 				continue;
@@ -107,14 +110,12 @@ public class PrismDrawer {
 				if (showInlineHyperbolas && trace.getGood(j) > 0) {
 					color = goodColors[trace.getGood(j)];
 				}
-				
-	    		for (int xt = 0; xt < hscale; xt++) {
-	    			for (int yt = 0; yt < vscale; yt++) {
-	    				int index = rect.x + rect.width / 2 + xt + traceStartX 
-	    						+ (sampStart + yt) * bytesInRow;
-						buffer[index ] = color;
-	    			}
-	    		}
+
+                int baseIndex = baseOffsetX + traceStartX + sampStart * bytesInRow;
+                for (int yt = 0; yt < vscale; yt++) {
+                    int rowStart = baseIndex + yt * bytesInRow;
+                    Arrays.fill(buffer, rowStart, rowStart + hscale, color);
+                }
 			}
 		}
 	}	

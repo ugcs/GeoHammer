@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import com.ugcs.geohammer.map.ThrQueue;
+import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
@@ -42,17 +42,17 @@ public class GpsTrack extends BaseLayer {
 	private static final double APPROXIMATION_THRESHOLD = 1.5;
 
 	private final Model model;
-	private final ThrQueue q;
+	private final RenderQueue q;
 
 	public GpsTrack(Model model) {
 		this.model = model;
-		this.q = new ThrQueue(model) {
-			protected void draw(BufferedImage backImg, MapField field) {
-				Graphics2D g2 = (Graphics2D) backImg.getGraphics();
-				g2.translate(backImg.getWidth() / 2, backImg.getHeight() / 2);
+		this.q = new RenderQueue(model) {
+			public void draw(BufferedImage image, MapField field) {
+				Graphics2D g2 = (Graphics2D) image.getGraphics();
+				g2.translate(image.getWidth() / 2, image.getHeight() / 2);
 				drawTrack(g2, field);
 			}
-			public void ready() {
+			public void onReady() {
 				getRepaintListener().repaint();
 			}
 		};
@@ -76,7 +76,7 @@ public class GpsTrack extends BaseLayer {
 
 	@Override
 	public void setSize(Dimension size) {
-		q.setBackImgSize(size);
+		q.setRenderSize(size);
 	}
 
 	@Override
@@ -85,7 +85,7 @@ public class GpsTrack extends BaseLayer {
 			return;
 		}
 
-		q.drawImgOnChangedField(g2, currentField, q.getFront());
+		q.drawWithTransform(g2, currentField, q.getLastFrame());
 	}
 	
 	public void drawTrack(Graphics2D g2, MapField field) {
@@ -167,23 +167,23 @@ public class GpsTrack extends BaseLayer {
 				|| changed.isWindowresized()
 				|| changed.isJustdraw()
 				|| changed.isTraceSelected()) {
-			q.add();
+			q.submit();
 		}
 	}
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent fileOpenedEvent) {
-		q.add();
+		q.submit();
 	}
 
 	@EventListener
 	private void fileClosed(FileClosedEvent fileClosedEvent) {
-		q.add();
+		q.submit();
 	}
 
 	@EventListener
 	private void fileSelected(FileSelectedEvent fileSelectedEvent) {
-		q.add();
+		q.submit();
 	}
 
 	@Override

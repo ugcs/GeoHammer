@@ -5,7 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
-import com.ugcs.geohammer.map.ThrQueue;
+import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.map.layer.BaseLayer;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
@@ -80,7 +80,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 			}
 			
 			if (isActive()) {
-				q.add();
+				q.submit();
 			} else {
 				q.clear();
 				getRepaintListener().repaint();
@@ -102,7 +102,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		@Override
 		public void changed(ObservableValue<? extends Number> observable, 
 				Number oldValue, Number newValue) {
-			q.add();
+			q.submit();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.adjusting));
 		}
 	};
@@ -124,19 +124,19 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 			gainTopSlider.updateUI();
 			thresholdSlider.updateUI();
 
-			q.add();
+			q.submit();
 		}
 	};
 	
-	ThrQueue q;
+	RenderQueue q;
 	
 	public void initQ() {
-		q = new ThrQueue(model) {
-			protected void draw(BufferedImage backImg, MapField field) {
-				createHiRes(field, backImg);
+		q = new RenderQueue(model) {
+			public void draw(BufferedImage image, MapField field) {
+				createHiRes(field, image);
 			}
 			
-			public void ready() {
+			public void onReady() {
 				getRepaintListener().repaint();
 			}			
 		};
@@ -161,7 +161,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 
 	@Override
 	public void setSize(Dimension size) {
-		q.setBackImgSize(size);
+		q.setRenderSize(size);
 	}
 
 	//draw on the map window prepared image
@@ -172,7 +172,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 			return;
 		}
 				
-		q.drawImgOnChangedField(g2, currentField, q.getFront());
+		q.drawWithTransform(g2, currentField, q.getLastFrame());
 	}
 	
 	@EventListener
@@ -196,7 +196,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 				|| changed.isMapscroll() 
 				|| changed.isWindowresized()) {
 
-			q.add();
+			q.submit();
 		}		
 	}
 
@@ -205,7 +205,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 			autoArrayBuilder.clear();
 			scaleArrayBuilder.clear();
 			q.clear();
-			q.add();
+			q.submit();
 	}
 
 	// prepare image in thread

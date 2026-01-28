@@ -6,8 +6,7 @@ import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.List;
 
-import com.ugcs.geohammer.map.ThrFront;
-import com.ugcs.geohammer.map.ThrQueue;
+import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.map.provider.GoogleMapProvider;
 import com.ugcs.geohammer.map.provider.HereMapProvider;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
@@ -48,23 +47,23 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	private LatLon click;
 
-	private ThrQueue recalcQueue;
+	private RenderQueue recalcQueue;
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
-		recalcQueue = new ThrQueue(model) {
-			protected void draw(BufferedImage backImg, MapField field) {
+		recalcQueue = new RenderQueue(model) {
+			public void draw(BufferedImage image, MapField field) {
 				if (field.getMapProvider() != null) {
-					this.setBackImg(field.getMapProvider().loadimg(field));
+					this.setRenderImage(field.getMapProvider().loadimg(field));
 				}
 			}
 
-			public void ready() {
+			public void onReady() {
 				getRepaintListener().repaint();
 			}
 
 			@Override
-			protected void actualizeBackImg() {
+			protected void actualizeRenderImage() {
 			}
 		};
 
@@ -107,15 +106,15 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	@Override
 	public void setSize(Dimension size) {
-		recalcQueue.setBackImgSize(size);
+		recalcQueue.setRenderSize(size);
 	}
 
 	@Override
 	public void draw(Graphics2D g2, MapField currentField) {
-		ThrFront front = recalcQueue.getFront();
+		RenderQueue.Frame front = recalcQueue.getLastFrame();
 
 		if (front != null && isActive()) {
-			recalcQueue.drawImgOnChangedField(g2, currentField, front);
+			recalcQueue.drawWithTransform(g2, currentField, front);
 		}		
 
 		if (click != null) {
@@ -148,7 +147,7 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	private void submitTiles() {
 		int intZoom = (int)model.getMapField().getZoom();
 		if (intZoom != lastTileZoom) {
-			recalcQueue.add();
+			recalcQueue.submit();
 			lastTileZoom = intZoom;
 		}
 	}

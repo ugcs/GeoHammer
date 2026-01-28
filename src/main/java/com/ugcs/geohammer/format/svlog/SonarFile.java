@@ -7,6 +7,7 @@ import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.ColumnSchema;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
 import org.slf4j.Logger;
@@ -122,7 +123,31 @@ public class SonarFile extends SgyFileWithMeta {
         }
     }
 
-    private void updateGeoData(TraceGeoData value, SonarState sonarState) {
+	public void save(File file, IndexRange range) throws IOException {
+		if (metaFile == null) {
+			return;
+		}
+
+		Set<Integer> writeIndices = new HashSet<>();
+		List<TraceGeoData> values = metaFile.getValues();
+		for (int i = 0; i < values.size(); i++) {
+			if (range.contains(i)) {
+				writeIndices.add(values.get(i).getTraceIndex());
+			}
+		}
+
+		SvlogParser parser = new SvlogParser();
+		try (SvlogWriter w = new SvlogWriter(file)) {
+			for (int i = 0; i < packets.size(); i++) {
+				SvlogPacket packet = packets.get(i);
+				if (writeIndices.contains(i) || parser.isMetaPacket(packet)) {
+					w.writePacket(packet);
+				}
+			}
+		}
+	}
+
+	private void updateGeoData(TraceGeoData value, SonarState sonarState) {
         if (sonarState.getLatLon() != null) {
             value.setLatLon(sonarState.getLatLon());
         }

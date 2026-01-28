@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import com.ugcs.geohammer.model.TemplateSeriesKey;
 import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.map.ThrQueue;
+import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
@@ -59,7 +59,7 @@ public final class GridLayer extends BaseLayer {
     private final Model model;
 
     @SuppressWarnings({"NullAway.Init"})
-    private ThrQueue q;
+    private RenderQueue q;
 
     @Nullable
     private SgyFile selectedFile;
@@ -71,14 +71,14 @@ public final class GridLayer extends BaseLayer {
     public GridLayer(Model model) {
         this.model = model;
 
-        q = new ThrQueue(model) {
-            protected void draw(BufferedImage backImg, MapField field) {
-                Graphics2D g2 = (Graphics2D) backImg.getGraphics();
-                g2.translate(backImg.getWidth() / 2, backImg.getHeight() / 2);
+        q = new RenderQueue(model) {
+            public void draw(BufferedImage image, MapField field) {
+                Graphics2D g2 = (Graphics2D) image.getGraphics();
+                g2.translate(image.getWidth() / 2, image.getHeight() / 2);
                 drawOnMapField(g2, field);
             }
 
-            public void ready() {
+            public void onReady() {
                 getRepaintListener().repaint();
             }
         };
@@ -132,7 +132,7 @@ public final class GridLayer extends BaseLayer {
 
     @Override
     public void setSize(Dimension size) {
-        q.setBackImgSize(size);
+        q.setRenderSize(size);
     }
 
     @Override
@@ -140,7 +140,7 @@ public final class GridLayer extends BaseLayer {
         if (currentField.getSceneCenter() == null || !isActive()) {
             return;
         }
-        q.drawImgOnChangedField(g2, currentField, q.getFront());
+        q.drawWithTransform(g2, currentField, q.getLastFrame());
     }
 
     public void drawOnMapField(Graphics2D g2, MapField field) {
@@ -422,7 +422,7 @@ public final class GridLayer extends BaseLayer {
     }
 
     public void submitDraw() {
-        q.add();
+        q.submit();
     }
 
     public record Grid(

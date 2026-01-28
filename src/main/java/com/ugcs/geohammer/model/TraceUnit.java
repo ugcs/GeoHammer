@@ -7,7 +7,7 @@ public enum TraceUnit {
 	METERS("m", 1.0, true),
 	KILOMETERS("km", 1000.0, true),
 	MILES("mi", 1609.344, true),
-	FEET("ft", 0.328084, true),
+	FEET("ft", 3.28084, true),
 	TIME("time", Double.NaN, false),
 	TRACES("traces", Double.NaN, false);
 

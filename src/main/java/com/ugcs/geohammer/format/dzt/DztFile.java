@@ -302,7 +302,8 @@ public class DztFile extends TraceFile {
 
 	@Override
 	public DztFile copy() {
-		DztFile copy = new DztFile();
+        // ground profile is not copied
+        DztFile copy = new DztFile();
 		copy.header = this.header;
 		copy.sampleAvg = this.sampleAvg;
 		copy.sourceFile = this.sourceFile;
@@ -318,10 +319,6 @@ public class DztFile extends TraceFile {
 			copy.metaFile = new MetaFile();
 			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
 			copy.syncMeta(tracesCopy);
-		}
-
-		if (groundProfile != null) {
-			copy.groundProfile = new HorizontalProfile(groundProfile, copy.metaFile);
 		}
 
 		copy.setTraces(tracesCopy);

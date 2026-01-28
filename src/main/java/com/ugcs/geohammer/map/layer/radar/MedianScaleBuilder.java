@@ -30,11 +30,14 @@ public class MedianScaleBuilder implements ArrayBuilder {
 		}
 
 		List<Trace> traces = file.getTraces();
-		var maxHeightInSamples = model.getGprChart(file).getField().getMaxHeightInSamples();
+        int maxSamples = 0;
+        for (Trace trace : traces) {
+            maxSamples = Math.max(maxSamples, trace.numSamples());
+        }
 
-		double[][] underconstruction = new double[2][maxHeightInSamples];
+		double[][] underconstruction = new double[2][maxSamples];
 		
-		for (int smp = 0; smp < maxHeightInSamples; smp++) {
+		for (int smp = 0; smp < maxSamples; smp++) {
 
 			//all edge values of sample layer
 			List<Float> all = new ArrayList<>();

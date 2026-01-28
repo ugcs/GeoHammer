@@ -45,7 +45,6 @@ import javafx.scene.input.MouseDragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.checkerframework.checker.units.qual.min;
 import org.jfree.fx.FXGraphics2D;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -564,13 +563,19 @@ public class GPRChart extends Chart {
     }
 
     private void drawHorizontalProfile(Graphics2D g2, HorizontalProfile pf, int voffset) {
+        TraceFile traceFile = getFile();
+        int numTraces = traceFile.numTraces();
+        if (numTraces == 0) {
+            return;
+        }
+
         g2.setColor(pf.getColor());
         Point2D p1 = traceSampleToScreenCenter(new TraceSample(
-                0, pf.getDepth(0) + voffset));
+                0, pf.getSurfaceIndex(traceFile, 0) + voffset));
 
-        for (int i = 1; i < pf.size(); i++) {
+        for (int i = 1; i < numTraces; i++) {
             Point2D p2 = traceSampleToScreenCenter(new TraceSample(
-                    i, pf.getDepth(i) + voffset));
+                    i, pf.getSurfaceIndex(traceFile, i) + voffset));
 
             if (p2.getX() - p1.getX() > 0 || Math.abs(p2.getY() - p1.getY()) > 0) {
                 g2.drawLine((int) p1.getX(), (int) p1.getY(), (int) p2.getX(), (int) p2.getY());

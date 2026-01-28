@@ -10,6 +10,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.element.FoundPlace;
+import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.service.gpr.DistanceCalculator;
 import com.ugcs.geohammer.service.gpr.DistanceSmoother;
 import com.ugcs.geohammer.service.gpr.EdgeFinder;
@@ -23,6 +24,8 @@ import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Traces;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,6 +38,7 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Set;
 
 public abstract class TraceFile extends SgyFileWithMeta {
@@ -43,16 +47,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     protected static double SPEED_SM_NS_SOIL = SPEED_SM_NS_VACUUM / 3.0;
 
+    private static final Logger log = LoggerFactory.getLogger(TraceFile.class);
+
     protected List<Trace> traces = new ArrayList<>();
 
     @Nullable
     private PositionFile positionFile;
-
-    @Nullable
-    private String groundProfileTraceHeader;
-
-    @Nullable
-    private String groundProfileAltitudeHeader;
 
     private boolean spreadCoordinatesNecessary = false;
 
@@ -170,6 +170,13 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public abstract double getSamplesToCmAir();
 
+    public double getSamplesPerMeter() {
+        // sample distance in cm
+        double sampleDistance = getSamplesToCmAir();
+        // num samples in a meter
+        return 100.0 / sampleDistance;
+    }
+
     public @Nullable ScanProfile getAmplScan() {
         return amplScan;
     }
@@ -186,28 +193,31 @@ public abstract class TraceFile extends SgyFileWithMeta {
         this.spreadCoordinatesNecessary = spreadCoordinatesNecessary;
     }
 
-    public void setGroundProfileSource(PositionFile positionFile) {
+    public void loadPositionFile(FileTemplates templates) throws IOException {
+        Optional<File> file = PositionFile.findFor(this);
+        if (file.isPresent()) {
+            PositionFile positionFile = new PositionFile(templates);
+            positionFile.load(file.get());
+            this.positionFile = positionFile;
+
+            HorizontalProfile groundProfile = new HorizontalProfile();
+            groundProfile.setAltitudes(positionFile.traceValues(
+                    this, positionFile.getAltitudeHeader()));
+            groundProfile.setEllipsoidalHeights(positionFile.traceValues(
+                    this, positionFile.getEllipsoidalHeightHeader()));
+            groundProfile.buildSurface(this);
+            this.groundProfile = groundProfile;
+        } else {
+            log.info("No position file found for {}", this.getFile());
+        }
+    }
+
+    public void setPositionFile(PositionFile positionFile) {
         this.positionFile = positionFile;
     }
 
-    public PositionFile getGroundProfileSource() {
+    public PositionFile getPositionFile() {
         return positionFile;
-    }
-
-    public @Nullable String getGroundProfileTraceHeader() {
-        return groundProfileTraceHeader;
-    }
-
-    public void setGroundProfileTraceHeader(@Nullable String groundProfileTraceHeader) {
-        this.groundProfileTraceHeader = groundProfileTraceHeader;
-    }
-
-    public @Nullable String getGroundProfileAltitudeHeader() {
-        return groundProfileAltitudeHeader;
-    }
-
-    public void setGroundProfileAltitudeHeader(@Nullable String groundProfileAltitudeHeader) {
-        this.groundProfileAltitudeHeader = groundProfileAltitudeHeader;
     }
 
     public HorizontalProfile getGroundProfile() {
@@ -248,6 +258,10 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public abstract void denormalize();
 
+    public void updateEdges() {
+        new EdgeFinder().execute(this, null);
+    }
+
     @Override
     public int numTraces() {
         return getTraces().size();
@@ -257,9 +271,13 @@ public abstract class TraceFile extends SgyFileWithMeta {
         return new TraceList();
     }
 
+    public List<Trace> getFileTraces() {
+        return traces;
+    }
+
     protected void setTraces(List<Trace> traces) {
         this.traces = traces;
-        new EdgeFinder().execute(this, null);
+        updateEdges();
     }
 
     public void updateTraces() {

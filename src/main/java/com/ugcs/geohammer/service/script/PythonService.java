@@ -14,7 +14,6 @@ import java.util.function.Consumer;
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.OperatingSystemUtils;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -82,7 +81,13 @@ public class PythonService {
 			}
 
 			installDependenciesFromRequirements(tempDirectory, onOutput);
-			onOutput.accept("Dependencies installed successfully for script " + filename);
+			if (areAllPackagesInstalled(tempDirectory)) {
+				onOutput.accept("Dependencies installed successfully for script " + filename);
+				return;
+			}
+
+			reinstallDependenciesFromRequirements(tempDirectory, onOutput);
+			onOutput.accept("Dependencies reinstalled successfully for script " + filename);
 		} catch (IOException | CommandExecutionException e) {
 			log.warn("Dependency installation failed (possibly offline): {}", e.getMessage(), e);
 		} catch (InterruptedException e) {
@@ -166,23 +171,23 @@ public class PythonService {
 		}
 	}
 
-	public Path getPipreqsPath() throws IOException, InterruptedException {
+	private Path getPipreqsPath() throws IOException, InterruptedException {
 		Path pythonPath = getPythonPath();
 
-		Path pipreqsPath;
-		pipreqsPath = findPipreqsNearPython(pythonPath);
+		Path pipreqsPath = findPipreqsInPythonDirectory(pythonPath);
 		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
 			return pipreqsPath;
 		}
 
-		pipreqsPath = findSystemPipreqs();
-		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
+		pipreqsPath = findPipreqsFromPackageLocation();
+		if (pipreqsPath != null) {
 			return pipreqsPath;
 		}
-		return null;
+
+		throw new IllegalStateException("Requirements analyzer package (pipreqs) not found. Please install it manually");
 	}
 
-	private static @NotNull Path findPipreqsNearPython(Path pythonPath) {
+	private Path findPipreqsInPythonDirectory(Path pythonPath) {
 		Path pipreqsPath;
 		if (OperatingSystemUtils.isWindows()) {
 			pipreqsPath = pythonPath.getParent().resolve(Paths.get("Scripts", "pipreqs.exe"));
@@ -192,25 +197,38 @@ public class PythonService {
 		return pipreqsPath;
 	}
 
-	private @Nullable Path findSystemPipreqs() throws IOException, InterruptedException {
-		List<String> command = OperatingSystemUtils.isWindows()
-				? List.of("where", REQUIREMENTS_ANALYZER)
-				: List.of("which", REQUIREMENTS_ANALYZER);
+	private @Nullable Path findPipreqsFromPackageLocation() throws IOException, InterruptedException {
+		String pythonExecutable = getPythonPath().toString();
+		List<String> command = List.of(pythonExecutable, "-m", "pip", "show", REQUIREMENTS_ANALYZER);
 
 		StringBuilder output = new StringBuilder();
-		Consumer<String> outputConsumer = line -> {
-			if (output.isEmpty()) {
-				output.append(line);
-			}
-		};
-
+		Consumer<String> outputConsumer = line -> output.append(line).append("\n");
 		commandExecutor.executeCommand(command, outputConsumer);
 
-		String pathStr = output.toString().trim();
-		if (!pathStr.isEmpty()) {
-			Path path = Paths.get(pathStr);
-			if (Files.exists(path)) {
-				return path;
+		String location = null;
+		for (String line : output.toString().split("\n")) {
+			if (line.startsWith("Location:")) {
+				location = line.substring("Location:".length()).trim();
+				break;
+			}
+		}
+
+		if (location == null || location.isEmpty()) {
+			return null;
+		}
+
+		Path sitePackages = Paths.get(location);
+
+		if (OperatingSystemUtils.isWindows()) {
+			Path scriptsDir = Paths.get("Scripts", "pipreqs.exe");
+			Path pipreqsPath = sitePackages.getParent().resolve(scriptsDir);
+			if (Files.exists(pipreqsPath)) {
+				return pipreqsPath;
+			}
+		} else {
+			Path pipreqsPath = sitePackages.getParent().resolve("pipreqs");
+			if (Files.exists(pipreqsPath)) {
+				return pipreqsPath;
 			}
 		}
 		return null;
@@ -250,6 +268,28 @@ public class PythonService {
 				"-m",
 				"pip",
 				"install",
+				"-r",
+				requirementsPath.toString()
+		);
+		commandExecutor.executeCommand(command, onOutput);
+	}
+
+	private void reinstallDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,
+			InterruptedException {
+		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
+		if (!Files.exists(requirementsPath)) {
+			log.warn("No requirements.txt found in {}, skipping dependency re-installation.", directory);
+			return;
+		}
+
+		String pythonExecutorPath = getPythonPath().toString();
+		List<String> command = List.of(
+				pythonExecutorPath,
+				"-m",
+				"pip",
+				"install",
+				"--force-reinstall",
+				"--no-cache-dir",
 				"-r",
 				requirementsPath.toString()
 		);

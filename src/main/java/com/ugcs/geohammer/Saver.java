@@ -8,10 +8,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
-import com.ugcs.geohammer.format.svlog.SonarFile;
-import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.ProgressTask;
+import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
@@ -19,34 +24,26 @@ import com.ugcs.geohammer.service.TaskRunner;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.FileTypes;
-import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.event.ActionEvent;
-import javafx.geometry.Bounds;
-import javafx.geometry.Pos;
-import javafx.scene.layout.VBox;
-import javafx.stage.Popup;
+import javafx.geometry.Side;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.Tooltip;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import com.ugcs.geohammer.format.csv.CsvFile;
-import com.ugcs.geohammer.view.ResourceImageHolder;
-import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.model.ToolProducer;
-import com.ugcs.geohammer.model.Model;
-
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Tooltip;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
 
 @Component
 public class Saver implements ToolProducer, InitializingBean {
@@ -61,6 +58,8 @@ public class Saver implements ToolProducer, InitializingBean {
 	private final Button buttonSaveTo = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_TO, new Button());
 	private final Button buttonSaveAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_ALL, new Button());
 	private final Button buttonCloseAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.CLOSE_ALL, new Button());
+
+	private @Nullable ContextMenu saveToMenu;
 
 	@Autowired
 	private Model model;
@@ -143,6 +142,11 @@ public class Saver implements ToolProducer, InitializingBean {
     }
 
 	private void onSaveTo(ActionEvent event) {
+		if (saveToMenu != null && saveToMenu.isShowing()) {
+			saveToMenu.hide();
+			return;
+		}
+
 		SgyFile selectedFile = model.getCurrentFile();
 		if (selectedFile == null) {
 			return;
@@ -211,40 +215,17 @@ public class Saver implements ToolProducer, InitializingBean {
 	}
 
 	private void showSaveOptionsPopup(Runnable onSaveSingleFile, Runnable onSaveMultipleFiles) {
-		Popup popup = new Popup();
-		popup.setAutoHide(true);
+		saveToMenu = new ContextMenu();
 
-		Button singleFileButton = new Button("Single file");
-		Button multipleFilesButton = new Button("Multiple files with separate lines");
+		MenuItem saveAsSingleFileItem = new MenuItem("Single file");
+		saveAsSingleFileItem.setOnAction(event -> onSaveSingleFile.run());
 
-		singleFileButton.setOnAction(e -> {
-			onSaveSingleFile.run();
-			popup.hide();
-		});
+		MenuItem saveAsMultipleFilesItem = new MenuItem("Multiple files with separate lines");
+		saveAsMultipleFilesItem.setOnAction(event -> onSaveMultipleFiles.run());
 
-		multipleFilesButton.setOnAction(e -> {
-			onSaveMultipleFiles.run();
-			popup.hide();
-		});
+		saveToMenu.getItems().addAll(saveAsSingleFileItem, saveAsMultipleFilesItem);
 
-		singleFileButton.setMaxWidth(Double.MAX_VALUE);
-		multipleFilesButton.setMaxWidth(Double.MAX_VALUE);
-		singleFileButton.setAlignment(Pos.CENTER_LEFT);
-		multipleFilesButton.setAlignment(Pos.CENTER_LEFT);
-
-		VBox buttonsContainer = new VBox(5, singleFileButton, multipleFilesButton);
-		buttonsContainer.setStyle(
-				"-fx-background-color: white;" +
-						"-fx-border-color: #cccccc;" +
-						"-fx-border-width: 1;" +
-						"-fx-padding: 5;" +
-						"-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);"
-		);
-
-		popup.getContent().add(buttonsContainer);
-
-		Bounds bounds = buttonSaveTo.localToScreen(buttonSaveTo.getBoundsInLocal());
-		popup.show(buttonSaveTo, bounds.getMinX(), bounds.getMaxY());
+		saveToMenu.show(buttonSaveTo, Side.BOTTOM, 0, 0);
 	}
 
     private void checkNotOpened(File file) {

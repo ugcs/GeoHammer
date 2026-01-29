@@ -5,8 +5,8 @@ import java.util.List;
 
 public enum TraceUnit {
 	METERS("m", 1.0, true),
-	KILOMETERS("km", 1000.0, true),
-	MILES("mi", 1609.344, true),
+	KILOMETERS("km", 0.001, true),
+	MILES("mi", 0.00062, true),
 	FEET("ft", 3.28084, true),
 	TIME("time", Double.NaN, false),
 	TRACES("traces", Double.NaN, false);
@@ -43,6 +43,6 @@ public enum TraceUnit {
 		if (!traceUnit.isDistanceBased()) {
 			throw new UnsupportedOperationException("Conversion from meters to " + traceUnit + " is not supported.");
 		}
-		return meters / traceUnit.metersFactor;
+		return meters * traceUnit.metersFactor;
 	}
 }

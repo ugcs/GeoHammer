@@ -10,16 +10,14 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 
-import com.ugcs.geohammer.format.ConstPointsFile;
+import com.ugcs.geohammer.format.gpr.GprFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
+import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
-import com.ugcs.geohammer.format.dzt.DztFile;
-import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.kml.KmlReader;
-import com.ugcs.geohammer.format.svlog.SonarFile;
-import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.model.ProgressTask;
+
+import com.ugcs.geohammer.format.dzt.DztFile;
 import com.ugcs.geohammer.model.event.FileOpenErrorEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
@@ -32,15 +30,21 @@ import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.MessageBoxHelper;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
-import javafx.event.EventHandler;
-import javafx.scene.input.DragEvent;
-import javafx.scene.input.Dragboard;
-import javafx.scene.input.TransferMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+
+import com.ugcs.geohammer.format.ConstPointsFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+
+import com.ugcs.geohammer.model.Model;
+
+import javafx.event.EventHandler;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 
 @Component
 public class Loader {

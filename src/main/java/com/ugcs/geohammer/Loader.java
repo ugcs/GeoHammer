@@ -234,6 +234,10 @@ public class Loader {
 			openSvlogFile(file);
 			return true;
 		}
+		if (FileTypes.isConstPointFile(file)) {
+			openConstPointFile(file);
+			return true;
+		}
 		openCsvFile(file);
 		return true;
 	}

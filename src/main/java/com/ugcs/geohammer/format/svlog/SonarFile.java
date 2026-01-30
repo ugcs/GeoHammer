@@ -7,6 +7,7 @@ import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.ColumnSchema;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
 import org.slf4j.Logger;
@@ -122,7 +123,7 @@ public class SonarFile extends SgyFileWithMeta {
         }
     }
 
-    private void updateGeoData(TraceGeoData value, SonarState sonarState) {
+	private void updateGeoData(TraceGeoData value, SonarState sonarState) {
         if (sonarState.getLatLon() != null) {
             value.setLatLon(sonarState.getLatLon());
         }
@@ -196,25 +197,31 @@ public class SonarFile extends SgyFileWithMeta {
 
     @Override
     public void save(File file) throws IOException {
-        if (metaFile == null) {
-            return;
-        }
-
-        Set<Integer> writeIndices = new HashSet<>();
-        for (TraceGeoData value : metaFile.getValues()) {
-            writeIndices.add(value.getTraceIndex());
-        }
-
-        SvlogParser parser = new SvlogParser();
-        try (SvlogWriter w = new SvlogWriter(file)) {
-            for (int i = 0; i < packets.size(); i++) {
-                SvlogPacket packet = packets.get(i);
-                if (writeIndices.contains(i) || parser.isMetaPacket(packet)) {
-                    w.writePacket(packet);
-                }
-            }
-        }
+        save(file, new IndexRange(0, numTraces()));
     }
+
+	public void save(File file, IndexRange range) throws IOException {
+		if (metaFile == null) {
+			log.warn("Cannot save range: metaFile is null");
+			return;
+		}
+
+		Set<Integer> writeIndices = new HashSet<>();
+		List<TraceGeoData> values = metaFile.getValues();
+		for (int i = range.from(); i < range.to(); i++) {
+			writeIndices.add(values.get(i).getTraceIndex());
+		}
+
+		SvlogParser parser = new SvlogParser();
+		try (SvlogWriter w = new SvlogWriter(file)) {
+			for (int i = 0; i < packets.size(); i++) {
+				SvlogPacket packet = packets.get(i);
+				if (writeIndices.contains(i) || parser.isMetaPacket(packet)) {
+					w.writePacket(packet);
+				}
+			}
+		}
+	}
 
     @Override
     public SonarFile copy() {

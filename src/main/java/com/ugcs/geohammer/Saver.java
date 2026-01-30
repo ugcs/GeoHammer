@@ -59,19 +59,20 @@ public class Saver implements ToolProducer, InitializingBean {
 	private final Button buttonSaveAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_ALL, new Button());
 	private final Button buttonCloseAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.CLOSE_ALL, new Button());
 
-	private @Nullable ContextMenu saveToMenu;
+	private final ContextMenu saveToMenu = new ContextMenu();
 
 	@Autowired
 	private Model model;
-	
+
 	@Autowired
 	private Loader loader;
-	
+
 	@Autowired
 	private Status status;
 
 	@Autowired
 	private PrefSettings prefSettings;
+
 
 	public Saver(Model model) {
 		this.model = model;
@@ -142,7 +143,7 @@ public class Saver implements ToolProducer, InitializingBean {
     }
 
 	private void onSaveTo(ActionEvent event) {
-		if (saveToMenu != null && saveToMenu.isShowing()) {
+		if (saveToMenu.isShowing()) {
 			saveToMenu.hide();
 			return;
 		}
@@ -152,32 +153,9 @@ public class Saver implements ToolProducer, InitializingBean {
 			return;
 		}
 
-		if (selectedFile instanceof TraceFile traceFile) {
-			showSaveOptionsPopup(
-					() -> {
-						File toFile = selectFile(traceFile.getFile());
-						if (toFile != null) {
-							String actionName = "Saving GPR to file" + toFile;
-							runAction(actionName, () -> {
-								saveAsSingleTraceFile(traceFile, toFile);
-								return null;
-							});
-						}
-					},
-					() -> {
-						File toFolder = selectFolder(traceFile.getFile());
-						if (toFolder != null) {
-							String actionName = "Saving GPR lines to folder" + toFolder;
-							runAction(actionName, () -> {
-								saveAsMultipleFiles(traceFile, toFolder);
-								return null;
-							});
-						}
-					}
-			);
-		}
-
-		if (selectedFile instanceof CsvFile csvFile) {
+		if (selectedFile instanceof TraceFile || selectedFile instanceof SonarFile) {
+			showSaveOptionsMenu();
+		} else if (selectedFile instanceof CsvFile csvFile) {
 			File toFile = selectFile(csvFile.getFile());
 			if (toFile != null) {
 				String actionName = "Saving CSV to " + toFile;
@@ -187,45 +165,6 @@ public class Saver implements ToolProducer, InitializingBean {
 				});
 			}
 		}
-
-		if (selectedFile instanceof SonarFile sonarFile) {
-			showSaveOptionsPopup(
-					() -> {
-						File toFile = selectFile(sonarFile.getFile());
-						if (toFile != null) {
-							String actionName = "Saving SVLOG to file" + toFile;
-							runAction(actionName, () -> {
-								saveAsSingleSonarFile(sonarFile, toFile);
-								return null;
-							});
-						}
-					},
-					() -> {
-						File toFolder = selectFolder(sonarFile.getFile());
-						if (toFolder != null) {
-							String actionName = "Saving SVLOG lines to folder" + toFolder;
-							runAction(actionName, () -> {
-								saveAsMultipleFiles(sonarFile, toFolder);
-								return null;
-							});
-						}
-					}
-			);
-		}
-	}
-
-	private void showSaveOptionsPopup(Runnable onSaveSingleFile, Runnable onSaveMultipleFiles) {
-		saveToMenu = new ContextMenu();
-
-		MenuItem saveAsSingleFileItem = new MenuItem("Single file");
-		saveAsSingleFileItem.setOnAction(event -> onSaveSingleFile.run());
-
-		MenuItem saveAsMultipleFilesItem = new MenuItem("Multiple files with separate lines");
-		saveAsMultipleFilesItem.setOnAction(event -> onSaveMultipleFiles.run());
-
-		saveToMenu.getItems().addAll(saveAsSingleFileItem, saveAsMultipleFilesItem);
-
-		saveToMenu.show(buttonSaveTo, Side.BOTTOM, 0, 0);
 	}
 
     private void checkNotOpened(File file) {
@@ -240,6 +179,56 @@ public class Saver implements ToolProducer, InitializingBean {
                     "File in use. Close target file first: " + file);
         }
     }
+
+	private void showSaveOptionsMenu() {
+		SgyFile file = model.getCurrentFile();
+		if (file == null) {
+			return;
+		}
+
+		if (!saveToMenu.getItems().isEmpty()) {
+			saveToMenu.getItems().clear();
+		}
+
+		String typeLabel = getSaveOptionTypeLabel(file);
+
+		MenuItem saveAsSingleFileItem = new MenuItem("Single file");
+		saveAsSingleFileItem.setOnAction(event -> {
+			File toFile = selectFile(file.getFile());
+			if (toFile != null) {
+				String actionName = "Saving " + typeLabel + " to file " + toFile;
+				runAction(actionName, () -> {
+					saveFullTrace(file, toFile);
+					return null;
+				});
+			}
+		});
+
+		MenuItem saveLinesItem = new MenuItem("Multiple files with separate lines");
+		saveLinesItem.setOnAction(event -> {
+			File toFolder = selectFolder(file.getFile());
+			if (toFolder != null) {
+				String actionName = "Saving " + typeLabel + " to folder " + toFolder;
+				runAction(actionName, () -> {
+					saveLines(file, toFolder);
+					return null;
+				});
+			}
+		});
+
+		saveToMenu.getItems().setAll(saveAsSingleFileItem, saveLinesItem);
+		saveToMenu.show(buttonSaveTo, Side.BOTTOM, 0, 0);
+	}
+
+	private String getSaveOptionTypeLabel(SgyFile file) {
+		if (file instanceof TraceFile) {
+			return "GPR";
+		} else if (file instanceof SonarFile) {
+			return "Sonar";
+		} else {
+			throw new IllegalArgumentException("Unsupported file type for save options: " + file.getClass());
+		}
+	}
 
 	private void saveToCsv(CsvFile csvFile, File toFile) throws IOException {
 		Check.notNull(csvFile);
@@ -259,29 +248,24 @@ public class Saver implements ToolProducer, InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
-	private void saveAsSingleTraceFile(TraceFile traceFile, File toFile) throws IOException {
-		Check.notNull(traceFile);
+	private void saveFullTrace(SgyFile sgyFile, File toFile) throws IOException {
+		Check.notNull(sgyFile);
 		Check.notNull(toFile);
 		checkNotOpened(toFile);
 
-		TraceFile copy = traceFile.copy();
-		copy.denormalize();
-		copy.addLineBoundaryMarks();
-		copy.save(toFile);
+		log.info("Saving full trace to {}", toFile);
+
+		if (sgyFile instanceof TraceFile traceFile) {
+			TraceFile copy = traceFile.copy();
+			copy.denormalize();
+			copy.addLineBoundaryMarks();
+			copy.save(toFile);
+		} else if (sgyFile instanceof SonarFile sonarFile) {
+			sonarFile.save(toFile);
+		}
 	}
 
-    private void saveAsSingleSonarFile(SonarFile sonarFile, File toFile) throws IOException {
-        Check.notNull(sonarFile);
-        Check.notNull(toFile);
-
-        // check that target file is not open
-        checkNotOpened(toFile);
-
-        log.info("Saving SVLOG to file: {}", toFile);
-        sonarFile.save(toFile);
-    }
-
-	private void saveAsMultipleFiles(SgyFile sgyFile, File toFolder) throws IOException {
+	private void saveLines(SgyFile sgyFile, File toFolder) throws IOException {
 		Check.notNull(sgyFile);
 		Check.notNull(toFolder);
 

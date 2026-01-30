@@ -34,6 +34,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class FilePane extends VBox {
 
@@ -148,18 +149,16 @@ public abstract class FilePane extends VBox {
 		return false;
 	}
 
+	@NotNull
 	private SgyFile openFile(File file) throws IOException {
 		if (FileTypes.isGprFile(file)) {
 			GprFile sgyFile = new GprFile();
 			sgyFile.open(file);
 			return sgyFile;
-		} else if (FileTypes.isCsvFile(file)) {
-			CsvFile sgyFile = new CsvFile(model.getFileManager().getFileTemplates());
-			sgyFile.open(file);
-			return sgyFile;
-		} else {
-			return null;
 		}
+		CsvFile sgyFile = new CsvFile(model.getFileManager().getFileTemplates());
+		sgyFile.open(file);
+		return sgyFile;
 	}
 
 	public void addFile(File file) {
@@ -172,16 +171,13 @@ public abstract class FilePane extends VBox {
 
 		SgyFile sgyFile = model.getFileManager().getFile(file);
 		if (sgyFile == null) {
-			// open
 			try {
 				sgyFile = openFile(file);
 			} catch (IOException e) {
 				statusBar.showMessage("Failed to open file: " + file.getName(), "Error");
 			}
 		}
-		if (sgyFile != null) {
-			listView.getItems().add(sgyFile);
-		}
+		listView.getItems().add(sgyFile);
 	}
 
 	private void addFiles(List<File> files) {

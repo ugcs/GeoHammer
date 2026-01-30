@@ -6,9 +6,12 @@ import java.util.List;
 
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.geotagger.Formatters;
 import com.ugcs.geohammer.geotagger.domain.CoverageStatus;
 import com.ugcs.geohammer.geotagger.domain.TimeRange;
+import com.ugcs.geohammer.model.FileManager;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.view.Views;
@@ -20,8 +23,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class DataFilePane extends FilePane {
 
+	private final Model model;
+
     public DataFilePane(Model model, StatusBar statusBar) {
         super(model, statusBar, "Data Files");
+		this.model = model;
     }
 
     @Override
@@ -78,6 +84,18 @@ public class DataFilePane extends FilePane {
 
     @Override
     protected boolean canAdd(File file) {
-        return FileTypes.isGprFile(file) || (FileTypes.isCsvFile(file) && !FileTypes.isPositionFile(file));
+		if (FileTypes.isDztFile(file)
+				|| FileTypes.isSvlogFile(file)
+				|| FileTypes.isKmlFile(file)
+				|| FileTypes.isConstPointFile(file)) {
+			return false;
+		}
+		FileManager fileManager = model.getFileManager();
+
+		SgyFile sgyFile = fileManager.getFile(file);
+		if (sgyFile != null) {
+			return sgyFile instanceof GprFile || (sgyFile instanceof CsvFile && !FileTypes.isPositionFile(file));
+		}
+        return !FileTypes.isPositionFile(file);
     }
 }

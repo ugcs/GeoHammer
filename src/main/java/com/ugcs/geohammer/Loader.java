@@ -10,16 +10,13 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 
-import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.format.gpr.GprFile;
-import com.ugcs.geohammer.format.PositionFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.kml.KmlReader;
 
-import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.format.dzt.DztFile;
 import com.ugcs.geohammer.model.event.FileOpenErrorEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
@@ -229,23 +226,20 @@ public class Loader {
 			openDztFile(file);
 			return true;
 		}
-		if (FileTypes.isCsvFile(file)) {
-			openCsvFile(file);
-			return true;
-		}
-        if (FileTypes.isSvlogFile(file)) {
-            openSvlogFile(file);
-            return true;
-        }
 		if (FileTypes.isKmlFile(file)) {
 			openKmlFile(file);
+			return true;
+		}
+		if (FileTypes.isSvlogFile(file)) {
+			openSvlogFile(file);
 			return true;
 		}
 		if (FileTypes.isConstPointFile(file)) {
 			openConstPointFile(file);
 			return true;
 		}
-		return false;
+		openCsvFile(file);
+		return true;
 	}
 
 	private void openGprFile(File file) throws IOException {

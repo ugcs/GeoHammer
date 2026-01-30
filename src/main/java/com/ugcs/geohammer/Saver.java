@@ -18,7 +18,6 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TaskRunner;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
@@ -290,11 +289,10 @@ public class Saver implements ToolProducer, InitializingBean {
 		if (initFile != null) {
 			fileChooser.setInitialFileName(initFile.getName());
 			fileChooser.setInitialDirectory(initFile.getParentFile());
-			if (FileTypes.isCsvFile(initFile)) {
-				fileChooser.getExtensionFilters().add(
-						new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv")
-				);
-			}
+			String extensionPattern = "*." + FileNames.getExtension(initFile.getName());
+			fileChooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Files (" + extensionPattern + ")", extensionPattern)
+			);
 		}
 		return fileChooser.showSaveDialog(AppContext.stage);
 	}

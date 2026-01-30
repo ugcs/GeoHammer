@@ -145,18 +145,21 @@ public class HorizontalProfile {
 
         // find peaks with both polarities
         int[][] peaks = new int[n][];
-        int numPositive = 0;
+        double bipolarSum = 0;
         for (int i = 0; i < n; i++) {
             float[] samples = traces.get(i).getFileSamples();
             peaks[i] = detectPeak(samples, surface[i]);
             // check polarity
             int min = peaks[i][0];
             int max = peaks[i][1];
-            if (Math.abs(samples[max]) >= Math.abs(samples[min])) {
-                numPositive++;
+            if (samples[max] > 0) {
+                bipolarSum += samples[max];
+            }
+            if (samples[min] < 0) {
+                bipolarSum += samples[min];
             }
         }
-        int polarity = numPositive >= n / 2 ? 1 : -1;
+        int polarity = bipolarSum >= 0 ? 1 : -1; // peek strongest polarity
         for (int i = 0; i < n; i++) {
             surface[i] = polarity < 0 ? peaks[i][0] : peaks[i][1];
         }
@@ -222,8 +225,14 @@ public class HorizontalProfile {
 
         // highest surface sample
         int level = Integer.MAX_VALUE;
+        double levelAltitude = 0.0;
         for (int i = 0; i < n; i++) {
-            level = Math.min(level, surface[i]);
+            if (surface[i] < level) {
+                level = surface[i];
+                if (altitudes != null && i < altitudes.length) {
+                    levelAltitude = altitudes[i];
+                }
+            }
         }
         // offset samples
         for (int i = 0; i < n; i++) {
@@ -247,7 +256,7 @@ public class HorizontalProfile {
             removeAirGap(traceFile, level);
         }
         // warite syrface elevation
-        updateSurfaceElevations(traceFile);
+        updateElevations(traceFile, levelAltitude);
 
         traceFile.updateEdges();
         traceFile.setGroundProfile(null);
@@ -274,17 +283,19 @@ public class HorizontalProfile {
         traceFile.syncMeta();
     }
 
-    private void updateSurfaceElevations(TraceFile traceFile) {
-        if (altitudes == null || ellipsoidalHeights == null) {
+    private void updateElevations(TraceFile traceFile, double levelAltitude) {
+        if (altitudes == null) {
             return;
         }
         List<Trace> traces = traceFile.getFileTraces();
-        int n = Math.min(
-                Math.min(altitudes.length, ellipsoidalHeights.length),
-                traces.size());
+        int n = Math.min(altitudes.length, traces.size());
         for (int i = 0; i < n; i++) {
             Trace trace = traces.get(i);
-            trace.setSurfaceElevation(ellipsoidalHeights[i] - altitudes[i]);
+            double elevation = ellipsoidalHeights != null && i < ellipsoidalHeights.length
+                    ? ellipsoidalHeights[i]
+                    : trace.getReceiverAltitude();
+            elevation -= (altitudes[i] - levelAltitude);
+            trace.setReceiverAltitude((float)elevation);
         }
     }
 }

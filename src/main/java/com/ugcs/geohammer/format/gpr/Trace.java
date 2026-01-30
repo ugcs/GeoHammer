@@ -38,8 +38,8 @@ public class Trace {
 
 	private Instant dateTime;
 
-    // in meters
-    private Double surfaceElevation;
+    // receiver altitude in meters
+    private float receiverAltitude;
 
     //tmp for loading
     private boolean marked = false;
@@ -74,7 +74,7 @@ public class Trace {
         copy.sampleRange = sampleRange;
         copy.prevDist = prevDist;
         copy.maxindex = maxindex;
-        copy.surfaceElevation = surfaceElevation;
+        copy.receiverAltitude = receiverAltitude;
         copy.marked = marked;
         return copy;
     }
@@ -176,12 +176,12 @@ public class Trace {
 		this.dateTime = dateTime;
 	}
 
-    public Double getSurfaceElevation() {
-        return surfaceElevation;
+    public float getReceiverAltitude() {
+        return receiverAltitude;
     }
 
-    public void setSurfaceElevation(Double surfaceElevation) {
-        this.surfaceElevation = surfaceElevation;
+    public void setReceiverAltitude(float receiverAltitude) {
+        this.receiverAltitude = receiverAltitude;
     }
 
     public boolean isMarked() {

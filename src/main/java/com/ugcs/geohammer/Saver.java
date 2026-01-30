@@ -190,31 +190,11 @@ public class Saver implements ToolProducer, InitializingBean {
 			saveToMenu.getItems().clear();
 		}
 
-		String typeLabel = getSaveOptionTypeLabel(file);
-
 		MenuItem saveAsSingleFileItem = new MenuItem("Single file");
-		saveAsSingleFileItem.setOnAction(event -> {
-			File toFile = selectFile(file.getFile());
-			if (toFile != null) {
-				String actionName = "Saving " + typeLabel + " to file " + toFile;
-				runAction(actionName, () -> {
-					saveFullTrace(file, toFile);
-					return null;
-				});
-			}
-		});
+		saveAsSingleFileItem.setOnAction(event -> onSaveFullTrace(file));
 
 		MenuItem saveLinesItem = new MenuItem("Multiple files with separate lines");
-		saveLinesItem.setOnAction(event -> {
-			File toFolder = selectFolder(file.getFile());
-			if (toFolder != null) {
-				String actionName = "Saving " + typeLabel + " to folder " + toFolder;
-				runAction(actionName, () -> {
-					saveLines(file, toFolder);
-					return null;
-				});
-			}
-		});
+		saveLinesItem.setOnAction(event -> onSaveLines(file));
 
 		saveToMenu.getItems().setAll(saveAsSingleFileItem, saveLinesItem);
 		saveToMenu.show(buttonSaveTo, Side.BOTTOM, 0, 0);
@@ -227,6 +207,36 @@ public class Saver implements ToolProducer, InitializingBean {
 			return "Sonar";
 		} else {
 			throw new IllegalArgumentException("Unsupported file type for save options: " + file.getClass());
+		}
+	}
+
+	private void onSaveFullTrace(SgyFile file) {
+		Check.notNull(file);
+
+		String typeLabel = getSaveOptionTypeLabel(file);
+
+		File toFile = selectFile(file.getFile());
+		if (toFile != null) {
+			String actionName = "Saving " + typeLabel + " to file " + toFile;
+			runAction(actionName, () -> {
+				saveFullTrace(file, toFile);
+				return null;
+			});
+		}
+	}
+
+	private void onSaveLines(SgyFile file) {
+		Check.notNull(file);
+
+		String typeLabel = getSaveOptionTypeLabel(file);
+
+		File toFolder = selectFolder(file.getFile());
+		if (toFolder != null) {
+			String actionName = "Saving " + typeLabel + " to folder " + toFolder;
+			runAction(actionName, () -> {
+				saveLines(file, toFolder);
+				return null;
+			});
 		}
 	}
 

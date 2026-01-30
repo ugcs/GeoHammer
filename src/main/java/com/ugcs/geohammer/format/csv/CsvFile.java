@@ -6,6 +6,7 @@ import com.ugcs.geohammer.format.csv.parser.Writer;
 import com.ugcs.geohammer.format.csv.parser.WriterFactory;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
@@ -115,6 +116,11 @@ public class CsvFile extends SgyFile {
 
         Writer writer = WriterFactory.createWriter(getTemplate());
         writer.write(this, file);
+    }
+
+    @Override
+    public void save(File file, IndexRange range) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override

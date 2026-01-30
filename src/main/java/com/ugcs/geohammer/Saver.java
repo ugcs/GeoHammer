@@ -162,6 +162,9 @@ public class Saver implements ToolProducer, InitializingBean {
 		}
 
 		if (selectedFile instanceof TraceFile || selectedFile instanceof SonarFile) {
+			Tooltip tooltip = buttonSaveTo.getTooltip();
+			buttonSaveTo.setTooltip(null);
+			saveToMenu.setOnHidden(e -> buttonSaveTo.setTooltip(tooltip));
             saveToMenu.show(buttonSaveTo, Side.BOTTOM, 0, 0);
 		}
 

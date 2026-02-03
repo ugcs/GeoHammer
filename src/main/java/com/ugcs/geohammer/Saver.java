@@ -343,6 +343,11 @@ public class Saver implements ToolProducer, InitializingBean {
 						new FileChooser.ExtensionFilter("GPR Files (*.sgy)", "*.sgy")
 				);
 			}
+			if (FileTypes.isSvlogFile(initFile)) {
+				fileChooser.getExtensionFilters().add(
+						new FileChooser.ExtensionFilter("SVLOG Files (*.svlog)", "*.svlog")
+				);
+			}
 		}
 		return fileChooser.showSaveDialog(AppContext.stage);
 	}

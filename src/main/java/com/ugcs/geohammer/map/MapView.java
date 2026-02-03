@@ -225,7 +225,7 @@ public class MapView implements InitializingBean {
 			return;
 		}
 
-		if (changed.isJustdraw()) {
+		if (changed.isJustdraw() || changed.isTraceSelected()) {
 			updateUI();
 		}
 	}

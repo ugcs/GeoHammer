@@ -6,11 +6,15 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.effect.Blend;
 import javafx.scene.effect.BlendMode;
 import javafx.scene.effect.ColorInput;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.Border;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -87,6 +91,14 @@ public final class Views {
         return button;
     }
 
+    public static Button createSvgButton(String svg, Color color, double height, String tooltip) {
+        Button button = new Button();
+        button.setStyle("-fx-background-color: transparent; -fx-padding: 2px; -fx-cursor: hand;");
+        button.setTooltip(new Tooltip(tooltip));
+        ResourceImageHolder.setButtonImage(svg, color, height, button);
+        return button;
+    }
+
 	public static void tintImage(ImageView imageView, @SuppressWarnings("SameParameterValue") Color tint) {
 		Image image = imageView.getImage();
 		if (image == null) {
@@ -102,6 +114,16 @@ public final class Views {
 		label.setPrefWidth(width);
 		return label;
 	}
+
+    public static TextField createSelectableLabel(String text) {
+        TextField textField = new TextField(text);
+        textField.setEditable(false);
+        textField.setFocusTraversable(false);
+        textField.setBackground(Background.EMPTY);
+        textField.setBorder(Border.EMPTY);
+        textField.setPadding(new Insets(0));
+        return textField;
+    }
 
 	public static Label createFixedLabel(String text, int width) {
 		Label label = new Label(text);

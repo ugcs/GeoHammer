@@ -329,7 +329,8 @@ public class Saver implements ToolProducer, InitializingBean {
 	private @Nullable File selectFile(@Nullable File initFile) {
 		FileChooser fileChooser = new FileChooser();
 		if (initFile != null) {
-			fileChooser.setInitialFileName(initFile.getName());
+			String filenameWithoutExtension = FileNames.removeExtension(initFile.getName());
+			fileChooser.setInitialFileName(filenameWithoutExtension);
 			fileChooser.setInitialDirectory(initFile.getParentFile());
 			String extensionPattern = "*." + FileNames.getExtension(initFile.getName());
 			fileChooser.getExtensionFilters().add(

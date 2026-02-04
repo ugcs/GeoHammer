@@ -21,15 +21,19 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
+import com.ugcs.geohammer.view.ResourceImageHolder;
+import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -37,6 +41,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.SVGPath;
+import javafx.scene.Cursor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -53,6 +60,8 @@ public class StatisticsTool extends ToolView {
 
     private final Model model;
 
+    private final InspectorView inspectorView;
+
     private Label seriesName;
 
     private Label value;
@@ -65,8 +74,9 @@ public class StatisticsTool extends ToolView {
 
     private int chartDecimals = SensorData.DEFAULT_DECIMALS;
 
-    public StatisticsTool(Model model) {
+    public StatisticsTool(Model model, InspectorView inspectorView) {
         this.model = model;
+        this.inspectorView = inspectorView;
 
         // name and value
         seriesName = new Label(NO_SERIES);
@@ -79,8 +89,13 @@ public class StatisticsTool extends ToolView {
         value = new Label(NO_VALUE);
         value.setStyle("-fx-font-weight: bold;-fx-font-size: 14px;");
 
-        HBox valueGroup = new HBox(seriesName, spacer, value);
+        Button showInspector = Views.createSvgButton(
+                ResourceImageHolder.LIST, Color.valueOf("#888888"), 20, "Inspect values");
+        showInspector.setOnAction(e -> inspectorView.toggle());
+
+        HBox valueGroup = new HBox(seriesName, spacer, value, showInspector);
         valueGroup.setSpacing(Tools.DEFAULT_SPACING);
+        valueGroup.setAlignment(Pos.CENTER_LEFT);
 
         // metrics
         metricsView = new MetricsView();

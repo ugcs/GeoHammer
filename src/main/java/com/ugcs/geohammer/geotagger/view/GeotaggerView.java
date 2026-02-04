@@ -5,9 +5,12 @@ import java.util.concurrent.ExecutorService;
 
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.geotagger.Geotagger;
+import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.geotagger.domain.CoverageStatus;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -72,6 +75,10 @@ public class GeotaggerView {
 		this.executor = executor;
 		this.positionPane = positionPane;
 		this.dataPane = dataPane;
+		this.dataPane.setCoverageStatusFunction(
+				file -> CoverageStatus.compute(file, positionPane.getFiles()));
+		this.positionPane.getFiles().addListener((ListChangeListener<SgyFile>) change ->
+				dataPane.refresh());
 
 		progressBar = new ProgressBar();
 		progressBar.setPrefWidth(300);

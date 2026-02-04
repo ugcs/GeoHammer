@@ -207,6 +207,10 @@ public abstract class FilePane extends VBox {
 		return listView.getItems();
 	}
 
+	public void refresh() {
+		listView.refresh();
+	}
+
 	protected abstract HBox createHeader();
 
 	protected abstract HBox createDataRow(SgyFile file);

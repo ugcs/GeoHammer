@@ -2,7 +2,7 @@ package com.ugcs.geohammer.geotagger.view;
 
 import java.io.File;
 import java.time.Instant;
-import java.util.List;
+import java.util.function.Function;
 
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
@@ -20,8 +20,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class DataFilePane extends FilePane {
 
+    private Function<SgyFile, CoverageStatus> coverageStatusFunction = file -> CoverageStatus.NOT_COVERED;
+
     public DataFilePane(Model model, StatusBar statusBar) {
         super(model, statusBar, "Data Files");
+    }
+
+    public void setCoverageStatusFunction(Function<SgyFile, CoverageStatus> coverageStatusFunction) {
+        this.coverageStatusFunction = coverageStatusFunction;
     }
 
     @Override
@@ -72,8 +78,7 @@ public class DataFilePane extends FilePane {
     }
 
     private String calculateCoverageStatus(SgyFile file) {
-        List<SgyFile> positionFiles = getFiles();
-        return CoverageStatus.compute(file, positionFiles).getDisplayName();
+        return coverageStatusFunction.apply(file).getDisplayName();
     }
 
     @Override

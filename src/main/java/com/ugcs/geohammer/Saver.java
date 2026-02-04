@@ -330,11 +330,22 @@ public class Saver implements ToolProducer, InitializingBean {
 	private @Nullable File selectFile(@Nullable File initFile) {
 		FileChooser fileChooser = new FileChooser();
 		if (initFile != null) {
-			fileChooser.setInitialFileName(initFile.getName());
+			String filenameWithoutExtension = FileNames.removeExtension(initFile.getName());
+			fileChooser.setInitialFileName(filenameWithoutExtension);
 			fileChooser.setInitialDirectory(initFile.getParentFile());
 			if (FileTypes.isCsvFile(initFile)) {
 				fileChooser.getExtensionFilters().add(
 						new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv")
+				);
+			}
+			if (FileTypes.isGprFile(initFile)) {
+				fileChooser.getExtensionFilters().add(
+						new FileChooser.ExtensionFilter("GPR Files (*.sgy)", "*.sgy")
+				);
+			}
+			if (FileTypes.isSvlogFile(initFile)) {
+				fileChooser.getExtensionFilters().add(
+						new FileChooser.ExtensionFilter("SVLOG Files (*.svlog)", "*.svlog")
 				);
 			}
 		}

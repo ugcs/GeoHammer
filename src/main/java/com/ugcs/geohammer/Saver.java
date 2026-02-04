@@ -23,7 +23,6 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TaskRunner;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.MessageBoxHelper;
@@ -333,21 +332,10 @@ public class Saver implements ToolProducer, InitializingBean {
 			String filenameWithoutExtension = FileNames.removeExtension(initFile.getName());
 			fileChooser.setInitialFileName(filenameWithoutExtension);
 			fileChooser.setInitialDirectory(initFile.getParentFile());
-			if (FileTypes.isCsvFile(initFile)) {
-				fileChooser.getExtensionFilters().add(
-						new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv")
-				);
-			}
-			if (FileTypes.isGprFile(initFile)) {
-				fileChooser.getExtensionFilters().add(
-						new FileChooser.ExtensionFilter("GPR Files (*.sgy)", "*.sgy")
-				);
-			}
-			if (FileTypes.isSvlogFile(initFile)) {
-				fileChooser.getExtensionFilters().add(
-						new FileChooser.ExtensionFilter("SVLOG Files (*.svlog)", "*.svlog")
-				);
-			}
+			String extensionPattern = "*." + FileNames.getExtension(initFile.getName());
+			fileChooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Files (" + extensionPattern + ")", extensionPattern)
+			);
 		}
 		return fileChooser.showSaveDialog(AppContext.stage);
 	}

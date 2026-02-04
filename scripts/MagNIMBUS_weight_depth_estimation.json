@@ -1,0 +1,49 @@
+{
+  "filename": "MagNIMBUS_weight_depth_estimation.py",
+  "display_name": "Weight/Depth Estimation",
+  "parameters": [
+    {
+      "name": "lower-sensor-column",
+      "display_name": "Lower sensor column",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI_lower",
+      "required": false
+    },
+    {
+      "name": "upper-sensor-column",
+      "display_name": "Upper sensor column",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI_upper",
+      "required": false
+    },
+    {
+      "name": "altitude-column",
+      "display_name": "Altitude AGL column",
+      "type": "COLUMN_NAME",
+      "default_value": "Altitude_AGL",
+      "required": false
+    },
+    {
+      "name": "sensor-separation",
+      "display_name": "Sensor separation (m)",
+      "type": "DOUBLE",
+      "default_value": 1.5,
+      "required": false
+    },
+    {
+      "name": "save-to",
+      "display_name": "Save file to..",
+      "type": "BOOLEAN",
+      "default_value": false,
+      "required": false
+    },
+    {
+      "name": "out-dir",
+      "display_name": "Output folder (used only if 'Save file to..' is checked)",
+      "type": "FILE_PATH",
+      "default_value": "",
+      "required": false
+    }
+  ],
+  "templates": ["MagNIMBUS"]
+}

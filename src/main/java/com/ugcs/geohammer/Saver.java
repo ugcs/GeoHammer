@@ -8,10 +8,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
-import com.ugcs.geohammer.format.svlog.SonarFile;
-import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.ProgressTask;
+import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
@@ -19,29 +24,27 @@ import com.ugcs.geohammer.service.TaskRunner;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.event.ActionEvent;
+import javafx.geometry.Side;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.Tooltip;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import com.ugcs.geohammer.format.csv.CsvFile;
-import com.ugcs.geohammer.view.ResourceImageHolder;
-import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.model.ToolProducer;
-import com.ugcs.geohammer.model.Model;
-
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Tooltip;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
 
 @Component
 public class Saver implements ToolProducer, InitializingBean {
@@ -57,17 +60,20 @@ public class Saver implements ToolProducer, InitializingBean {
 	private final Button buttonSaveAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.SAVE_ALL, new Button());
 	private final Button buttonCloseAll = ResourceImageHolder.setButtonImage(ResourceImageHolder.CLOSE_ALL, new Button());
 
+	private final ContextMenu saveToMenu = new ContextMenu();
+
 	@Autowired
 	private Model model;
-	
+
 	@Autowired
 	private Loader loader;
-	
+
 	@Autowired
 	private Status status;
 
 	@Autowired
 	private PrefSettings prefSettings;
+
 
 	public Saver(Model model) {
 		this.model = model;
@@ -89,7 +95,15 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		buttonCloseAll.setTooltip(new Tooltip("Close all"));
 		buttonCloseAll.setOnAction(this::onCloseAll);
-	}
+
+        MenuItem saveToSingleFileItem = new MenuItem("Single file");
+        saveToSingleFileItem.setOnAction(event -> onSaveToSingleFile());
+
+        MenuItem saveToSeparateFilesItem = new MenuItem("Multiple files with separate lines");
+        saveToSeparateFilesItem.setOnAction(event -> onSaveToSeparateFiles());
+
+        saveToMenu.getItems().setAll(saveToSingleFileItem, saveToSeparateFilesItem);
+    }
 
 	@Override
 	public List<Node> getToolNodes() {		
@@ -138,80 +152,66 @@ public class Saver implements ToolProducer, InitializingBean {
     }
 
 	private void onSaveTo(ActionEvent event) {
+		if (saveToMenu.isShowing()) {
+			saveToMenu.hide();
+			return;
+		}
+
 		SgyFile selectedFile = model.getCurrentFile();
 		if (selectedFile == null) {
 			return;
 		}
 
-		if (selectedFile instanceof TraceFile traceFile) {
-			File toFolder = selectFolder(traceFile.getFile());
-			if (toFolder != null) {
-				String actionName = "Saving GPR to " + toFolder;
-				runAction(actionName, () -> {
-					saveToGpr(traceFile, toFolder);
-					return null;
-				});
-			}
+		if (selectedFile instanceof TraceFile || selectedFile instanceof SonarFile) {
+			Tooltip tooltip = buttonSaveTo.getTooltip();
+			buttonSaveTo.setTooltip(null);
+			saveToMenu.setOnHidden(e -> buttonSaveTo.setTooltip(tooltip));
+            saveToMenu.show(buttonSaveTo, Side.BOTTOM, 0, 0);
 		}
 
-		if (selectedFile instanceof CsvFile csvFile) {
+        if (selectedFile instanceof CsvFile csvFile) {
 			File toFile = selectFile(csvFile.getFile());
 			if (toFile != null) {
-				String actionName = "Saving CSV to " + toFile;
+				String actionName = "Saving to " + toFile;
 				runAction(actionName, () -> {
 					saveToCsv(csvFile, toFile);
 					return null;
 				});
 			}
 		}
+	}
 
-        if (selectedFile instanceof SonarFile sonarFile) {
-            File toFile = selectFile(sonarFile.getFile());
-            if (toFile != null) {
-                String actionName = "Saving SVLOG to " + toFile;
-                runAction(actionName, () -> {
-                    saveToSonar(sonarFile, toFile);
-                    return null;
-                });
-            }
+    private void onSaveToSingleFile() {
+        SgyFile selectedFile = model.getCurrentFile();
+        if (selectedFile == null) {
+            return;
         }
-	}
 
-	private void saveToGpr(TraceFile traceFile, File toFolder) throws IOException {
-		Check.notNull(traceFile);
-		Check.notNull(toFolder);
+        File toFile = selectFile(selectedFile.getFile());
+        if (toFile != null) {
+            String actionName = "Saving to " + toFile;
+            runAction(actionName, () -> {
+                saveToSingleFile(selectedFile, toFile);
+                return null;
+            });
+        }
+    }
 
-		File file = traceFile.getFile();
-		Check.notNull(file);
+    private void onSaveToSeparateFiles() {
+        SgyFile selectedFile = model.getCurrentFile();
+        if (selectedFile == null) {
+            return;
+        }
 
-		if (!toFolder.exists()) {
-			boolean created = toFolder.mkdirs();
-			if (!created) {
-				throw new IOException("Could not create output directory: " + toFolder);
-			}
-		}
-
-		log.info("Saving GPR lines to {}", toFolder);
-
-		String baseName = FileNames.removeExtension(file.getName());
-		String extension = FileNames.getExtension(file.getName());
-
-		// TODO copy required only for denormalization
-		//  of samples before save
-		TraceFile copy = traceFile.copy();
-		copy.denormalize();
-
-		NavigableMap<Integer, IndexRange> lineRanges = traceFile.getLineRanges();
-		int lineSequence = 1;
-		for (IndexRange range : lineRanges.values()) {
-			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
-			File rangeFile = new File(toFolder, rangeFileName);
-
-			copy.save(rangeFile, range);
-
-			lineSequence++;
-		}
-	}
+        File toFolder = selectFolder(selectedFile.getFile());
+        if (toFolder != null) {
+            String actionName = "Saving to folder " + toFolder;
+            runAction(actionName, () -> {
+                saveToSeparateFiles(selectedFile, toFolder);
+                return null;
+            });
+        }
+    }
 
     private void checkNotOpened(File file) {
         if (file == null) {
@@ -244,16 +244,60 @@ public class Saver implements ToolProducer, InitializingBean {
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 	}
 
-    private void saveToSonar(SonarFile sonarFile, File toFile) throws IOException {
-        Check.notNull(sonarFile);
-        Check.notNull(toFile);
+	private void saveToSingleFile(SgyFile sgyFile, File toFile) throws IOException {
+		Check.notNull(sgyFile);
+		Check.notNull(toFile);
+		checkNotOpened(toFile);
 
-        // check that target file is not open
-        checkNotOpened(toFile);
+		log.info("Saving to single file {}", toFile);
 
-        log.info("Saving SVLOG to {}", toFile);
-        sonarFile.save(toFile);
-    }
+		if (sgyFile instanceof TraceFile traceFile) {
+			TraceFile copy = traceFile.copy();
+			copy.denormalize();
+			copy.addLineBoundaryMarks();
+			copy.save(toFile);
+		}
+
+        if (sgyFile instanceof SonarFile sonarFile) {
+			sonarFile.save(toFile);
+		}
+	}
+
+	private void saveToSeparateFiles(SgyFile sgyFile, File toFolder) throws IOException {
+		Check.notNull(sgyFile);
+		Check.notNull(toFolder);
+
+		File file = sgyFile.getFile();
+		Check.notNull(file);
+
+		if (!toFolder.exists()) {
+			boolean created = toFolder.mkdirs();
+			if (!created) {
+				throw new IOException("Could not create output directory: " + toFolder);
+			}
+		}
+
+		log.info("Saving lines to separate files {}", toFolder);
+
+		String baseName = FileNames.removeExtension(file.getName());
+		String extension = FileNames.getExtension(file.getName());
+
+		if (sgyFile instanceof TraceFile traceFile) {
+            TraceFile copy = traceFile.copy();
+			copy.denormalize();
+            sgyFile = copy;
+		}
+
+		NavigableMap<Integer, IndexRange> lineRanges = sgyFile.getLineRanges();
+		int lineSequence = 1;
+		for (IndexRange range : lineRanges.values()) {
+			String rangeFileName = String.format("%s_%03d.%s", baseName, lineSequence, extension);
+			File rangeFile = new File(toFolder, rangeFileName);
+            sgyFile.save(rangeFile, range);
+
+			lineSequence++;
+		}
+	}
 
 	private List<File> selectFiles() {
 		FileChooser fileChooser = new FileChooser();

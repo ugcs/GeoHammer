@@ -23,17 +23,16 @@ import com.github.thecoldwine.sigrun.serialization.BinaryHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
-import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
 import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
-import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.LengthUnit;
 import com.ugcs.geohammer.util.Traces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +40,16 @@ import org.slf4j.LoggerFactory;
 public class GprFile extends TraceFile {
 
 	private static final Logger log = LoggerFactory.getLogger(GprFile.class);
+
+    private static final int FILE_NUM_SAMPLES_POS = 20;
+
+    private static final int RECEIVER_ELEVATION_POS = 40;
+
+    private static final int NUM_SAMPLES_POS = 114;
+
+    private static final int LONGITUDE_POS = 182;
+
+    private static final int LATITUDE_POS = 190;
 
 	private static final int MARK_BYTE_POS = 238;
 
@@ -155,6 +164,7 @@ public class GprFile extends TraceFile {
         if (binHeader[MARK_BYTE_POS] != 0) {
         	trace.setMarked(true);
         }
+        trace.setReceiverAltitude(getReceiverElevation(binHeader));
         return trace;
 	}
 
@@ -176,6 +186,16 @@ public class GprFile extends TraceFile {
 
 		return new LatLon(rlat, rlon);
 	}
+
+    private Float getReceiverElevation(byte[] binHeader) {
+        ByteBuffer buffer = ByteBuffer.wrap(binHeader).order(ByteOrder.LITTLE_ENDIAN);
+        float elevation = Float.intBitsToFloat(buffer.getInt(RECEIVER_ELEVATION_POS));
+        // convert to meters if file uses feet
+        if (binaryHeader.getMeasurementSystem() == 2) {
+            elevation = (float)LengthUnit.FOOT.toMeters(elevation);
+        }
+        return elevation;
+    }
 
 	private Instant getTimestamp(TraceHeader header) {
 		Short year = header.getYearDataRecorded();
@@ -257,7 +277,15 @@ public class GprFile extends TraceFile {
 		Check.notNull(file);
 		Check.notNull(range);
 
-		SeismicValuesConverter converter = ConverterFactory
+        short numSamples = (short)getMaxSamples();
+        // update number of samples in the header
+        if (numSamples != binaryHeader.getSamplesPerDataTrace()) {
+            binaryHeader.setSamplesPerDataTrace(numSamples);
+            ByteBuffer headerBuffer = ByteBuffer.wrap(binHdr).order(ByteOrder.LITTLE_ENDIAN);
+            headerBuffer.putShort(FILE_NUM_SAMPLES_POS, numSamples);
+        }
+
+        SeismicValuesConverter converter = ConverterFactory
 				.getConverter(binaryHeader.getDataSampleCode());
 
 		BinFile binFile = new BinFile();
@@ -265,11 +293,11 @@ public class GprFile extends TraceFile {
 		binFile.setTxtHdr(txtHdr);
 		binFile.setBinHdr(binHdr);
 
-		Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements(), range);
+        Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements(), range);
 
 		List<Trace> fileTraces = getTraces();
 
-		for (int i = range.from(); i < range.to(); i++) {
+        for (int i = range.from(); i < range.to(); i++) {
 			Trace trace = fileTraces.get(i);
 
 			BinTrace binTrace = new BinTrace();
@@ -282,7 +310,7 @@ public class GprFile extends TraceFile {
 
 			// set or clear mark
 			binTrace.header[MARK_BYTE_POS] =
-					(byte) (marks.contains(trace.getIndex()) ? -1 : 0);
+					(byte) (marks.contains(i) ? -1 : 0);
 
 			binTrace.data = converter.valuesToByteBuffer(trace).array();
 			binFile.getTraces().add(binTrace);
@@ -292,27 +320,18 @@ public class GprFile extends TraceFile {
 	}
 
     private void updateTraceBuffer(Trace trace, ByteBuffer buffer) {
-        buffer.putShort(114, (short)trace.numSamples());
-        buffer.putDouble(190, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
-        buffer.putDouble(182, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
+        buffer.putShort(NUM_SAMPLES_POS, (short)trace.numSamples());
+        buffer.putDouble(LONGITUDE_POS, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
+        buffer.putDouble(LATITUDE_POS, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
 
-        Double elevation = trace.getSurfaceElevation();
-        if (elevation != null) {
-            // convert if file uses feet
-            if (binaryHeader.getMeasurementSystem() == 2) {
-                elevation = TraceUnit.convert(elevation, TraceUnit.FEET);
-            }
-            Short scalar = trace.getHeader().getScalarForElevations();
-            if (scalar == null || scalar == 0) {
-                scalar = -100;
-                buffer.putShort(68, scalar);
-            }
-            int scaledElevation = scalar > 0
-                    ? (int)(elevation / scalar)
-                    : (int)(elevation * -scalar);
-            // Surface elevation at source location
-            buffer.putInt(44, scaledElevation);
+        float elevation = trace.getReceiverAltitude();
+        // convert if file uses feet
+        if (binaryHeader.getMeasurementSystem() == 2) {
+            elevation = (float)LengthUnit.FOOT.fromMeters(elevation);
         }
+        // elevation is stored as float bytes
+        // with no scalar applied
+        buffer.putInt(RECEIVER_ELEVATION_POS, Float.floatToIntBits(elevation));
     }
 
 	@Override

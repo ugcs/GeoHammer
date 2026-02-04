@@ -2,6 +2,20 @@
   "filename": "UAWOS_RSS_processing.py",
   "display_name": "RSS data processing",
   "parameters": [
+    {
+      "name": "save-to",
+      "display_name": "Save file to..",
+      "type": "BOOLEAN",
+      "default_value": false,
+      "required": false
+    },
+    {
+      "name": "out-dir",
+      "display_name": "Output folder (used only if 'Save file to..' is checked)",
+      "type": "FILE_PATH",
+      "default_value": "",
+      "required": false
+    }
   ],
   "templates": ["sgy"]
 }

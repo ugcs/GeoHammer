@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import struct
 import argparse
+import tempfile
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -12,9 +14,75 @@ from scipy.stats import norm
 import segyio
 from segyio import TraceField as TF
 
+def str2bool(v):
 
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return False
+    s = str(v).strip().lower()
+    if s in ("1", "true", "t", "yes", "y", "on"):
+        return True
+    if s in ("0", "false", "f", "no", "n", "off", ""):
+        return False
+    raise argparse.ArgumentTypeError(f"Boolean value expected, got: {v}")
+
+
+def normalize_input_stem(stem: str) -> str:
+
+    s = stem.strip()
+
+    # separators + long digits
+    s2 = re.sub(r"([_\-\.\s])\d{10,}$", "", s)
+    if s2 != s:
+        return s2
+
+    # parentheses with long digits
+    s2 = re.sub(r"\s*\(\d{10,}\)$", "", s)
+    if s2 != s:
+        return s2.rstrip()
+
+    # no separator, just a long digit tail
+    s2 = re.sub(r"\d{12,}$", "", s)
+    return s2
+
+
+
+def build_output_csv_path(segy_path: str, save_to: bool, out_dir: str) -> str:
+    stem = os.path.splitext(os.path.basename(segy_path))[0]
+    stem = normalize_input_stem(stem)
+    out_name = stem + "_processed.csv"
+
+    if save_to:
+        out_dir = (out_dir or "").strip()
+        out_dir = os.path.expanduser(os.path.expandvars(out_dir))
+
+        if out_dir and os.path.splitext(out_dir)[1]:
+            out_dir = os.path.dirname(out_dir)
+
+        if not out_dir:
+            out_dir = os.path.dirname(os.path.abspath(segy_path))
+
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, out_name)
+
+        try:
+            testfile = os.path.join(out_dir, ".__write_test__")
+            with open(testfile, "w", encoding="utf-8") as t:
+                t.write("ok")
+            os.remove(testfile)
+        except Exception:
+            out_path = os.path.join(tempfile.gettempdir(), out_name)
+
+        return out_path
+
+    return os.path.join(tempfile.gettempdir(), out_name)
+
+
+
+# -----------------------------
 # Decode vendor header data
-
+# -----------------------------
 def decode_vendor_header_240(raw240):
     altitude_m = struct.unpack("<f", raw240[40:44])[0]
     dir_raw   = struct.unpack("<i", raw240[48:52])[0]
@@ -23,8 +91,9 @@ def decode_vendor_header_240(raw240):
     return altitude_m, dir_raw, lon_deg, lat_deg
 
 
-# Detect marks using extended header pattern
-
+# -----------------------------
+# Detect marks using pattern
+# -----------------------------
 def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_tolerance=2):
     marks = []
     mark_vals = []
@@ -78,21 +147,15 @@ def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_toleranc
                         mark_vals.append(int(mark))
                         mark_pos.append(int(pos))
 
-    # ---- False-positive filtering by byte position (keep only the dominant pos) ----
+    # False-positive filtering by byte position (keep only the dominant pos)
     if mark_pos:
-        # mode position
         pos_mode = max(set(mark_pos), key=mark_pos.count)
-
-        keep_idx = [
-            k for k, p in enumerate(mark_pos)
-            if abs(p - pos_mode) <= pos_tolerance
-        ]
-
+        keep_idx = [k for k, p in enumerate(mark_pos) if abs(p - pos_mode) <= pos_tolerance]
         marks = [marks[k] for k in keep_idx]
         mark_vals = [mark_vals[k] for k in keep_idx]
         mark_pos = [mark_pos[k] for k in keep_idx]
 
-    # ---- Start skipper: ignore any marks before the first "start_mark" (usually 1) ----
+    # Start skipper
     if mark_vals and start_mark is not None:
         try:
             first_ok = mark_vals.index(start_mark)
@@ -100,7 +163,6 @@ def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_toleranc
             mark_vals = mark_vals[first_ok:]
             mark_pos = mark_pos[first_ok:]
         except ValueError:
-            # no start_mark found -> keep nothing (or keep all; choose what you prefer)
             marks, mark_vals, mark_pos = [], [], []
 
     print(f"Found marks after filtering: {len(marks)}")
@@ -115,8 +177,9 @@ def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_toleranc
         ntraces=int(ntraces),
     )
 
+# -----------------------------
 # Velocity helpers
-
+# -----------------------------
 VRES_MM_PER_S = 7.3921
 LOOK_ANGLE_DEG = 45
 VMASK_CM_PER_S = 15.0
@@ -136,7 +199,6 @@ def build_velocity_axis(nsamples):
     pos = np.linspace(1, half, half) * vres
     vaxis_mm_s = np.concatenate((neg, pos))
     return (vaxis_mm_s / 10.0) / cos_term  # cm/s
-
 
 def compute_velocities_for_mark_from_spectrum(sub_mean, vaxis_cm_s):
     valid = (vaxis_cm_s > VLOWER_CM_PER_S) & (vaxis_cm_s < VUPPER_CM_PER_S)
@@ -163,12 +225,22 @@ def compute_velocities_for_mark_from_spectrum(sub_mean, vaxis_cm_s):
 
     return v_raw, v_fw
 
-
+# -----------------------------
 # MAIN
-
+# -----------------------------
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("file_path", help="SEG-Y file path")
+    parser.add_argument(
+        "--save-to",
+        dest="save_to",
+        nargs="?",          # value is optional
+        const=True,         # if flag is present with no value -> True
+        default=False,
+        type=str2bool
+    )
+    parser.add_argument("--out-dir", dest="out_dir", type=str, default="")
+
     args = parser.parse_args()
 
     SEG_Y_FILE = args.file_path
@@ -176,8 +248,7 @@ def main():
         print("No SGY selected. Exiting.")
         return
 
-    # Auto-generate output CSV
-    OUTPUT_CSV = os.path.splitext(SEG_Y_FILE)[0] + "_RSS.csv"
+    OUTPUT_CSV = build_output_csv_path(SEG_Y_FILE, args.save_to, args.out_dir)
 
     print("\nUsing SGY:", SEG_Y_FILE)
     print("Saving CSV to:", OUTPUT_CSV, "\n")
@@ -266,30 +337,27 @@ def main():
         "Velocity full waveform data cm/s",
     ])
 
-    #Velocity in m/s
+    # Velocity in m/s
     df["Velocity raw m/s"] = df["Velocity raw cm/s"] / 100.0
     df["Velocity full waveform data m/s"] = df["Velocity full waveform data cm/s"] / 100.0
 
-    #Direction calculation 
-    #Use OUTGOING segment (i -> i+1)
-    MAX_LINE_ANGLE_DEG = 20.0 #max angle 20°
+    # Direction calculation
+    MAX_LINE_ANGLE_DEG = 20.0
     COS_THR = np.cos(np.deg2rad(MAX_LINE_ANGLE_DEG))
-    EPS_LEN = 1e-15  # avoid zero-length segments
-    MIN_CONSEC_FOR_FLIP = 1  # set to 2 if you want extra anti-noise (if the drone has been very jittery)
+    EPS_LEN = 1e-15
+    MIN_CONSEC_FOR_FLIP = 1
 
     n = len(df)
     if n >= 2:
         lon = df["Longitude (deg)"].astype(float).to_numpy()
         lat = df["Latitude (deg)"].astype(float).to_numpy()
 
-        # make angles saner by scaling lon by cos(lat)
         def vec(i0, i1):
             latm = 0.5 * (lat[i0] + lat[i1])
             dx = (lon[i1] - lon[i0]) * np.cos(np.deg2rad(latm))
             dy = (lat[i1] - lat[i0])
             return np.array([dx, dy], dtype=float)
 
-        # reference axis = mark1 -> mark2
         vref = vec(0, 1)
         nref = np.linalg.norm(vref)
 
@@ -297,15 +365,13 @@ def main():
             df["Direction"] = df["Direction (vendor)"].apply(lambda d: -1 if d < 0 else 1)
         else:
             refhat = vref / nref
-
             direction = np.ones(n, dtype=int)
-            direction[0] = 1  # by definition
+            direction[0] = 1
 
             current = 1
             pending = 0
             pending_count = 0
 
-            # Direction for mark i comes from segment i -> i+1
             for i in range(0, n - 1):
                 v = vec(i, i + 1)
                 nv = np.linalg.norm(v)
@@ -315,9 +381,8 @@ def main():
                     continue
 
                 vhat = v / nv
-                c = float(np.dot(vhat, refhat))  # signed cos(angle to ref axis)
+                c = float(np.dot(vhat, refhat))
 
-                # off-line segment (e.g., 90° hop): do not change direction
                 if abs(c) < COS_THR:
                     direction[i] = current
                     pending = 0
@@ -326,7 +391,6 @@ def main():
 
                 seg_sign = 1 if c >= 0 else -1
 
-                # optional hysteresis (consecutive segments required to flip)
                 if seg_sign == current:
                     pending = 0
                     pending_count = 0
@@ -344,14 +408,13 @@ def main():
 
                 direction[i] = current
 
-            # last mark: carry previous
             direction[-1] = direction[-2]
             df["Direction"] = direction
     else:
         df["Direction"] = df["Direction (vendor)"].apply(lambda d: -1 if d < 0 else 1)
 
     df.drop(columns=["Direction (vendor)"], inplace=True)
- 
+
     df.to_csv(OUTPUT_CSV, index=False)
     print("\nSaved CSV:", OUTPUT_CSV)
 

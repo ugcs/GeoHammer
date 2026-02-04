@@ -75,6 +75,8 @@ public abstract class SgyFile {
 	
 	public abstract void save(File file) throws IOException;
 
+    public abstract void save(File file, IndexRange range) throws IOException;
+
 	public abstract SgyFile copy();
 
 	public abstract FileSnapshot<? extends SgyFile> createSnapshot();

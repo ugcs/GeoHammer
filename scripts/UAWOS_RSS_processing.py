@@ -48,12 +48,12 @@ def normalize_input_stem(stem: str) -> str:
 
 
 
-def build_output_csv_path(segy_path: str, save_to: bool, out_dir: str) -> str:
+def build_output_csv_path(segy_path: str, out_dir: str) -> str:
     stem = os.path.splitext(os.path.basename(segy_path))[0]
     stem = normalize_input_stem(stem)
     out_name = stem + "_processed.csv"
 
-    if save_to:
+    if out_dir:
         out_dir = (out_dir or "").strip()
         out_dir = os.path.expanduser(os.path.expandvars(out_dir))
 
@@ -231,14 +231,6 @@ def compute_velocities_for_mark_from_spectrum(sub_mean, vaxis_cm_s):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("file_path", help="SEG-Y file path")
-    parser.add_argument(
-        "--save-to",
-        dest="save_to",
-        nargs="?",          # value is optional
-        const=True,         # if flag is present with no value -> True
-        default=False,
-        type=str2bool
-    )
     parser.add_argument("--out-dir", dest="out_dir", type=str, default="")
 
     args = parser.parse_args()
@@ -248,7 +240,7 @@ def main():
         print("No SGY selected. Exiting.")
         return
 
-    OUTPUT_CSV = build_output_csv_path(SEG_Y_FILE, args.save_to, args.out_dir)
+    OUTPUT_CSV = build_output_csv_path(SEG_Y_FILE, args.out_dir)
 
     print("\nUsing SGY:", SEG_Y_FILE)
     print("Saving CSV to:", OUTPUT_CSV, "\n")

@@ -9,6 +9,7 @@ import com.ugcs.geohammer.geotagger.domain.Position;
 import com.ugcs.geohammer.geotagger.domain.Segment;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.Semantic;
 import javafx.application.Platform;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
@@ -77,7 +78,8 @@ public class Geotagger {
 
     private void interpolateAndUpdatePositions(CsvFile csvFile, List<Position> positions, Progress progress) {
 		List<GeoData> geoData = csvFile.getGeoData();
-		boolean hasAltitude = !geoData.isEmpty() && geoData.getFirst().hasAltitudeSemantic();
+		boolean hasAltitude = !geoData.isEmpty()
+				&& geoData.getFirst().getSchema().getHeaderBySemantic(Semantic.ALTITUDE.getName()) != null;
 
         for (GeoData value : geoData) {
             Position interpolated = interpolate(value, positions);

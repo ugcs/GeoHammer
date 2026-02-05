@@ -196,10 +196,6 @@ public class GeoData {
         setValueBySemantic(Semantic.ALTITUDE.getName(), altitude);
     }
 
-	public boolean hasAltitudeSemantic() {
-		return schema.getHeaderBySemantic(Semantic.ALTITUDE.getName()) != null;
-	}
-
     public Integer getLine() {
         Number line = getNumberBySemantic(Semantic.LINE.getName());
         return line != null ? line.intValue() : null;

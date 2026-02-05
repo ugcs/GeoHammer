@@ -2,13 +2,9 @@ package com.ugcs.geohammer.geotagger.view;
 
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.geotagger.Formatters;
 import com.ugcs.geohammer.geotagger.domain.TimeRange;
-import com.ugcs.geohammer.model.FileManager;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.model.template.FileTemplates;
-import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -75,17 +71,6 @@ public class PositionFilePane extends FilePane {
 
     @Override
     public boolean canAdd(File file) {
-		FileManager fileManager = model.getFileManager();
-
-		SgyFile sgyFile = fileManager.getFile(file);
-		return switch (sgyFile) {
-			case CsvFile csvFile -> csvFile.isPositional();
-			case null -> {
-				FileTemplates fileTemplates = model.getFileManager().getFileTemplates();
-				Template template = fileTemplates.findTemplate(file);
-				yield template != null && template.isPositional();
-			}
-			default -> false;  // GprFile or other types not allowed
-		};
+        return model.getFileManager().isPositionalFile(file);
     }
 }

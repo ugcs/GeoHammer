@@ -6,6 +6,7 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.ProgressListener;
 import com.ugcs.geohammer.model.element.RulerTool;
+import com.ugcs.geohammer.model.event.WhatChanged;
 
 public class DistanceSmoother implements Command {
 
@@ -83,4 +84,9 @@ public class DistanceSmoother implements Command {
 		
 		return (sl + sr) / c;
 	}
+
+    @Override
+    public WhatChanged.Change getChange() {
+        return null;
+    }
 }

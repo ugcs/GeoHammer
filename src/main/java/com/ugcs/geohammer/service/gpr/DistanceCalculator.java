@@ -6,6 +6,7 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.ProgressListener;
 import com.ugcs.geohammer.math.CoordinatesMath;
+import com.ugcs.geohammer.model.event.WhatChanged;
 
 public class DistanceCalculator implements Command {
 
@@ -42,4 +43,9 @@ public class DistanceCalculator implements Command {
 		}
 		traces.get(0).setPrevDist(traces.get(1).getPrevDist());
 	}
+
+    @Override
+    public WhatChanged.Change getChange() {
+        return null;
+    }
 }

@@ -329,11 +329,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
                 TraceKey traceKey = new TraceKey(this, range.from());
                 getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
             }
-			// Mark end of each line (except last)
-			if (i < size - 1) {
-				TraceKey traceKey = new TraceKey(this, range.to() - 1);
-				getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
-			}
 			i++;
 		}
 	}

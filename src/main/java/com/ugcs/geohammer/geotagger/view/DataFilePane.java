@@ -11,7 +11,6 @@ import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.geotagger.Formatters;
 import com.ugcs.geohammer.geotagger.domain.CoverageStatus;
 import com.ugcs.geohammer.geotagger.domain.TimeRange;
-import com.ugcs.geohammer.model.FileManager;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.view.Views;
@@ -95,12 +94,15 @@ public class DataFilePane extends FilePane {
 				|| FileTypes.isConstPointFile(file)) {
 			return false;
 		}
-		FileManager fileManager = model.getFileManager();
 
-		SgyFile sgyFile = fileManager.getFile(file);
-		if (sgyFile != null) {
-			return sgyFile instanceof GprFile || (sgyFile instanceof CsvFile && !FileTypes.isPositionFile(file));
-		}
-        return !FileTypes.isPositionFile(file);
-    }
+		SgyFile sgyFile = model.getFileManager().getFile(file);
+
+		return switch (sgyFile) {
+			case null -> !FileTypes.isPositionFile(file);
+			case GprFile ignored -> true;
+			case CsvFile csvFile -> !csvFile.isPositional();
+			default -> false;
+		};
+
+	}
 }

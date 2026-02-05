@@ -16,8 +16,8 @@ import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.Nulls;
-import com.ugcs.geohammer.util.Templates;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,7 +143,12 @@ public class CsvFile extends SgyFile {
         return parser != null ? parser.getTemplate() : null;
     }
 
-    @Override
+	public boolean isPositional() {
+		Template template = getTemplate();
+		return template != null ? template.isPositional() : FileTypes.isPositionFile(getFile());
+	}
+
+	@Override
     public CsvFile copy() {
         return new CsvFile(this);
     }

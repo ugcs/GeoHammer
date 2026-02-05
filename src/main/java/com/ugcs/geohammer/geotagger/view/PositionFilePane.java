@@ -77,16 +77,15 @@ public class PositionFilePane extends FilePane {
     public boolean canAdd(File file) {
 		FileManager fileManager = model.getFileManager();
 
-		Template template;
 		SgyFile sgyFile = fileManager.getFile(file);
-		if (sgyFile != null) {
-			template = sgyFile instanceof CsvFile csvFile
-					? csvFile.getTemplate()
-					: null;
-		} else {
-			FileTemplates fileTemplates = fileManager.getFileTemplates();
-			template = fileTemplates.findTemplate(file);
-		}
-		return template != null && template.isPositional();
+		return switch (sgyFile) {
+			case CsvFile csvFile -> csvFile.isPositional();
+			case null -> {
+				FileTemplates fileTemplates = model.getFileManager().getFileTemplates();
+				Template template = fileTemplates.findTemplate(file);
+				yield template != null && template.isPositional();
+			}
+			default -> false;  // GprFile or other types not allowed
+		};
     }
 }

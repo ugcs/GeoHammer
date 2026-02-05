@@ -297,6 +297,7 @@ public class GprFile extends TraceFile {
 
 		List<Trace> fileTraces = getTraces();
 
+		int markNumber = 1;
         for (int i = range.from(); i < range.to(); i++) {
 			Trace trace = fileTraces.get(i);
 
@@ -309,8 +310,12 @@ public class GprFile extends TraceFile {
             updateTraceBuffer(trace, buffer);
 
 			// set or clear mark
-			binTrace.header[MARK_BYTE_POS] =
-					(byte) (marks.contains(i) ? binTrace.header[MARK_BYTE_POS] : 0);
+			if (marks.contains(i)) {
+				binTrace.header[MARK_BYTE_POS] = (byte) markNumber;
+				markNumber++;
+			} else {
+				binTrace.header[MARK_BYTE_POS] = 0;
+			}
 
 			binTrace.data = converter.valuesToByteBuffer(trace).array();
 			binFile.getTraces().add(binTrace);

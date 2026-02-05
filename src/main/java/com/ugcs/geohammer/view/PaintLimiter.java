@@ -8,7 +8,9 @@ public class PaintLimiter {
 
     private final long framePeriod;
 
-    private long lastPaintTime;
+    private long lastPulse;
+
+    private long accumulated;
 
     private final Runnable paint;
 
@@ -17,16 +19,17 @@ public class PaintLimiter {
     private final AnimationTimer timer = new AnimationTimer() {
         @Override
         public void handle(long now) {
-            if (!paintRequested.get()) {
-                return;
-            }
-            if (now - lastPaintTime < framePeriod) {
+            if (!paintRequested.getAndSet(false)) {
                 return;
             }
 
-            paintRequested.set(false);
-            lastPaintTime = now;
-            paint.run();
+            accumulated += now - lastPulse;
+            lastPulse = now;
+
+            if (accumulated >= framePeriod) {
+                accumulated %= framePeriod;
+                paint.run();
+            }
         }
     };
 

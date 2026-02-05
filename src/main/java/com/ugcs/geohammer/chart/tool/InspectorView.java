@@ -12,12 +12,9 @@ import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.FileUpdatedEvent;
 import com.ugcs.geohammer.model.event.SeriesUpdatedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
-import com.ugcs.geohammer.model.template.DataMapping;
-import com.ugcs.geohammer.model.template.Template;
-import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.Templates;
+import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
@@ -105,7 +102,7 @@ public class InspectorView {
         HBox footer = createFooter();
         root.setBottom(footer);
 
-        Scene scene = new Scene(root, 250, 500);
+        Scene scene = new Scene(root, 340, 550);
         window.setScene(scene);
 
         window.setOnCloseRequest(event -> {
@@ -169,7 +166,7 @@ public class InspectorView {
         nameField.setMinWidth(120);
         nameField.setMaxWidth(120);
 
-        TextField valueField = Views.createSelectableLabel(value.valueWithUnit());
+        TextField valueField = Views.createSelectableLabel(value.displayValue());
         valueField.setAlignment(Pos.CENTER_RIGHT);
         valueField.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(valueField, Priority.ALWAYS);
@@ -192,28 +189,14 @@ public class InspectorView {
         return row;
     }
 
-    private int getDecimals(String header, Template template) {
-        SensorData sensorData = null;
-        if (template != null) {
-            DataMapping dataMapping = template.getDataMapping();
-            if (dataMapping != null) {
-                sensorData = dataMapping.getDataValueByHeader(header);
-            }
+    private String formatValue(Object value) {
+        if (value == null) {
+            return Strings.empty();
         }
-        return sensorData != null
-                ? sensorData.getDecimals()
-                : SensorData.DEFAULT_DECIMALS;
-    }
-
-    private String formatNumber(Number number, int decimals) {
-        if (number == null) {
-            return NO_VALUE;
+        if (value instanceof Number number) {
+            return Text.formatNumber(number);
         }
-        double d = number.doubleValue();
-        if (Double.isNaN(d)) {
-            return NO_VALUE;
-        }
-        return String.format("%." + decimals + "f", d);
+        return Strings.nullToEmpty(value.toString());
     }
 
     public void show() {
@@ -311,22 +294,12 @@ public class InspectorView {
         }
 
         List<Value> values = new ArrayList<>();
-        Template template = Templates.getTemplate(file);
         for (Column column : schema) {
             String header = column.getHeader();
             Object value = geoData.getValue(header);
+            String valueText = formatValue(value);
+            String unit = column.getUnit();
 
-            String valueText;
-            String unit = null;
-            if (value == null) {
-                valueText = NO_VALUE;
-            } else if (value instanceof Number number) {
-                int decimals = getDecimals(header, template);
-                valueText = formatNumber(number, decimals);
-                unit = column.getUnit();
-            } else {
-                valueText = value.toString();
-            }
             values.add(new Value(header, valueText, unit));
         }
         return values;
@@ -439,7 +412,10 @@ public class InspectorView {
 
     private record Value (String header, String value, String unit) {
 
-        String valueWithUnit() {
+        String displayValue() {
+            if (Strings.isNullOrEmpty(value)) {
+                return NO_VALUE;
+            }
             return !Strings.isNullOrEmpty(unit)
                     ? value + " " + unit
                     : value;

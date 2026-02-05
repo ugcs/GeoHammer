@@ -8,7 +8,6 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.ugcs.geohammer.map.layer.MapRuler;
 import com.ugcs.geohammer.map.layer.TraceCutter;
@@ -23,6 +22,7 @@ import com.ugcs.geohammer.map.layer.radar.RadarMap;
 import com.ugcs.geohammer.map.layer.SatelliteMap;
 import com.ugcs.geohammer.model.event.WhatChanged;
 
+import com.ugcs.geohammer.view.PaintLimiter;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
@@ -33,6 +33,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -44,7 +45,6 @@ import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.Model;
 
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -59,13 +59,11 @@ import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import javax.annotation.Nullable;
 
 @Component
-public class MapView implements InitializingBean {
+public class MapView implements InitializingBean, DisposableBean {
 
 	private static final Logger log = LoggerFactory.getLogger(MapView.class);
 
 	private static final String NO_GPS_TEXT = "There are no coordinates in files";
-
-	private static AtomicInteger entercount = new AtomicInteger(0);
 
 	@Autowired
 	private TraceCutter traceCutter;
@@ -102,7 +100,9 @@ public class MapView implements InitializingBean {
 	@Autowired
 	private SettingsView settingsView;
 
-	private List<Layer> layers = new ArrayList<>();
+    private final PaintLimiter repaintLimiter = new PaintLimiter(60, this::repaint);
+
+    private List<Layer> layers = new ArrayList<>();
 
 	private ImageView imageView = new ImageView();
 	private BufferedImage img;
@@ -210,6 +210,11 @@ public class MapView implements InitializingBean {
 		setLayerSizes();
 		initImageView();
 	}
+
+    @Override
+    public void destroy() {
+        repaintLimiter.stop();
+    }
 
 	private void setLayerSizes() {
 		for (Layer layer : layers) {
@@ -374,6 +379,35 @@ public class MapView implements InitializingBean {
 		return lst;
 	}
 
+    private void repaint() {
+        if (isGpsPresent()) {
+            img = draw(windowSize.width, windowSize.height);
+        } else {
+            img = drawStub();
+        }
+        toImageView();
+    }
+
+    public BufferedImage drawStub() {
+        BufferedImage noGpsImg = new BufferedImage(windowSize.width, windowSize.height, BufferedImage.TYPE_INT_RGB);
+
+        Graphics2D g2 = (Graphics2D)noGpsImg.getGraphics();
+        g2.setColor(Color.LIGHT_GRAY);
+        g2.fillRect(0, 0, windowSize.width, windowSize.height);
+
+        g2.setColor(Color.DARK_GRAY);
+
+        FontMetrics fm = g2.getFontMetrics();
+        Rectangle2D rect = fm.getStringBounds(NO_GPS_TEXT, g2);
+
+        int x = (int) ((windowSize.width - rect.getWidth()) / 2);
+        int y = windowSize.height / 2;
+
+        g2.drawString(NO_GPS_TEXT, x, y);
+
+        return noGpsImg;
+    }
+
 	private BufferedImage draw(int width, int height) {
 		if (width <= 0 || height <= 0) {
 			return null;
@@ -405,20 +439,7 @@ public class MapView implements InitializingBean {
 		if (windowSize.width <= 0 || windowSize.height <= 0) {
 			return;
 		}
-
-		Platform.runLater(() -> {
-			int currentCount = entercount.incrementAndGet();
-			if (currentCount > 1) {
-				System.err.println("entercount: " + currentCount);
-			}
-			if (isGpsPresent()) {
-				img = draw(windowSize.width, windowSize.height);
-			} else {
-				img = drawStub();
-			}
-			toImageView();
-			entercount.decrementAndGet();
-		});
+        repaintLimiter.requestPaint();
 	}
 
 	public void toImageView() {
@@ -434,26 +455,6 @@ public class MapView implements InitializingBean {
 		windowSize.setSize(width, height);
 		setLayerSizes();
 		eventPublisher.publishEvent(new WhatChanged(this, WhatChanged.Change.windowresized));
-	}
-
-	public BufferedImage drawStub() {
-		BufferedImage noGpsImg = new BufferedImage(windowSize.width, windowSize.height, BufferedImage.TYPE_INT_RGB);
-		
-		Graphics2D g2 = (Graphics2D)noGpsImg.getGraphics();
-		g2.setColor(Color.LIGHT_GRAY);
-		g2.fillRect(0, 0, windowSize.width, windowSize.height);
-		
-		g2.setColor(Color.DARK_GRAY);
-		
-		FontMetrics fm = g2.getFontMetrics();
-		Rectangle2D rect = fm.getStringBounds(NO_GPS_TEXT, g2);
-		
-		int x = (int) ((windowSize.width - rect.getWidth()) / 2);
-		int y = windowSize.height / 2;
-		
-		g2.drawString(NO_GPS_TEXT, x, y);
-		
-		return noGpsImg;
 	}
 
 	private Node createFixedWidthSpacer() {

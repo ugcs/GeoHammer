@@ -76,12 +76,17 @@ public class Geotagger {
 	}
 
     private void interpolateAndUpdatePositions(CsvFile csvFile, List<Position> positions, Progress progress) {
-        for (GeoData value : csvFile.getGeoData()) {
+		List<GeoData> geoData = csvFile.getGeoData();
+		boolean hasAltitude = !geoData.isEmpty() && geoData.getFirst().hasAltitudeSemantic();
+
+        for (GeoData value : geoData) {
             Position interpolated = interpolate(value, positions);
             if (interpolated != null) {
                 value.setLatitude(interpolated.latitude());
                 value.setLongitude(interpolated.longitude());
-                value.setAltitude(interpolated.altitude());
+				if (hasAltitude) {
+					value.setAltitude(interpolated.altitude());
+				}
             }
             progress.increment();
         }

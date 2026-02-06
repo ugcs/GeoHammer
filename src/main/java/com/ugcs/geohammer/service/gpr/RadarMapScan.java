@@ -8,6 +8,7 @@ import com.ugcs.geohammer.map.layer.radar.ArrayBuilder;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.model.ScanProfile;
+import com.ugcs.geohammer.model.event.WhatChanged;
 
 public class RadarMapScan implements Command {
 
@@ -70,4 +71,9 @@ public class RadarMapScan implements Command {
 	public String getButtonText() {
 		return null;
 	}
+
+    @Override
+    public WhatChanged.Change getChange() {
+        return null;
+    }
 }

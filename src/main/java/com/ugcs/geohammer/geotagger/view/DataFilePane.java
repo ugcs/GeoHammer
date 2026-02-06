@@ -95,12 +95,15 @@ public class DataFilePane extends FilePane {
 				|| FileTypes.isConstPointFile(file)) {
 			return false;
 		}
-		FileManager fileManager = model.getFileManager();
 
+		FileManager fileManager = model.getFileManager();
 		SgyFile sgyFile = fileManager.getFile(file);
-		if (sgyFile != null) {
-			return sgyFile instanceof GprFile || (sgyFile instanceof CsvFile && !FileTypes.isPositionFile(file));
-		}
-        return !FileTypes.isPositionFile(file);
-    }
+		return switch (sgyFile) {
+			case GprFile ignored -> true;
+			case CsvFile csvFile -> !csvFile.isPositional();
+			case null -> !fileManager.isPositionalFile(file);
+			default -> false;
+		};
+
+	}
 }

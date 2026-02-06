@@ -4,6 +4,8 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.model.template.Template;
+import com.ugcs.geohammer.util.FileTypes;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -92,6 +94,27 @@ public class FileManager {
 			}
 		}
 		return null;
+	}
+
+	public boolean isPositionalFile(File file) {
+		SgyFile sgyFile = getFile(file);
+
+		if (sgyFile instanceof CsvFile csvFile) {
+			return csvFile.isPositional();
+		}
+
+		if (sgyFile == null) {
+			// File not loaded - check by template
+			Template template = fileTemplates.findTemplate(file);
+			if (template != null) {
+				return template.isPositional();
+			}
+			// Fallback by file name
+			return FileTypes.isPositionFile(file);
+		}
+
+		// GprFile and others - not positional
+		return false;
 	}
 
 	public Map<File, SgyFile> getIndex() {

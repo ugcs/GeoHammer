@@ -1,7 +1,5 @@
   # Template display name
   name: "SeaSPY2 BOB"
-  # Code of template
-  code: "SeaSPY2-BOB"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
   # Applies to the first 10 non-empty lines of the file to detect template

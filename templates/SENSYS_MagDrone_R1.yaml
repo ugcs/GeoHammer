@@ -1,7 +1,5 @@
   # Template display name
   name: "MagDrone R1"
-  # Code of template
-  code: "MagDrone-r1"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
   # Applies to the first 10 non-empty lines of the file to detect template

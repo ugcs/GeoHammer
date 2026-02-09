@@ -1,7 +1,5 @@
   # Template display name
   name: "RTKLib POS"
-  # Code of template
-  code: "rtklib"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: ColumnsFixedWidth
   # Applies to the first 10 not empty lines of the file to detect template

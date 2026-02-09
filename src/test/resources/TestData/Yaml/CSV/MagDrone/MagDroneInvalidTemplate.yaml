@@ -1,6 +1,5 @@
   name: "MagDrone"
-  code: "magdrone" 
-  file-type: CSV 
+  file-type: CSV
   match-regex: >-
     ^\s*MagDroneR3:
   skip-lines-to:

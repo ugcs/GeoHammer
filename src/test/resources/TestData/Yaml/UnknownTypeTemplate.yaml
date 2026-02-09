@@ -1,6 +1,5 @@
 ﻿  name: "SkyHub"
-  code: "skyhub" 
-  file-type: PNG 
+  file-type: PNG
   match-regex: >-
     ^\s*Elapsed,Time,Pitch,Roll,Yaw,Latitude,Longitude,Altitude,RTK Status,ALT:Altitude,GPR:Trace$
   file-format:

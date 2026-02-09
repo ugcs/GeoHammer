@@ -21,8 +21,6 @@ public class Template {
 
     private String name;
 
-    private String code;
-
     private FileType fileType = FileType.Unknown;
 
     private String matchRegex;
@@ -104,7 +102,6 @@ public class Template {
     public boolean isTemplateValid() {
         return isValidRegex()
                 && StringUtils.hasLength(name)
-                && StringUtils.hasLength(code)
                 && !FileType.Unknown.equals(fileType)
                 && isFormatValid();
     }
@@ -152,24 +149,6 @@ public class Template {
      */
     public void setName(String name) {
         this.name = name;
-    }
-
-    /**
-     * Gets the code of the template.
-     *
-     * @return the code of the template.
-     */
-    public String getCode() {
-        return code;
-    }
-
-    /**
-     * Sets the code of the template.
-     *
-     * @param code the code of the template.
-     */
-    public void setCode(String code) {
-        this.code = code;
     }
 
     /**
@@ -313,7 +292,6 @@ public class Template {
     public String toString() {
         return "Template{" +
                 "name='" + name + '\'' +
-                ", code='" + code + '\'' +
                 ", fileType=" + fileType +
 				", positional=" + positional +
                 ", matchRegex='" + matchRegex + '\'' +

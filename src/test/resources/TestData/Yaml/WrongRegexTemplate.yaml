@@ -1,6 +1,5 @@
 ﻿  name: "SkyHub"
-  code: "skyhub" 
-  file-type: CSV 
+  file-type: CSV
   match-regex:
   file-format:
     has-header: true

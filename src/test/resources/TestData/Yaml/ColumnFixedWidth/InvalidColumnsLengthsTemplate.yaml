@@ -1,5 +1,4 @@
   name: "RTKLib POS"
-  code: "rtklib"
   file-type: ColumnsFixedWidth
   match-regex: "^.*RTKPOST-QT ver.+ Emlid b33$"
   file-format:

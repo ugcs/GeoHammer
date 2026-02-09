@@ -21,6 +21,8 @@ public class Template {
 
     private String name;
 
+    private boolean readOnly = false;
+
     private FileType fileType = FileType.Unknown;
 
     private String matchRegex;
@@ -149,6 +151,14 @@ public class Template {
      */
     public void setName(String name) {
         this.name = name;
+    }
+
+    public boolean isReadOnly() {
+        return readOnly;
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
     }
 
     /**

@@ -29,6 +29,10 @@ public class CsvWriter extends Writer {
         Check.notNull(csvFile);
         Check.notNull(toFile);
 
+        if (template.isReadOnly()) {
+            throw new IllegalStateException(template.getName() + " files are read only");
+        }
+
         Parser parser = csvFile.getParser();
         FileFormat format = template.getFileFormat();
 

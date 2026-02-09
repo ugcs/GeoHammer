@@ -1,10 +1,12 @@
 package com.ugcs.geohammer.format.csv.parser;
 
+import com.ugcs.geohammer.model.template.FileFormat;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.util.Strings;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 public class CsvParser extends Parser {
 
@@ -16,7 +18,12 @@ public class CsvParser extends Parser {
         if (Strings.isNullOrEmpty(line)) {
             return new String[0];
         }
-        String[] tokens = line.split(template.getFileFormat().getSeparator());
+        FileFormat fileFormat = template.getFileFormat();
+        String regex = Pattern.quote(fileFormat.getSeparator());
+        if (fileFormat.isRepeatableSeparator()) {
+            regex += "+";
+        }
+        String[] tokens = line.split(regex);
         for (int i = 0; i < tokens.length; i++) {
             tokens[i] = tokens[i].trim();
         }

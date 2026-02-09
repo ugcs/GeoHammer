@@ -33,6 +33,7 @@ import com.ugcs.geohammer.service.script.ScriptExecutor;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptParameter;
+import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
@@ -348,7 +349,13 @@ public class ScriptExecutionTool extends FilterToolView {
 			return;
 		}
 
-		Map<String, String> parameters = extractScriptParams(scriptMetadata.parameters());
+		Map<String, String> parameters = extractScriptParams();
+		try {
+			scriptMetadata.validateRequiredParameters(parameters);
+		} catch (ScriptValidationException e) {
+			showError(e.getMessage());
+			return;
+		}
 		storeParamValues(scriptMetadata.filename(), parameters);
 
 		ArrayDeque<String> lastOutputLines = new ArrayDeque<>();
@@ -403,7 +410,6 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private void showError(ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
-		String title = "Script Execution Error";
 		String message;
 
         if (e instanceof CommandExecutionException commandExecutionException) {
@@ -416,10 +422,14 @@ public class ScriptExecutionTool extends FilterToolView {
         } else {
             message = "Failed to execute script: " + e.getMessage();
         }
-		MessageBoxHelper.showError(title, message);
+		showError(message);
 	}
 
-	private Map<String, String> extractScriptParams(List<ScriptParameter> params) {
+	private void showError(String message) {
+		MessageBoxHelper.showError("Script Execution Error", message);
+	}
+
+	private Map<String, String> extractScriptParams() {
 		Map<String, String> parameters = new HashMap<>();
 		for (Node paramBox : parametersBox.getChildren()) {
 			if (!(paramBox instanceof VBox)) {
@@ -439,11 +449,7 @@ public class ScriptExecutionTool extends FilterToolView {
 				if (value == null) {
 					continue;
 				}
-				boolean isRequired = params.stream()
-						.anyMatch(param -> param.name().equals(paramName) && param.required());
-				if (!value.isEmpty() || isRequired) {
-					parameters.put(paramName, value);
-				}
+				parameters.put(paramName, value);
 			}
 		}
 		return parameters;

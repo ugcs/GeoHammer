@@ -542,7 +542,6 @@ public class GPRChart extends Chart {
     private void drawAxis(Graphics2D g2) {
         var field = getField();
 
-        Rectangle mainRectRect = field.getMainRect();
         Rectangle topRuleRect = field.getTopRuleRect();
         Rectangle leftRuleRect = field.getLeftRuleRect();
         Rectangle bottomRuleRect = field.getBottomRuleRect();
@@ -557,12 +556,12 @@ public class GPRChart extends Chart {
         g2.drawLine(topRuleRect.x,
                 topRuleRect.y + topRuleRect.height + 1,
                 topRuleRect.x,
-                mainRectRect.height);
+				leftRuleRect.y + leftRuleRect.height - bottomRuleRect.height);
 
         g2.drawLine(leftRuleRect.x + 1,
                 leftRuleRect.y,
                 leftRuleRect.x + 1,
-                leftRuleRect.y + leftRuleRect.height);
+                leftRuleRect.y + leftRuleRect.height - bottomRuleRect.height);
 
         g2.drawLine(bottomRuleRect.x,
                 bottomRuleRect.y + 1,

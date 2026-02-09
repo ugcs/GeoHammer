@@ -19,9 +19,11 @@ public class FileFormat {
 
     private String separator;
 
+    private boolean repeatableSeparator = false;
+
     private String decimalSeparator;
 
-    private boolean hasHeader;
+    private boolean hasHeader = false;
 
     private List<Short> columnLengths;
 
@@ -120,6 +122,14 @@ public class FileFormat {
 
     public void setSeparator(String separator) {
         this.separator = separator;
+    }
+
+    public boolean isRepeatableSeparator() {
+        return repeatableSeparator;
+    }
+
+    public void setRepeatableSeparator(boolean repeatableSeparator) {
+        this.repeatableSeparator = repeatableSeparator;
     }
 
     public List<Short> getColumnLengths() {

@@ -82,9 +82,23 @@ public class ScriptExecutor {
 
 			tempFile = copyToTempFile(sgyFile);
 
-			List<String> command = buildCommand(scriptFile.toPath(), scriptMetadata, parameters, tempFile.toPath());
+			File file = sgyFile.getFile();
+			Check.notNull(file);
+
+			List<String> command = buildCommand(
+					scriptFile.toPath(),
+					scriptMetadata,
+					parameters,
+					tempFile.toPath());
+
+			// Pass original file path as environment variable
+			// Scripts that need it can read GEOHAMMER_ORIGINAL_PATH
+			Map<String, String> scriptEnv = Map.of(
+					"GEOHAMMER_ORIGINAL_PATH", file.getAbsolutePath()
+			);
+
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
-			commandExecutor.executeCommand(command, onScriptOutput);
+			commandExecutor.executeCommand(command, scriptEnv, onScriptOutput);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}
@@ -121,12 +135,13 @@ public class ScriptExecutor {
 
 	/**
 	 * Builds the process command:
-	 * [python, <scripts/path>/<script.py>, <workingCopy>, --key value | --flag]
+	 * [python, <scripts/path>/<script.py>, <tempFile>, --key value | --flag]
+	 *
 	 */
 	private List<String> buildCommand(Path scriptPath,
 									  ScriptMetadata scriptMetadata,
 									  Map<String, String> parameters,
-									  Path filePath) throws IOException {
+									  Path tempFilePath) throws IOException {
 		List<String> command = new ArrayList<>();
 
 		String pythonPath = pythonService.getPythonPath().toString();
@@ -134,7 +149,7 @@ public class ScriptExecutor {
 
 		command.add(scriptPath.toString());
 
-		command.add(filePath.toAbsolutePath().toString());
+		command.add(tempFilePath.toAbsolutePath().toString());
 
 		for (Map.Entry<String, String> entry : parameters.entrySet()) {
 			String key = entry.getKey();

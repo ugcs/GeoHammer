@@ -42,12 +42,18 @@ import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
+
+import java.io.File;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -274,6 +280,7 @@ public class ScriptExecutionTool extends FilterToolView {
 			case DOUBLE -> createDoubleField(param, initialValue);
 			case BOOLEAN -> createCheckBox(param, initialValue, labelText);
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
+			case FOLDER_PATH -> createFolderPathSelector(param, initialValue);
 		};
 	}
 
@@ -319,6 +326,37 @@ public class ScriptExecutionTool extends FilterToolView {
 		}
 
 		return columnSelector;
+	}
+
+	private HBox createFolderPathSelector(ScriptParameter param, String initialValue) {
+		HBox container = new HBox(5);
+		container.setUserData(param);
+
+		TextField pathField = new TextField(initialValue);
+		pathField.setPromptText("Select folder...");
+		HBox.setHgrow(pathField, Priority.ALWAYS);
+
+		Button selectButton = new Button("Select");
+		selectButton.setOnAction(e -> {
+			DirectoryChooser directoryChooser = new DirectoryChooser();
+			directoryChooser.setTitle("Select Folder");
+
+			String currentPath = pathField.getText();
+			if (!Strings.isNullOrEmpty(currentPath)) {
+				File initialDir = new File(currentPath);
+				if (initialDir.exists() && initialDir.isDirectory()) {
+					directoryChooser.setInitialDirectory(initialDir);
+				}
+			}
+
+			File selectedDirectory = directoryChooser.showDialog(selectButton.getScene().getWindow());
+			if (selectedDirectory != null) {
+				pathField.setText(selectedDirectory.getAbsolutePath());
+			}
+		});
+
+		container.getChildren().addAll(pathField, selectButton);
+		return container;
 	}
 
 	private Set<String> getAvailableColumnsForFile(CsvFile csvFile) {
@@ -464,6 +502,12 @@ public class ScriptExecutionTool extends FilterToolView {
 				Object value = comboBox.getValue();
 				yield value != null ? value.toString() : "";
 			}
+			case HBox hBox -> hBox.getChildren().stream()
+					.filter(TextField.class::isInstance)
+					.map(TextField.class::cast)
+					.findFirst()
+					.map(TextField::getText)
+					.orElse("");
 			default -> "";
 		};
 	}

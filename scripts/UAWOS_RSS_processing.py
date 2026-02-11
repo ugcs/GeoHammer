@@ -4,7 +4,6 @@ import os
 import re
 import struct
 import argparse
-import tempfile
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -13,19 +12,6 @@ from scipy.optimize import curve_fit
 from scipy.stats import norm
 import segyio
 from segyio import TraceField as TF
-
-def str2bool(v):
-
-    if isinstance(v, bool):
-        return v
-    if v is None:
-        return False
-    s = str(v).strip().lower()
-    if s in ("1", "true", "t", "yes", "y", "on"):
-        return True
-    if s in ("0", "false", "f", "no", "n", "off", ""):
-        return False
-    raise argparse.ArgumentTypeError(f"Boolean value expected, got: {v}")
 
 
 def normalize_input_stem(stem: str) -> str:
@@ -48,35 +34,19 @@ def normalize_input_stem(stem: str) -> str:
 
 
 
-def build_output_csv_path(segy_path: str, out_dir: str) -> str:
-    stem = os.path.splitext(os.path.basename(segy_path))[0]
+def build_output_csv_path(original_path: str, output_dir: str) -> str:
+    stem = os.path.splitext(os.path.basename(original_path))[0]
     stem = normalize_input_stem(stem)
     out_name = stem + "_processed.csv"
 
-    if out_dir:
-        out_dir = (out_dir or "").strip()
-        out_dir = os.path.expanduser(os.path.expandvars(out_dir))
+    if not output_dir or not output_dir.strip():
+        output_dir = os.path.dirname(os.path.abspath(original_path))
 
-        if out_dir and os.path.splitext(out_dir)[1]:
-            out_dir = os.path.dirname(out_dir)
+    output_dir = output_dir.strip()
+    output_dir = os.path.expanduser(os.path.expandvars(output_dir))
 
-        if not out_dir:
-            out_dir = os.path.dirname(os.path.abspath(segy_path))
-
-        os.makedirs(out_dir, exist_ok=True)
-        out_path = os.path.join(out_dir, out_name)
-
-        try:
-            testfile = os.path.join(out_dir, ".__write_test__")
-            with open(testfile, "w", encoding="utf-8") as t:
-                t.write("ok")
-            os.remove(testfile)
-        except Exception:
-            out_path = os.path.join(tempfile.gettempdir(), out_name)
-
-        return out_path
-
-    return os.path.join(tempfile.gettempdir(), out_name)
+    os.makedirs(output_dir, exist_ok=True)
+    return os.path.join(output_dir, out_name)
 
 
 
@@ -231,7 +201,8 @@ def compute_velocities_for_mark_from_spectrum(sub_mean, vaxis_cm_s):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("file_path", help="SEG-Y file path")
-    parser.add_argument("--out-dir", dest="out_dir", type=str, default="")
+    parser.add_argument("--original-path", default="", help="Original file path (fallback, prefer GEOHAMMER_ORIGINAL_PATH env var)")
+    parser.add_argument("--output-dir", dest="output_dir", type=str, default="")
 
     args = parser.parse_args()
 
@@ -240,7 +211,9 @@ def main():
         print("No SGY selected. Exiting.")
         return
 
-    OUTPUT_CSV = build_output_csv_path(SEG_Y_FILE, args.out_dir)
+    original_path = os.environ.get('GEOHAMMER_ORIGINAL_PATH', '') or args.original_path or SEG_Y_FILE
+
+    OUTPUT_CSV = build_output_csv_path(original_path, args.output_dir)
 
     print("\nUsing SGY:", SEG_Y_FILE)
     print("Saving CSV to:", OUTPUT_CSV, "\n")
@@ -262,8 +235,6 @@ def main():
         base_pos = 3600
 
         for i, (mark, t_idx) in enumerate(zip(mark_values, mark_indices)):
-            print("Processing mark", mark, "at trace", t_idx)
-
             if i < len(mark_indices) - 1:
                 next_idx = mark_indices[i + 1]
                 end_idx = t_idx + (next_idx - t_idx) // 2

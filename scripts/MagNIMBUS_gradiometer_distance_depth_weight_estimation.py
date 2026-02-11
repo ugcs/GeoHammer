@@ -107,7 +107,7 @@ def main():
     parser.add_argument("--original-path", default="", help='Original file path (fallback, prefer GEOHAMMER_ORIGINAL_PATH env var)')
     parser.add_argument("--lower-sensor-column", default="TMI_LPF", help="Lower sensor column (default: TMI_LPF)")
     parser.add_argument("--upper-sensor-column", default="TMI_S_LPF", help="Upper sensor column (default: TMI_S_LPF)")
-    parser.add_argument("--altitude-column", default="Altitude_AGL", help="Altitude AGL column (default: Altitude_AGL)")
+    parser.add_argument("--altitude-column", default="Altitude AGL", help="Altitude AGL column (default: Altitude_AGL)")
     parser.add_argument("--sensor-separation", type=float, default=1.5, help="Sensor separation in meters (default: 1.5)")
     parser.add_argument("--altimeter-lower-offset", type=float, default=0.5,
                         help="Distance between altimeter and lower sensor in meters (default: 0.5)")

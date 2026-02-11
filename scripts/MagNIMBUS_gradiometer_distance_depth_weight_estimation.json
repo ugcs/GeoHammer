@@ -20,7 +20,7 @@
       "name": "altitude-column",
       "display_name": "Altitude AGL column",
       "type": "COLUMN_NAME",
-      "default_value": "Altitude_AGL",
+      "default_value": "Altitude AGL",
       "required": false
     },
     {

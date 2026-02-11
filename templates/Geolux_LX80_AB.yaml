@@ -1,10 +1,12 @@
   # Template display name
   name: "Geolux LX-80-AB"
+  # Code of template
+  code: "Geolux-LX-80-AB"
   # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
   file-type: CSV
   # Applies to the first 10 non-empty lines of the file to detect template
   match-regex: >-
-    ^.*Date,Time,.*Latitude,Longitude,Heading,Altitude RTK,.*LX:Distance.*
+    ^.*Date,Time,.*Latitude,Longitude,Heading,.*Altitude.*LX:Distance.*
   file-format:
   # Applies to CSV type. 'true' if file has headers, otherwise false
     has-header: true
@@ -35,6 +37,10 @@
         read-only: true
       - header: "Altitude RTK"
         semantic: "Altitude RTK"
+        units: "m"
+        read-only: true
+      - header: "Ellipsoidal Height"
+        semantic: "Ellipsoidal Height"
         units: "m"
         read-only: true
       - header: "Altitude AGL"

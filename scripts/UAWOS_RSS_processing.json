@@ -3,7 +3,7 @@
   "display_name": "RSS data processing",
   "parameters": [
     {
-      "name": "out-dir",
+      "name": "output-dir",
       "display_name": "Output folder",
       "type": "FOLDER_PATH",
       "default_value": "",

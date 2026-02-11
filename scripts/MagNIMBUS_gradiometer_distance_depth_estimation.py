@@ -22,9 +22,14 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
     Process marked points using gradiometer mode (two sensors).
 
     Algorithm:
-    1. distance_lower = sensor_separation / ((TMI_lower - TMI_upper)**(1/3) - 1)
-    2. depth = distance_lower - AGL + altimeter_lower_offset
+    1. Estimate per-sensor background as median for upper column (less affected by near-surface anomalies).
+    2. anomaly_lower = TMI_lower - background
+    3. anomaly_upper = TMI_upper - background
+    4. distance_lower = sensor_separation / ((anomaly_lower / anomaly_upper)**(1/3) - 1)
+    5. depth = distance_lower - AGL + altimeter_lower_offset
     """
+    background = data[tmi_upper_col].median()
+
     distances = []
     depths = []
 
@@ -41,28 +46,35 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             depths.append(np.nan)
             continue
 
-        # Calculate TMI difference
-        tmi_diff = tmi_lower - tmi_upper
+        # Calculate anomaly values (subtract background field)
+        anomaly_lower = tmi_lower - background
+        anomaly_upper = tmi_upper - background
 
-        # Cube root (handles negative values correctly)
-        if tmi_diff >= 0:
-            cube_root = tmi_diff ** (1/3)
-        else:
-            cube_root = -((-tmi_diff) ** (1/3))
+        if anomaly_upper == 0:
+            print(f"Warning: Zero anomaly at upper sensor at index {idx}, skipping")
+            distances.append(np.nan)
+            depths.append(np.nan)
+            continue
+
+        # Calculate anomaly ratio
+        ratio = anomaly_lower / anomaly_upper
+
+        # Cube root of anomaly ratio
+        cube_root = abs(ratio) ** (1/3)
 
         # Check for invalid denominator
         denominator = cube_root - 1
         if denominator == 0:
-            print(f"Warning: Invalid denominator ((TMI_diff)^(1/3) = 1) at index {idx}, skipping")
+            print(f"Warning: Invalid denominator (ratio^(1/3) = 1) at index {idx}, skipping")
             distances.append(np.nan)
             depths.append(np.nan)
             continue
 
         # Distance to lower sensor
         distance_lower = sensor_separation / denominator
-
-        if distance_lower < 0:
-            distance_lower = abs(distance_lower)
+        distance_lower_rounded = round(distance_lower, 4)
+        if distance_lower_rounded < 0:
+            distance_lower_rounded = abs(distance_lower_rounded)
 
         # Depth calculation: distance_lower - (AGL - altimeter_lower_offset)
         # This accounts for the offset between the altimeter and lower sensor
@@ -70,17 +82,17 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
         if pd.isna(altitude_agl):
             depth = np.nan
         else:
-            depth = distance_lower - altitude_agl + altimeter_lower_offset
+            depth = distance_lower_rounded - altitude_agl + altimeter_lower_offset
+            depth = round(depth, 4)
             if depth < 0:
                 depth = 0
 
-        distances.append(distance_lower)
+        distances.append(distance_lower_rounded)
         depths.append(depth)
 
     return distances, depths
 
 def build_targets_path(input_path, output_dir):
-    """Build path for targets file. If output_dir-dir is empty, use original file's directory."""
     stem = os.path.splitext(os.path.basename(input_path))[0]
     targets_name = stem + "-targets.csv"
 

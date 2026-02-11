@@ -332,7 +332,15 @@ public class ScriptExecutionTool extends FilterToolView {
 		HBox container = new HBox(5);
 		container.setUserData(param);
 
-		TextField pathField = new TextField(initialValue);
+		String defaultFolderPath = initialValue;
+		if (Strings.isNullOrEmpty(defaultFolderPath) && selectedFile != null && selectedFile.getFile() != null) {
+			File parentDir = selectedFile.getFile().getParentFile();
+			if (parentDir != null) {
+				defaultFolderPath = parentDir.getAbsolutePath();
+			}
+		}
+
+		TextField pathField = new TextField(defaultFolderPath);
 		pathField.setPromptText("Select folder...");
 		HBox.setHgrow(pathField, Priority.ALWAYS);
 

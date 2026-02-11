@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import argparse
 import pandas as pd
 import numpy as np
@@ -83,9 +84,22 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
 
     return distances, depths, weights
 
+def normalize_input_stem(stem):
+    s = stem.strip()
+    s2 = re.sub(r"([_\-\.\s])\d{10,}$", "", s)
+    if s2 != s:
+        return s2
+    s2 = re.sub(r"\s*\(\d{10,}\)$", "", s)
+    if s2 != s:
+        return s2.rstrip()
+    s2 = re.sub(r"\d{12,}$", "", s)
+    return s2
+
+
 def build_targets_path(input_path, output_dir):
-    """Build path for targets file. If output_dir-dir is empty, use original file's directory."""
+    """Build path for targets file. If output_dir is empty, use input file's directory."""
     stem = os.path.splitext(os.path.basename(input_path))[0]
+    stem = normalize_input_stem(stem)
     targets_name = stem + "-targets.csv"
 
     # If output-dir is empty, use the original file's directory
@@ -104,7 +118,6 @@ def main():
     )
 
     parser.add_argument("file_path", help='File path')
-    parser.add_argument("--original-path", default="", help='Original file path (fallback, prefer GEOHAMMER_ORIGINAL_PATH env var)')
     parser.add_argument("--lower-sensor-column", default="TMI_LPF", help="Lower sensor column (default: TMI_LPF)")
     parser.add_argument("--upper-sensor-column", default="TMI_S_LPF", help="Upper sensor column (default: TMI_S_LPF)")
     parser.add_argument("--altitude-column", default="Altitude AGL", help="Altitude AGL column (default: Altitude_AGL)")
@@ -116,8 +129,6 @@ def main():
     args = parser.parse_args()
 
     input_path = args.file_path
-    # Priority: environment variable > CLI arg > input path
-    original_path = os.environ.get('GEOHAMMER_ORIGINAL_PATH', '') or args.original_path or input_path
     lower_column = args.lower_sensor_column
     upper_column = args.upper_sensor_column
     altitude_column = args.altitude_column
@@ -174,7 +185,7 @@ def main():
     data.to_csv(output_path, index=False, sep=',')
 
     # Create targets file with only marked rows
-    targets_path = build_targets_path(original_path, args.output_dir)
+    targets_path = build_targets_path(input_path, args.output_dir)
     targets_data = data.loc[mark_indices]
     print(f"Writing targets file to {targets_path}")
     targets_data.to_csv(targets_path, index=False, sep=',')

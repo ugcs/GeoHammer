@@ -82,23 +82,14 @@ public class ScriptExecutor {
 
 			tempFile = copyToTempFile(sgyFile);
 
-			File file = sgyFile.getFile();
-			Check.notNull(file);
-
 			List<String> command = buildCommand(
 					scriptFile.toPath(),
 					scriptMetadata,
 					parameters,
 					tempFile.toPath());
 
-			// Pass original file path as environment variable
-			// Scripts that need it can read GEOHAMMER_ORIGINAL_PATH
-			Map<String, String> scriptEnv = Map.of(
-					"GEOHAMMER_ORIGINAL_PATH", file.getAbsolutePath()
-			);
-
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
-			commandExecutor.executeCommand(command, scriptEnv, onScriptOutput);
+			commandExecutor.executeCommand(command, onScriptOutput);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}

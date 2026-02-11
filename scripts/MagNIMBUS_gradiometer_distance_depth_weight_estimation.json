@@ -1,6 +1,6 @@
 {
-  "filename": "MagNIMBUS_gradiometer_distance_depth_estimation.py",
-  "display_name": "Gradiometer Distance/Depth Estimation",
+  "filename": "MagNIMBUS_gradiometer_distance_depth_weight_estimation.py",
+  "display_name": "Gradiometer Distance/Depth/Weight Estimation",
   "parameters": [
     {
       "name": "lower-sensor-column",

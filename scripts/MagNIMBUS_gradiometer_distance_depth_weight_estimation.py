@@ -24,9 +24,11 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
     Algorithm:
     1. distance_lower = sensor_separation / ((TMI_lower - TMI_upper)**(1/3) - 1)
     2. depth = distance_lower - AGL + altimeter_lower_offset
+    3. weight (kg) = 1000 * TMI_lower (nT) * (distance_lower / 30.48) ** 3
     """
     distances = []
     depths = []
+    weights = []
 
     has_altitude = altitude_col in data.columns
 
@@ -39,9 +41,9 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             print(f"Warning: Missing TMI data at index {idx}, skipping")
             distances.append(np.nan)
             depths.append(np.nan)
+            weights.append(np.nan)
             continue
 
-        # Calculate TMI difference
         tmi_diff = tmi_lower - tmi_upper
 
         # Cube root (handles negative values correctly)
@@ -56,6 +58,7 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             print(f"Warning: Invalid denominator ((TMI_diff)^(1/3) = 1) at index {idx}, skipping")
             distances.append(np.nan)
             depths.append(np.nan)
+            weights.append(np.nan)
             continue
 
         # Distance to lower sensor
@@ -64,8 +67,6 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
         if distance_lower < 0:
             distance_lower = abs(distance_lower)
 
-        # Depth calculation: distance_lower - (AGL - altimeter_lower_offset)
-        # This accounts for the offset between the altimeter and lower sensor
         # If altitude is missing, depth will be N/A
         if pd.isna(altitude_agl):
             depth = np.nan
@@ -74,10 +75,13 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             if depth < 0:
                 depth = 0
 
+        weight = 1000 * abs(tmi_diff) * (distance_lower / 30.48) ** 3
+
         distances.append(distance_lower)
         depths.append(depth)
+        weights.append(weight)
 
-    return distances, depths
+    return distances, depths, weights
 
 def build_targets_path(input_path, output_dir):
     """Build path for targets file. If output_dir-dir is empty, use original file's directory."""
@@ -146,7 +150,7 @@ def main():
     print(f"Found {len(mark_indices)} marked points")
 
     # Process gradiometer data
-    distances, depths = process_gradiometer(
+    distances, depths, weights = process_gradiometer(
         data, mark_indices, lower_column, upper_column, altitude_column,
         args.sensor_separation, args.altimeter_lower_offset
     )
@@ -154,12 +158,15 @@ def main():
     # Save results - add columns with empty string for non-marked rows
     data["Estimated_Distance"] = ""
     data["Estimated_Depth"] = ""
+    data["Estimated_Weight"] = ""
 
     for i, idx in enumerate(mark_indices):
         if not np.isnan(distances[i]):
             data.at[idx, "Estimated_Distance"] = distances[i]
         if not np.isnan(depths[i]):
             data.at[idx, "Estimated_Depth"] = depths[i]
+        if not np.isnan(weights[i]):
+            data.at[idx, "Estimated_Weight"] = weights[i]
 
     # Overwrite CSV
     output_path = input_path

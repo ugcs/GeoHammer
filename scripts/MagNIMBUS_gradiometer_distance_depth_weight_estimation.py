@@ -28,7 +28,7 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
     3. anomaly_upper = TMI_upper - background
     4. distance_lower = sensor_separation / ((anomaly_lower / anomaly_upper)**(1/3) - 1)
     5. depth = distance_lower - AGL + altimeter_lower_offset
-    6. weight (kg) = 1000 * TMI_lower (nT) * (distance_lower / 30.48) ** 3
+    6. weight (kg) = min(|anomaly_lower| * distance_ft^3 / 1000 * 0.453592, |anomaly_lower| / distance_ft^1.5)
     """
     background = data[tmi_upper_col].median()
 
@@ -77,21 +77,25 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
 
         # Distance to lower sensor
         distance_lower = sensor_separation / denominator
-        distance_lower_rounded = round(distance_lower, 4)
-        if distance_lower_rounded < 0:
-            distance_lower_rounded = abs(distance_lower_rounded)
+        distance_lower = round(distance_lower, 4)
+        if distance_lower < 0:
+            distance_lower = abs(distance_lower)
 
         # If altitude is missing, depth will be N/A
         if pd.isna(altitude_agl):
             depth = np.nan
         else:
-            depth = distance_lower_rounded - altitude_agl + altimeter_lower_offset
+            depth = distance_lower - altitude_agl + altimeter_lower_offset
             depth = round(depth, 4)
             if depth < 0:
                 depth = 0
 
-        weight = 1000 * abs(tmi_lower - tmi_upper) * (distance_lower_rounded / 30.48) ** 3
-        distances.append(distance_lower_rounded)
+        distance_lower_ft = distance_lower / 0.3048
+        weight_dipole = abs(anomaly_lower) * distance_lower_ft ** 3 / 1000 * 0.453592
+        weight_inv = abs(anomaly_lower) / distance_lower_ft ** 1.5
+        weight = min(weight_dipole, weight_inv)
+        weight = round(weight, 6)
+        distances.append(distance_lower)
         depths.append(depth)
         weights.append(weight)
 

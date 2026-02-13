@@ -7,7 +7,7 @@
       "display_name": "Output folder",
       "type": "FOLDER_PATH",
       "default_value": "",
-      "required": false
+      "required": true
     }
   ],
   "templates": ["sgy"]

@@ -7,21 +7,21 @@
       "display_name": "Lower sensor column",
       "type": "COLUMN_NAME",
       "default_value": "TMI_LPF",
-      "required": false
+      "required": true
     },
     {
       "name": "upper-sensor-column",
       "display_name": "Upper sensor column",
       "type": "COLUMN_NAME",
       "default_value": "TMI_S_LPF",
-      "required": false
+      "required": true
     },
     {
       "name": "altitude-column",
       "display_name": "Altitude AGL column",
       "type": "COLUMN_NAME",
       "default_value": "Altitude AGL",
-      "required": false
+      "required": true
     },
     {
       "name": "sensor-separation",
@@ -42,7 +42,7 @@
       "display_name": "Output folder",
       "type": "FOLDER_PATH",
       "default_value": "",
-      "required": false
+      "required": true
     }
   ],
   "templates": ["MagNIMBUS"]

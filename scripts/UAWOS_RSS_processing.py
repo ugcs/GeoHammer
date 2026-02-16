@@ -336,6 +336,12 @@ def main():
     print("Saving CSV to:", OUTPUT_CSV, "\n")
 
     mark_indices, mark_values, layout = detect_marks_and_layout(SEG_Y_FILE)
+
+    if not mark_indices or not mark_values:
+        raise RuntimeError(
+            "No marks found in this file. Please add marks, reload the file, and try again."
+        )
+
     ns = layout["nsamples"]
     trace_size = layout["trace_size"]
 

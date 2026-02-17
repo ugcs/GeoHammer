@@ -64,10 +64,22 @@ def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_toleranc
         f.seek(3200)
         binhdr = f.read(400)
 
-        fmt_code = u16(binhdr[24:26], "<")
-        endian = "<" if fmt_code in valid_codes else ">"
+
+        fmt_le = u16(binhdr[24:26], "<")
+        fmt_be = u16(binhdr[24:26], ">")
+
+        if fmt_le in valid_codes:
+            endian = "<"
+            fmt_code = fmt_le
+        elif fmt_be in valid_codes:
+            endian = ">"
+            fmt_code = fmt_be
+        else:
+            endian = "<"
+            fmt_code = fmt_le
 
         bytes_per_sample = valid_codes.get(fmt_code, 2)
+        # ------------------------------------------------------
 
         f.seek(3600)
         trchdr = f.read(240)
@@ -125,7 +137,113 @@ def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_toleranc
         bytes_per_sample=bytes_per_sample,
         trace_size=trace_size,
         ntraces=int(ntraces),
+        fmt_code=fmt_code,
     )
+
+
+# -----------------------------
+# Manual SEG-Y reader
+# -----------------------------
+def _ibm_to_ieee_f32(u32_arr: np.ndarray) -> np.ndarray:
+    # Minimal IBM float -> IEEE float conversion (vectorized)
+    # u32_arr is uint32 containing IBM floats.
+    u = u32_arr.astype(np.uint32)
+    sign = (u >> 31) & 0x1
+    exp = (u >> 24) & 0x7F
+    frac = u & 0x00FFFFFF
+
+    out = np.zeros(u.shape, dtype=np.float32)
+    nz = (exp != 0) & (frac != 0)
+    if not np.any(nz):
+        return out
+
+    # fraction is base-16, 24-bit, interpreted as 0.frac in hex
+    f = frac[nz].astype(np.float64) / float(0x01000000)  # 2^24
+    e = exp[nz].astype(np.int32) - 64
+    val = f * (16.0 ** e)
+
+    out[nz] = val.astype(np.float32)
+    out[sign.astype(bool)] *= -1.0
+    return out
+
+
+def read_traces_fallback(filename: str, layout: dict):
+    endian = layout["endian"]  # "<" or ">"
+    ns_ref = int(layout["nsamples"])
+    bps = int(layout["bytes_per_sample"])
+    fmt_code = int(layout.get("fmt_code", 5))
+
+    def u16(b):
+        return struct.unpack(endian + "H", b)[0]
+
+    def s16(b):
+        return struct.unpack(endian + "h", b)[0]
+
+    traces_list = []
+    headers_list = []
+
+    with open(filename, "rb") as f:
+        f.seek(3600)
+
+        while True:
+            h = f.read(240)
+            if len(h) < 240:
+                break
+
+            ns_i = u16(h[114:116])
+            if ns_i <= 0 or ns_i > 10000000:
+                break
+
+            data_bytes = f.read(ns_i * bps)
+            if len(data_bytes) < ns_i * bps:
+                break
+
+            # decode samples
+            if fmt_code == 5 and bps == 4:  # IEEE float
+                dt = np.dtype(endian + "f4")
+                x = np.frombuffer(data_bytes, dtype=dt).astype(np.float32, copy=False)
+            elif fmt_code == 2 and bps == 4:  # int32
+                dt = np.dtype(endian + "i4")
+                x = np.frombuffer(data_bytes, dtype=dt).astype(np.float32)
+            elif fmt_code == 3 and bps == 2:  # int16
+                dt = np.dtype(endian + "i2")
+                x = np.frombuffer(data_bytes, dtype=dt).astype(np.float32)
+            elif fmt_code == 8 and bps == 1:  # int8
+                x = np.frombuffer(data_bytes, dtype=np.int8).astype(np.float32)
+            elif fmt_code == 1 and bps == 4:  # IBM float
+                dt = np.dtype(endian + "u4")
+                u = np.frombuffer(data_bytes, dtype=dt)
+                x = _ibm_to_ieee_f32(u)
+            else:
+                # unknown
+                dt = np.dtype(endian + "i2") if bps >= 2 else np.int8
+                x = np.frombuffer(data_bytes, dtype=dt).astype(np.float32)
+
+            # pad/truncate to ns_ref for consistent downstream processing
+            if ns_i < ns_ref:
+                x = np.pad(x, (0, ns_ref - ns_i), mode="constant")
+            elif ns_i > ns_ref:
+                x = x[:ns_ref]
+
+            traces_list.append(x)
+            headers_list.append(h)
+
+    if not traces_list:
+        raise RuntimeError("Could not read any traces from file.")
+
+    traces = np.stack(traces_list, axis=1)  # (ns, ntraces)
+
+    def get_time_fields(t_idx: int):
+        h = headers_list[t_idx]
+        year_raw = s16(h[156:158])
+        yday = s16(h[158:160])
+        hour = s16(h[160:162])
+        minute = s16(h[162:164])
+        second = s16(h[164:166])
+        return year_raw, yday, hour, minute, second
+
+    return traces, len(traces_list), get_time_fields
+
 
 # -----------------------------
 # Velocity helpers
@@ -199,13 +317,107 @@ def main():
     print("Saving CSV to:", OUTPUT_CSV, "\n")
 
     mark_indices, mark_values, layout = detect_marks_and_layout(SEG_Y_FILE)
+
+    if not mark_indices or not mark_values:
+        raise RuntimeError(
+            "No marks found in this file. Please add marks, reload the file, and try again."
+        )
+
     ns = layout["nsamples"]
     trace_size = layout["trace_size"]
 
-    with segyio.open(SEG_Y_FILE, strict=False, endian="little") as f:
-        ntraces = f.tracecount
-        traces = np.stack([np.copy(f.trace[i]) for i in range(ntraces)], axis=1)
 
+    traces = None
+    ntraces = None
+    header_getter = None  # function(t_idx)->(year_raw,yday,hour,minute,second)
+    f_segy = None
+
+    endian_str = "little" if layout["endian"] == "<" else "big"
+    try:
+        f_segy = segyio.open(SEG_Y_FILE, strict=False, endian=endian_str)
+    except RuntimeError:
+        try:
+            alt = "big" if endian_str == "little" else "little"
+            f_segy = segyio.open(SEG_Y_FILE, strict=False, endian=alt)
+        except RuntimeError:
+            f_segy = None
+
+    if f_segy is not None:
+        with f_segy as f:
+            ntraces = f.tracecount
+            traces = np.stack([np.copy(f.trace[i]) for i in range(ntraces)], axis=1)
+
+            def header_getter(t_idx: int):
+                h = f.header[t_idx]
+                year_raw = h.get(TF.YearDataRecorded)
+                yday = h.get(TF.DayOfYear)
+                hour = h.get(TF.HourOfDay, 0)
+                minute = h.get(TF.MinuteOfHour, 0)
+                second = h.get(TF.SecondOfMinute, 0)
+                return year_raw, yday, hour, minute, second
+
+            # rotate if even
+            if ns % 2 == 0:
+                half = ns // 2
+                traces = np.concatenate((traces[half:], traces[:half]), axis=0)
+
+            vaxis_cm_s = build_velocity_axis(ns)
+            rows = []
+            base_pos = 3600
+
+            for i, (mark, t_idx) in enumerate(zip(mark_values, mark_indices)):
+                if i < len(mark_indices) - 1:
+                    next_idx = mark_indices[i + 1]
+                    end_idx = t_idx + (next_idx - t_idx) // 2
+                else:
+                    end_idx = ntraces - 1
+
+                end_idx = max(end_idx, t_idx)
+                end_idx = min(end_idx, ntraces - 1)
+
+                sub = traces[:, t_idx:end_idx + 1]
+                sub_mean = sub.mean(axis=1)
+
+                v_raw, v_fw = compute_velocities_for_mark_from_spectrum(sub_mean, vaxis_cm_s)
+
+                year_raw, yday, hour, minute, second = header_getter(t_idx)
+
+                time_utc = np.nan
+                try:
+                    if year_raw and yday:
+                        year = 1900 + year_raw if year_raw < 200 else year_raw
+                        dt = datetime(int(year), 1, 1) + timedelta(
+                            days=int(yday) - 1,
+                            hours=int(hour),
+                            minutes=int(minute),
+                            seconds=int(second),
+                        )
+                        time_utc = np.datetime64(dt)
+                except Exception:
+                    pass
+
+                with open(SEG_Y_FILE, "rb") as fh:
+                    fh.seek(base_pos + t_idx * trace_size)
+                    r240 = fh.read(240)
+
+                altitude_m, dir_raw, lon_deg, lat_deg = decode_vendor_header_240(r240)
+
+                rows.append([
+                    mark,
+                    t_idx,
+                    time_utc,
+                    lon_deg,
+                    lat_deg,
+                    altitude_m,
+                    dir_raw,
+                    v_raw,
+                    v_fw
+                ])
+    else:
+        # Fallback: tolerate padding / trailing bytes / non-uniform traces
+        traces, ntraces, header_getter = read_traces_fallback(SEG_Y_FILE, layout)
+
+        # rotate if even
         if ns % 2 == 0:
             half = ns // 2
             traces = np.concatenate((traces[half:], traces[:half]), axis=0)
@@ -215,6 +427,8 @@ def main():
         base_pos = 3600
 
         for i, (mark, t_idx) in enumerate(zip(mark_values, mark_indices)):
+            print("Processing mark", mark, "at trace", t_idx)
+
             if i < len(mark_indices) - 1:
                 next_idx = mark_indices[i + 1]
                 end_idx = t_idx + (next_idx - t_idx) // 2
@@ -229,12 +443,7 @@ def main():
 
             v_raw, v_fw = compute_velocities_for_mark_from_spectrum(sub_mean, vaxis_cm_s)
 
-            h = f.header[t_idx]
-            year_raw = h.get(TF.YearDataRecorded)
-            yday = h.get(TF.DayOfYear)
-            hour = h.get(TF.HourOfDay, 0)
-            minute = h.get(TF.MinuteOfHour, 0)
-            second = h.get(TF.SecondOfMinute, 0)
+            year_raw, yday, hour, minute, second = header_getter(t_idx)
 
             time_utc = np.nan
             try:

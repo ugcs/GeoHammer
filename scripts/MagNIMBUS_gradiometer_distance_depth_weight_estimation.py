@@ -1,9 +1,9 @@
 import sys
 import os
-import re
 import argparse
 import pandas as pd
 import numpy as np
+from script_utils import normalize_input_stem
 
 
 def check_column_exists(data, column):
@@ -58,13 +58,21 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             print(f"Warning: Zero anomaly at upper sensor at index {idx}, skipping")
             distances.append(np.nan)
             depths.append(np.nan)
+            weights.append(np.nan)
             continue
 
         # Calculate anomaly ratio
         ratio = anomaly_lower / anomaly_upper
 
+        if ratio < 0:
+            print(f"Warning: Opposite-sign anomalies at index {idx} (ratio={ratio:.4f}), skipping")
+            distances.append(np.nan)
+            depths.append(np.nan)
+            weights.append(np.nan)
+            continue
+
         # Cube root of anomaly ratio
-        cube_root = abs(ratio) ** (1/3)
+        cube_root = ratio ** (1/3)
 
         # Check for invalid denominator
         denominator = cube_root - 1
@@ -77,9 +85,16 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
 
         # Distance to lower sensor
         distance_lower = sensor_separation / denominator
-        distance_lower = round(distance_lower, 4)
         if distance_lower < 0:
             distance_lower = abs(distance_lower)
+        distance_lower = round(distance_lower, 4)
+
+        if distance_lower == 0:
+            print(f"Warning: Distance rounded to zero at index {idx}, skipping")
+            distances.append(np.nan)
+            depths.append(np.nan)
+            weights.append(np.nan)
+            continue
 
         # If altitude is missing, depth will be N/A
         if pd.isna(altitude_agl):
@@ -91,7 +106,8 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
                 depth = 0
 
         distance_lower_ft = distance_lower / 0.3048
-        weight_dipole = abs(anomaly_lower) * distance_lower_ft ** 3 / 1000 * 0.453592
+        LBS_TO_KG = 0.453592
+        weight_dipole = abs(anomaly_lower) * distance_lower_ft ** 3 / 1000 * LBS_TO_KG
         weight_inv = abs(anomaly_lower) / distance_lower_ft ** 1.5
         weight = min(weight_dipole, weight_inv)
         weight = round(weight, 6)
@@ -100,17 +116,6 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
         weights.append(weight)
 
     return distances, depths, weights
-
-def normalize_input_stem(stem):
-    s = stem.strip()
-    s2 = re.sub(r"([_\-\.\s])\d{10,}$", "", s)
-    if s2 != s:
-        return s2
-    s2 = re.sub(r"\s*\(\d{10,}\)$", "", s)
-    if s2 != s:
-        return s2.rstrip()
-    s2 = re.sub(r"\d{12,}$", "", s)
-    return s2
 
 
 def build_targets_path(input_path, output_dir):

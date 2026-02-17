@@ -3,6 +3,7 @@ import os
 import argparse
 import pandas as pd
 import numpy as np
+from script_utils import normalize_input_stem
 
 
 def check_column_exists(data, column):
@@ -22,11 +23,18 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
     Process marked points using gradiometer mode (two sensors).
 
     Algorithm:
-    1. distance_lower = sensor_separation / ((TMI_lower - TMI_upper)**(1/3) - 1)
-    2. depth = distance_lower - AGL + altimeter_lower_offset
+    1. Estimate per-sensor background as median for upper column (less affected by near-surface anomalies).
+    2. anomaly_lower = TMI_lower - background
+    3. anomaly_upper = TMI_upper - background
+    4. distance_lower = sensor_separation / ((anomaly_lower / anomaly_upper)**(1/3) - 1)
+    5. depth = distance_lower - AGL + altimeter_lower_offset
+    6. weight (kg) = min(|anomaly_lower| * distance_ft^3 / 1000 * 0.453592, |anomaly_lower| / distance_ft^1.5)
     """
+    background = data[tmi_upper_col].median()
+
     distances = []
     depths = []
+    weights = []
 
     has_altitude = altitude_col in data.columns
 
@@ -39,49 +47,80 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             print(f"Warning: Missing TMI data at index {idx}, skipping")
             distances.append(np.nan)
             depths.append(np.nan)
+            weights.append(np.nan)
             continue
 
-        # Calculate TMI difference
-        tmi_diff = tmi_lower - tmi_upper
+        # Calculate anomaly values (subtract background field)
+        anomaly_lower = tmi_lower - background
+        anomaly_upper = tmi_upper - background
 
-        # Cube root (handles negative values correctly)
-        if tmi_diff >= 0:
-            cube_root = tmi_diff ** (1/3)
-        else:
-            cube_root = -((-tmi_diff) ** (1/3))
+        if anomaly_upper == 0:
+            print(f"Warning: Zero anomaly at upper sensor at index {idx}, skipping")
+            distances.append(np.nan)
+            depths.append(np.nan)
+            weights.append(np.nan)
+            continue
+
+        # Calculate anomaly ratio
+        ratio = anomaly_lower / anomaly_upper
+
+        if ratio < 0:
+            print(f"Warning: Opposite-sign anomalies at index {idx} (ratio={ratio:.4f}), skipping")
+            distances.append(np.nan)
+            depths.append(np.nan)
+            weights.append(np.nan)
+            continue
+
+        # Cube root of anomaly ratio
+        cube_root = ratio ** (1/3)
 
         # Check for invalid denominator
         denominator = cube_root - 1
         if denominator == 0:
-            print(f"Warning: Invalid denominator ((TMI_diff)^(1/3) = 1) at index {idx}, skipping")
+            print(f"Warning: Invalid denominator (ratio^(1/3) = 1) at index {idx}, skipping")
             distances.append(np.nan)
             depths.append(np.nan)
+            weights.append(np.nan)
             continue
 
         # Distance to lower sensor
         distance_lower = sensor_separation / denominator
-
         if distance_lower < 0:
             distance_lower = abs(distance_lower)
+        distance_lower = round(distance_lower, 4)
 
-        # Depth calculation: distance_lower - (AGL - altimeter_lower_offset)
-        # This accounts for the offset between the altimeter and lower sensor
+        if distance_lower == 0:
+            print(f"Warning: Distance rounded to zero at index {idx}, skipping")
+            distances.append(np.nan)
+            depths.append(np.nan)
+            weights.append(np.nan)
+            continue
+
         # If altitude is missing, depth will be N/A
         if pd.isna(altitude_agl):
             depth = np.nan
         else:
             depth = distance_lower - altitude_agl + altimeter_lower_offset
+            depth = round(depth, 4)
             if depth < 0:
                 depth = 0
 
+        distance_lower_ft = distance_lower / 0.3048
+        LBS_TO_KG = 0.453592
+        weight_dipole = abs(anomaly_lower) * distance_lower_ft ** 3 / 1000 * LBS_TO_KG
+        weight_inv = abs(anomaly_lower) / distance_lower_ft ** 1.5
+        weight = min(weight_dipole, weight_inv)
+        weight = round(weight, 6)
         distances.append(distance_lower)
         depths.append(depth)
+        weights.append(weight)
 
-    return distances, depths
+    return distances, depths, weights
+
 
 def build_targets_path(input_path, output_dir):
-    """Build path for targets file. If output_dir-dir is empty, use original file's directory."""
     stem = os.path.splitext(os.path.basename(input_path))[0]
+    stem = normalize_input_stem(stem)
     targets_name = stem + "-targets.csv"
 
     # If output-dir is empty, use the original file's directory
@@ -100,10 +139,9 @@ def main():
     )
 
     parser.add_argument("file_path", help='File path')
-    parser.add_argument("--original-path", default="", help='Original file path (fallback, prefer GEOHAMMER_ORIGINAL_PATH env var)')
     parser.add_argument("--lower-sensor-column", default="TMI_LPF", help="Lower sensor column (default: TMI_LPF)")
     parser.add_argument("--upper-sensor-column", default="TMI_S_LPF", help="Upper sensor column (default: TMI_S_LPF)")
-    parser.add_argument("--altitude-column", default="Altitude_AGL", help="Altitude AGL column (default: Altitude_AGL)")
+    parser.add_argument("--altitude-column", default="Altitude AGL", help="Altitude AGL column (default: Altitude_AGL)")
     parser.add_argument("--sensor-separation", type=float, default=1.5, help="Sensor separation in meters (default: 1.5)")
     parser.add_argument("--altimeter-lower-offset", type=float, default=0.5,
                         help="Distance between altimeter and lower sensor in meters (default: 0.5)")
@@ -112,8 +150,6 @@ def main():
     args = parser.parse_args()
 
     input_path = args.file_path
-    # Priority: environment variable > CLI arg > input path
-    original_path = os.environ.get('GEOHAMMER_ORIGINAL_PATH', '') or args.original_path or input_path
     lower_column = args.lower_sensor_column
     upper_column = args.upper_sensor_column
     altitude_column = args.altitude_column
@@ -146,7 +182,7 @@ def main():
     print(f"Found {len(mark_indices)} marked points")
 
     # Process gradiometer data
-    distances, depths = process_gradiometer(
+    distances, depths, weights = process_gradiometer(
         data, mark_indices, lower_column, upper_column, altitude_column,
         args.sensor_separation, args.altimeter_lower_offset
     )
@@ -154,12 +190,15 @@ def main():
     # Save results - add columns with empty string for non-marked rows
     data["Estimated_Distance"] = ""
     data["Estimated_Depth"] = ""
+    data["Estimated_Weight"] = ""
 
     for i, idx in enumerate(mark_indices):
         if not np.isnan(distances[i]):
             data.at[idx, "Estimated_Distance"] = distances[i]
         if not np.isnan(depths[i]):
             data.at[idx, "Estimated_Depth"] = depths[i]
+        if not np.isnan(weights[i]):
+            data.at[idx, "Estimated_Weight"] = weights[i]
 
     # Overwrite CSV
     output_path = input_path
@@ -167,7 +206,7 @@ def main():
     data.to_csv(output_path, index=False, sep=',')
 
     # Create targets file with only marked rows
-    targets_path = build_targets_path(original_path, args.output_dir)
+    targets_path = build_targets_path(input_path, args.output_dir)
     targets_data = data.loc[mark_indices]
     print(f"Writing targets file to {targets_path}")
     targets_data.to_csv(targets_path, index=False, sep=',')

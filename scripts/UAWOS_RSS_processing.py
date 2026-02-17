@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
 import struct
 import argparse
 from datetime import datetime, timedelta
@@ -12,25 +11,7 @@ from scipy.optimize import curve_fit
 from scipy.stats import norm
 import segyio
 from segyio import TraceField as TF
-
-
-def normalize_input_stem(stem: str) -> str:
-    s = stem.strip()
-
-    # separators + long digits
-    s2 = re.sub(r"([_\-\.\s])\d{10,}$", "", s)
-    if s2 != s:
-        return s2
-
-    # parentheses with long digits
-    s2 = re.sub(r"\s*\(\d{10,}\)$", "", s)
-    if s2 != s:
-        return s2.rstrip()
-
-    # no separator, just a long digit tail
-    s2 = re.sub(r"\d{12,}$", "", s)
-    return s2
-
+from script_utils import normalize_input_stem
 
 
 def build_output_csv_path(original_path: str, output_dir: str) -> str:

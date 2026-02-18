@@ -5,10 +5,12 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.ugcs.geohammer.math.GaussianSmoothing;
 import com.ugcs.geohammer.model.TemplateSeriesKey;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.RenderQueue;
@@ -16,20 +18,25 @@ import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
+import com.ugcs.geohammer.model.event.GridUpdatedEvent;
 import com.ugcs.geohammer.service.gridding.GriddingFilter;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
+import com.ugcs.geohammer.service.palette.Palette;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.math.AnalyticSignal;
 import com.ugcs.geohammer.math.AnalyticSignalFilter;
-import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.service.palette.Palettes;
 import com.ugcs.geohammer.model.Range;
+import com.ugcs.geohammer.util.Check;
+import org.controlsfx.control.spreadsheet.Grid;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.math.CoordinatesMath;
 
 /**
  * Layer responsible for grid visualization of GPR data.
@@ -56,6 +63,8 @@ public final class GridLayer extends BaseLayer {
 
     private static final double HILLSHADING_INTENSITY = 0.5;
 
+    private static final Logger log = LoggerFactory.getLogger(GridLayer.class);
+
     private final Model model;
 
     @SuppressWarnings({"NullAway.Init"})
@@ -67,6 +76,8 @@ public final class GridLayer extends BaseLayer {
     private final ConcurrentMap<File, GriddingResult> results = new ConcurrentHashMap<>();
 
     private final ConcurrentMap<TemplateSeriesKey, GriddingFilter> filters = new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<SgyFile, Grid> gridCache = new ConcurrentHashMap<>();
 
     public GridLayer(Model model) {
         this.model = model;
@@ -98,12 +109,14 @@ public final class GridLayer extends BaseLayer {
     public void setResult(SgyFile file, GriddingResult result) {
         if (file != null) {
             results.put(file.getFile(), result);
+            updateGrid(file, true);
         }
     }
 
     private void removeResult(SgyFile file) {
         if (file != null) {
             results.remove(file.getFile());
+            updateGrid(file);
         }
     }
 
@@ -112,6 +125,7 @@ public final class GridLayer extends BaseLayer {
         if (result != null) {
             results.put(file.getFile(), result);
             results.remove(oldFile, result); // only removes if still points to same value
+            updateGrid(file);
         }
     }
 
@@ -127,6 +141,7 @@ public final class GridLayer extends BaseLayer {
         TemplateSeriesKey templateSeries = TemplateSeriesKey.ofSeries(file, seriesName);
         if (templateSeries != null) {
             filters.put(templateSeries, filter);
+            updateGrid(file);
         }
     }
 
@@ -151,32 +166,19 @@ public final class GridLayer extends BaseLayer {
         SgyFile last = selectedFile; // to draw on top
         for (SgyFile file : model.getFileManager().getFiles()) {
             if (!Objects.equals(file, last) && hasResult(file)) {
-                drawFileOnMapField(g2, field, file);
+                drawGrid(g2, field, file);
             }
         }
         if (hasResult(last)) {
-            drawFileOnMapField(g2, field, last);
+            drawGrid(g2, field, last);
         }
     }
 
-    /**
-     * Draws the grid visualization for a given file on the map field.
-     */
-    private void drawFileOnMapField(Graphics2D g2, MapField field, SgyFile file) {
-        // show last result for the file
-        GriddingResult result = getResult(file);
-        if (result == null) {
+    private void drawGrid(Graphics2D g2, MapField field, SgyFile file) {
+        Grid grid = getGrid(file);
+        if (grid == null) {
             return;
         }
-        GriddingFilter filter = getFilter(file, result.seriesName());
-        if (filter == null) {
-            return;
-        }
-        drawGrid(g2, field, result, filter);
-    }
-
-    private void drawGrid(Graphics2D g2, MapField field, GriddingResult result, GriddingFilter filter) {
-        Grid grid = getFilteredGrid(result, filter);
 
         var minLatLon = grid.minLatLon;
         var maxLatLon = grid.maxLatLon;
@@ -204,11 +206,10 @@ public final class GridLayer extends BaseLayer {
                         continue;
                     }
 
-                    // Get base color for the value
-                    Color color = getColorForValue(value, grid.minValue, grid.maxValue);
+                    Color color = grid.palette.getColor(value);
 
                     // Apply hill-shading if enabled
-                    if (filter.hillShading()) {
+                    if (grid.filter.hillShading()) {
                         // Calculate illumination for this cell
                         double illumination = calculateHillShading(
                                 grid.values,
@@ -234,18 +235,10 @@ public final class GridLayer extends BaseLayer {
                     var point = field.latLonToScreen(new LatLon(lat, lon));
                     g2.fillRect((int) point.getX(), (int) point.getY(), (int) cellWidth, (int) cellHeight);
                 } catch (Exception e) {
-                    System.out.println(e.getMessage());
+                    log.error("Error", e);
                 }
             }
         }
-    }
-
-    private static Color getColorForValue(double value, double min, double max) {
-        value = Math.clamp(value, min, max);
-        double normalized = (value - min) / (max - min);
-
-        javafx.scene.paint.Color color = javafx.scene.paint.Color.hsb((1 - normalized) * 280, 0.8f, 0.8f);
-        return new Color((float) color.getRed(), (float) color.getGreen(), (float) color.getBlue(), (float) color.getOpacity());
     }
 
     /**
@@ -317,63 +310,132 @@ public final class GridLayer extends BaseLayer {
     }
 
     public Grid getCurrentGrid() {
-        SgyFile file = selectedFile;
-        if (file == null) {
-            return null;
-        }
-        GriddingResult result = getResult(file);
-        if (result == null) {
-            return null;
-        }
-        GriddingFilter filter = getFilter(file, result.seriesName());
-        if (filter == null) {
-            return null;
-        }
-        return getFilteredGrid(result, filter);
+        return getGrid(selectedFile);
     }
 
-    private Grid getFilteredGrid(GriddingResult result, GriddingFilter filter) {
-        Check.notNull(result);
+    public Grid getGrid(SgyFile file) {
+        if (file != null) {
+            return gridCache.get(file);
+        }
+        return null;
+    }
 
-        float[][] grid = filter.smoothing()
-                ? result.smoothedGridData()
-                : result.gridData();
+    private void updateGrid(SgyFile file) {
+        updateGrid(file, false);
+    }
 
-        double minValue = filter.range().getMin();
-        double maxValue = filter.range().getMax();
+    private void updateGrid(SgyFile file, boolean ignoreCached) {
+        Check.notNull(file);
 
-        if (filter.analyticSignal()) {
-            int gridWidth = grid.length;
-            int gridHeight = grid[0].length;
-
-            LatLon minLatLon = result.minLatLon();
-            LatLon maxLatLon = result.maxLatLon();
-
-            double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
-            double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
-
-            double cellWidthMeters = CoordinatesMath.measure(0, 0, 0, lonStep);
-            double cellHeightMeters = CoordinatesMath.measure(0, 0, latStep, 0);
-
-            AnalyticSignalFilter analyticSignalFilter = new AnalyticSignalFilter(
-                    grid,
-                    cellWidthMeters,
-                    cellHeightMeters);
-            AnalyticSignal signal = analyticSignalFilter.evaluate();
-            Range signalRange = signal.getRange(0.02);
-
-            grid = signal.getMagnitudes();
-            minValue = signalRange.getMin();
-            maxValue = signalRange.getMax();
+        GriddingResult result = getResult(file);
+        GriddingFilter filter = result != null
+                ? getFilter(file, result.seriesName())
+                : null;
+        if (result == null || filter == null) {
+            gridCache.remove(file);
+            model.publishEvent(new GridUpdatedEvent(this, file, null));
+            return;
         }
 
-        return new Grid(
-                grid,
-                (float)minValue,
-                (float)maxValue,
-                result.minLatLon(),
-                result.maxLatLon()
-        );
+        Grid grid;
+        synchronized (gridCache) {
+            // get cached grid
+            grid = gridCache.get(file);
+
+            float[][] values;
+            float[] sortedValues;
+            Range range;
+            boolean updateValues = ignoreCached || shouldUpdateValues(grid, filter);
+
+            if (updateValues) {
+                values = result.grid();
+                range = filter.range();
+                if (filter.smoothing()) {
+                    GaussianSmoothing smoothing = new GaussianSmoothing();
+                    values = smoothing.apply(values);
+                }
+                if (filter.analyticSignal()) {
+                    AnalyticSignalFilter analyticSignalFilter = new AnalyticSignalFilter(
+                            values,
+                            result.minLatLon(),
+                            result.maxLatLon());
+                    AnalyticSignal signal = analyticSignalFilter.evaluate();
+                    values = signal.getMagnitudes();
+                    range = signal.getRange(0.02);
+                }
+                sortedValues = sortGridValues(values);
+            } else {
+                values = grid.values();
+                sortedValues = grid.sortedValues();
+                if (filter.analyticSignal()) {
+                    range = grid.range();
+                } else {
+                    range = filter.range();
+                }
+            }
+
+            Palette palette;
+            boolean updatePalette = ignoreCached || shouldUpdatePalette(grid, filter);
+
+            if (updateValues || updatePalette) {
+                palette = Palettes.create(
+                        filter.paletteType(),
+                        filter.spectrumType(),
+                        sortedValues,
+                        range);
+            } else {
+                palette = grid.palette();
+            }
+
+            grid = new Grid(
+                    values,
+                    sortedValues,
+                    result.minLatLon(),
+                    result.maxLatLon(),
+                    range,
+                    palette,
+                    filter
+            );
+            gridCache.put(file, grid);
+        }
+        model.publishEvent(new GridUpdatedEvent(this, file, grid));
+    }
+
+    private boolean shouldUpdateValues(Grid grid, GriddingFilter filter) {
+        return grid == null
+                || grid.filter() == null
+                || !Objects.equals(grid.filter().smoothing(), filter.smoothing())
+                || !Objects.equals(grid.filter().analyticSignal(), filter.analyticSignal());
+    }
+
+    private boolean shouldUpdatePalette(Grid grid, GriddingFilter filter) {
+        return grid == null
+                || grid.filter() == null
+                || grid.filter().paletteType() != filter.paletteType()
+                || grid.filter().spectrumType() != filter.spectrumType()
+                || !Objects.equals(grid.filter().range(), filter.range());
+    }
+
+    private float[] sortGridValues(float[][] grid) {
+        int n = 0;
+        for (float[] row : grid) {
+            for (float value : row) {
+                if (!Float.isNaN(value)) {
+                    n++;
+                }
+            }
+        }
+        float[] values = new float[n];
+        int i = 0;
+        for (float[] row : grid) {
+            for (float value : row) {
+                if (!Float.isNaN(value)) {
+                    values[i++] = value;
+                }
+            }
+        }
+        Arrays.sort(values);
+        return values;
     }
 
     @EventListener
@@ -427,10 +489,12 @@ public final class GridLayer extends BaseLayer {
 
     public record Grid(
             float[][] values,
-            float minValue,
-            float maxValue,
+            float[] sortedValues,
             LatLon minLatLon,
-            LatLon maxLatLon
+            LatLon maxLatLon,
+            Range range,
+            Palette palette,
+            GriddingFilter filter
     ) {
     }
 }

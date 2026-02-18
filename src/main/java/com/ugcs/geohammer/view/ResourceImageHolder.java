@@ -160,6 +160,9 @@ public class ResourceImageHolder {
     public static final String LIST = """
         M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z""";
 
+    public static final String HISTOGRAM = """
+        M3 17h4V8H3v9zm5 0h4V5H8v12zm5 0h4v-5h-4v5z""";
+
     public static final double DEFAULT_BUTTON_HEIGHT = 28;
 
 	public static final Color DEFAULT_ICON_COLOR = Color.valueOf("#272525");

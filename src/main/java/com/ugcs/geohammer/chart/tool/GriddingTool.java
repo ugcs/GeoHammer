@@ -17,26 +17,33 @@ import com.ugcs.geohammer.service.gridding.GriddingFilter;
 import com.ugcs.geohammer.service.gridding.GriddingParams;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
 import com.ugcs.geohammer.service.gridding.GriddingService;
+import com.ugcs.geohammer.service.palette.PaletteType;
+import com.ugcs.geohammer.service.palette.SpectrumType;
 import com.ugcs.geohammer.util.Formats;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
+import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import org.controlsfx.control.RangeSlider;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -65,6 +72,8 @@ public class GriddingTool extends FilterToolView {
 
     private final TaskService taskService;
 
+    private final PaletteView paletteView;
+
     // shows that input events from the filter
     // controls should be ignored;
     // alternative to this flag is disabling listeners
@@ -88,10 +97,15 @@ public class GriddingTool extends FilterToolView {
 
     private final CheckBox analyticSignal;
 
+    private final ComboBox<PaletteType> paletteSelector;
+
+    private final ComboBox<SpectrumType> spectrumSelector;
+
     public GriddingTool(
             Model model,
             PrefSettings preferences,
             GridLayer gridLayer,
+            PaletteView paletteView,
             GriddingService griddingService,
             TaskService taskService,
             ExecutorService executor
@@ -101,6 +115,7 @@ public class GriddingTool extends FilterToolView {
         this.model = model;
         this.preferences = preferences;
         this.gridLayer = gridLayer;
+        this.paletteView = paletteView;
         this.griddingService = griddingService;
         this.taskService = taskService;
 
@@ -116,6 +131,28 @@ public class GriddingTool extends FilterToolView {
         blankingDistanceInput = new TextField();
         blankingDistanceInput.setPromptText("Enter blanking distance");
         blankingDistanceInput.textProperty().addListener(this::onBlankingDistanceChange);
+
+        // palette
+
+        paletteSelector = createPaletteSelector();
+        HBox.setHgrow(paletteSelector, Priority.ALWAYS);
+        paletteSelector.setPrefWidth(0); // allow equal distribution
+        spectrumSelector = createSpectrumSelector();
+        HBox.setHgrow(spectrumSelector, Priority.ALWAYS);
+        spectrumSelector.setPrefWidth(0); // allow equal distribution
+
+        Button showPalette = Views.createSvgButton(
+                ResourceImageHolder.HISTOGRAM, Color.valueOf("#888888"), 22, "Inspect palette");
+        showPalette.setOnAction(e -> {
+            paletteView.toggle();
+        });
+
+        HBox paletteGroup = new HBox(Tools.DEFAULT_SPACING,
+                paletteSelector,
+                spectrumSelector,
+                showPalette);
+        paletteGroup.setAlignment(Pos.BASELINE_CENTER);
+        VBox.setMargin(paletteGroup,  new Insets(Tools.DEFAULT_SPACING, 0, 0, 0));
 
         // range slider
 
@@ -151,7 +188,11 @@ public class GriddingTool extends FilterToolView {
         minMaxContainer.getChildren().addAll(minLabel, minInput, minMaxSeparator, maxInput, maxLabel);
 
         rangeSlider = createRangeSlider(minInput, maxInput);
-        VBox rangeContainer = new VBox(10, labelAndReset, rangeSlider, minMaxContainer);
+
+        VBox rangeGroup = createGroup(
+                labelAndReset,
+                rangeSlider,
+                minMaxContainer);
 
         // post-processing
 
@@ -164,28 +205,90 @@ public class GriddingTool extends FilterToolView {
         analyticSignal = new CheckBox("Analytic signal");
         analyticSignal.selectedProperty().addListener(this::onFilterOptionChange);
 
-        VBox postProcessingContainer = new VBox(Tools.DEFAULT_SPACING,
+        VBox postProcessingGroup = createGroup(
                 hillShading,
                 smoothing,
                 analyticSignal
         );
-        postProcessingContainer.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 8;");
-        VBox.setMargin(postProcessingContainer,  new Insets(Tools.DEFAULT_SPACING, 0, Tools.DEFAULT_SPACING, 0));
 
         inputContainer.getChildren().setAll(
                 warning,
                 cellSizeInput,
                 blankingDistanceInput,
-                rangeContainer,
-                postProcessingContainer);
+                paletteGroup,
+                rangeGroup,
+                postProcessingGroup);
 
         showApply(true);
         showApplyToAll(true);
     }
 
+    private VBox createGroup(Node... children) {
+        VBox group = new VBox(8, children);
+        group.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 8;");
+        VBox.setMargin(group,  new Insets(Tools.DEFAULT_SPACING, 0, Tools.DEFAULT_SPACING, 0));
+        return group;
+    }
+
     @Override
     public boolean isVisibleFor(SgyFile file) {
         return file instanceof CsvFile || file instanceof SonarFile;
+    }
+
+    private ComboBox<PaletteType> createPaletteSelector() {
+        ComboBox<PaletteType> paletteSelector = new ComboBox<>();
+        paletteSelector.setMaxWidth(Double.MAX_VALUE);
+        paletteSelector.getItems().addAll(PaletteType.values());
+        paletteSelector.setValue(PaletteType.defaultPaletteType());
+
+        paletteSelector.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(PaletteType item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getDisplayName());
+            }
+        });
+        paletteSelector.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(PaletteType item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getDisplayName());
+            }
+        });
+        paletteSelector.setOnAction(e -> {
+            if (!ignoreFilterEvents.get()) {
+                applyFilter();
+            }
+        });
+        return paletteSelector;
+    }
+
+    private ComboBox<SpectrumType> createSpectrumSelector() {
+        ComboBox<SpectrumType> spectrumSelector = new ComboBox<>();
+        spectrumSelector.setMaxWidth(Double.MAX_VALUE);
+        spectrumSelector.getItems().addAll(SpectrumType.values());
+        spectrumSelector.setValue(SpectrumType.defaultSpectrumType());
+
+        spectrumSelector.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(SpectrumType item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getDisplayName());
+            }
+        });
+        spectrumSelector.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(SpectrumType item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getDisplayName());
+            }
+        });
+        spectrumSelector.setOnAction(e -> {
+            if (!ignoreFilterEvents.get()) {
+                applyFilter();
+            }
+        });
+        return spectrumSelector;
     }
 
     private RangeSlider createRangeSlider(TextField minInput, TextField maxInput) {
@@ -479,6 +582,12 @@ public class GriddingTool extends FilterToolView {
                         "gridding_smoothing_enabled", templateName, false));
                 analyticSignal.setSelected(preferences.getBooleanOrDefault(
                         "gridding_analytic_signal_enabled", templateName, false));
+                String paletteName = preferences.getStringOrDefault(
+                        "gridding_palette", templateName, Strings.empty());
+                paletteSelector.setValue(PaletteType.findByName(paletteName));
+                String spectrumName = preferences.getStringOrDefault(
+                        "gridding_spectrum", templateName, Strings.empty());
+                spectrumSelector.setValue(SpectrumType.findByName(spectrumName));
             }
 
             loadRangePreferences();
@@ -526,6 +635,12 @@ public class GriddingTool extends FilterToolView {
                     Boolean.toString(smoothing.isSelected()));
             preferences.setValue("gridding_analytic_signal_enabled", templateName,
                     Boolean.toString(analyticSignal.isSelected()));
+            PaletteType paletteType = paletteSelector.getValue();
+            preferences.setValue("gridding_palette", templateName,
+                    paletteType != null ? paletteType.name() : Strings.empty());
+            SpectrumType spectrumType = spectrumSelector.getValue();
+            preferences.setValue("gridding_spectrum", templateName,
+                    spectrumType != null ? spectrumType.name() : Strings.empty());
         }
 
         saveRangePreferences();
@@ -587,11 +702,21 @@ public class GriddingTool extends FilterToolView {
     }
 
     private GriddingFilter getFilter() {
+        PaletteType paletteType = paletteSelector.getValue();
+        if (paletteType == null) {
+            paletteType = PaletteType.defaultPaletteType();
+        }
+        SpectrumType spectrumType = spectrumSelector.getValue();
+        if (spectrumType == null) {
+            spectrumType = SpectrumType.defaultSpectrumType();
+        }
         return new GriddingFilter(
                 new Range(rangeSlider.getLowValue(), rangeSlider.getHighValue()),
                 analyticSignal.isSelected(),
                 hillShading.isSelected(),
-                smoothing.isSelected()
+                smoothing.isSelected(),
+                paletteType,
+                spectrumType
         );
     }
 

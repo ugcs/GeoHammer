@@ -4,6 +4,8 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.DataPoint;
 import edu.mines.jtk.interp.SplinesGridder2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -15,6 +17,8 @@ import java.util.Map;
 
 @Service
 public class GriddingService {
+
+    private static final Logger log = LoggerFactory.getLogger(GriddingService.class);
 
     public GriddingService() {
     }
@@ -43,28 +47,28 @@ public class GriddingService {
         List<Double> valuesList = new ArrayList<>(dataPoints.stream().map(p -> p.value()).toList());
         var median = calculateMedian(valuesList);
 
-        int gridSizeX = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
+        int gridWidth = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
                 new LatLon(maxLat, minLon).getDistance(new LatLon(maxLat, maxLon)));
 
-        gridSizeX = (int) (gridSizeX / params.cellSize());
+        gridWidth = (int) (gridWidth / params.cellSize());
 
-        int gridSizeY = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
+        int gridHeight = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
                 new LatLon(minLat, maxLon).getDistance(new LatLon(maxLat, maxLon)));
 
-        gridSizeY = (int) (gridSizeY / params.cellSize());
+        gridHeight = (int) (gridHeight / params.cellSize());
 
-        if (gridSizeX == 0 || gridSizeY == 0) {
+        if (gridWidth == 0 || gridHeight == 0) {
             return null;
         }
 
-        double lonStep = (maxLon - minLon) / gridSizeX;
-        double latStep = (maxLat - minLat) / gridSizeY;
+        double lonStep = (maxLon - minLon) / (gridWidth - 1);
+        double latStep = (maxLat - minLat) / (gridHeight - 1);
 
-        var gridData = new float[gridSizeX][gridSizeY];
+        var grid = new float[gridWidth][gridHeight];
 
-        boolean[][] m = new boolean[gridSizeX][gridSizeY];
-        for (int i = 0; i < gridSizeX; i++) {
-            for (int j = 0; j < gridSizeY; j++) {
+        boolean[][] m = new boolean[gridWidth][gridHeight];
+        for (int i = 0; i < gridWidth; i++) {
+            for (int j = 0; j < gridHeight; j++) {
                 m[i][j] = true;
             }
         }
@@ -78,9 +82,9 @@ public class GriddingService {
             points.computeIfAbsent(key, (k -> new ArrayList<>())).add(point.value());
         }
 
-        var gridBDx = gridSizeX / (gridSizeX * params.cellSize() / params.blankingDistance());
-        var gridBDy = gridSizeY / (gridSizeY * params.cellSize() / params.blankingDistance());
-        var visiblePoints = new boolean[gridSizeX][gridSizeY];
+        var gridBDx = gridWidth / (gridWidth * params.cellSize() / params.blankingDistance());
+        var gridBDy = gridHeight / (gridHeight * params.cellSize() / params.blankingDistance());
+        var visiblePoints = new boolean[gridWidth][gridHeight];
 
         for (Map.Entry<String, List<Double>> entry : points.entrySet()) {
             String[] coords = entry.getKey().split(",");
@@ -88,33 +92,34 @@ public class GriddingService {
             int yIndex = Integer.parseInt(coords[1]);
             double medianValue = calculateMedian(entry.getValue());
             try {
-                gridData[xIndex][yIndex] = (float) medianValue;
+                grid[xIndex][yIndex] = (float) medianValue;
                 m[xIndex][yIndex] = false;
 
                 for (int dx = -(int) gridBDx; dx <= gridBDx; dx++) {
                     for (int dy = -(int) gridBDy; dy <= gridBDy; dy++) {
                         int nx = xIndex + dx;
                         int ny = yIndex + dy;
-                        if (nx >= 0 && nx < gridSizeX && ny >= 0 && ny < gridSizeY) {
+                        if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
                             visiblePoints[nx][ny] = true;
                         }
                     }
                 }
             } catch (ArrayIndexOutOfBoundsException e) {
-                System.out.println("Out of bounds - xIndex = " + xIndex + " yIndex = " + yIndex);
+                log.info("x = {}, y = {}", xIndex, yIndex);
+                log.error("Error", e);
             }
         }
 
         int count = 0;
         m = thinOutBooleanGrid(m);
 
-        for (int i = 0; i < gridData.length; i++) {
-            for (int j = 0; j < gridData[0].length; j++) {
+        for (int i = 0; i < grid.length; i++) {
+            for (int j = 0; j < grid[0].length; j++) {
                 if (!m[i][j]) {
                     continue;
                 }
 
-                gridData[i][j] = (float) median;
+                grid[i][j] = (float) median;
 
                 if (!visiblePoints[i][j]) {
                     m[i][j] = false;
@@ -123,15 +128,15 @@ public class GriddingService {
             }
         }
 
-        System.out.println("Filtering complete in " + (System.currentTimeMillis() - startFiltering) / 1000 + "s");
-        System.out.println("Aditional points: " + count);
+        log.info("Filtering complete in {} s", (System.currentTimeMillis() - startFiltering) / 1000);
+        log.info("Additional points: {}", count);
 
         if (Thread.currentThread().isInterrupted()) {
-            System.out.println("Gridding interrupted");
+            log.info("Gridding interrupted");
             return null;
         }
 
-        System.out.println("Splines interpolation");
+        log.info("Splines interpolation");
         var start = System.currentTimeMillis();
         // Use original splines interpolation
         var gridder = new SplinesGridder2();
@@ -140,10 +145,10 @@ public class GriddingService {
 
         gridder.setMaxIterations(maxIterations); // 200 if the anomaly
         gridder.setTension(tension); //0.9999999f); - maximum
-        gridder.gridMissing(m, gridData);
+        gridder.gridMissing(m, grid);
 
         if (Thread.currentThread().isInterrupted()) {
-            System.out.println("Gridding interrupted");
+            log.info("Gridding interrupted");
             return null;
         }
 
@@ -152,32 +157,31 @@ public class GriddingService {
             maxIterations = 200;
             gridder.setTension(tension);
             gridder.setMaxIterations(maxIterations);
-            gridder.gridMissing(m, gridData);
+            gridder.gridMissing(m, grid);
         }
-        System.out.println("Iterations: " + gridder.getIterationCount()
-                + " time: " + (System.currentTimeMillis() - start) / 1000 + "s"
-                + " tension: " + tension
-                + " maxIterations: " + maxIterations);
-
-        System.out.println("Interpolation complete");
+        log.info("Iterations: {}, time: {} s, tension: {}, maxIterations: {}",
+                gridder.getIterationCount(),
+                (System.currentTimeMillis() - start) / 1000,
+                tension,
+                maxIterations);
+        log.info("Interpolation complete");
 
         if (Thread.currentThread().isInterrupted()) {
-            System.out.println("Gridding interrupted");
+            log.info("Gridding interrupted");
             return null;
         }
 
-        for (int i = 0; i < gridData.length; i++) {
-            for (int j = 0; j < gridData[0].length; j++) {
+        for (int i = 0; i < grid.length; i++) {
+            for (int j = 0; j < grid[0].length; j++) {
                 if (!visiblePoints[i][j]) {
-                    gridData[i][j] = Float.NaN;
+                    grid[i][j] = Float.NaN;
                 }
             }
         }
 
         return new GriddingResult(
                 seriesName,
-                gridData,
-                applyLowPassFilter(gridData),
+                grid,
                 minLatLon,
                 maxLatLon,
                 params
@@ -191,23 +195,23 @@ public class GriddingService {
                 .toList();
     }
 
-    private static List<DataPoint> getMedianValues(List<DataPoint> dataPoints) {
+    private static List<DataPoint> getMedianValues(List<DataPoint> points) {
         Map<String, List<Double>> dataMap = new HashMap<>();
-        for (DataPoint point : dataPoints) {
+        for (DataPoint point : points) {
             String key = point.latitude() + "," + point.longitude();
             dataMap.computeIfAbsent(key, k -> new ArrayList<>()).add(point.value());
         }
 
-        List<DataPoint> medianDataPoints = new ArrayList<>();
+        List<DataPoint> medianPoints = new ArrayList<>();
         for (Map.Entry<String, List<Double>> entry : dataMap.entrySet()) {
             String[] coords = entry.getKey().split(",");
             double latitude = Double.parseDouble(coords[0]);
             double longitude = Double.parseDouble(coords[1]);
             double medianValue = calculateMedian(entry.getValue());
-            medianDataPoints.add(new DataPoint(latitude, longitude, medianValue));
+            medianPoints.add(new DataPoint(latitude, longitude, medianValue));
         }
 
-        return medianDataPoints;
+        return medianPoints;
     }
 
     private static double calculateMedian(List<Double> values) {
@@ -221,120 +225,30 @@ public class GriddingService {
     }
 
     /**
-     * Applies a low-pass filter to the grid data to smooth out high-frequency variations.
-     * Uses a Gaussian kernel for the convolution.
-     *
-     * @param gridData The grid data to filter
-     */
-    private float[][] applyLowPassFilter(float[][] gridData) {
-        if (gridData == null || gridData.length == 0 || gridData[0].length == 0) {
-            return gridData;
-        }
-
-        int kernelSize = 15;
-        int kernelRadius = 7;
-
-        System.out.println("Applying low-pass filter with " + kernelSize + "x" + kernelSize + " kernel");
-        long startTime = System.currentTimeMillis();
-
-        float[][] kernel = new float[kernelSize][kernelSize];
-
-        // Initialize kernel with Gaussian values
-        double sigma = 5.0;
-        double sum = 0.0;
-
-        for (int x = -kernelRadius; x <= kernelRadius; x++) {
-            for (int y = -kernelRadius; y <= kernelRadius; y++) {
-                double value = Math.exp(-(x * x + y * y) / (2 * sigma * sigma));
-                kernel[x + kernelRadius][y + kernelRadius] = (float) value;
-                sum += value;
-            }
-        }
-
-        // Normalize kernel
-        for (int i = 0; i < kernelSize; i++) {
-            for (int j = 0; j < kernelSize; j++) {
-                kernel[i][j] /= sum;
-            }
-        }
-
-        int width = gridData.length;
-        int height = gridData[0].length;
-
-        var resultData = cloneGridData(gridData);
-
-        // Apply convolution
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                // Skip NaN values
-                if (Float.isNaN(gridData[i][j])) {
-                    continue;
-                }
-
-                float sum2 = 0;
-                float weightSum = 0;
-
-                // Apply kernel
-                for (int ki = -kernelRadius; ki <= kernelRadius; ki++) {
-                    for (int kj = -kernelRadius; kj <= kernelRadius; kj++) {
-                        int ni = i + ki;
-                        int nj = j + kj;
-
-                        // Skip out of bounds or NaN values
-                        if (ni < 0 || ni >= width || nj < 0 || nj >= height || Float.isNaN(gridData[ni][nj])) {
-                            continue;
-                        }
-
-                        float weight = kernel[ki + kernelRadius][kj + kernelRadius];
-                        sum2 += gridData[ni][nj] * weight;
-                        weightSum += weight;
-                    }
-                }
-
-                // Normalize by the sum of weights
-                if (weightSum > 0) {
-                    resultData[i][j] = sum2 / weightSum;
-                }
-            }
-        }
-
-        System.out.println("Low-pass filter applied in " + (System.currentTimeMillis() - startTime) + "ms");
-        return resultData;
-    }
-
-    private static float[][] cloneGridData(float[][] gridData) {
-        var result = new float[gridData.length][];
-        for (int i = 0; i < gridData.length; i++) {
-            result[i] = gridData[i].clone();
-        }
-        return result;
-    }
-
-    /**
      * Thin out the matrix by rows and columns so that the minimum density is not reduced.
      * If almost all cells are filled, the array is returned unchanged.
      */
-    public static boolean[][] thinOutBooleanGrid(boolean[][] gridData) {
-        int rows = gridData.length;
-        int cols = rows > 0 ? gridData[0].length : 0;
+    public static boolean[][] thinOutBooleanGrid(boolean[][] grid) {
+        int rows = grid.length;
+        int cols = rows > 0 ? grid[0].length : 0;
 
-        int[] minValues = computeRowColMin(gridData);
+        int[] minValues = computeRowColMin(grid);
         int minRowTrue = minValues[0];
         int minColTrue = minValues[1];
 
         if (minRowTrue >= cols * 0.9 && minColTrue >= rows * 0.9 || minRowTrue == 0 && minColTrue == 0) {
-            return gridData;
+            return grid;
         }
 
         double avg = Math.min(0.22, Math.min((double) minRowTrue / cols, (double) minColTrue / rows));
 
         if (avg < 0.05) {
-            return gridData;
+            return grid;
         }
 
         boolean[][] result = new boolean[rows][cols];
         for (int i = 0; i < rows; i++) {
-            System.arraycopy(gridData[i], 0, result[i], 0, cols);
+            System.arraycopy(grid[i], 0, result[i], 0, cols);
         }
 
         for (int i = 0; i < rows; i++) {
@@ -392,16 +306,16 @@ public class GriddingService {
     /**
      * Before thinning, determine the minimum number of true values per row and column.
      */
-    private static int[] computeRowColMin(boolean[][] gridData) {
-        int rows = gridData.length;
-        int cols = rows > 0 ? gridData[0].length : 0;
+    private static int[] computeRowColMin(boolean[][] grid) {
+        int rows = grid.length;
+        int cols = rows > 0 ? grid[0].length : 0;
         int[] rowCounts = new int[rows];
         int[] colCounts = new int[cols];
 
         for (int i = 0; i < rows; i++) {
             int countRow = 0;
             for (int j = 0; j < cols; j++) {
-                if (!gridData[i][j]) {
+                if (!grid[i][j]) {
                     countRow++;
                     colCounts[j]++;
                 }

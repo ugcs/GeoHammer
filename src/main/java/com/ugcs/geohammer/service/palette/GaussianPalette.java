@@ -55,12 +55,10 @@ public final class GaussianPalette implements Palette {
 
         static Statistics compute(float[] values, Range range) {
             double sum = 0;
-            double sum2 = 0;
             int count = 0;
             for (float value : values) {
                 if (range.contains(value)) {
                     sum += value;
-                    sum2 += value * value;
                     count++;
                 }
             }
@@ -68,7 +66,14 @@ public final class GaussianPalette implements Palette {
                 return new Statistics(0, 0);
             }
             double mean = sum / count;
-            double stddev = Math.sqrt(sum2 / count - mean * mean);
+            double varianceSum = 0;
+            for (float value : values) {
+                if (range.contains(value)) {
+                    double d = value - mean;
+                    varianceSum += d * d;
+                }
+            }
+            double stddev = Math.sqrt(varianceSum / count);
             return new Statistics(mean, stddev);
         }
     }

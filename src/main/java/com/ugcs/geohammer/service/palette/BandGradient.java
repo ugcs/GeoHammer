@@ -16,6 +16,7 @@ public class BandGradient implements Spectrum {
 
     @Override
     public Color getColor(double value) {
+        value = Math.clamp(value, 0, 1);
         double scaled = value * (bands.length - 1);
         int i = (int)Math.floor(scaled); // lower band
         if (i == bands.length - 1) {

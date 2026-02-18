@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
 
 import com.ugcs.geohammer.math.GaussianSmoothing;
 import com.ugcs.geohammer.model.TemplateSeriesKey;
@@ -29,7 +30,7 @@ import com.ugcs.geohammer.math.AnalyticSignalFilter;
 import com.ugcs.geohammer.service.palette.Palettes;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Check;
-import org.controlsfx.control.spreadsheet.Grid;
+import com.ugcs.geohammer.util.SinglePendingExecutor;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +68,10 @@ public final class GridLayer extends BaseLayer {
 
     private final Model model;
 
+    private final ExecutorService executor;
+
+    private ConcurrentMap<SgyFile, SinglePendingExecutor> pendingExecutors = new ConcurrentHashMap<>();
+
     @SuppressWarnings({"NullAway.Init"})
     private RenderQueue q;
 
@@ -79,8 +84,9 @@ public final class GridLayer extends BaseLayer {
 
     private final ConcurrentMap<SgyFile, Grid> gridCache = new ConcurrentHashMap<>();
 
-    public GridLayer(Model model) {
+    public GridLayer(Model model, ExecutorService executor) {
         this.model = model;
+        this.executor = executor;
 
         q = new RenderQueue(model) {
             public void draw(BufferedImage image, MapField field) {
@@ -337,10 +343,12 @@ public final class GridLayer extends BaseLayer {
             return;
         }
 
-        Grid grid;
-        synchronized (gridCache) {
+        SinglePendingExecutor pendingExecutor = pendingExecutors
+                .computeIfAbsent(file, key -> new SinglePendingExecutor(executor));
+
+        pendingExecutor.submit(() -> {
             // get cached grid
-            grid = gridCache.get(file);
+            Grid grid = gridCache.get(file);
 
             float[][] values;
             float[] sortedValues;
@@ -397,8 +405,9 @@ public final class GridLayer extends BaseLayer {
                     filter
             );
             gridCache.put(file, grid);
-        }
-        model.publishEvent(new GridUpdatedEvent(this, file, grid));
+            submitDraw();
+            model.publishEvent(new GridUpdatedEvent(this, file, grid));
+        });
     }
 
     private boolean shouldUpdateValues(Grid grid, GriddingFilter filter) {
@@ -450,7 +459,8 @@ public final class GridLayer extends BaseLayer {
     private void onFileClosed(FileClosedEvent event) {
         SgyFile file = event.getFile();
         if (file != null) {
-            removeResult(event.getFile());
+            removeResult(file);
+            pendingExecutors.remove(file);
             submitDraw();
         }
     }

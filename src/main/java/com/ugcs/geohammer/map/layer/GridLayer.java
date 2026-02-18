@@ -70,7 +70,7 @@ public final class GridLayer extends BaseLayer {
 
     private final ExecutorService executor;
 
-    private ConcurrentMap<SgyFile, SinglePendingExecutor> pendingExecutors = new ConcurrentHashMap<>();
+    private final ConcurrentMap<SgyFile, SinglePendingExecutor> pendingExecutors = new ConcurrentHashMap<>();
 
     @SuppressWarnings({"NullAway.Init"})
     private RenderQueue q;

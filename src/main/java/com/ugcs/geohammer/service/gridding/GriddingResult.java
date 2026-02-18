@@ -4,8 +4,7 @@ import com.ugcs.geohammer.model.LatLon;
 
 public record GriddingResult(
         String seriesName,
-        float[][] gridData,
-        float[][] smoothedGridData,
+        float[][] grid,
         LatLon minLatLon,
         LatLon maxLatLon,
         GriddingParams params

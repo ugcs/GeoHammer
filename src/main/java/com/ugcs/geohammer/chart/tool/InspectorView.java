@@ -110,7 +110,7 @@ public class InspectorView {
             event.consume();
             hide();
         });
-        AppContext.stage.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+        AppContext.stage.focusedProperty().addListener((observable, wasFocused, isFocused) -> {
             window.setAlwaysOnTop(isFocused);
         });
 

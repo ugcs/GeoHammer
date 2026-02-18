@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.math;
 
+import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
 import edu.emory.mathcs.jtransforms.fft.FloatFFT_2D;
 
@@ -31,12 +32,30 @@ public class AnalyticSignalFilter {
         GridInterpolator.interpolate(this.grid, cellWidth, cellHeight);
     }
 
+    public AnalyticSignalFilter(float[][] grid, LatLon min, LatLon max) {
+        this(grid,
+                getCellWidth(grid, min, max),
+                getCellHeight(grid, min, max));
+    }
+
     private static float[][] copy(float[][] grid) {
         float[][] copy = new float[grid.length][];
         for (int i = 0; i < grid.length; i++) {
             copy[i] = Arrays.copyOf(grid[i], grid[i].length);
         }
         return copy;
+    }
+
+    public static double getCellWidth(float[][] grid, LatLon min, LatLon max) {
+        int gridWidth = grid.length;
+        double lonStep = (max.getLonDgr() - min.getLonDgr()) / gridWidth;
+        return CoordinatesMath.measure(0, 0, 0, lonStep);
+    }
+
+    public static double getCellHeight(float[][] grid, LatLon min, LatLon max) {
+        int gridHeight = grid.length > 0 ? grid[0].length : 0;
+        double latStep = (max.getLatDgr() - min.getLatDgr()) / gridHeight;
+        return CoordinatesMath.measure(0, 0, latStep, 0);
     }
 
     public AnalyticSignal evaluate() {

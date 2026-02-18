@@ -1,5 +1,10 @@
 package com.ugcs.geohammer.map.layer;
 
+import com.ugcs.geohammer.model.Range;
+import com.ugcs.geohammer.service.palette.HueGradient;
+import com.ugcs.geohammer.service.palette.LinearPalette;
+import com.ugcs.geohammer.service.palette.Palette;
+import com.ugcs.geohammer.service.palette.Spectrum;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -50,26 +55,22 @@ public class HillShadingTest {
     }
 
     /**
-     * Test that the getColorForValue method returns correct base colors.
-     * This test uses reflection to access the private method.
+     * Test that the palette returns correct base colors.
      */
     @Test
-    public void testGetColorForValue() throws Exception {
-        // Get the private method using reflection
-        Method getColorForValueMethod = GridLayer.class.getDeclaredMethod(
-                "getColorForValue", double.class, double.class, double.class);
-        getColorForValueMethod.setAccessible(true);
+    public void testGetColorForValue() {
+        Spectrum spectrum = new HueGradient();
+        Palette palette = new LinearPalette(spectrum, new Range(0.0, 1.0));
 
-        // Test with different values
-        Color color1 = (Color) getColorForValueMethod.invoke(null, 0.0, 0.0, 1.0);
+        Color color1 = palette.getColor(0.0);
         System.out.println("[DEBUG_LOG] Color for value=0.0, min=0.0, max=1.0: " + colorToString(color1));
         assertNotEquals(Color.WHITE, color1, "Color should not be white for minimum value");
 
-        Color color2 = (Color) getColorForValueMethod.invoke(null, 0.5, 0.0, 1.0);
+        Color color2 = palette.getColor(0.5);
         System.out.println("[DEBUG_LOG] Color for value=0.5, min=0.0, max=1.0: " + colorToString(color2));
         assertNotEquals(Color.WHITE, color2, "Color should not be white for middle value");
 
-        Color color3 = (Color) getColorForValueMethod.invoke(null, 1.0, 0.0, 1.0);
+        Color color3 = palette.getColor(1.0);
         System.out.println("[DEBUG_LOG] Color for value=1.0, min=0.0, max=1.0: " + colorToString(color3));
         assertNotEquals(Color.WHITE, color3, "Color should not be white for maximum value");
     }
@@ -114,11 +115,6 @@ public class HillShadingTest {
      */
     @Test
     public void testFullHillShadingProcess() throws Exception {
-        // Get the private methods using reflection
-        Method getColorForValueMethod = GridLayer.class.getDeclaredMethod(
-                "getColorForValue", double.class, double.class, double.class);
-        getColorForValueMethod.setAccessible(true);
-
         Method calculateHillShadingMethod = GridLayer.class.getDeclaredMethod(
                 "calculateHillShading", float[][].class, int.class, int.class, double.class, double.class);
         calculateHillShadingMethod.setAccessible(true);
@@ -142,6 +138,8 @@ public class HillShadingTest {
         // Simulate the process used in the print method
         float minValue = 0.0f;
         float maxValue = 1.0f;
+        Spectrum spectrum = new HueGradient();
+        Palette palette = new LinearPalette(spectrum, new Range(minValue, maxValue));
         double hillShadingAzimuth = 315.0;
         double hillShadingAltitude = 45.0;
         double hillShadingIntensity = 0.5;
@@ -152,7 +150,7 @@ public class HillShadingTest {
                 float value = gridData[i][j];
 
                 // Get base color for the value
-                Color baseColor = (Color) getColorForValueMethod.invoke(null, value, minValue, maxValue);
+                Color baseColor = palette.getColor(value);
 
                 // Calculate illumination for this cell
                 double illumination = (double) calculateHillShadingMethod.invoke(
@@ -162,9 +160,9 @@ public class HillShadingTest {
                 Color shadedColor = (Color) applyHillShadingMethod.invoke(
                     null, baseColor, illumination, hillShadingIntensity);
 
-                System.out.println("[DEBUG_LOG] Cell [" + i + "," + j + "] value=" + value + 
-                    ", baseColor=" + colorToString(baseColor) + 
-                    ", illumination=" + illumination + 
+                System.out.println("[DEBUG_LOG] Cell [" + i + "," + j + "] value=" + value +
+                    ", baseColor=" + colorToString(baseColor) +
+                    ", illumination=" + illumination +
                     ", shadedColor=" + colorToString(shadedColor));
 
                 assertNotEquals(Color.WHITE, shadedColor, "Shaded color should not be white");
@@ -172,8 +170,9 @@ public class HillShadingTest {
                 // Check if cells with different values have different colors
                 // Only compare cells that have different values
                 if (value != gridData[0][0]) {
+                    Color prevBaseColor = palette.getColor(gridData[0][0]);
                     Color prevShadedColor = (Color) applyHillShadingMethod.invoke(
-                        null, (Color) getColorForValueMethod.invoke(null, gridData[0][0], minValue, maxValue),
+                        null, prevBaseColor,
                         (double) calculateHillShadingMethod.invoke(null, gridData, 0, 0, hillShadingAzimuth, hillShadingAltitude),
                         hillShadingIntensity);
 

@@ -2,6 +2,8 @@ package com.ugcs.geohammer.model;
 
 import com.google.gson.annotations.Expose;
 
+import java.util.Objects;
+
 public class Range {
 
 	@Expose
@@ -31,6 +33,10 @@ public class Range {
         return max - min;
     }
 
+    public boolean contains(double value) {
+        return value >= min && value <= max;
+    }
+
     public Range scale(double factor, double centerRatio) {
         factor = Math.max(factor, 0);
         centerRatio = Math.clamp(centerRatio, 0, 1);
@@ -55,5 +61,22 @@ public class Range {
                 Math.min(min, range.min),
                 Math.max(max, range.max)
         );
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Range range)) {
+            return false;
+        }
+        return Double.compare(min, range.min) == 0
+                && Double.compare(max, range.max) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(min, max);
     }
 }

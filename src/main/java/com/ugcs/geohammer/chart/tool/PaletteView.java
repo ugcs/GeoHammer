@@ -61,13 +61,13 @@ public class PaletteView {
 
 	private final GridLayer gridLayer;
 
-    private SgyFile selectedFile;
-
 	@Nullable
 	private Stage window;
 
 	@Nullable
 	private Canvas canvas;
+
+    private volatile SgyFile selectedFile;
 
     private volatile Palette palette;
 

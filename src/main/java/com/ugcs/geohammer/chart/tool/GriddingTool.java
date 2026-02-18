@@ -731,7 +731,6 @@ public class GriddingTool extends FilterToolView {
     private void applyFilter() {
         savePreferences();
         publishFilter();
-        gridLayer.submitDraw();
     }
 
     private void applyGridding(Collection<SgyFile> files, String seriesName) {
@@ -747,7 +746,6 @@ public class GriddingTool extends FilterToolView {
             for (SgyFile targetFile : files) {
                 gridLayer.setResult(targetFile, result);
             }
-            gridLayer.submitDraw();
             return result;
         });
 

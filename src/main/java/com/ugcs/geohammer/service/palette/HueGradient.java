@@ -12,9 +12,9 @@ public class HueGradient implements Spectrum {
 
     @Override
     public Color getColor(double value) {
-        double normalized = Math.clamp(value, 0, 1);
+        value = Math.clamp(value, 0, 1);
         return Color.getHSBColor(
-                (float)(1 - normalized) * MAX_HUE,
+                (float)(1 - value) * MAX_HUE,
                 SATURATION,
                 BRIGHTNESS);
     }

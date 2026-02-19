@@ -1,9 +1,13 @@
 package com.ugcs.geohammer;
 
+import java.io.File;
+import java.util.List;
+
+import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.service.script.PythonService;
 import com.ugcs.geohammer.view.MessageBoxHelper;
 import com.ugcs.geohammer.view.ResourceImageHolder;
-import com.ugcs.geohammer.model.ToolProducer;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -22,15 +26,22 @@ import javafx.stage.Stage;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.util.List;
-
 import javax.annotation.Nullable;
 
 @Component
 public class SettingsView implements ToolProducer {
 
+	private static final String PREF_TRACE = "trace";
+
+	private static final String PREF_LOOKUP_THRESHOLD = "lookupThreshold";
+
+	private static final double DEFAULT_LOOKUP_THRESHOLD = 1.0;
+
 	private final PythonService pythonService;
+
+	private final PrefSettings prefSettings;
+
+	private final Model model;
 
 	@Nullable
 	private Stage settingsStage = null;
@@ -38,13 +49,22 @@ public class SettingsView implements ToolProducer {
 	@Nullable
 	private TextField pythonPathField = null;
 
-	private String originalPythonPath = "";
+	@Nullable
+	private TextField traceLookupThresholdField = null;
+
+	private String savedPythonPath = "";
+
+	private double savedTraceLookupThreshold;
 
 	private final ToggleButton toggleButton =
 			ResourceImageHolder.setButtonImage(ResourceImageHolder.SETTINGS, new ToggleButton());
 
-	public SettingsView(PythonService pythonService) {
+	public SettingsView(PythonService pythonService, PrefSettings prefSettings, Model model) {
 		this.pythonService = pythonService;
+		this.prefSettings = prefSettings;
+		this.model = model;
+		model.setTraceLookupThreshold(
+				prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD));
 
 		toggleButton.setTooltip(new Tooltip("Settings"));
 		toggleButton.setSelected(false);
@@ -86,14 +106,28 @@ public class SettingsView implements ToolProducer {
 		stage.setOnCloseRequest(event -> toggleButton.setSelected(false));
 
 		Node pythonPathSetting = createPythonPathPane(stage);
+		Node traceLookupThresholdSetting = createThresholdPane();
 
 		HBox buttonsRow = createButtonsRow(stage);
 
-		VBox root = new VBox(10, pythonPathSetting, buttonsRow);
-		Scene scene = new Scene(root, 700, 120);
+		VBox root = new VBox(10, pythonPathSetting, traceLookupThresholdSetting, buttonsRow);
+		Scene scene = new Scene(root, 700, 160);
 
 		stage.setScene(scene);
 		return stage;
+	}
+
+	private Node createThresholdPane() {
+		Label label = new Label("Trace Lookup Threshold (m):");
+		traceLookupThresholdField = new TextField();
+		traceLookupThresholdField.setPrefWidth(80);
+		savedTraceLookupThreshold = prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD);
+		traceLookupThresholdField.setText(String.valueOf(savedTraceLookupThreshold));
+
+		HBox row = new HBox(10, label, traceLookupThresholdField);
+		row.setPadding(new Insets(0, 20, 0, 20));
+		row.setAlignment(Pos.CENTER_LEFT);
+		return row;
 	}
 
 	private Node createPythonPathPane(Stage settingsStage) {
@@ -110,7 +144,7 @@ public class SettingsView implements ToolProducer {
 		}
 
 		pythonPathField.setText(pythonPath);
-		originalPythonPath = pythonPath;
+		savedPythonPath = pythonPath;
 
 		return createPythonPathRow(settingsStage, pythonLabel);
 	}
@@ -170,7 +204,22 @@ public class SettingsView implements ToolProducer {
 		if (pythonPathField != null) {
 			String path = pythonPathField.getText();
 			pythonService.setPythonPath(path);
-			originalPythonPath = path;
+			savedPythonPath = path;
+		}
+		if (traceLookupThresholdField != null) {
+			try {
+				double threshold = Double.parseDouble(traceLookupThresholdField.getText());
+				if (threshold <= 0) {
+					MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a positive number.");
+					return;
+				}
+				prefSettings.setValue(PREF_TRACE, PREF_LOOKUP_THRESHOLD, threshold);
+				model.setTraceLookupThreshold(threshold);
+				savedTraceLookupThreshold = threshold;
+			} catch (NumberFormatException e) {
+				MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a valid number.");
+				return;
+			}
 		}
 		toggleButton.setSelected(false);
 		settingsStage.close();
@@ -178,8 +227,11 @@ public class SettingsView implements ToolProducer {
 
 	private void onClose(Stage settingsStage) {
 		if (pythonPathField != null) {
-			pythonPathField.setText(originalPythonPath);
-			pythonService.setPythonPath(originalPythonPath);
+			pythonPathField.setText(savedPythonPath);
+			pythonService.setPythonPath(savedPythonPath);
+		}
+		if (traceLookupThresholdField != null) {
+			traceLookupThresholdField.setText(String.valueOf(savedTraceLookupThreshold));
 		}
 		toggleButton.setSelected(false);
 		settingsStage.close();

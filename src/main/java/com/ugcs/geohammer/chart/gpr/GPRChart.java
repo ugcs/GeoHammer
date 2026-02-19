@@ -12,6 +12,7 @@ import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.view.PaintLimiter;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.TraceSample;
 import com.ugcs.geohammer.model.element.AuxElementEditHandler;
@@ -492,11 +493,11 @@ public class GPRChart extends Chart {
             }
         }
 
-        for (TraceKey mark : model.getSelectedTraces()) {
-            if (!Objects.equals(mark.getFile(), getFile())) {
+        for (SelectedTrace selected : model.getSelectedTraces()) {
+            if (!Objects.equals(selected.trace().getFile(), getFile())) {
                 continue;
             }
-            ClickPlace clickPlace = new ClickPlace(mark);
+            ClickPlace clickPlace = new ClickPlace(selected.trace(), selected.selectionType());
             clickPlace.drawOnCut(g2, this);
         }
     }

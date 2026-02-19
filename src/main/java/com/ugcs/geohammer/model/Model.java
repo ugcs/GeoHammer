@@ -37,7 +37,6 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -60,9 +59,7 @@ public class Model implements InitializingBean {
 
 	public static final int TOP_MARGIN = 60;
 
-	@SuppressWarnings("NullAway.Init")
-	@Value("${trace.lookup.threshold}")
-	private Double traceLookupThreshold;
+	private double traceLookupThreshold = 0;
 
 	private boolean loading = false;
 
@@ -72,7 +69,7 @@ public class Model implements InitializingBean {
 
 	private final List<BaseObject> auxElements = new ArrayList<>();
 
-	private final List<TraceKey> selectedTraces = new ArrayList<>();
+	private final List<SelectedTrace> selectedTraces = new ArrayList<>();
 
 	private boolean kmlToFlagAvailable = false;
 
@@ -102,6 +99,10 @@ public class Model implements InitializingBean {
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
 		this.templateSettings = templateSettings;
+	}
+
+	public void setTraceLookupThreshold(double threshold) {
+		this.traceLookupThreshold = threshold;
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {
@@ -561,7 +562,7 @@ public class Model implements InitializingBean {
 
 	// trace selection
 
-	public List<TraceKey> getSelectedTraces() {
+	public List<SelectedTrace> getSelectedTraces() {
 		return Collections.unmodifiableList(selectedTraces);
 	}
 
@@ -570,9 +571,9 @@ public class Model implements InitializingBean {
 		if (chart == null) {
 			return null;
 		}
-		for (TraceKey trace : selectedTraces) {
-			if (Objects.equals(chart, getChart(trace.getFile()))) {
-				return trace;
+		for (SelectedTrace selected : selectedTraces) {
+			if (Objects.equals(chart, getChart(selected.trace().getFile()))) {
+				return selected.trace();
 			}
 		}
 		return null;
@@ -606,7 +607,7 @@ public class Model implements InitializingBean {
 		}
 
 		selectedTraces.clear();
-		selectedTraces.add(trace);
+		selectedTraces.add(new SelectedTrace(trace, TraceSelectionType.USER));
 
 		Chart traceChart = getChart(trace.getFile());
 		boolean traceOnSelectedChart = isChartSelected(traceChart);
@@ -620,7 +621,7 @@ public class Model implements InitializingBean {
 					trace.getLatLon(),
 					traceLookupThreshold);
 			if (nearestInChart.isPresent()) {
-				selectedTraces.add(nearestInChart.get());
+				selectedTraces.add(new SelectedTrace(nearestInChart.get(), TraceSelectionType.AUTO));
 				traceOnSelectedChart = traceOnSelectedChart || isChartSelected(chart);
 			}
 		}
@@ -644,7 +645,7 @@ public class Model implements InitializingBean {
 	}
 
 	public void clearSelectedTrace(@Nullable Chart chart) {
-		selectedTraces.removeIf(x -> Objects.equals(chart, getChart(x.getFile())));
+		selectedTraces.removeIf(x -> Objects.equals(chart, getChart(x.trace().getFile())));
 		Platform.runLater(() -> updateSelectedTraceOnChart(chart, false));
 	}
 

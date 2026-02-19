@@ -567,29 +567,28 @@ public class Model implements InitializingBean {
 	}
 
 	@Nullable
-	public TraceKey getSelectedTrace(Chart chart) {
+	private SelectedTrace getSelectedEntry(Chart chart) {
 		if (chart == null) {
 			return null;
 		}
 		for (SelectedTrace selected : selectedTraces) {
 			if (Objects.equals(chart, getChart(selected.trace().getFile()))) {
-				return selected.trace();
+				return selected;
 			}
 		}
 		return null;
 	}
 
 	@Nullable
+	public TraceKey getSelectedTrace(Chart chart) {
+		SelectedTrace selected = getSelectedEntry(chart);
+		return selected != null ? selected.trace() : null;
+	}
+
+	@Nullable
 	public TraceSelectionType getSelectedTraceType(Chart chart) {
-		if (chart == null) {
-			return null;
-		}
-		for (SelectedTrace selected : selectedTraces) {
-			if (Objects.equals(chart, getChart(selected.trace().getFile()))) {
-				return selected.selectionType();
-			}
-		}
-		return null;
+		SelectedTrace selected = getSelectedEntry(chart);
+		return selected != null ? selected.selectionType() : null;
 	}
 
 	@Nullable

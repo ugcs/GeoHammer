@@ -11,6 +11,9 @@ import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
+import com.ugcs.geohammer.model.TraceSelectionType;
+import java.awt.image.BufferedImage;
+import javafx.embed.swing.SwingFXUtils;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.service.TraceTransform;
@@ -611,7 +614,7 @@ public class SensorLineChart extends Chart {
         // restore selection
         TraceKey selectedTrace = model.getSelectedTrace(this);
         if (selectedTrace != null) {
-            selectTrace(selectedTrace, false);
+            selectTrace(selectedTrace, model.getSelectedTraceType(this), false);
         }
 
         applyViewport(false);
@@ -759,7 +762,7 @@ public class SensorLineChart extends Chart {
     // markers
 
     @Override
-    public void selectTrace(@Nullable TraceKey trace, boolean focus) {
+    public void selectTrace(@Nullable TraceKey trace, @Nullable TraceSelectionType type, boolean focus) {
         if (trace == null) {
             // clear selection
             clearSelectionMarker();
@@ -777,15 +780,15 @@ public class SensorLineChart extends Chart {
         if (x < viewport.xMin() || x > viewport.xMax()) {
             setViewport(viewport.moveToX(x), false);
         }
-        createSelectionMarker(traceIndex);
+        createSelectionMarker(traceIndex, type != null ? type : TraceSelectionType.USER);
     }
 
-    public void createSelectionMarker(int traceIndex) {
+    public void createSelectionMarker(int traceIndex, TraceSelectionType type) {
         if (selectionMarker != null) {
             interactiveChart.removeMarker(selectionMarker);
         }
         selectionMarker = new Data<>(traceIndex, 0);
-        interactiveChart.addMarker(selectionMarker);
+        interactiveChart.addMarker(selectionMarker, type);
     }
 
     public void clearSelectionMarker() {
@@ -1275,16 +1278,22 @@ public class SensorLineChart extends Chart {
             return samples;
         }
 
-        public void addMarker(Data<Number, Number> marker) {
+        public void addMarker(Data<Number, Number> marker, TraceSelectionType type) {
+            Color color = Views.fxColor(type.getColor());
+
             Line line = new Line();
-            line.setStroke(Color.RED); // Bright color for white background
+            line.setStroke(color);
             line.setStrokeWidth(1);
             line.setTranslateY(15);
 
-            ImageView imageView = ResourceImageHolder.getImageView("gps32.png");
-            imageView.setTranslateY(17);
+            BufferedImage tintedBody = (BufferedImage) Views.tintImage(
+                    ResourceImageHolder.IMG_GPS_BODY, type.getColor());
+            ImageView bodyView = new ImageView(SwingFXUtils.toFXImage(tintedBody, null));
+            ImageView borderView = ResourceImageHolder.getImageView("gps32.png");
+            StackPane imagePane = new StackPane(bodyView, borderView);
+            imagePane.setTranslateY(17);
 
-            addMarker(marker, line, imageView, null, true);
+            addMarker(marker, line, null, imagePane, true);
         }
 
         /**

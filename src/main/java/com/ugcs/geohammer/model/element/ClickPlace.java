@@ -7,9 +7,11 @@ import java.awt.Rectangle;
 import java.awt.Stroke;
 
 import com.ugcs.geohammer.model.TraceKey;
+import com.ugcs.geohammer.model.TraceSelectionType;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.ScrollableData;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Point2D;
 import org.json.simple.JSONObject;
 
@@ -31,10 +33,13 @@ public class ClickPlace extends PositionalObject {
                 10.0f, dash1, 0.0f);
 
 	private final TraceKey trace;
+	private final TraceSelectionType selectionType;
 
-	public ClickPlace(TraceKey trace) {
+	public ClickPlace(TraceKey trace, TraceSelectionType selectionType) {
 		Check.notNull(trace);
+		Check.notNull(selectionType);
 		this.trace = trace;
+		this.selectionType = selectionType;
 	}
 
 	public TraceKey getTrace() {
@@ -59,18 +64,16 @@ public class ClickPlace extends PositionalObject {
 	@Override
 	public BaseObject copy(int traceOffset) {
 		TraceKey newTrace = new TraceKey(trace.getFile(), trace.getIndex() - traceOffset);
-		return new ClickPlace(newTrace);
+		return new ClickPlace(newTrace, selectionType);
 	}
 
 	@Override
 	public void drawOnMap(Graphics2D g2, MapField mapField) {
-		
+
 		Rectangle rect = getRect(mapField);
-		
-		g2.setColor(Color.RED);
-		
+
 		g2.translate(rect.x, rect.y);
-		
+		g2.drawImage(Views.tintImage(ResourceImageHolder.IMG_GPS_BODY, selectionType.getColor()), 0, 0, null);
 		g2.drawImage(ResourceImageHolder.IMG_GPS, 0, 0, null);
 		g2.translate(-rect.x, -rect.y);
 	}
@@ -87,8 +90,8 @@ public class ClickPlace extends PositionalObject {
 
 			Rectangle rect = getRect(gprChart);
 
-			g2.setColor(Color.RED);
 			g2.translate(rect.x, rect.y);
+			g2.drawImage(Views.tintImage(ResourceImageHolder.IMG_GPS_BODY, selectionType.getColor()), 0, 0, null);
 			g2.drawImage(ResourceImageHolder.IMG_GPS, 0, 0, null);
 
 			g2.setStroke(VERTICAL_STROKE);
@@ -100,7 +103,7 @@ public class ClickPlace extends PositionalObject {
 			g2.translate(-rect.x, -rect.y);
 		}
 	}
-	
+
 	private Rectangle getRect(GPRChart gprChart) {
 		int x = gprChart.traceToScreen(trace.getIndex());
 				

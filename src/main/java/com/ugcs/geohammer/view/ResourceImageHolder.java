@@ -218,7 +218,7 @@ public class ResourceImageHolder {
 			IMG_GPS = ImageIO.read(getClassLoader()
 					.getResourceAsStream("gps32.png"));
 			IMG_GPS_BODY = ImageIO.read(getClassLoader()
-					.getResourceAsStream("gps32_body.png"));
+					.getResourceAsStream("gps32body.png"));
 			IMG_CLOSE_FILE = ImageIO.read(getClassLoader()
 					.getResourceAsStream("closeFile.png"));
 			IMG_CLOSE = ImageIO.read(getClassLoader()

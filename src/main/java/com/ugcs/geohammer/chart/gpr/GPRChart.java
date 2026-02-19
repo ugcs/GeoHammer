@@ -13,6 +13,7 @@ import com.ugcs.geohammer.view.PaintLimiter;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.SelectedTrace;
+import com.ugcs.geohammer.model.TraceSelectionType;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.TraceSample;
 import com.ugcs.geohammer.model.element.AuxElementEditHandler;
@@ -882,7 +883,7 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public void selectTrace(@Nullable TraceKey trace, boolean focus) {
+    public void selectTrace(@Nullable TraceKey trace, @Nullable TraceSelectionType type, boolean focus) {
         if (trace != null && focus) {
             setMiddleTrace(trace.getIndex());
         }

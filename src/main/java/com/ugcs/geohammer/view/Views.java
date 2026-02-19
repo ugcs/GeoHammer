@@ -24,8 +24,8 @@ import javafx.scene.text.Font;
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class Views {
 
@@ -117,7 +117,7 @@ public final class Views {
 
 	private record TintKey(java.awt.Image image, java.awt.Color color) {}
 
-	private static final Map<TintKey, java.awt.Image> tintCache = new HashMap<>();
+	private static final Map<TintKey, java.awt.Image> tintCache = new ConcurrentHashMap<>();
 
 	public static java.awt.Image tintImage(java.awt.Image image, java.awt.Color color) {
 		return tintCache.computeIfAbsent(new TintKey(image, color), k -> {

@@ -106,7 +106,7 @@ public class SettingsView implements ToolProducer {
 		stage.setOnCloseRequest(event -> toggleButton.setSelected(false));
 
 		Node pythonPathSetting = createPythonPathPane(stage);
-		Node traceLookupThresholdSetting = createThresholdPane();
+		Node traceLookupThresholdSetting = createTraceLookupThresholdPane();
 
 		HBox buttonsRow = createButtonsRow(stage);
 
@@ -115,19 +115,6 @@ public class SettingsView implements ToolProducer {
 
 		stage.setScene(scene);
 		return stage;
-	}
-
-	private Node createThresholdPane() {
-		Label label = new Label("Trace Lookup Threshold (m):");
-		traceLookupThresholdField = new TextField();
-		traceLookupThresholdField.setPrefWidth(80);
-		savedTraceLookupThreshold = prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD);
-		traceLookupThresholdField.setText(String.valueOf(savedTraceLookupThreshold));
-
-		HBox row = new HBox(10, label, traceLookupThresholdField);
-		row.setPadding(new Insets(0, 20, 0, 20));
-		row.setAlignment(Pos.CENTER_LEFT);
-		return row;
 	}
 
 	private Node createPythonPathPane(Stage settingsStage) {
@@ -159,6 +146,19 @@ public class SettingsView implements ToolProducer {
 
 		HBox row = new HBox(10, pythonLabel, pythonPathField, pasteButton, browseButton);
 		row.setPadding(new Insets(20, 20, 20, 20));
+		row.setAlignment(Pos.CENTER_LEFT);
+		return row;
+	}
+
+	private Node createTraceLookupThresholdPane() {
+		Label label = new Label("Trace Lookup Threshold (m):");
+		traceLookupThresholdField = new TextField();
+		traceLookupThresholdField.setPrefWidth(80);
+		savedTraceLookupThreshold = prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD);
+		traceLookupThresholdField.setText(String.valueOf(savedTraceLookupThreshold));
+
+		HBox row = new HBox(10, label, traceLookupThresholdField);
+		row.setPadding(new Insets(0, 20, 0, 20));
 		row.setAlignment(Pos.CENTER_LEFT);
 		return row;
 	}
@@ -201,25 +201,28 @@ public class SettingsView implements ToolProducer {
 	}
 
 	private void onSave(Stage settingsStage) {
+		double threshold = savedTraceLookupThreshold;
+		if (traceLookupThresholdField != null) {
+			try {
+				threshold = Double.parseDouble(traceLookupThresholdField.getText());
+				if (threshold < 0) {
+					MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a non-negative number.");
+					return;
+				}
+			} catch (NumberFormatException e) {
+				MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a valid number.");
+				return;
+			}
+		}
 		if (pythonPathField != null) {
 			String path = pythonPathField.getText();
 			pythonService.setPythonPath(path);
 			savedPythonPath = path;
 		}
 		if (traceLookupThresholdField != null) {
-			try {
-				double threshold = Double.parseDouble(traceLookupThresholdField.getText());
-				if (threshold <= 0) {
-					MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a positive number.");
-					return;
-				}
-				prefSettings.setValue(PREF_TRACE, PREF_LOOKUP_THRESHOLD, threshold);
-				model.setTraceLookupThreshold(threshold);
-				savedTraceLookupThreshold = threshold;
-			} catch (NumberFormatException e) {
-				MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a valid number.");
-				return;
-			}
+			prefSettings.setValue(PREF_TRACE, PREF_LOOKUP_THRESHOLD, threshold);
+			model.setTraceLookupThreshold(threshold);
+			savedTraceLookupThreshold = threshold;
 		}
 		toggleButton.setSelected(false);
 		settingsStage.close();

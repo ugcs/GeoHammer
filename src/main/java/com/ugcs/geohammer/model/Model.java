@@ -580,6 +580,19 @@ public class Model implements InitializingBean {
 	}
 
 	@Nullable
+	public TraceSelectionType getSelectedTraceType(Chart chart) {
+		if (chart == null) {
+			return null;
+		}
+		for (SelectedTrace selected : selectedTraces) {
+			if (Objects.equals(chart, getChart(selected.trace().getFile()))) {
+				return selected.selectionType();
+			}
+		}
+		return null;
+	}
+
+	@Nullable
 	public TraceKey getSelectedTraceInCurrentChart() {
 		Chart chart = getChart(currentFile);
 		return chart != null
@@ -663,7 +676,8 @@ public class Model implements InitializingBean {
 			return;
 		}
 		TraceKey trace = getSelectedTrace(chart);
-		chart.selectTrace(trace, focusOnTrace);
+		TraceSelectionType type = getSelectedTraceType(chart);
+		chart.selectTrace(trace, type, focusOnTrace);
 		publishEvent(new WhatChanged(this, WhatChanged.Change.traceSelected));
 	}
 

@@ -1,0 +1,35 @@
+{
+  "filename": "MagNIMBUS_single_sensor_depth_estimation.py",
+  "display_name": "Single-Sensor Depth Estimation (Analytical Signal)",
+  "parameters": [
+    {
+      "name": "mag-column",
+      "display_name": "TMI column",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI",
+      "required": true
+    },
+    {
+      "name": "altitude-amsl-column",
+      "display_name": "Altitude AMSL column",
+      "type": "COLUMN_NAME",
+      "default_value": "",
+      "required": false
+    },
+    {
+      "name": "altitude-agl-column",
+      "display_name": "Altitude AGL column",
+      "type": "COLUMN_NAME",
+      "default_value": "Altitude AGL",
+      "required": false
+    },
+    {
+      "name": "output-dir",
+      "display_name": "Output folder",
+      "type": "FOLDER_PATH",
+      "default_value": "",
+      "required": true
+    }
+  ],
+  "templates": ["MagNIMBUS", "MagDrone R1"]
+}

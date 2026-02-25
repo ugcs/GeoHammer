@@ -4,6 +4,8 @@ import argparse
 import math
 import numpy as np
 import pandas as pd
+from scipy.interpolate import griddata
+from scipy.ndimage import uniform_filter
 from script_utils import normalize_input_stem
 
 try:
@@ -16,38 +18,28 @@ MARK_COLUMN = "Mark"
 LINE_GAP_SECONDS = 30
 TREND_DEGREE = 1
 MIN_TREND_SAMPLES = 10
-# Window padding in metres around a marked group
 WINDOW_PADDING_M = 20.0
-# Minimum unique spatial positions in a window for AS computation
 MIN_WINDOW_SAMPLES = 20
-K_FACTOR = 0.7111  # halfwidth → sensor-to-source distance; derived analytically for vertical dipole
-CB_FACTOR = 1.910  # |B_max|/AS_max → sensor-to-source distance; derived analytically for vertical dipole
+K_FACTOR = 0.7111
+CB_FACTOR = 1.910
 MAX_PEAK_OFFSET_M = 2.0
-# Radius around the mark centre used to find the local AS peak for Method A.
-# Prevents a stronger neighbouring anomaly from being selected as the AS peak.
 AS_PEAK_SEARCH_RADIUS_M = 5.0
-# Radius around the mark used to detect a dipole-shaped anomaly (sign change in B).
-# Dipole detection prevents Method A from being preferred over the mean when the
-# anomaly naturally has a positive + negative lobe (which narrows the A halfwidth).
 DIPOLE_CHECK_RADIUS_M = 15.0
-# Relative distance difference above which the two methods are considered to disagree.
 METHOD_DISAGREE_THRESHOLD = 0.35
 MIN_HALFWIDTH_M = 0.5
 MAX_HALFWIDTH_M = 50.0
-# Bin width for spatial aggregation (metres).
-# Points closer than this are treated as the same position.
 SPATIAL_BIN_M = 0.5
 CSV_SEPARATOR = ","
+# Default grid cell size (metres).  If not supplied, estimated from data.
+DEFAULT_CELL_SIZE_M = None
+
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers (unchanged from original)
 # ---------------------------------------------------------------------------
 
 def build_along_track(lats, lons):
-    """
-    Cumulative along-track distance (metres). Fully vectorised haversine.
-    """
     R = 6_371_000.0
     lat = np.radians(lats)
     lon = np.radians(lons)
@@ -59,18 +51,12 @@ def build_along_track(lats, lons):
 
 
 def compute_igrf(lons, lats, alts_m, timestamps):
-    """
-    IGRF total intensity per row.
-    Groups by unique date to avoid per-row model calls.
-    """
     if ppigrf is None:
         print("Warning: ppigrf not installed — IGRF skipped, TMI used as anomaly.")
         return np.zeros(len(lats))
-
     ts = pd.to_datetime(pd.Series(timestamps), errors="coerce")
     date_series = ts.dt.date
     result = np.zeros(len(lats))
-
     for d in date_series.dropna().unique():
         mask = (date_series == d).values
         if not mask.any():
@@ -87,10 +73,6 @@ def compute_igrf(lons, lats, alts_m, timestamps):
 
 
 def split_into_lines(ts_series, gap_seconds=LINE_GAP_SECONDS):
-    """
-    Vectorised flight-line splitter.
-    Returns list of numpy index arrays.
-    """
     ts_ns = pd.to_datetime(ts_series, errors="coerce").values.astype(np.int64)
     nat = np.iinfo(np.int64).min
     diffs = np.diff(ts_ns)
@@ -102,19 +84,10 @@ def split_into_lines(ts_series, gap_seconds=LINE_GAP_SECONDS):
 
 
 def aggregate_spatial(x, tmi, marks, agl, lat, lon, ts, bin_m=SPATIAL_BIN_M):
-    """
-    Aggregate rows that fall in the same spatial bin into one representative row.
-    Within each bin: mean TMI/AGL/lat/lon, OR of mark, first timestamp.
-
-    Returns aggregated arrays with length = number of unique bins.
-    The returned arrays are already sorted by x (ascending).
-    """
     if len(x) == 0:
         return x, tmi, marks, agl, lat, lon, ts
-
     bins = np.floor(x / bin_m).astype(np.int64)
     unique_bins = np.unique(bins)
-
     out_x = np.empty(len(unique_bins))
     out_tmi = np.empty(len(unique_bins))
     out_marks = np.zeros(len(unique_bins), dtype=np.float64)
@@ -122,7 +95,6 @@ def aggregate_spatial(x, tmi, marks, agl, lat, lon, ts, bin_m=SPATIAL_BIN_M):
     out_lat = np.empty(len(unique_bins))
     out_lon = np.empty(len(unique_bins))
     out_ts = np.empty(len(unique_bins), dtype=ts.dtype)
-
     for i, b in enumerate(unique_bins):
         mask = bins == b
         out_x[i] = x[mask].mean()
@@ -135,12 +107,10 @@ def aggregate_spatial(x, tmi, marks, agl, lat, lon, ts, bin_m=SPATIAL_BIN_M):
         out_lat[i] = lat[mask].mean()
         out_lon[i] = lon[mask].mean()
         out_ts[i] = ts[mask][0]
-
     return out_x, out_tmi, out_marks, out_agl, out_lat, out_lon, out_ts
 
 
 def remove_trend(tmi_anom, x, marks, degree=TREND_DEGREE, min_samples=MIN_TREND_SAMPLES):
-    """Remove polynomial trend using unmarked rows."""
     unmarked = marks == 0
     if unmarked.sum() < min_samples:
         return tmi_anom.copy(), True
@@ -148,33 +118,9 @@ def remove_trend(tmi_anom, x, marks, degree=TREND_DEGREE, min_samples=MIN_TREND_
     return tmi_anom - np.polyval(coeffs, x), False
 
 
-def interp_crossing(x_arr, y_arr, threshold):
-    """
-    Vectorised: find x positions where y_arr crosses threshold.
-    """
-    y = y_arr - threshold
-    signs = np.sign(y)
-    cross = np.where((signs[:-1] * signs[1:] <= 0) & (y_arr[:-1] != y_arr[1:]))[0]
-    if len(cross) == 0:
-        return []
-    t = (threshold - y_arr[cross]) / (y_arr[cross + 1] - y_arr[cross])
-    return list(x_arr[cross] + t * (x_arr[cross + 1] - x_arr[cross]))
-
-
 def find_local_halfwidth(x_arr, y_arr, peak_idx):
-    """
-    Find the halfwidth of a peak by searching LEFT then RIGHT from peak_idx
-    for the first sample where y drops to y[peak_idx]/2.
-
-    Unlike interp_crossing (which returns ALL crossings), this only uses the
-    NEAREST crossing on each side, so neighbouring anomalies do not inflate
-    the reported width.
-
-    Returns (left_x, right_x); either value is None if no crossing is found.
-    """
     threshold = y_arr[peak_idx] / 2.0
     n = len(x_arr)
-
     left_x = None
     for i in range(peak_idx - 1, -1, -1):
         if y_arr[i] <= threshold:
@@ -184,7 +130,6 @@ def find_local_halfwidth(x_arr, y_arr, peak_idx):
             else:
                 left_x = x_arr[i]
             break
-
     right_x = None
     for i in range(peak_idx + 1, n):
         if y_arr[i] <= threshold:
@@ -194,90 +139,547 @@ def find_local_halfwidth(x_arr, y_arr, peak_idx):
             else:
                 right_x = x_arr[i]
             break
-
     return left_x, right_x
 
 
-def _dx_5point(b_arr, dx):
+# ---------------------------------------------------------------------------
+# Coordinate conversion: lat/lon → local XY (metres)
+# ---------------------------------------------------------------------------
+
+def latlon_to_local_xy(lats, lons):
     """
-    Horizontal derivative matching Java AnalyticSignalFilter.getXDerivative():
-      - 5-point stencil for interior points:
-            (-B[j+2] + 8·B[j+1] - 8·B[j-1] + B[j-2]) / (12·dx)
-      - 3-point central difference one step from edges
-      - forward / backward 1-point difference at the two edges
+    Equirectangular projection centred on the data midpoint.
+    Returns (x_m, y_m, lat0, lon0) where x_m/y_m are in metres.
     """
-    n = len(b_arr)
-    d = np.empty(n)
-    # 5-point stencil (indices 2 … n-3)
+    R = 6_371_000.0
+    lat0 = np.nanmean(lats)
+    lon0 = np.nanmean(lons)
+    x_m = R * np.radians(lons - lon0) * np.cos(np.radians(lat0))
+    y_m = R * np.radians(lats - lat0)
+    return x_m, y_m, lat0, lon0
+
+
+# ---------------------------------------------------------------------------
+# 2D Grid construction and interpolation
+# ---------------------------------------------------------------------------
+
+def estimate_cell_size(x_m, y_m, lines):
+    """
+    Estimate a reasonable grid cell size from the data.
+    Uses the median along-track point spacing as cell size.
+    """
+    spacings = []
+    for idx in lines:
+        if len(idx) < 2:
+            continue
+        dx = np.diff(x_m[idx])
+        dy = np.diff(y_m[idx])
+        seg = np.sqrt(dx ** 2 + dy ** 2)
+        spacings.append(np.median(seg))
+    if spacings:
+        cs = float(np.median(spacings))
+        if cs > 0:
+            return cs
+    # Fallback: use extent / 200 or 1.0
+    dx = np.ptp(x_m)
+    dy = np.ptp(y_m)
+    extent = max(dx, dy)
+    if extent > 0:
+        return extent / 200.0
+    return 1.0
+
+
+def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
+    """
+    Build a regular 2D grid from scattered data.
+    Reproduces the Java GriddingService pipeline:
+
+      1. Compute grid dimensions:  gridWidth  = extent_x / cellSize
+                                   gridHeight = extent_y / cellSize
+      2. Bin data into grid cells; take median per cell.
+      3. Mark missing cells (boolean mask ``m``).
+      4. Fill missing cells with blanking-distance-limited median,
+         then interpolate with cubic splines (scipy.interpolate.griddata
+         as proxy for Mines JTK SplinesGridder2).
+      5. Set cells outside blanking distance to NaN.
+
+    The resulting grid (with possible NaN at edges) is later passed to
+    compute_as_2d, which internally calls _fill_nan_priority_queue
+    (matching Java GridInterpolator.interpolate inside AnalyticSignalFilter)
+    before computing derivatives.
+
+    Returns:
+        grid : 2D numpy array [gridHeight, gridWidth]  (rows=Y, cols=X)
+        xi   : 1D array of grid X centres (length gridWidth)
+        yi   : 1D array of grid Y centres (length gridHeight)
+    """
+    if cell_size <= 0:
+        raise ValueError(f"cell_size must be positive, got {cell_size}")
+
+    valid = np.isfinite(values)
+    xv, yv, vv = x_m[valid], y_m[valid], values[valid]
+    if len(xv) == 0:
+        raise ValueError("No valid data points for gridding")
+
+    x_min, x_max = float(xv.min()), float(xv.max())
+    y_min, y_max = float(yv.min()), float(yv.max())
+
+    # Grid dimensions — matches Java:
+    #   gridWidth  = (int)(distance(minLon→maxLon) / cellSize)
+    #   gridHeight = (int)(distance(minLat→maxLat) / cellSize)
+    grid_width = max(2, int((x_max - x_min) / cell_size))
+    grid_height = max(2, int((y_max - y_min) / cell_size))
+
+    print(f"  Grid: {grid_width} × {grid_height} cells "
+          f"({grid_width * grid_height} total)")
+
+    lon_step = (x_max - x_min) / (grid_width - 1)
+    lat_step = (y_max - y_min) / (grid_height - 1)
+
+    xi = np.linspace(x_min, x_max, grid_width)
+    yi = np.linspace(y_min, y_max, grid_height)
+
+    # --- Bin data into grid cells and take median per cell (Java: HashMap) ---
+    grid = np.full((grid_height, grid_width), np.nan)
+    cell_values = {}  # (ix, iy) → list of values
+
+    for k in range(len(xv)):
+        ix = int((xv[k] - x_min) / lon_step) if lon_step > 0 else 0
+        iy = int((yv[k] - y_min) / lat_step) if lat_step > 0 else 0
+        ix = min(ix, grid_width - 1)
+        iy = min(iy, grid_height - 1)
+        cell_values.setdefault((ix, iy), []).append(vv[k])
+
+    for (ix, iy), vals in cell_values.items():
+        grid[iy, ix] = float(np.median(vals))
+
+    # --- Blanking distance mask (Java: visiblePoints) ---
+    if blanking_distance is None:
+        blanking_distance = cell_size * 10  # reasonable default
+
+    bd_cells_x = max(1, int(blanking_distance / cell_size))
+    bd_cells_y = max(1, int(blanking_distance / cell_size))
+
+    visible = np.zeros((grid_height, grid_width), dtype=bool)
+    for (ix, iy) in cell_values.keys():
+        x0 = max(0, ix - bd_cells_x)
+        x1 = min(grid_width, ix + bd_cells_x + 1)
+        y0 = max(0, iy - bd_cells_y)
+        y1 = min(grid_height, iy + bd_cells_y + 1)
+        visible[y0:y1, x0:x1] = True
+
+    # --- Fill missing cells with global median, then interpolate ---
+    # Java fills missing visible cells with median before calling
+    # SplinesGridder2.gridMissing().
+    global_median = float(np.nanmedian(grid[np.isfinite(grid)]))
+    missing = np.isnan(grid) & visible
+    grid[missing] = global_median
+
+    # Mark which cells need interpolation (True = missing = needs filling)
+    needs_interp = missing  # cells that were NaN and got median-filled
+
+    if needs_interp.any() and np.isfinite(grid).sum() >= 4:
+        # Spline interpolation as proxy for SplinesGridder2.
+        # Use scipy cubic griddata on the known cells to fill the missing ones.
+        known = ~needs_interp & np.isfinite(grid)
+        if known.sum() >= 4:
+            gy, gx = np.mgrid[0:grid_height, 0:grid_width]
+            pts_known = np.column_stack([gx[known], gy[known]])
+            vals_known = grid[known]
+            pts_missing = np.column_stack([gx[needs_interp], gy[needs_interp]])
+            try:
+                filled = griddata(pts_known, vals_known, pts_missing, method="cubic")
+                # Fall back to linear for any NaN from cubic
+                still_nan = np.isnan(filled)
+                if still_nan.any():
+                    filled2 = griddata(pts_known, vals_known,
+                                       pts_missing[still_nan], method="linear")
+                    filled[still_nan] = filled2
+                grid[needs_interp] = filled
+            except Exception:
+                # If interpolation fails, keep median values
+                pass
+
+    # --- Apply blanking: cells outside visible range → NaN ---
+    grid[~visible] = np.nan
+
+    return grid, xi, yi
+
+
+def _fill_nan_priority_queue(grid, cell_width, cell_height):
+    """
+    Fill NaN cells using inverse-distance-weighted 8-neighbour averaging
+    with a priority queue.  Exact reproduction of Java GridInterpolator.
+
+    Algorithm:
+      1. For every NaN cell, compute the sum of weights (1/dist) of its
+         non-NaN 8-neighbours.  If > 0, push (cell, weight_sum) into a
+         max-priority queue.
+      2. Pop the cell with the highest neighbour weight sum.
+         - If it was already filled (duplicate entry), skip.
+         - Otherwise set it to the IDW average of its non-NaN neighbours.
+         - For each still-NaN neighbour, increment its weight sum by
+           1/dist to the newly filled cell and push it into the queue.
+      3. Repeat until the queue is empty.
+    """
+    import heapq
+
+    g = grid.copy()
+    m, n = g.shape
+
+    # 8-neighbour offsets
+    offsets = [(-1, -1), (-1, 0), (-1, 1),
+               (0, -1),          (0, 1),
+               (1, -1),  (1, 0), (1, 1)]
+
+    # Pre-compute distances for each offset
+    offset_dist = {}
+    for di, dj in offsets:
+        dx = di * cell_width
+        dy = dj * cell_height
+        offset_dist[(di, dj)] = math.sqrt(dx * dx + dy * dy)
+
+    def _neighbour_sum(i, j):
+        """IDW sum and weight-sum of non-NaN 8-neighbours."""
+        s = 0.0
+        ws = 0.0
+        for di, dj in offsets:
+            ni, nj = i + di, j + dj
+            if 0 <= ni < m and 0 <= nj < n:
+                v = g[ni, nj]
+                if np.isfinite(v):
+                    w = 1.0 / offset_dist[(di, dj)]
+                    s += v * w
+                    ws += w
+        return s, ws
+
+    # Initialise: compute neighbour weights for all NaN cells
+    neighbor_weights = np.zeros((m, n))
+    # heapq is a min-heap; negate weight to get max-priority behaviour
+    heap = []
+
+    for i in range(m):
+        for j in range(n):
+            if np.isfinite(g[i, j]):
+                continue
+            _, ws = _neighbour_sum(i, j)
+            if ws > 0.0:
+                neighbor_weights[i, j] = ws
+                heapq.heappush(heap, (-ws, i, j))
+
+    # Process queue
+    while heap:
+        neg_w, i, j = heapq.heappop(heap)
+
+        # Cell may have been filled by an earlier (higher-priority) pop
+        if np.isfinite(g[i, j]):
+            continue
+
+        s, ws = _neighbour_sum(i, j)
+        g[i, j] = s / ws if ws > 0 else np.nan
+
+        # Update NaN neighbours
+        for di, dj in offsets:
+            ni, nj = i + di, j + dj
+            if 0 <= ni < m and 0 <= nj < n:
+                if np.isfinite(g[ni, nj]):
+                    continue
+                increment = 1.0 / offset_dist[(di, dj)]
+                neighbor_weights[ni, nj] += increment
+                heapq.heappush(heap, (-neighbor_weights[ni, nj], ni, nj))
+
+    return g
+
+
+def sample_grid_at_points(grid, xi, yi, x_m, y_m):
+    """
+    Bilinear sampling of a regular grid at arbitrary (x_m, y_m) positions.
+    Returns 1D array of sampled values with same length as x_m.
+    """
+    # Convert coordinates to fractional grid indices
+    dx = xi[1] - xi[0] if len(xi) > 1 else 1.0
+    dy = yi[1] - yi[0] if len(yi) > 1 else 1.0
+    fi = (x_m - xi[0]) / dx  # fractional column index
+    fj = (y_m - yi[0]) / dy  # fractional row index
+
+    m, n = grid.shape
+    # Clamp to grid bounds
+    fi = np.clip(fi, 0, n - 1.0001)
+    fj = np.clip(fj, 0, m - 1.0001)
+
+    i0 = np.floor(fi).astype(int)
+    j0 = np.floor(fj).astype(int)
+    i1 = np.minimum(i0 + 1, n - 1)
+    j1 = np.minimum(j0 + 1, m - 1)
+
+    wx = fi - i0
+    wy = fj - j0
+
+    # Bilinear interpolation
+    val = (grid[j0, i0] * (1 - wx) * (1 - wy) +
+           grid[j0, i1] * wx * (1 - wy) +
+           grid[j1, i0] * (1 - wx) * wy +
+           grid[j1, i1] * wx * wy)
+
+    return val
+
+
+# ---------------------------------------------------------------------------
+# 2D Analytic Signal — matching Java AnalyticSignalFilter exactly
+# ---------------------------------------------------------------------------
+
+def _grid_x_derivative(grid, cell_width):
+    """
+    X-derivative on a 2D grid.
+    Matches Java AnalyticSignalFilter.getXDerivative() exactly:
+      - 5-point stencil for interior columns (j in 2..n-3)
+      - 3-point central for j=1 and j=n-2
+      - Forward/backward difference at edges j=0, j=n-1
+    NaN propagation matches Java (NaN if any input is NaN).
+    """
+    m, n = grid.shape
+    dx = np.full((m, n), np.nan)
+
+    for i in range(m):
+        for j in range(n):
+            if j > 1 and j < n - 2:
+                v = [grid[i][j - 2], grid[i][j - 1], grid[i][j + 1], grid[i][j + 2]]
+                if not any(np.isnan(v)):
+                    dx[i, j] = (-grid[i][j + 2] + 8.0 * grid[i][j + 1]
+                                - 8.0 * grid[i][j - 1] + grid[i][j - 2]) / (12.0 * cell_width)
+                    continue
+            if j > 0 and j < n - 1:
+                if not (np.isnan(grid[i][j - 1]) or np.isnan(grid[i][j + 1])):
+                    dx[i, j] = (grid[i][j + 1] - grid[i][j - 1]) / (2.0 * cell_width)
+                    continue
+            if j == 0 and j < n - 1:
+                if not (np.isnan(grid[i][j]) or np.isnan(grid[i][j + 1])):
+                    dx[i, j] = (grid[i][j + 1] - grid[i][j]) / cell_width
+            elif j == n - 1 and j > 0:
+                if not (np.isnan(grid[i][j]) or np.isnan(grid[i][j - 1])):
+                    dx[i, j] = (grid[i][j] - grid[i][j - 1]) / cell_width
+
+    return dx
+
+
+def _grid_y_derivative(grid, cell_height):
+    """
+    Y-derivative on a 2D grid.
+    Matches Java AnalyticSignalFilter.getYDerivative() exactly.
+    """
+    m, n = grid.shape
+    dy = np.full((m, n), np.nan)
+
+    for i in range(m):
+        for j in range(n):
+            if i > 1 and i < m - 2:
+                v = [grid[i - 2][j], grid[i - 1][j], grid[i + 1][j], grid[i + 2][j]]
+                if not any(np.isnan(v)):
+                    dy[i, j] = (-grid[i + 2][j] + 8.0 * grid[i + 1][j]
+                                - 8.0 * grid[i - 1][j] + grid[i - 2][j]) / (12.0 * cell_height)
+                    continue
+            if i > 0 and i < m - 1:
+                if not (np.isnan(grid[i - 1][j]) or np.isnan(grid[i + 1][j])):
+                    dy[i, j] = (grid[i + 1][j] - grid[i - 1][j]) / (2.0 * cell_height)
+                    continue
+            if i == 0 and i < m - 1:
+                if not (np.isnan(grid[i][j]) or np.isnan(grid[i + 1][j])):
+                    dy[i, j] = (grid[i + 1][j] - grid[i][j]) / cell_height
+            elif i == m - 1 and i > 0:
+                if not (np.isnan(grid[i][j]) or np.isnan(grid[i - 1][j])):
+                    dy[i, j] = (grid[i][j] - grid[i - 1][j]) / cell_height
+
+    return dy
+
+
+def _grid_x_derivative_vectorised(grid, cell_width):
+    """
+    Vectorised version of _grid_x_derivative (much faster for large grids).
+    Matches Java logic: 5-point → 3-point → forward/backward.
+    """
+    m, n = grid.shape
+    dx = np.full((m, n), np.nan)
+
+    # 5-point stencil: columns 2..n-3
     if n >= 5:
-        j = np.arange(2, n - 2)
-        d[j] = (-b_arr[j + 2] + 8.0 * b_arr[j + 1]
-                - 8.0 * b_arr[j - 1] + b_arr[j - 2]) / (12.0 * dx)
-    # 3-point central (index 1 and n-2)
-    for j in ([1] if n >= 3 else []):
-        d[j] = (b_arr[j + 1] - b_arr[j - 1]) / (2.0 * dx)
-    for j in ([n - 2] if n >= 3 and n - 2 != 1 else []):
-        d[j] = (b_arr[j + 1] - b_arr[j - 1]) / (2.0 * dx)
-    # forward / backward at the two boundary points
+        j = slice(2, n - 2)
+        vals = np.stack([grid[:, 0:n-4], grid[:, 1:n-3], grid[:, 3:n-1], grid[:, 4:n]])
+        all_valid = np.all(np.isfinite(vals), axis=0)
+        result = (-grid[:, 4:n] + 8.0 * grid[:, 3:n-1]
+                  - 8.0 * grid[:, 1:n-3] + grid[:, 0:n-4]) / (12.0 * cell_width)
+        dx[:, j] = np.where(all_valid, result, np.nan)
+
+    # 3-point central: columns 1..n-2 where 5-point didn't fill
+    if n >= 3:
+        j = slice(1, n - 1)
+        need_fill = np.isnan(dx[:, j])
+        both_valid = np.isfinite(grid[:, 0:n-2]) & np.isfinite(grid[:, 2:n])
+        fill_mask = need_fill & both_valid
+        central = (grid[:, 2:n] - grid[:, 0:n-2]) / (2.0 * cell_width)
+        dx_sub = dx[:, j].copy()
+        dx_sub[fill_mask] = central[fill_mask]
+        dx[:, j] = dx_sub
+
+    # Forward difference: column 0
     if n >= 2:
-        d[0]     = (b_arr[1]     - b_arr[0])     / dx
-        d[n - 1] = (b_arr[n - 1] - b_arr[n - 2]) / dx
-    else:
-        d[0] = 0.0
-    return d
+        valid = np.isfinite(grid[:, 0]) & np.isfinite(grid[:, 1])
+        still_nan = np.isnan(dx[:, 0])
+        mask = valid & still_nan
+        dx[mask, 0] = (grid[mask, 1] - grid[mask, 0]) / cell_width
+
+    # Backward difference: column n-1
+    if n >= 2:
+        valid = np.isfinite(grid[:, n-1]) & np.isfinite(grid[:, n-2])
+        still_nan = np.isnan(dx[:, n-1])
+        mask = valid & still_nan
+        dx[mask, n-1] = (grid[mask, n-1] - grid[mask, n-2]) / cell_width
+
+    return dx
 
 
-def compute_as(x_arr, b_arr):
+def _grid_y_derivative_vectorised(grid, cell_height):
     """
-    Analytic Signal amplitude for a 1-D profile — Roest et al. (1992).
+    Vectorised version of _grid_y_derivative.
+    """
+    m, n = grid.shape
+    dy = np.full((m, n), np.nan)
 
-        AS = sqrt( (dB/dx)^2 + (dB/dz)^2 )
+    if m >= 5:
+        i = slice(2, m - 2)
+        vals = np.stack([grid[0:m-4, :], grid[1:m-3, :], grid[3:m-1, :], grid[4:m, :]])
+        all_valid = np.all(np.isfinite(vals), axis=0)
+        result = (-grid[4:m, :] + 8.0 * grid[3:m-1, :]
+                  - 8.0 * grid[1:m-3, :] + grid[0:m-4, :]) / (12.0 * cell_height)
+        dy[i, :] = np.where(all_valid, result, np.nan)
 
+    if m >= 3:
+        i = slice(1, m - 1)
+        need_fill = np.isnan(dy[i, :])
+        both_valid = np.isfinite(grid[0:m-2, :]) & np.isfinite(grid[2:m, :])
+        fill_mask = need_fill & both_valid
+        central = (grid[2:m, :] - grid[0:m-2, :]) / (2.0 * cell_height)
+        dy_sub = dy[i, :].copy()
+        dy_sub[fill_mask] = central[fill_mask]
+        dy[i, :] = dy_sub
+
+    if m >= 2:
+        valid = np.isfinite(grid[0, :]) & np.isfinite(grid[1, :])
+        still_nan = np.isnan(dy[0, :])
+        mask = valid & still_nan
+        dy[0, mask] = (grid[1, mask] - grid[0, mask]) / cell_height
+
+    if m >= 2:
+        valid = np.isfinite(grid[m-1, :]) & np.isfinite(grid[m-2, :])
+        still_nan = np.isnan(dy[m-1, :])
+        mask = valid & still_nan
+        dy[m-1, mask] = (grid[m-1, mask] - grid[m-2, mask]) / cell_height
+
+    return dy
+
+
+def _grid_z_derivative(grid, cell_width, cell_height):
+    """
+    Vertical derivative via 2D FFT.
+    Matches Java AnalyticSignalFilter.getZDerivativeMatrix() exactly:
+
+      1. Pack grid into complex array (NaN → 0)
+      2. Forward 2D FFT
+      3. Multiply by |k| = sqrt(kx² + ky²) where:
+            dkx = 2π / (n · cellWidth)
+            dky = 2π / (m · cellHeight)
+            kxIndex = j  if j ≤ n/2  else j - n
+            kyIndex = i  if i ≤ m/2  else i - m
+      4. Inverse 2D FFT (normalised)
+      5. Take real part
+
+    Returns 2D array same shape as grid.
+    """
+    m, n = grid.shape
+
+    # Replace NaN with 0 for FFT (matches Java: NaN → 0 in complexGrid init)
+    g = np.where(np.isfinite(grid), grid, 0.0)
+
+    # Forward 2D FFT
+    G = np.fft.fft2(g)
+
+    # Build |k| multiplier matching Java frequency ordering
+    dkx = 2.0 * np.pi / (n * cell_width)
+    dky = 2.0 * np.pi / (m * cell_height)
+
+    # kxIndex: j if j <= n//2 else j - n  →  same as np.fft.fftfreq * n
+    # kyIndex: i if i <= m//2 else i - m  →  same as np.fft.fftfreq * m
+    kx_idx = np.where(np.arange(n) <= n // 2,
+                      np.arange(n),
+                      np.arange(n) - n)
+    ky_idx = np.where(np.arange(m) <= m // 2,
+                      np.arange(m),
+                      np.arange(m) - m)
+
+    kx = kx_idx * dkx  # shape (n,)
+    ky = ky_idx * dky  # shape (m,)
+
+    # |k| grid  — shape (m, n)
+    KX, KY = np.meshgrid(kx, ky)
+    K = np.sqrt(KX ** 2 + KY ** 2)
+
+    # Multiply spectrum by |k|
+    G *= K
+
+    # Inverse FFT (normalised) — take real part
+    dz = np.real(np.fft.ifft2(G))
+
+    return dz
+
+
+def compute_as_2d(grid, cell_width, cell_height):
+    """
+    2D Analytic Signal magnitude grid.
     Matches Java AnalyticSignalFilter exactly:
 
-    dB/dx — 5-point finite-difference stencil (_dx_5point),
-            same as AnalyticSignalFilter.getXDerivative().
+      1. GridInterpolator.interpolate() — fill NaN gaps (priority-queue IDW)
+         This happens in the AnalyticSignalFilter constructor.
+      2. dz via 2D FFT (getZDerivativeMatrix)
+      3. dx, dy via 5-point stencil (getXDerivative, getYDerivative)
+      4. AS = sqrt(dx² + dy² + dz²)
 
-    dB/dz — vertical derivative in the wavenumber domain:
-                dB/dz = Re( IFFT( |kx| · FFT(B) ) )
-            where |kx| = 2π · |fftfreq(N, dx)| (centred ordering with
-            negative frequencies), matching getZDerivativeMatrix():
-                dkx = 2π / (N · dx),  kxIndex = j if j ≤ N/2 else j − N.
-
-    This function is called ONCE on the full spatially-aggregated flight
-    line (~1000 m / ~2000 bins), not on short per-mark windows, so the
-    FFT periodicity assumption holds and edge artefacts are far from marks.
-
-    K_FACTOR and CB_FACTOR are derived analytically from the vertical-dipole
-    model on a fine grid — no empirical calibration against test data.
-
-    Replaces NaN/Inf with 0.
+    NaN cells from the ORIGINAL grid (before interpolation) produce NaN in
+    the output, matching Java's check: if (Float.isNaN(gridOrigin[i][j]))
     """
-    N = len(b_arr)
-    dx = float(np.mean(np.diff(x_arr))) if N > 1 else 1.0
+    m, n = grid.shape
+    print(f"  Computing 2D AS on grid ({m} × {n})...")
 
-    dBdx = _dx_5point(b_arr, dx)
+    # Remember which cells were originally NaN (Java: gridOrigin)
+    orig_nan_mask = ~np.isfinite(grid)
 
-    # Centred-frequency ordering: kxIndex = j if j <= N//2 else j - N
-    # numpy fftfreq already returns this ordering multiplied by 1/N/dx.
-    kx = np.fft.fftfreq(N, d=dx) * 2.0 * np.pi
-    dBdz = np.real(np.fft.ifft(np.fft.fft(b_arr) * np.abs(kx)))
+    # Step 1: Fill NaN gaps — matches Java GridInterpolator.interpolate()
+    # called inside AnalyticSignalFilter constructor on this.grid (the copy)
+    grid_filled = _fill_nan_priority_queue(grid, cell_width, cell_height)
 
-    AS = np.sqrt(dBdx ** 2 + dBdz ** 2)
-    AS = np.where(np.isfinite(AS), AS, 0.0)
+    # Step 2-3: Compute derivatives on the filled grid
+    if m * n > 500:
+        dx = _grid_x_derivative_vectorised(grid_filled, cell_width)
+        dy = _grid_y_derivative_vectorised(grid_filled, cell_height)
+    else:
+        dx = _grid_x_derivative(grid_filled, cell_width)
+        dy = _grid_y_derivative(grid_filled, cell_height)
+
+    dz = _grid_z_derivative(grid_filled, cell_width, cell_height)
+
+    # Step 4: AS = sqrt(dx² + dy² + dz²)
+    AS = np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+
+    # Java: if (Float.isNaN(gridOrigin[i][j])) magnitude = NaN
+    AS[orig_nan_mask] = np.nan
+
     return AS
 
 
+# ---------------------------------------------------------------------------
+# process_anomaly and helpers (unchanged except AS is now from grid)
+# ---------------------------------------------------------------------------
+
 def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
                     mark_center_x=None):
-    """
-    Methods A (half-width) and B (AS ratio) for one anomaly window.
-    AS is passed in — computed externally, not recalculated here.
-
-    mark_center_x: along-track position of the mark centre (metres).
-        Used to locate the local AS peak so that a stronger neighbouring
-        anomaly in the same 40 m window does not contaminate the halfwidth.
-    """
     flags = set()
     n = len(window_x)
 
@@ -291,30 +693,23 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
     AS_valid = AS[edge:-edge]
     x_valid = window_x[edge:-edge]
 
-    # Determine mark centre for local peak search
     marked_x_arr = window_x[marked_mask_in_window]
     if mark_center_x is None:
         mark_center_x = (float(np.mean(marked_x_arr)) if len(marked_x_arr) > 0
                          else float(np.median(window_x)))
 
-    # Find the AS peak NEAREST to the mark centre (within search radius).
-    # This prevents a stronger anomaly from a different nearby target from
-    # being used as the reference peak for the halfwidth calculation.
     near_mask = ((x_valid >= mark_center_x - AS_PEAK_SEARCH_RADIUS_M) &
                  (x_valid <= mark_center_x + AS_PEAK_SEARCH_RADIUS_M))
     if near_mask.any():
         near_indices = np.where(near_mask)[0]
         as_peak_local = int(near_indices[int(np.argmax(AS_valid[near_mask]))])
     else:
-        # Fallback: global maximum in the edge-trimmed window
         as_peak_local = int(np.argmax(AS_valid))
 
     AS_max = float(AS_valid[as_peak_local])
     as_peak_idx = edge + as_peak_local
 
-    # --- Method A: Half-Width (search outward from local peak) ---
-    # Using find_local_halfwidth ensures the nearest crossing on each side is
-    # used, not the outermost crossings that may span to a neighbouring anomaly.
+    # --- Method A: Half-Width ---
     left_x, right_x = find_local_halfwidth(x_valid, AS_valid, as_peak_local)
     halfwidth_m = distance_A = None
 
@@ -340,18 +735,12 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
         b_max_idx = int(np.argmax(np.abs(marked_b)))
         b_max_nT = float(marked_b[b_max_idx])
         AS_at_peak = float(marked_as[b_max_idx])
-
         if AS_at_peak == 0:
             flags.add("peak_mismatch")
         else:
             distance_B = CB_FACTOR * abs(b_max_nT) / AS_at_peak
 
     # --- Dipole check ---
-    # A dipole-type source produces both a positive and a significant negative
-    # lobe in the detrended TMI near the mark.  When a dipole is detected we
-    # keep the mean of A and B rather than preferring Method A, because
-    # Method A's halfwidth only captures one lobe of the dipole and is
-    # systematically too narrow.
     dipole_mask = ((window_x >= mark_center_x - DIPOLE_CHECK_RADIUS_M) &
                    (window_x <= mark_center_x + DIPOLE_CHECK_RADIUS_M))
     if dipole_mask.any():
@@ -383,14 +772,12 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
 
 
 # ---------------------------------------------------------------------------
-# Timestamp / altitude resolution
+# Timestamp / altitude resolution (unchanged)
 # ---------------------------------------------------------------------------
 
 def resolve_timestamp(data):
-    """Unified datetime series: Timestamp col → Date+Time cols → synthetic."""
     if "Timestamp" in data.columns:
         return pd.to_datetime(data["Timestamp"], errors="coerce")
-
     if "Date" in data.columns and "Time" in data.columns:
         combined = (data["Date"].astype(str).str.strip()
                     + " "
@@ -398,7 +785,6 @@ def resolve_timestamp(data):
         parsed = pd.to_datetime(combined, errors="coerce")
         if parsed.notna().any():
             return parsed
-
     print("Warning: No recognisable timestamp column — treating file as one flight line.")
     return pd.Series(
         pd.date_range("2000-01-01", periods=len(data), freq="s"),
@@ -407,7 +793,6 @@ def resolve_timestamp(data):
 
 
 def resolve_altitude_for_igrf(data, alt_amsl_col, alt_agl_col):
-    """AMSL → AGL proxy → zeros, for IGRF altitude input."""
     for col in [alt_amsl_col, alt_agl_col]:
         if col and col in data.columns:
             vals = pd.to_numeric(data[col], errors="coerce")
@@ -420,7 +805,7 @@ def resolve_altitude_for_igrf(data, alt_amsl_col, alt_agl_col):
 
 
 # ---------------------------------------------------------------------------
-# Anomaly group processor (works on spatially-aggregated line data)
+# Anomaly group processor (uses grid-sampled AS)
 # ---------------------------------------------------------------------------
 
 WARNING_FLAGS = {
@@ -431,50 +816,35 @@ WARNING_FLAGS = {
 
 
 def _process_anomaly_group(
-    g_start, g_end,
-    anomaly_id,
-    # aggregated line arrays
-    agg_x, agg_tmi, agg_marks, agg_agl, agg_lat, agg_lon, agg_ts,
-    agg_as,          # full-line AS array (same shape as agg_x), pre-computed
-    # original (full-res) line arrays for writing output
-    orig_line_idx, orig_x, orig_marks,
-    poor_trend_fit,
-    out_dist_a, out_depth_a, out_dist_b, out_depth_b,
-    out_dist_mean, out_depth_mean, out_quality,
+        g_start, g_end, anomaly_id,
+        agg_x, agg_tmi, agg_marks, agg_agl, agg_lat, agg_lon, agg_ts,
+        agg_as,
+        orig_line_idx, orig_x, orig_marks,
+        poor_trend_fit,
+        out_dist_a, out_depth_a, out_dist_b, out_depth_b,
+        out_dist_mean, out_depth_mean, out_quality,
 ):
-    """Process one contiguous marked group on an aggregated (spatial) grid.
-
-    The Analytic Signal is NOT computed here — it is received as ``agg_as``,
-    already calculated over the full flight line by ``compute_as``.  Only the
-    window slice ``agg_as[win_idx]`` is used for depth estimation.
-    """
-
-    # Window around the marked group (in aggregated coordinates)
     x_start = agg_x[g_start] - WINDOW_PADDING_M
     x_end = agg_x[g_end] + WINDOW_PADDING_M
     win_mask = (agg_x >= x_start) & (agg_x <= x_end)
     win_idx = np.where(win_mask)[0]
 
     if len(win_idx) < MIN_WINDOW_SAMPLES:
-        # Map back to original rows that are marked in this group
         grp_agg_x_start = agg_x[g_start]
         grp_agg_x_end = agg_x[g_end]
         orig_in_group = orig_line_idx[
             (orig_x >= grp_agg_x_start - SPATIAL_BIN_M) &
             (orig_x <= grp_agg_x_end + SPATIAL_BIN_M) &
             (orig_marks == 1)
-        ]
+            ]
         out_quality[orig_in_group] = "WARNING"
         return
 
     win_x = agg_x[win_idx]
     win_b = agg_tmi[win_idx]
     marked_in_win = agg_marks[win_idx] == 1
-
-    # Extract the window slice of the full-line AS (no recomputation)
     AS = agg_as[win_idx]
 
-    # Mark centre for local-peak search inside process_anomaly
     marked_x_in_win = agg_x[win_idx[marked_in_win]]
     mark_center_x = float(np.mean(marked_x_in_win)) if len(marked_x_in_win) > 0 else None
 
@@ -482,15 +852,13 @@ def _process_anomaly_group(
                              mark_center_x=mark_center_x)
     flags = result["flags"]
 
-    # Poor trend flag from original data
     grp_orig = orig_line_idx[
         (orig_x >= agg_x[g_start] - SPATIAL_BIN_M) &
         (orig_x <= agg_x[g_end] + SPATIAL_BIN_M)
-    ]
+        ]
     if np.any(poor_trend_fit[grp_orig]):
         flags.add("poor_trend_fit")
 
-    # AGL for depth
     valid_agl = agg_agl[g_start:g_end + 1]
     valid_agl = valid_agl[~np.isnan(valid_agl)]
     mean_agl = float(np.mean(valid_agl)) if len(valid_agl) > 0 else np.nan
@@ -518,29 +886,21 @@ def _process_anomaly_group(
 
     if depth_a_val is not None and depth_b_val is not None:
         if neg_b and not neg_a:
-            # Method B distance is less than sensor AGL — physically impossible.
-            # Method A gave a valid positive depth; use it alone.
             depth_mean_val = depth_a_val
             dist_mean_out = dist_a
         elif neg_a and not neg_b:
-            # Symmetric case: Method A invalid, rely on Method B.
             depth_mean_val = depth_b_val
             dist_mean_out = dist_b
         elif dist_mean is not None:
-            # Both methods produced valid positive depths.
             if (not is_dipole
                     and "method_disagreement" in flags
                     and dist_a is not None and dist_b is not None
                     and dist_a < dist_b):
-                # The methods disagree and Method A gives a smaller distance.
-                # For isolated (non-dipole) anomalies the local-halfwidth
-                # Method A is typically more reliable; prefer it.
                 depth_mean_val = depth_a_val
                 dist_mean_out = dist_a
             else:
                 depth_mean_val = (depth_a_val + depth_b_val) / 2.0
 
-    # Fallback when only one method succeeded (or both were clipped to 0)
     if depth_mean_val is None:
         if depth_b_val is not None:
             depth_mean_val = depth_b_val
@@ -551,12 +911,11 @@ def _process_anomaly_group(
 
     quality = "WARNING" if flags & WARNING_FLAGS else "OK"
 
-    # Write estimations to original marked rows
     grp_orig_marked = orig_line_idx[
         (orig_x >= agg_x[g_start] - SPATIAL_BIN_M) &
         (orig_x <= agg_x[g_end] + SPATIAL_BIN_M) &
         (orig_marks == 1)
-    ]
+        ]
     out_quality[grp_orig_marked] = quality
     if dist_a is not None:
         out_dist_a[grp_orig_marked] = round(dist_a, 4)
@@ -570,7 +929,6 @@ def _process_anomaly_group(
         out_dist_mean[grp_orig_marked] = round(dist_mean_out, 4)
     if depth_mean_val is not None:
         out_depth_mean[grp_orig_marked] = round(depth_mean_val, 4)
-
 
 
 def _build_targets_path(input_path, output_dir):
@@ -589,7 +947,7 @@ def _build_targets_path(input_path, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Single-sensor magnetic depth estimation (Analytical Signal method)."
+        description="Single-sensor magnetic depth estimation (2D grid Analytical Signal method)."
     )
     parser.add_argument("file_path", help="Input CSV file path")
     parser.add_argument("--mag-column", default="TMI",
@@ -600,6 +958,10 @@ def main():
                         help="Altitude AGL column (default: 'Altitude AGL')")
     parser.add_argument("--output-dir", dest="output_dir", default="",
                         help="Output directory for targets file")
+    parser.add_argument("--cell-size", type=float, default=None,
+                        help="Grid cell size in metres (default: auto from data)")
+    parser.add_argument("--blanking-distance", type=float, default=None,
+                        help="Blanking distance in metres (default: 10 × cell size)")
     args = parser.parse_args()
 
     input_path = args.file_path
@@ -613,8 +975,6 @@ def main():
     # ------------------------------------------------------------------
     print(f"Reading {input_path}")
     data = pd.read_csv(input_path, sep=CSV_SEPARATOR)
-    # Own output columns that the script adds (or may have added on a previous run).
-    # Exclude them so re-running on an already-processed file never duplicates columns.
     _SCRIPT_OUTPUT_COLS = {
         "TMI_anom", "IGRF_field", "Analytic_Signal",
         "Estimated_Distance_A", "Estimated_Depth_A",
@@ -670,11 +1030,12 @@ def main():
               "Estimated Depth = sensor-to-target distance.")
 
     # ------------------------------------------------------------------
-    # Along-track x
+    # Along-track x & local XY
     # ------------------------------------------------------------------
     lats = pd.to_numeric(data["Latitude"], errors="coerce").values
     lons = pd.to_numeric(data["Longitude"], errors="coerce").values
     x_track = build_along_track(lats, lons)
+    x_m, y_m, lat0, lon0 = latlon_to_local_xy(lats, lons)
 
     # ------------------------------------------------------------------
     # Flight lines
@@ -683,12 +1044,43 @@ def main():
     print(f"Detected {len(lines)} flight line(s)")
 
     # ------------------------------------------------------------------
-    # Output arrays
+    # Per-line trend removal (before gridding)
     # ------------------------------------------------------------------
     n_rows = len(data)
-    out_tmi_anom = np.full(n_rows, np.nan)
+    tmi_detrended = np.full(n_rows, np.nan)
+    poor_trend_fit = np.zeros(n_rows, dtype=bool)
+
+    for line_idx in lines:
+        line_marks = marks[line_idx]
+        line_x = x_track[line_idx]
+        line_tmi = tmi_anom[line_idx]
+        line_tmi_dt, is_poor = remove_trend(line_tmi, line_x, line_marks)
+        tmi_detrended[line_idx] = line_tmi_dt
+        if is_poor:
+            poor_trend_fit[line_idx] = True
+
+    # ------------------------------------------------------------------
+    # Build 2D grid and compute AS
+    # ------------------------------------------------------------------
+    cell_size = args.cell_size or DEFAULT_CELL_SIZE_M or estimate_cell_size(x_m, y_m, lines)
+    print(f"Grid cell size: {cell_size:.2f} m")
+
+    grid, xi, yi = build_2d_grid(x_m, y_m, tmi_detrended, cell_size,
+                                 blanking_distance=args.blanking_distance)
+    print(f"Grid dimensions: {grid.shape[0]} rows × {grid.shape[1]} cols")
+
+    as_grid = compute_as_2d(grid, cell_size, cell_size)
+
+    # Sample AS grid at original data positions
+    as_at_points = sample_grid_at_points(as_grid, xi, yi, x_m, y_m)
+    as_at_points = np.where(np.isfinite(as_at_points), as_at_points, 0.0)
+
+    # ------------------------------------------------------------------
+    # Output arrays
+    # ------------------------------------------------------------------
+    out_tmi_anom = tmi_detrended.copy()
     out_igrf = igrf_values.copy()
-    out_as = np.full(n_rows, np.nan)
+    out_as = np.round(as_at_points, 6)
     out_dist_a = np.full(n_rows, np.nan)
     out_depth_a = np.full(n_rows, np.nan)
     out_dist_b = np.full(n_rows, np.nan)
@@ -696,46 +1088,41 @@ def main():
     out_dist_mean = np.full(n_rows, np.nan)
     out_depth_mean = np.full(n_rows, np.nan)
     out_quality = np.full(n_rows, "", dtype=object)
-    poor_trend_fit = np.zeros(n_rows, dtype=bool)
 
     anomaly_id = 0
 
     # ------------------------------------------------------------------
-    # Per-line processing
+    # Per-line anomaly processing (using grid-sampled AS)
     # ------------------------------------------------------------------
     for line_idx in lines:
         line_marks = marks[line_idx]
         line_x = x_track[line_idx]
-        line_tmi = tmi_anom[line_idx]
+        line_tmi = tmi_detrended[line_idx]
         line_agl = agl_values[line_idx]
         line_lat = lats[line_idx]
         line_lon = lons[line_idx]
         line_ts = ts_series.values[line_idx]
-
-        # Trend removal on full-res data
-        line_tmi_detrended, is_poor = remove_trend(line_tmi, line_x, line_marks)
-        out_tmi_anom[line_idx] = line_tmi_detrended
-        if is_poor:
-            poor_trend_fit[line_idx] = True
+        line_as = as_at_points[line_idx]
 
         if not np.any(line_marks == 1):
             continue
 
-        # Spatial aggregation — reduces ~5000 pts to ~hundreds of bins
+        # Spatial aggregation
         agg_x, agg_tmi, agg_marks, agg_agl, agg_lat, agg_lon, agg_ts = aggregate_spatial(
-            line_x, line_tmi_detrended, line_marks,
+            line_x, line_tmi, line_marks,
             line_agl, line_lat, line_lon, line_ts,
         )
 
-        # Compute AS ONCE over the full aggregated line (canonical approach:
-        # FFT |k| is accurate when the domain >> individual anomaly halfwidth).
-        agg_as = compute_as(agg_x, agg_tmi)
+        # Aggregate the grid-sampled AS values the same way.
+        # aggregate_spatial returns (x, values, marks, agl, lat, lon, ts)
+        # — AS is passed as the 'tmi' parameter, so it comes back as the
+        # second element.
+        _, agg_as, _, _, _, _, _ = aggregate_spatial(
+            line_x, line_as, line_marks,
+            line_agl, line_lat, line_lon, line_ts,
+        )
 
-        # Write full-line AS back to original-resolution rows (nearest-bin mapping)
-        agg_bin_idx = np.searchsorted(agg_x, line_x, side="left").clip(0, len(agg_x) - 1)
-        out_as[line_idx] = np.round(agg_as[agg_bin_idx], 6)
-
-        # Find contiguous marked groups in aggregated grid
+        # Find contiguous marked groups
         is_marked = (agg_marks == 1).astype(np.int8)
         starts = np.where(np.diff(np.concatenate([[0], is_marked])) == 1)[0]
         ends = np.where(np.diff(np.concatenate([is_marked, [0]])) == -1)[0]
@@ -743,10 +1130,9 @@ def main():
         for g_start, g_end in zip(starts, ends):
             anomaly_id += 1
             _process_anomaly_group(
-                g_start, g_end,
-                anomaly_id,
+                g_start, g_end, anomaly_id,
                 agg_x, agg_tmi, agg_marks, agg_agl, agg_lat, agg_lon, agg_ts,
-                agg_as,          # full-line precomputed AS
+                agg_as,
                 line_idx, line_x, line_marks,
                 poor_trend_fit,
                 out_dist_a, out_depth_a, out_dist_b, out_depth_b,
@@ -775,8 +1161,6 @@ def main():
     print(f"Writing result to {input_path}")
     data.to_csv(input_path, index=False, sep=CSV_SEPARATOR)
 
-    # Targets file: original columns + Estimated_Distance + Estimated_Depth,
-    # one row per marked point (Mark == 1).
     targets_path = _build_targets_path(input_path, args.output_dir)
     target_mask = marks == 1
     targets_df = data.loc[target_mask, original_cols + [

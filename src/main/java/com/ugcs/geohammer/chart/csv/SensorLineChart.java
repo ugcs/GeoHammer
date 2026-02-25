@@ -13,9 +13,9 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.SelectionType;
+import com.ugcs.geohammer.model.element.ClickPlace;
 import java.awt.image.BufferedImage;
 
-import com.ugcs.geohammer.model.element.ClickPlace;
 import javafx.embed.swing.SwingFXUtils;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.view.ResourceImageHolder;
@@ -1284,11 +1284,10 @@ public class SensorLineChart extends Chart {
         }
 
         public void addMarker(Data<Number, Number> marker, SelectionType type) {
-			java.awt.Color awtColor = switch (type) {
+            Color color = Views.fxColor(switch (type) {
 				case USER -> ClickPlace.USER_COLOR;
 				case AUTO -> ClickPlace.AUTO_COLOR;
-			};
-            Color color = Views.fxColor(awtColor);
+			});
 
             Line line = new Line();
             line.setStroke(color);

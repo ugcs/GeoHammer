@@ -115,8 +115,8 @@ public class ClickPlace extends PositionalObject {
 
 	private Image getImageBodyBySelectionType() {
 		return switch (selectedTrace.selectionType()) {
-			case AUTO -> AUTO_IMAGE_BODY;
 			case USER -> USER_IMAGE_BODY;
+			case AUTO -> AUTO_IMAGE_BODY;
 		};
 	}
 

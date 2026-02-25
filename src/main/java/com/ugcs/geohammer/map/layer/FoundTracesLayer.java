@@ -6,7 +6,7 @@ import java.util.List;
 
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.SelectedTrace;
-import com.ugcs.geohammer.model.TraceSelectionType;
+import com.ugcs.geohammer.model.SelectionType;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.model.element.ClickPlace;
 import com.ugcs.geohammer.model.Model;
@@ -37,10 +37,10 @@ public class FoundTracesLayer implements Layer {
 		}
 
 		for (SelectedTrace selected : model.getSelectedTraces()) {
-			if (selected.selectionType() != TraceSelectionType.USER) {
+			if (selected.selectionType() != SelectionType.USER) {
 				continue;
 			}
-			ClickPlace clickPlace = new ClickPlace(selected.trace(), selected.selectionType());
+			ClickPlace clickPlace = new ClickPlace(selected);
 			clickPlace.drawOnMap(g2, fixedField);
 		}
 	}

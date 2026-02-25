@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.SettingsView;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.FileDataContainer;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
@@ -59,7 +60,7 @@ public class Model implements InitializingBean {
 
 	public static final int TOP_MARGIN = 60;
 
-	private double traceLookupThreshold = 0;
+	private double traceLookupThreshold = SettingsView.DEFAULT_LOOKUP_THRESHOLD;
 
 	private boolean loading = false;
 
@@ -580,19 +581,12 @@ public class Model implements InitializingBean {
 	}
 
 	@Nullable
-	public TraceKey getSelectedTrace(Chart chart) {
-		SelectedTrace selected = getSelectedEntry(chart);
-		return selected != null ? selected.trace() : null;
+	public SelectedTrace getSelectedTrace(Chart chart) {
+		return getSelectedEntry(chart);
 	}
 
 	@Nullable
-	public TraceSelectionType getSelectedTraceType(Chart chart) {
-		SelectedTrace selected = getSelectedEntry(chart);
-		return selected != null ? selected.selectionType() : null;
-	}
-
-	@Nullable
-	public TraceKey getSelectedTraceInCurrentChart() {
+	public SelectedTrace getSelectedTraceInCurrentChart() {
 		Chart chart = getChart(currentFile);
 		return chart != null
 				? getSelectedTrace(chart)
@@ -619,7 +613,7 @@ public class Model implements InitializingBean {
 		}
 
 		selectedTraces.clear();
-		selectedTraces.add(new SelectedTrace(trace, TraceSelectionType.USER));
+		selectedTraces.add(new SelectedTrace(trace, SelectionType.USER));
 
 		Chart traceChart = getChart(trace.getFile());
 		boolean traceOnSelectedChart = isChartSelected(traceChart);
@@ -633,7 +627,7 @@ public class Model implements InitializingBean {
 					trace.getLatLon(),
 					traceLookupThreshold);
 			if (nearestInChart.isPresent()) {
-				selectedTraces.add(new SelectedTrace(nearestInChart.get(), TraceSelectionType.AUTO));
+				selectedTraces.add(new SelectedTrace(nearestInChart.get(), SelectionType.AUTO));
 				traceOnSelectedChart = traceOnSelectedChart || isChartSelected(chart);
 			}
 		}
@@ -674,9 +668,8 @@ public class Model implements InitializingBean {
 		if (chart == null) {
 			return;
 		}
-		TraceKey trace = getSelectedTrace(chart);
-		TraceSelectionType type = getSelectedTraceType(chart);
-		chart.selectTrace(trace, type, focusOnTrace);
+		SelectedTrace trace = getSelectedTrace(chart);
+		chart.selectTrace(trace, focusOnTrace);
 		publishEvent(new WhatChanged(this, WhatChanged.Change.traceSelected));
 	}
 
@@ -687,18 +680,19 @@ public class Model implements InitializingBean {
 			return;
 		}
 
-		TraceKey selectedTrace = getSelectedTrace(chart);
-		if (selectedTrace == null) {
+		SelectedTrace selectedTrace = getSelectedTrace(chart);
+		TraceKey traceKey = selectedTrace != null ? selectedTrace.trace() : null;
+		if (traceKey == null) {
 			return; // no trace selected in a chart
 		}
-		FoundPlace flag = new FoundPlace(selectedTrace, this);
+		FoundPlace flag = new FoundPlace(traceKey, this);
 		flag.setSelected(true);
 
 		// clear current selection in file
 		chart.selectFlag(null);
 		chart.addFlag(flag);
 
-		SgyFile traceFile = selectedTrace.getFile();
+		SgyFile traceFile = traceKey.getFile();
 		traceFile.getAuxElements().add(flag);
 		traceFile.setUnsaved(true);
 

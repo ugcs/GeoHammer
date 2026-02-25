@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.chart.Chart;
@@ -104,7 +105,8 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private void updateSplit() {
-		TraceKey mark = model.getSelectedTraceInCurrentChart();
+		SelectedTrace selectedTrace = model.getSelectedTraceInCurrentChart();
+		TraceKey mark = selectedTrace != null ? selectedTrace.trace() : null;
 		buttonSplit.setDisable(mark == null);
 	}
 
@@ -244,7 +246,8 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	private void applySplitLine() {
-		TraceKey mark = model.getSelectedTraceInCurrentChart();
+		SelectedTrace selectedTrace = model.getSelectedTraceInCurrentChart();
+		TraceKey mark = selectedTrace != null ? selectedTrace.trace() : null;
 		if (mark == null) {
 			return;
 		}

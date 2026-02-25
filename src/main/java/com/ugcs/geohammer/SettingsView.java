@@ -31,11 +31,11 @@ import javax.annotation.Nullable;
 @Component
 public class SettingsView implements ToolProducer {
 
+	public static final double DEFAULT_LOOKUP_THRESHOLD = 1.0;
+
 	private static final String PREF_TRACE = "trace";
 
 	private static final String PREF_LOOKUP_THRESHOLD = "lookupThreshold";
-
-	private static final double DEFAULT_LOOKUP_THRESHOLD = 1.0;
 
 	private final PythonService pythonService;
 

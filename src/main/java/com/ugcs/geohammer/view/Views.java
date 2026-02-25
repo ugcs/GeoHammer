@@ -24,8 +24,6 @@ import javafx.scene.text.Font;
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class Views {
 
@@ -115,22 +113,16 @@ public final class Views {
 		imageView.setEffect(blend);
 	}
 
-	private record TintKey(java.awt.Image image, java.awt.Color color) {}
-
-	private static final Map<TintKey, java.awt.Image> tintCache = new ConcurrentHashMap<>();
-
 	public static java.awt.Image tintImage(java.awt.Image image, java.awt.Color color) {
-		return tintCache.computeIfAbsent(new TintKey(image, color), k -> {
-			BufferedImage result = new BufferedImage(
-					image.getWidth(null), image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
-			Graphics2D g2d = result.createGraphics();
-			g2d.drawImage(image, 0, 0, null);
-			g2d.setComposite(AlphaComposite.SrcAtop);
-			g2d.setColor(color);
-			g2d.fillRect(0, 0, image.getWidth(null), image.getHeight(null));
-			g2d.dispose();
-			return result;
-		});
+		BufferedImage tintedImage = new BufferedImage(
+				image.getWidth(null), image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g2d = tintedImage.createGraphics();
+		g2d.drawImage(image, 0, 0, null);
+		g2d.setComposite(AlphaComposite.SrcAtop);
+		g2d.setColor(color);
+		g2d.fillRect(0, 0, image.getWidth(null), image.getHeight(null));
+		g2d.dispose();
+		return tintedImage;
 	}
 
 	public static Label createLabel(String text, int width) {

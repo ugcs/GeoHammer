@@ -27,9 +27,9 @@ public class ClickPlace extends PositionalObject {
 
 	public static final Color USER_COLOR = new Color(0xC40000);
 
-	private static final Image AUTO_IMAGE_BODY = Views.tintImage(ResourceImageHolder.IMG_GPS_BODY, AUTO_COLOR);
+	public static final Image AUTO_IMAGE_BODY = Views.tintImage(ResourceImageHolder.IMG_GPS_BODY, AUTO_COLOR);
 
-	private static final Image USER_IMAGE_BODY = Views.tintImage(ResourceImageHolder.IMG_GPS_BODY, USER_COLOR);
+	public static final Image USER_IMAGE_BODY = Views.tintImage(ResourceImageHolder.IMG_GPS_BODY, USER_COLOR);
 
 	private final static int R_HOR = ResourceImageHolder.IMG_GPS.getWidth(null) / 2;
 

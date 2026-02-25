@@ -31,8 +31,6 @@ import javax.annotation.Nullable;
 @Component
 public class SettingsView implements ToolProducer {
 
-	public static final double DEFAULT_LOOKUP_THRESHOLD = 1.0;
-
 	private static final String PREF_TRACE = "trace";
 
 	private static final String PREF_LOOKUP_THRESHOLD = "lookupThreshold";
@@ -64,7 +62,7 @@ public class SettingsView implements ToolProducer {
 		this.prefSettings = prefSettings;
 		this.model = model;
 		model.setTraceLookupThreshold(
-				prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD));
+				prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, Model.DEFAULT_LOOKUP_THRESHOLD));
 
 		toggleButton.setTooltip(new Tooltip("Settings"));
 		toggleButton.setSelected(false);
@@ -154,7 +152,7 @@ public class SettingsView implements ToolProducer {
 		Label label = new Label("Trace Lookup Threshold (m):");
 		traceLookupThresholdField = new TextField();
 		traceLookupThresholdField.setPrefWidth(80);
-		savedTraceLookupThreshold = prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD);
+		savedTraceLookupThreshold = prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, Model.DEFAULT_LOOKUP_THRESHOLD);
 		traceLookupThresholdField.setText(String.valueOf(savedTraceLookupThreshold));
 
 		HBox row = new HBox(10, label, traceLookupThresholdField);

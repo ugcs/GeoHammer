@@ -10,7 +10,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.SettingsView;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.FileDataContainer;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
@@ -60,7 +59,9 @@ public class Model implements InitializingBean {
 
 	public static final int TOP_MARGIN = 60;
 
-	private double traceLookupThreshold = SettingsView.DEFAULT_LOOKUP_THRESHOLD;
+	public static final double DEFAULT_LOOKUP_THRESHOLD = 1.0;
+
+	private double traceLookupThreshold = DEFAULT_LOOKUP_THRESHOLD;
 
 	private boolean loading = false;
 

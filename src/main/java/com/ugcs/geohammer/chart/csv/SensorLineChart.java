@@ -1295,8 +1295,10 @@ public class SensorLineChart extends Chart {
             line.setStrokeWidth(1);
             line.setTranslateY(15);
 
-            BufferedImage tintedBody = (BufferedImage) Views.tintImage(
-                    ResourceImageHolder.IMG_GPS_BODY, awtColor);
+            BufferedImage tintedBody = (BufferedImage) (switch (type) {
+				case USER -> ClickPlace.USER_IMAGE_BODY;
+				case AUTO -> ClickPlace.AUTO_IMAGE_BODY;
+			});
             ImageView bodyView = new ImageView(SwingFXUtils.toFXImage(tintedBody, null));
             ImageView borderView = ResourceImageHolder.getImageView("gps32.png");
             StackPane imagePane = new StackPane(bodyView, borderView);

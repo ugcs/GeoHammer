@@ -406,14 +406,14 @@ def resolve_timestamp(data):
     )
 
 
-def resolve_altitude_for_igrf(data, alt_col, agl_col):
+def resolve_altitude_for_igrf(data, alt_amsl_col, alt_agl_col):
     """AMSL → AGL proxy → zeros, for IGRF altitude input."""
-    for col in [alt_col, agl_col]:
+    for col in [alt_amsl_col, alt_agl_col]:
         if col and col in data.columns:
             vals = pd.to_numeric(data[col], errors="coerce")
             if vals.notna().any():
-                if col == agl_col and alt_col and alt_col not in data.columns:
-                    print(f"Info: Using '{agl_col}' as IGRF altitude proxy.")
+                if col == alt_agl_col and alt_amsl_col and alt_amsl_col not in data.columns:
+                    print(f"Info: Using '{alt_agl_col}' as IGRF altitude proxy.")
                 return vals.fillna(0).values
     print("Info: No altitude column for IGRF — using 0 m (error < 1 nT).")
     return np.zeros(len(data))
@@ -604,8 +604,8 @@ def main():
 
     input_path = args.file_path
     mag_col = args.mag_column
-    alt_col = args.alt_column.strip()
-    agl_col = args.agl_column.strip()
+    alt_amsl_col = args.altitude_amsl_column.strip()
+    alt_agl_col = args.altitude_agl_column.strip()
     mark_col = MARK_COLUMN
 
     # ------------------------------------------------------------------
@@ -629,7 +629,7 @@ def main():
         print(f"Error: Missing required columns: {', '.join(missing)}")
         sys.exit(1)
 
-    has_agl = bool(agl_col and agl_col in data.columns)
+    has_agl = bool(alt_agl_col and alt_agl_col in data.columns)
 
     # ------------------------------------------------------------------
     # Marks
@@ -650,7 +650,7 @@ def main():
     # ------------------------------------------------------------------
     ts_series = resolve_timestamp(data)
 
-    alt_for_igrf = resolve_altitude_for_igrf(data, alt_col or None, agl_col or None)
+    alt_for_igrf = resolve_altitude_for_igrf(data, alt_amsl_col or None, alt_agl_col or None)
     igrf_values = compute_igrf(
         data["Longitude"].values,
         data["Latitude"].values,
@@ -662,7 +662,7 @@ def main():
     # ------------------------------------------------------------------
     # AGL
     # ------------------------------------------------------------------
-    agl_values = (pd.to_numeric(data[agl_col], errors="coerce").values
+    agl_values = (pd.to_numeric(data[alt_agl_col], errors="coerce").values
                   if has_agl else np.full(len(data), np.nan))
 
     if (not has_agl) or np.all(np.isnan(agl_values[marks == 1])):

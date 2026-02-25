@@ -7,6 +7,7 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.FileUpdatedEvent;
@@ -228,7 +229,7 @@ public class InspectorView {
         return window != null && window.isShowing();
     }
 
-    private @Nullable TraceKey getSelectedTrace(@Nullable SgyFile file) {
+    private @Nullable SelectedTrace getSelectedTrace(@Nullable SgyFile file) {
         if (file != null) {
             Chart chart = model.getChart(file);
             if (chart != null) {
@@ -240,12 +241,13 @@ public class InspectorView {
 
     private void updateView() {
         SgyFile file = selectedFile;
-        TraceKey trace = getSelectedTrace(file);
+		SelectedTrace selectedTrace = getSelectedTrace(file);
+        TraceKey traceKey = selectedTrace != null ? selectedTrace.trace() : null;
 
-        updateWindowTitle(file, trace);
-        updateTitle(file, trace);
-        updateNavigationButtons(file, trace);
-        updateValues(file, trace);
+        updateWindowTitle(file, traceKey);
+        updateTitle(file, traceKey);
+        updateNavigationButtons(file, traceKey);
+        updateValues(file, traceKey);
     }
 
     private void updateWindowTitle(SgyFile file, TraceKey trace) {
@@ -343,7 +345,8 @@ public class InspectorView {
         if (file == null) {
             return;
         }
-        TraceKey trace = getSelectedTrace(file);
+		SelectedTrace selectedTrace = getSelectedTrace(file);
+        TraceKey trace = selectedTrace != null ? selectedTrace.trace() : null;
         if (trace == null) {
             return;
         }
@@ -359,7 +362,8 @@ public class InspectorView {
         if (file == null) {
             return;
         }
-        TraceKey trace = getSelectedTrace(file);
+		SelectedTrace selectedTrace = getSelectedTrace(file);
+		TraceKey trace = selectedTrace != null ? selectedTrace.trace() : null;
         if (trace == null) {
             return;
         }

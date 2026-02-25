@@ -10,7 +10,13 @@ import java.util.concurrent.TimeUnit;
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
+import com.ugcs.geohammer.model.SelectionType;
+import com.ugcs.geohammer.model.element.ClickPlace;
+import java.awt.image.BufferedImage;
+
+import javafx.embed.swing.SwingFXUtils;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.service.TraceTransform;
@@ -609,7 +615,7 @@ public class SensorLineChart extends Chart {
         initFlagMarkers();
 
         // restore selection
-        TraceKey selectedTrace = model.getSelectedTrace(this);
+        SelectedTrace selectedTrace = model.getSelectedTrace(this);
         if (selectedTrace != null) {
             selectTrace(selectedTrace, false);
         }
@@ -759,7 +765,8 @@ public class SensorLineChart extends Chart {
     // markers
 
     @Override
-    public void selectTrace(@Nullable TraceKey trace, boolean focus) {
+    public void selectTrace(@Nullable SelectedTrace selectedTrace, boolean focus) {
+		TraceKey trace = selectedTrace != null ? selectedTrace.trace() : null;
         if (trace == null) {
             // clear selection
             clearSelectionMarker();
@@ -777,15 +784,16 @@ public class SensorLineChart extends Chart {
         if (x < viewport.xMin() || x > viewport.xMax()) {
             setViewport(viewport.moveToX(x), false);
         }
-        createSelectionMarker(traceIndex);
+		SelectionType type = selectedTrace != null ? selectedTrace.selectionType() : null;
+        createSelectionMarker(traceIndex, type != null ? type : SelectionType.USER);
     }
 
-    public void createSelectionMarker(int traceIndex) {
+    public void createSelectionMarker(int traceIndex, SelectionType type) {
         if (selectionMarker != null) {
             interactiveChart.removeMarker(selectionMarker);
         }
         selectionMarker = new Data<>(traceIndex, 0);
-        interactiveChart.addMarker(selectionMarker);
+        interactiveChart.addMarker(selectionMarker, type);
     }
 
     public void clearSelectionMarker() {
@@ -1275,16 +1283,27 @@ public class SensorLineChart extends Chart {
             return samples;
         }
 
-        public void addMarker(Data<Number, Number> marker) {
+        public void addMarker(Data<Number, Number> marker, SelectionType type) {
+            Color color = Views.fxColor(switch (type) {
+				case USER -> ClickPlace.USER_COLOR;
+				case AUTO -> ClickPlace.AUTO_COLOR;
+			});
+
             Line line = new Line();
-            line.setStroke(Color.RED); // Bright color for white background
+            line.setStroke(color);
             line.setStrokeWidth(1);
             line.setTranslateY(15);
 
-            ImageView imageView = ResourceImageHolder.getImageView("gps32.png");
-            imageView.setTranslateY(17);
+            BufferedImage tintedBody = (BufferedImage) (switch (type) {
+				case USER -> ClickPlace.USER_IMAGE_BODY;
+				case AUTO -> ClickPlace.AUTO_IMAGE_BODY;
+			});
+            ImageView bodyView = new ImageView(SwingFXUtils.toFXImage(tintedBody, null));
+            ImageView borderView = ResourceImageHolder.getImageView("gps32.png");
+            StackPane imagePane = new StackPane(bodyView, borderView);
+            imagePane.setTranslateY(17);
 
-            addMarker(marker, line, imageView, null, true);
+            addMarker(marker, line, null, imagePane, true);
         }
 
         /**

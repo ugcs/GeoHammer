@@ -37,7 +37,6 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -60,9 +59,9 @@ public class Model implements InitializingBean {
 
 	public static final int TOP_MARGIN = 60;
 
-	@SuppressWarnings("NullAway.Init")
-	@Value("${trace.lookup.threshold}")
-	private Double traceLookupThreshold;
+	public static final double DEFAULT_LOOKUP_THRESHOLD = 1.0;
+
+	private double traceLookupThreshold = DEFAULT_LOOKUP_THRESHOLD;
 
 	private boolean loading = false;
 
@@ -72,7 +71,7 @@ public class Model implements InitializingBean {
 
 	private final List<BaseObject> auxElements = new ArrayList<>();
 
-	private final List<TraceKey> selectedTraces = new ArrayList<>();
+	private final List<SelectedTrace> selectedTraces = new ArrayList<>();
 
 	private boolean kmlToFlagAvailable = false;
 
@@ -102,6 +101,10 @@ public class Model implements InitializingBean {
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
 		this.templateSettings = templateSettings;
+	}
+
+	public void setTraceLookupThreshold(double threshold) {
+		this.traceLookupThreshold = threshold;
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {
@@ -561,25 +564,30 @@ public class Model implements InitializingBean {
 
 	// trace selection
 
-	public List<TraceKey> getSelectedTraces() {
+	public List<SelectedTrace> getSelectedTraces() {
 		return Collections.unmodifiableList(selectedTraces);
 	}
 
 	@Nullable
-	public TraceKey getSelectedTrace(Chart chart) {
+	private SelectedTrace getSelectedEntry(Chart chart) {
 		if (chart == null) {
 			return null;
 		}
-		for (TraceKey trace : selectedTraces) {
-			if (Objects.equals(chart, getChart(trace.getFile()))) {
-				return trace;
+		for (SelectedTrace selected : selectedTraces) {
+			if (Objects.equals(chart, getChart(selected.trace().getFile()))) {
+				return selected;
 			}
 		}
 		return null;
 	}
 
 	@Nullable
-	public TraceKey getSelectedTraceInCurrentChart() {
+	public SelectedTrace getSelectedTrace(Chart chart) {
+		return getSelectedEntry(chart);
+	}
+
+	@Nullable
+	public SelectedTrace getSelectedTraceInCurrentChart() {
 		Chart chart = getChart(currentFile);
 		return chart != null
 				? getSelectedTrace(chart)
@@ -606,7 +614,7 @@ public class Model implements InitializingBean {
 		}
 
 		selectedTraces.clear();
-		selectedTraces.add(trace);
+		selectedTraces.add(new SelectedTrace(trace, SelectionType.USER));
 
 		Chart traceChart = getChart(trace.getFile());
 		boolean traceOnSelectedChart = isChartSelected(traceChart);
@@ -620,7 +628,7 @@ public class Model implements InitializingBean {
 					trace.getLatLon(),
 					traceLookupThreshold);
 			if (nearestInChart.isPresent()) {
-				selectedTraces.add(nearestInChart.get());
+				selectedTraces.add(new SelectedTrace(nearestInChart.get(), SelectionType.AUTO));
 				traceOnSelectedChart = traceOnSelectedChart || isChartSelected(chart);
 			}
 		}
@@ -644,7 +652,7 @@ public class Model implements InitializingBean {
 	}
 
 	public void clearSelectedTrace(@Nullable Chart chart) {
-		selectedTraces.removeIf(x -> Objects.equals(chart, getChart(x.getFile())));
+		selectedTraces.removeIf(x -> Objects.equals(chart, getChart(x.trace().getFile())));
 		Platform.runLater(() -> updateSelectedTraceOnChart(chart, false));
 	}
 
@@ -661,7 +669,7 @@ public class Model implements InitializingBean {
 		if (chart == null) {
 			return;
 		}
-		TraceKey trace = getSelectedTrace(chart);
+		SelectedTrace trace = getSelectedTrace(chart);
 		chart.selectTrace(trace, focusOnTrace);
 		publishEvent(new WhatChanged(this, WhatChanged.Change.traceSelected));
 	}
@@ -673,18 +681,19 @@ public class Model implements InitializingBean {
 			return;
 		}
 
-		TraceKey selectedTrace = getSelectedTrace(chart);
-		if (selectedTrace == null) {
+		SelectedTrace selectedTrace = getSelectedTrace(chart);
+		TraceKey traceKey = selectedTrace != null ? selectedTrace.trace() : null;
+		if (traceKey == null) {
 			return; // no trace selected in a chart
 		}
-		FoundPlace flag = new FoundPlace(selectedTrace, this);
+		FoundPlace flag = new FoundPlace(traceKey, this);
 		flag.setSelected(true);
 
 		// clear current selection in file
 		chart.selectFlag(null);
 		chart.addFlag(flag);
 
-		SgyFile traceFile = selectedTrace.getFile();
+		SgyFile traceFile = traceKey.getFile();
 		traceFile.getAuxElements().add(flag);
 		traceFile.setUnsaved(true);
 

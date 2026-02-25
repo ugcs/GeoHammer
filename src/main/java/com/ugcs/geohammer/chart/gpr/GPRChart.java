@@ -12,6 +12,7 @@ import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.view.PaintLimiter;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.TraceSample;
 import com.ugcs.geohammer.model.element.AuxElementEditHandler;
@@ -492,11 +493,11 @@ public class GPRChart extends Chart {
             }
         }
 
-        for (TraceKey mark : model.getSelectedTraces()) {
-            if (!Objects.equals(mark.getFile(), getFile())) {
+        for (SelectedTrace selected : model.getSelectedTraces()) {
+            if (!Objects.equals(selected.trace().getFile(), getFile())) {
                 continue;
             }
-            ClickPlace clickPlace = new ClickPlace(mark);
+            ClickPlace clickPlace = new ClickPlace(selected);
             clickPlace.drawOnCut(g2, this);
         }
     }
@@ -604,7 +605,8 @@ public class GPRChart extends Chart {
 
     private void drawLines(Graphics2D g2) {
         int selectedLineIndex;
-        TraceKey mark = model.getSelectedTrace(this);
+        SelectedTrace selectedTrace = model.getSelectedTrace(this);
+		TraceKey mark = selectedTrace != null ? selectedTrace.trace() : null;
         if (mark != null) {
             selectedLineIndex = getValueLineIndex(mark.getIndex());
         } else {
@@ -881,7 +883,8 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public void selectTrace(@Nullable TraceKey trace, boolean focus) {
+    public void selectTrace(@Nullable SelectedTrace selectedTrace, boolean focus) {
+		TraceKey trace = selectedTrace != null ? selectedTrace.trace() : null;
         if (trace != null && focus) {
             setMiddleTrace(trace.getIndex());
         }
@@ -925,7 +928,8 @@ public class GPRChart extends Chart {
 
     @Override
     public int getSelectedLineIndex() {
-        TraceKey mark = model.getSelectedTrace(this);
+        SelectedTrace selectedTrace = model.getSelectedTrace(this);
+		TraceKey mark = selectedTrace != null ? selectedTrace.trace() : null;
         return mark != null && isTraceVisible(mark.getIndex())
                 ? getValueLineIndex(mark.getIndex())
                 : getValueLineIndex(getMiddleTrace());

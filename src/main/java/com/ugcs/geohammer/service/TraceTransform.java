@@ -5,6 +5,7 @@ import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.model.element.PositionalObject;
@@ -72,9 +73,10 @@ public class TraceTransform {
         Check.notNull(file);
 
         Chart chart = model.getChart(file);
-        TraceKey selectedTrace = null;
+        TraceKey selectedTraceKey = null;
         if (chart != null) {
-            selectedTrace = model.getSelectedTrace(chart);
+			SelectedTrace selectedTrace = model.getSelectedTrace(chart);
+            selectedTraceKey = selectedTrace != null ? selectedTrace.trace() : null;
         }
 
         // positional element indices should be updated
@@ -115,8 +117,8 @@ public class TraceTransform {
                         element.offset(-numRemoved);
                     }
                     // offset selection
-                    if (selectedTrace != null && selectedTrace.getIndex() == i) {
-                        selectedTrace.offset(-numRemoved);
+                    if (selectedTraceKey != null && selectedTraceKey.getIndex() == i) {
+                        selectedTraceKey.offset(-numRemoved);
                     }
                 }
             } else {
@@ -124,7 +126,7 @@ public class TraceTransform {
                 // collect elements to remove
                 toRemove.addAll(Nulls.toEmpty(elements.get(i)));
                 // clear selection on chart
-                if (selectedTrace != null && selectedTrace.getIndex() == i) {
+                if (selectedTraceKey != null && selectedTraceKey.getIndex() == i) {
                     model.clearSelectedTrace(chart);
                 }
             }
@@ -187,9 +189,10 @@ public class TraceTransform {
         undoModel.saveSnapshot(file);
 
         Chart chart = model.getChart(file);
-        TraceKey selectedTrace = null;
+        TraceKey selectedTraceKey = null;
         if (chart != null) {
-            selectedTrace = model.getSelectedTrace(chart);
+			SelectedTrace selectedTrace = model.getSelectedTrace(chart);
+            selectedTraceKey = selectedTrace != null ? selectedTrace.trace() : null;
         }
 
         // positional element indices should be updated
@@ -217,8 +220,8 @@ public class TraceTransform {
                         element.offset(-numRemoved);
                     }
                     // offset selection
-                    if (selectedTrace != null && selectedTrace.getIndex() == i) {
-                        selectedTrace.offset(-numRemoved);
+                    if (selectedTraceKey != null && selectedTraceKey.getIndex() == i) {
+                        selectedTraceKey.offset(-numRemoved);
                     }
                 }
             } else {
@@ -226,7 +229,7 @@ public class TraceTransform {
                 // collect elements to remove
                 toRemove.addAll(Nulls.toEmpty(elements.get(i)));
                 // clear selection on chart
-                if (selectedTrace != null && selectedTrace.getIndex() == i) {
+                if (selectedTraceKey != null && selectedTraceKey.getIndex() == i) {
                     model.clearSelectedTrace(chart);
                 }
             }

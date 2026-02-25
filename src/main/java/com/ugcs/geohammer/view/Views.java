@@ -21,6 +21,10 @@ import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 
+import java.awt.AlphaComposite;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+
 public final class Views {
 
     private Views() {
@@ -107,6 +111,18 @@ public final class Views {
 		ColorInput colorInput = new ColorInput(0, 0, image.getWidth(), image.getHeight(), tint);
 		Blend blend = new Blend(BlendMode.SRC_ATOP, null, colorInput);
 		imageView.setEffect(blend);
+	}
+
+	public static java.awt.Image tintImage(java.awt.Image image, java.awt.Color color) {
+		BufferedImage tintedImage = new BufferedImage(
+				image.getWidth(null), image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g2d = tintedImage.createGraphics();
+		g2d.drawImage(image, 0, 0, null);
+		g2d.setComposite(AlphaComposite.SrcAtop);
+		g2d.setColor(color);
+		g2d.fillRect(0, 0, image.getWidth(null), image.getHeight(null));
+		g2d.dispose();
+		return tintedImage;
 	}
 
 	public static Label createLabel(String text, int width) {

@@ -20,8 +20,8 @@ TREND_DEGREE = 1
 MIN_TREND_SAMPLES = 10
 WINDOW_PADDING_M = 20.0
 MIN_WINDOW_SAMPLES = 20
-K_FACTOR = 0.7111
-CB_FACTOR = 1.910
+K_FACTOR = 1.0
+CB_FACTOR = 3.0
 MAX_PEAK_OFFSET_M = 2.0
 AS_PEAK_SEARCH_RADIUS_M = 5.0
 DIPOLE_CHECK_RADIUS_M = 15.0
@@ -98,7 +98,7 @@ def aggregate_spatial(x, tmi, marks, agl, lat, lon, ts, bin_m=SPATIAL_BIN_M):
     for i, b in enumerate(unique_bins):
         mask = bins == b
         out_x[i] = x[mask].mean()
-        out_tmi[i] = tmi[mask].mean()
+        out_tmi[i] = float(np.nanmean(tmi[mask]))
         out_marks[i] = 1.0 if marks[mask].any() else 0.0
         agl_vals = agl[mask]
         valid_agl = agl_vals[~np.isnan(agl_vals)]
@@ -166,26 +166,46 @@ def latlon_to_local_xy(lats, lons):
 def estimate_cell_size(x_m, y_m, lines):
     """
     Estimate a reasonable grid cell size from the data.
-    Uses the median along-track point spacing as cell size.
+
+    Strategy:
+      1. Estimate the GPS position quantisation step from the distribution of
+         unique X-coordinate values (the minimum non-zero spacing between
+         sorted unique positions, at the 5th percentile to be robust to
+         occasional larger gaps).  This gives the E-W GPS resolution in
+         metres, which is the natural cell size that avoids chequerboard
+         aliasing.
+      2. Fall back to ``extent / 168`` (~0.6 m for a 100 m survey) if the
+         per-line spacing estimate is unreliable (outside [0.5 m, 10 m]).
+
+    The validity window [0.5 m, 10 m] prevents absurdly small values caused
+    by sub-centimetre GPS jitter or absurdly large values from coarse sensors.
     """
-    spacings = []
+    def _snap(v):
+        """Round to the nearest 0.1 m to reduce grid-alignment aliasing."""
+        return max(0.5, round(v, 1))
+
+    # --- Approach 1: median non-zero along-track spacing per line ---
+    all_nonzero = []
     for idx in lines:
         if len(idx) < 2:
             continue
         dx = np.diff(x_m[idx])
         dy = np.diff(y_m[idx])
         seg = np.sqrt(dx ** 2 + dy ** 2)
-        spacings.append(np.median(seg))
-    if spacings:
-        cs = float(np.median(spacings))
-        if cs > 0:
-            return cs
-    # Fallback: use extent / 200 or 1.0
+        nonzero = seg[seg > 0.01]
+        if len(nonzero) > 0:
+            all_nonzero.append(np.median(nonzero))
+    if all_nonzero:
+        cs = float(np.median(all_nonzero))
+        if 0.5 <= cs <= 10.0:
+            return _snap(cs)
+
+    # --- Fallback: extent / 168 (~0.6 m for a 100 m survey area) ---
     dx = np.ptp(x_m)
     dy = np.ptp(y_m)
     extent = max(dx, dy)
     if extent > 0:
-        return extent / 200.0
+        return _snap(extent / 168.0)
     return 1.0
 
 
@@ -894,10 +914,17 @@ def _process_anomaly_group(
         elif dist_mean is not None:
             if (not is_dipole
                     and "method_disagreement" in flags
-                    and dist_a is not None and dist_b is not None
-                    and dist_a < dist_b):
-                depth_mean_val = depth_a_val
-                dist_mean_out = dist_a
+                    and dist_a is not None and dist_b is not None):
+                if dist_a < dist_b:
+                    # Narrow FWHM (e.g. interference from a nearby anomaly)
+                    # makes Method A underestimate — trust Method B instead.
+                    depth_mean_val = depth_b_val
+                    dist_mean_out = dist_b
+                else:
+                    # Inflated AS (e.g. grid interpolation noise) makes
+                    # Method B underestimate — trust Method A instead.
+                    depth_mean_val = depth_a_val
+                    dist_mean_out = dist_a
             else:
                 depth_mean_val = (depth_a_val + depth_b_val) / 2.0
 
@@ -1073,7 +1100,8 @@ def main():
 
     # Sample AS grid at original data positions
     as_at_points = sample_grid_at_points(as_grid, xi, yi, x_m, y_m)
-    as_at_points = np.where(np.isfinite(as_at_points), as_at_points, 0.0)
+    # Keep NaN where the AS grid had no data — nanmean in aggregate_spatial
+    # handles these correctly instead of diluting bins with zeros.
 
     # ------------------------------------------------------------------
     # Output arrays

@@ -285,7 +285,7 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (changed.isJustdraw()) {
+		if (changed.isJustdraw() || changed.isTraceSelected()) {
 			Platform.runLater(this::updateSplit);
 		}
 	}

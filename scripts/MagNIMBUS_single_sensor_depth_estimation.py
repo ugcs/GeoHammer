@@ -4,7 +4,7 @@ import argparse
 import math
 import numpy as np
 import pandas as pd
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, RBFInterpolator
 from scipy.ndimage import uniform_filter
 from script_utils import normalize_input_stem
 
@@ -218,10 +218,10 @@ def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
                                    gridHeight = extent_y / cellSize
       2. Bin data into grid cells; take median per cell.
       3. Mark missing cells (boolean mask ``m``).
-      4. Fill missing cells with blanking-distance-limited median,
-         then interpolate with cubic splines (scipy.interpolate.griddata
-         as proxy for Mines JTK SplinesGridder2).
-      5. Set cells outside blanking distance to NaN.
+      4. Fill missing cells with blanking-distance-limited median, then
+         interpolate with minimum-curvature (thin-plate spline via
+         RBFInterpolator).  Falls back to linear griddata on failure.
+      5. Set cells outside blanking distance (circular) to NaN.
 
     The resulting grid (with possible NaN at edges) is later passed to
     compute_as_2d, which internally calls _fill_nan_priority_queue
@@ -273,20 +273,20 @@ def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
     for (ix, iy), vals in cell_values.items():
         grid[iy, ix] = float(np.median(vals))
 
-    # --- Blanking distance mask (Java: visiblePoints) ---
+    # --- Blanking distance mask — circular (Euclidean distance in metres) ---
     if blanking_distance is None:
         blanking_distance = cell_size * 10  # reasonable default
 
-    bd_cells_x = max(1, int(blanking_distance / cell_size))
-    bd_cells_y = max(1, int(blanking_distance / cell_size))
+    # Pre-compute physical (x, y) coordinates of every grid cell once.
+    gy_all, gx_all = np.mgrid[0:grid_height, 0:grid_width]
+    gx_coords = xi[gx_all]  # shape (grid_height, grid_width), metres
+    gy_coords = yi[gy_all]  # shape (grid_height, grid_width), metres
+    bd2 = blanking_distance ** 2
 
     visible = np.zeros((grid_height, grid_width), dtype=bool)
     for (ix, iy) in cell_values.keys():
-        x0 = max(0, ix - bd_cells_x)
-        x1 = min(grid_width, ix + bd_cells_x + 1)
-        y0 = max(0, iy - bd_cells_y)
-        y1 = min(grid_height, iy + bd_cells_y + 1)
-        visible[y0:y1, x0:x1] = True
+        dist2 = (gx_coords - xi[ix]) ** 2 + (gy_coords - yi[iy]) ** 2
+        visible |= dist2 <= bd2
 
     # --- Fill missing cells with global median, then interpolate ---
     # Java fills missing visible cells with median before calling
@@ -298,18 +298,30 @@ def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
     # Mark which cells need interpolation (True = missing = needs filling)
     needs_interp = missing  # cells that were NaN and got median-filled
 
-    if needs_interp.any() and np.isfinite(grid).sum() >= 4:
-        # Spline interpolation as proxy for SplinesGridder2.
-        # Use scipy cubic griddata on the known cells to fill the missing ones.
+    if needs_interp.any() and np.isfinite(grid).sum() >= 10:
+        # Minimum-curvature interpolation via thin-plate spline (Briggs 1974).
+        # Equivalent to solving the biharmonic equation ∇⁴f = 0 in the gaps —
+        # the standard potential-field gridding approach.
         known = ~needs_interp & np.isfinite(grid)
-        if known.sum() >= 4:
+        if known.sum() >= 10:
             gy, gx = np.mgrid[0:grid_height, 0:grid_width]
-            pts_known = np.column_stack([gx[known], gy[known]])
-            vals_known = grid[known]
-            pts_missing = np.column_stack([gx[needs_interp], gy[needs_interp]])
+            # Use physical coordinates (metres) for correct spatial weighting.
+            pts_known   = np.column_stack([xi[gx[known]],         yi[gy[known]]])
+            vals_known  = grid[known]
+            pts_missing = np.column_stack([xi[gx[needs_interp]],  yi[gy[needs_interp]]])
             try:
-                filled = griddata(pts_known, vals_known, pts_missing, method="cubic")
-                # Fall back to linear for any NaN from cubic
+                n_known = len(pts_known)
+                # For large grids use local neighbours to avoid O(N²) memory.
+                nbrs = None if n_known <= 1000 else min(n_known, 150)
+                # Light regularisation (~0.1 % of variance) stabilises the TPS
+                # on noisy field data without visibly distorting the surface.
+                smoothing = float(np.var(vals_known)) * 1e-3
+                rbf = RBFInterpolator(pts_known, vals_known,
+                                      kernel='thin_plate_spline',
+                                      smoothing=smoothing,
+                                      neighbors=nbrs)
+                filled = rbf(pts_missing)
+                # TPS should not produce NaN; fall back to linear if it does.
                 still_nan = np.isnan(filled)
                 if still_nan.any():
                     filled2 = griddata(pts_known, vals_known,
@@ -317,8 +329,13 @@ def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
                     filled[still_nan] = filled2
                 grid[needs_interp] = filled
             except Exception:
-                # If interpolation fails, keep median values
-                pass
+                # Fall back to linear griddata if TPS fails (degenerate geometry).
+                try:
+                    filled = griddata(pts_known, vals_known,
+                                      pts_missing, method="linear")
+                    grid[needs_interp] = filled
+                except Exception:
+                    pass
 
     # --- Apply blanking: cells outside visible range → NaN ---
     grid[~visible] = np.nan

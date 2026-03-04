@@ -14,6 +14,15 @@ try:
 except ImportError:
     ppigrf = None
 
+try:
+    import matplotlib
+    matplotlib.use("Agg")          # headless — no display required
+    import matplotlib.pyplot as plt
+    import matplotlib.patheffects as pe
+    _MATPLOTLIB_OK = True
+except ImportError:
+    _MATPLOTLIB_OK = False
+
 # Internal constants (not exposed as CLI args)
 MARK_COLUMN = "Mark"
 LINE_GAP_SECONDS = 30
@@ -30,6 +39,9 @@ METHOD_DISAGREE_THRESHOLD = 0.35
 MIN_HALFWIDTH_M = 0.5
 MAX_HALFWIDTH_M = 50.0
 SPATIAL_BIN_M = 0.5
+MIN_AS_THRESHOLD = 1.0      # nT/m — AS values below this are noise; Method B is skipped
+MAX_DISTANCE_M   = 20.0     # m    — distances above this are discarded as implausible
+DEPTH_WARNING_THRESHOLD_M = 2.0  # m — estimated depths above this get Quality_Flag = WARNING
 CSV_SEPARATOR = ","
 # Default grid cell size (metres).  If not supplied, estimated from data.
 DEFAULT_CELL_SIZE_M = None
@@ -335,6 +347,20 @@ def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
                     grid[needs_interp] = filled
                 except Exception:
                     pass
+
+    # --- Clip interpolated cells to ±100% of measured data range ---
+    # TPS and linear extrapolation can overshoot at grid edges, creating
+    # steep gradients that inflate AS values.  Clamping to the measured
+    # range keeps the filled surface physically plausible.
+    if needs_interp.any():
+        v_known = grid[~needs_interp & np.isfinite(grid)]
+        if v_known.size:
+            v_lo = float(v_known.min())
+            v_hi = float(v_known.max())
+            v_rng = max(abs(v_hi - v_lo), 1.0)
+            filled_mask = needs_interp & np.isfinite(grid)
+            grid[filled_mask] = np.clip(grid[filled_mask],
+                                        v_lo - v_rng, v_hi + v_rng)
 
     # --- Apply blanking: cells outside visible range → NaN ---
     grid[~visible] = np.nan
@@ -692,6 +718,9 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
         elif W > MAX_HALFWIDTH_M * 2:
             flags.add("wide_anomaly")
         distance_A = K_FACTOR * W
+        if distance_A > MAX_DISTANCE_M:
+            flags.add("wide_anomaly")
+            distance_A = None
 
     # --- Method B: AS Ratio ---
     marked_b = window_b[marked_mask_in_window]
@@ -704,10 +733,13 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
         b_max_idx = int(np.argmax(np.abs(marked_b)))
         b_max_nT = float(marked_b[b_max_idx])
         AS_at_peak = float(marked_as[b_max_idx])
-        if AS_at_peak == 0:
+        if AS_at_peak < MIN_AS_THRESHOLD:
             flags.add("peak_mismatch")
         else:
             distance_B = CB_FACTOR * abs(b_max_nT) / AS_at_peak
+            if distance_B > MAX_DISTANCE_M:
+                flags.add("peak_mismatch")
+                distance_B = None
 
     # --- Dipole check ---
     dipole_mask = ((window_x >= mark_center_x - DIPOLE_CHECK_RADIUS_M) &
@@ -777,13 +809,6 @@ def resolve_altitude_for_igrf(data, alt_amsl_col, alt_agl_col):
 # Anomaly group processor (uses grid-sampled AS)
 # ---------------------------------------------------------------------------
 
-WARNING_FLAGS = {
-    "short_window", "partial_halfwidth", "peak_mismatch",
-    "negative_depth_A", "negative_depth_B", "method_disagreement",
-    "narrow_anomaly", "wide_anomaly", "poor_trend_fit", "dipole_anomaly",
-}
-
-
 def _process_anomaly_group(
         g_start, g_end, anomaly_id,
         agg_x, agg_tmi, agg_marks, agg_agl, agg_lat, agg_lon, agg_ts,
@@ -791,7 +816,7 @@ def _process_anomaly_group(
         orig_line_idx, orig_x, orig_marks,
         poor_trend_fit,
         out_dist_a, out_depth_a, out_dist_b, out_depth_b,
-        out_dist_mean, out_depth_mean, out_quality,
+        out_dist_mean, out_depth_mean, out_quality, out_error_pct,
 ):
     x_start = agg_x[g_start] - WINDOW_PADDING_M
     x_end = agg_x[g_end] + WINDOW_PADDING_M
@@ -885,7 +910,16 @@ def _process_anomaly_group(
             depth_mean_val = depth_a_val
             dist_mean_out = dist_a
 
-    quality = "WARNING" if flags & WARNING_FLAGS else "OK"
+    # Quality flag: WARNING if depth could not be estimated or exceeds threshold.
+    quality = ("WARNING"
+               if depth_mean_val is None or depth_mean_val > DEPTH_WARNING_THRESHOLD_M
+               else "OK")
+
+    # Error percent: estimated depth as a percentage of the 2 m warning threshold.
+    # 100 % = exactly at the limit; > 100 % = over the limit (only written for WARNING).
+    error_pct_val = None
+    if depth_mean_val is not None:
+        error_pct_val = round(depth_mean_val / DEPTH_WARNING_THRESHOLD_M * 100.0, 1)
 
     grp_orig_marked = orig_line_idx[
         (orig_x >= agg_x[g_start] - SPATIAL_BIN_M) &
@@ -905,6 +939,151 @@ def _process_anomaly_group(
         out_dist_mean[grp_orig_marked] = round(dist_mean_out, 4)
     if depth_mean_val is not None:
         out_depth_mean[grp_orig_marked] = round(depth_mean_val, 4)
+    if error_pct_val is not None and quality == "WARNING":
+        out_error_pct[grp_orig_marked] = error_pct_val
+
+
+def visualize_results(
+        grid, xi, yi,
+        x_m, y_m, marks,
+        out_dist_a, out_depth_a,
+        out_dist_b, out_depth_b,
+        out_dist_mean, out_depth_mean,
+        out_quality,
+        png_path,
+):
+    """
+    Save a 2×3 figure showing the TMI anomaly grid as background and the
+    estimated depth / distance values labelled at each target location.
+
+    Layout:
+        Row 1 :  Estimated_Depth_A   |  Estimated_Depth_B   |  Estimated_Depth
+        Row 2 :  Estimated_Distance_A | Estimated_Distance_B | Estimated_Distance
+    """
+    if not _MATPLOTLIB_OK:
+        print("Warning: matplotlib not installed — skipping visualisation.")
+        return
+
+    from scipy.ndimage import gaussian_filter
+    from matplotlib.colors import LightSource, Normalize
+    from matplotlib.lines import Line2D
+
+    SMOOTH_SIGMA = 1.5
+    VERT_EXAG    = 3.0
+
+    target_mask = marks == 1
+    tx = x_m[target_mask]
+    ty = y_m[target_mask]
+    t_quality = out_quality[target_mask]
+
+    panels = [
+        (out_depth_a[target_mask],    "Estimated_Depth_A"),
+        (out_depth_b[target_mask],    "Estimated_Depth_B"),
+        (out_depth_mean[target_mask], "Estimated_Depth"),
+        (out_dist_a[target_mask],     "Estimated_Distance_A"),
+        (out_dist_b[target_mask],     "Estimated_Distance_B"),
+        (out_dist_mean[target_mask],  "Estimated_Distance"),
+    ]
+
+    # ── Smooth grid (NaN-safe: fill → smooth → restore NaN) ───────────────
+    nan_mask  = ~np.isfinite(grid)
+    fill_val  = float(np.nanmedian(grid)) if np.isfinite(grid).any() else 0.0
+    grid_fill = np.where(nan_mask, fill_val, grid)
+    grid_smooth = gaussian_filter(grid_fill, sigma=SMOOTH_SIGMA)
+    grid_smooth[nan_mask] = np.nan
+
+    # ── Colour normalisation (symmetric, 98th-percentile clip) ────────────
+    finite = grid_smooth[np.isfinite(grid_smooth)]
+    vmax = float(np.percentile(np.abs(finite), 98)) if finite.size else 1.0
+    norm = Normalize(vmin=-vmax, vmax=vmax)
+    cmap = plt.cm.RdYlGn_r
+
+    # ── Hillshaded RGBA — computed once, reused across all panels ──────────
+    ls          = LightSource(azdeg=315, altdeg=45)
+    shade_input = np.where(np.isfinite(grid_smooth), grid_smooth, fill_val)
+    rgb_hs      = ls.shade(shade_input, cmap=cmap, norm=norm,
+                           blend_mode="overlay", vert_exag=VERT_EXAG)
+
+    # ScalarMappable for colourbar — created once, shared across panels ─────
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+
+    # ── Figure size: preserve true spatial aspect ratio ────────────────────
+    x_range = max(float(xi[-1] - xi[0]), 1.0)
+    y_range = max(float(yi[-1] - yi[0]), 1.0)
+    panel_w = 6.0
+    panel_h = max(panel_w * (y_range / x_range), 1.8)
+    fig_w   = panel_w * 3 + 1.8
+    fig_h   = panel_h * 2 + 1.8   # extra bottom room for legend
+
+    fig, axes = plt.subplots(2, 3, figsize=(fig_w, fig_h),
+                             constrained_layout=False)
+    fig.patch.set_facecolor("#1a1a1a")
+    fig.subplots_adjust(left=0.04, right=0.97, top=0.94,
+                        bottom=0.10, wspace=0.25, hspace=0.30)
+
+    extent = [float(xi[0]), float(xi[-1]), float(yi[0]), float(yi[-1])]
+    outline = [pe.withStroke(linewidth=2, foreground="black")]
+
+    for ax, (vals, title) in zip(axes.flat, panels):
+        ax.set_facecolor("#2a2a2a")
+
+        # Background
+        ax.imshow(rgb_hs, origin="lower", extent=extent,
+                  aspect="equal", interpolation="bilinear")
+        ax.set_xlim(xi[0], xi[-1])
+        ax.set_ylim(yi[0], yi[-1])
+
+        # Colour per panel: orange if this panel's value is NaN OR quality=WARNING
+        valid     = np.isfinite(vals)
+        ok_sel    = (t_quality == "OK") & valid
+        warn_sel  = (t_quality == "WARNING") | ~valid
+
+        # Target dots
+        if ok_sel.any():
+            ax.scatter(tx[ok_sel], ty[ok_sel],
+                       s=40, c="#00e5ff", edgecolors="black",
+                       linewidths=0.6, zorder=5)
+        if warn_sel.any():
+            ax.scatter(tx[warn_sel], ty[warn_sel],
+                       s=40, c="#ff9800", edgecolors="black",
+                       linewidths=0.6, zorder=5)
+
+        # Value labels — only for valid points
+        for x, y, v in zip(tx[valid], ty[valid], vals[valid]):
+            ax.annotate(f"{v:.2f}", xy=(x, y),
+                        xytext=(5, 5), textcoords="offset points",
+                        fontsize=7, color="white", fontweight="bold",
+                        path_effects=outline, zorder=6)
+
+        ax.set_title(title, color="white", fontsize=9, pad=4)
+        ax.tick_params(colors="gray", labelsize=7)
+        for spine in ax.spines.values():
+            spine.set_edgecolor("#555555")
+
+        cbar = fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02)
+        cbar.ax.tick_params(colors="gray", labelsize=6)
+        cbar.set_label("nT", color="gray", fontsize=6)
+
+    # ── Legend (bottom centre) ─────────────────────────────────────────────
+    legend_handles = [
+        Line2D([0], [0], marker="o", color="none", markersize=9,
+               markerfacecolor="#00e5ff", markeredgecolor="black",
+               markeredgewidth=0.6, label="OK — depth ≤ 2 m"),
+        Line2D([0], [0], marker="o", color="none", markersize=9,
+               markerfacecolor="#ff9800", markeredgecolor="black",
+               markeredgewidth=0.6, label="WARNING / N/A — depth > 2 m or not estimated"),
+    ]
+    fig.legend(handles=legend_handles, loc="lower center", ncol=2,
+               frameon=True, framealpha=0.25, edgecolor="#555555",
+               facecolor="#1a1a1a", fontsize=9,
+               labelcolor="white", bbox_to_anchor=(0.5, 0.01))
+
+    fig.suptitle("Depth & Distance Estimation", color="white", fontsize=12)
+    plt.savefig(png_path, dpi=150, bbox_inches="tight",
+                facecolor=fig.get_facecolor())
+    plt.close(fig)
+    print(f"Visualisation saved to {png_path}")
 
 
 def _build_targets_path(input_path, output_dir):
@@ -956,7 +1135,7 @@ def main():
         "Estimated_Distance_A", "Estimated_Depth_A",
         "Estimated_Distance_B", "Estimated_Depth_B",
         "Estimated_Distance", "Estimated_Depth",
-        "Quality_Flag",
+        "Quality_Flag", "Error_Percent",
     }
     original_cols = [c for c in data.columns if c not in _SCRIPT_OUTPUT_COLS]
     data = data[original_cols]  # drop any stale script-output columns from previous runs
@@ -1063,6 +1242,7 @@ def main():
     out_dist_mean = np.full(n_rows, np.nan)
     out_depth_mean = np.full(n_rows, np.nan)
     out_quality = np.full(n_rows, "", dtype=object)
+    out_error_pct = np.full(n_rows, np.nan)
 
     anomaly_id = 0
 
@@ -1111,7 +1291,7 @@ def main():
                 line_idx, line_x, line_marks,
                 poor_trend_fit,
                 out_dist_a, out_depth_a, out_dist_b, out_depth_b,
-                out_dist_mean, out_depth_mean, out_quality,
+                out_dist_mean, out_depth_mean, out_quality, out_error_pct,
             )
 
     # ------------------------------------------------------------------
@@ -1140,8 +1320,22 @@ def main():
         "Estimated_Distance",   "Estimated_Depth",
     ]].copy()
     targets_df["Quality_Flag"] = out_quality[target_mask]
+    targets_df["Error_Percent"] = _as_col(out_error_pct)[target_mask]
     print(f"Writing targets to {targets_path}")
     targets_df.to_csv(targets_path, index=False, sep=CSV_SEPARATOR)
+
+    # ── Visualisation ──────────────────────────────────────────────────────
+    png_path = targets_path.replace("-targets-as.csv", "-depth-map.png")
+    visualize_results(
+        grid, xi, yi,
+        x_m, y_m, marks,
+        out_dist_a, out_depth_a,
+        out_dist_b, out_depth_b,
+        out_dist_mean, out_depth_mean,
+        out_quality,
+        png_path,
+    )
+
     print(f"Done. {anomaly_id} anomaly group(s) processed.")
 
 

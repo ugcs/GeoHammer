@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pandas as pd
 from scipy.interpolate import griddata, RBFInterpolator
+from scipy.spatial import cKDTree
 from scipy.ndimage import uniform_filter
 from script_utils import normalize_input_stem
 
@@ -87,27 +88,27 @@ def aggregate_spatial(x, tmi, marks, agl, lat, lon, ts, bin_m=SPATIAL_BIN_M):
     if len(x) == 0:
         return x, tmi, marks, agl, lat, lon, ts
     bins = np.floor(x / bin_m).astype(np.int64)
-    unique_bins = np.unique(bins)
-    out_x = np.empty(len(unique_bins))
-    out_tmi = np.empty(len(unique_bins))
-    out_marks = np.zeros(len(unique_bins), dtype=np.float64)
-    out_agl = np.full(len(unique_bins), np.nan)
-    out_lat = np.empty(len(unique_bins))
-    out_lon = np.empty(len(unique_bins))
-    out_ts = np.empty(len(unique_bins), dtype=ts.dtype)
-    for i, b in enumerate(unique_bins):
-        mask = bins == b
-        out_x[i] = x[mask].mean()
-        out_tmi[i] = float(np.nanmean(tmi[mask]))
-        out_marks[i] = 1.0 if marks[mask].any() else 0.0
-        agl_vals = agl[mask]
-        valid_agl = agl_vals[~np.isnan(agl_vals)]
-        if len(valid_agl):
-            out_agl[i] = valid_agl.mean()
-        out_lat[i] = lat[mask].mean()
-        out_lon[i] = lon[mask].mean()
-        out_ts[i] = ts[mask][0]
-    return out_x, out_tmi, out_marks, out_agl, out_lat, out_lon, out_ts
+    df = pd.DataFrame({
+        'bin': bins,
+        'x': x, 'tmi': tmi,
+        'marks': marks.astype(bool),
+        'agl': agl, 'lat': lat, 'lon': lon,
+        '_pos': np.arange(len(x), dtype=np.intp),
+    })
+    g = df.groupby('bin', sort=True)
+    out = pd.DataFrame({
+        'x':     g['x'].mean(),
+        'tmi':   g['tmi'].mean(),           # pandas skips NaN by default
+        'marks': g['marks'].any().astype(float),
+        'agl':   g['agl'].mean(),           # nanmean equivalent
+        'lat':   g['lat'].mean(),
+        'lon':   g['lon'].mean(),
+    })
+    out_ts = ts[g['_pos'].first().values]
+    return (
+        out['x'].values, out['tmi'].values, out['marks'].values,
+        out['agl'].values, out['lat'].values, out['lon'].values, out_ts,
+    )
 
 
 def remove_trend(tmi_anom, x, marks, degree=TREND_DEGREE, min_samples=MIN_TREND_SAMPLES):
@@ -119,26 +120,29 @@ def remove_trend(tmi_anom, x, marks, degree=TREND_DEGREE, min_samples=MIN_TREND_
 
 
 def find_local_halfwidth(x_arr, y_arr, peak_idx):
+    """Return (left_x, right_x) at the half-power threshold around peak_idx."""
     threshold = y_arr[peak_idx] / 2.0
-    n = len(x_arr)
-    left_x = None
-    for i in range(peak_idx - 1, -1, -1):
-        if y_arr[i] <= threshold:
-            if y_arr[i + 1] != y_arr[i]:
-                t = (threshold - y_arr[i]) / (y_arr[i + 1] - y_arr[i])
-                left_x = x_arr[i] + t * (x_arr[i + 1] - x_arr[i])
-            else:
-                left_x = x_arr[i]
-            break
-    right_x = None
-    for i in range(peak_idx + 1, n):
-        if y_arr[i] <= threshold:
-            if y_arr[i] != y_arr[i - 1]:
-                t = (threshold - y_arr[i - 1]) / (y_arr[i] - y_arr[i - 1])
-                right_x = x_arr[i - 1] + t * (x_arr[i] - x_arr[i - 1])
-            else:
-                right_x = x_arr[i]
-            break
+
+    # Left: rightmost index left of peak that drops to/below threshold
+    below_left = np.where(y_arr[:peak_idx] <= threshold)[0]
+    if below_left.size:
+        i = below_left[-1]
+        denom = y_arr[i + 1] - y_arr[i]
+        t = (threshold - y_arr[i]) / denom if denom != 0 else 0.0
+        left_x = x_arr[i] + t * (x_arr[i + 1] - x_arr[i])
+    else:
+        left_x = None
+
+    # Right: leftmost index right of peak that drops to/below threshold
+    below_right = np.where(y_arr[peak_idx + 1:] <= threshold)[0]
+    if below_right.size:
+        i = peak_idx + 1 + below_right[0]
+        denom = y_arr[i] - y_arr[i - 1]
+        t = (threshold - y_arr[i - 1]) / denom if denom != 0 else 0.0
+        right_x = x_arr[i - 1] + t * (x_arr[i] - x_arr[i - 1])
+    else:
+        right_x = None
+
     return left_x, right_x
 
 
@@ -260,33 +264,28 @@ def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
     yi = np.linspace(y_min, y_max, grid_height)
 
     # --- Bin data into grid cells and take median per cell (Java: HashMap) ---
-    grid = np.full((grid_height, grid_width), np.nan)
-    cell_values = {}  # (ix, iy) → list of values
+    ix = np.clip(((xv - x_min) / lon_step if lon_step > 0
+                  else np.zeros(len(xv))).astype(int), 0, grid_width - 1)
+    iy = np.clip(((yv - y_min) / lat_step if lat_step > 0
+                  else np.zeros(len(yv))).astype(int), 0, grid_height - 1)
+    cell_key = iy * grid_width + ix
+    medians = pd.Series(vv).groupby(cell_key).median()
+    grid = np.full(grid_height * grid_width, np.nan)
+    grid[medians.index.values] = medians.values
+    grid = grid.reshape(grid_height, grid_width)
 
-    for k in range(len(xv)):
-        ix = int((xv[k] - x_min) / lon_step) if lon_step > 0 else 0
-        iy = int((yv[k] - y_min) / lat_step) if lat_step > 0 else 0
-        ix = min(ix, grid_width - 1)
-        iy = min(iy, grid_height - 1)
-        cell_values.setdefault((ix, iy), []).append(vv[k])
+    # Physical (x, y) position of every cell that has measured data.
+    d_iy, d_ix = np.unravel_index(medians.index.values, (grid_height, grid_width))
+    data_pts = np.column_stack([xi[d_ix], yi[d_iy]])
 
-    for (ix, iy), vals in cell_values.items():
-        grid[iy, ix] = float(np.median(vals))
-
-    # --- Blanking distance mask — circular (Euclidean distance in metres) ---
+    # --- Circular blanking via KDTree (Euclidean distance in metres) ---
     if blanking_distance is None:
-        blanking_distance = cell_size * 10  # reasonable default
+        blanking_distance = cell_size * 10
 
-    # Pre-compute physical (x, y) coordinates of every grid cell once.
     gy_all, gx_all = np.mgrid[0:grid_height, 0:grid_width]
-    gx_coords = xi[gx_all]  # shape (grid_height, grid_width), metres
-    gy_coords = yi[gy_all]  # shape (grid_height, grid_width), metres
-    bd2 = blanking_distance ** 2
-
-    visible = np.zeros((grid_height, grid_width), dtype=bool)
-    for (ix, iy) in cell_values.keys():
-        dist2 = (gx_coords - xi[ix]) ** 2 + (gy_coords - yi[iy]) ** 2
-        visible |= dist2 <= bd2
+    grid_pts = np.column_stack([xi[gx_all.ravel()], yi[gy_all.ravel()]])
+    dists, _ = cKDTree(data_pts).query(grid_pts)
+    visible = (dists <= blanking_distance).reshape(grid_height, grid_width)
 
     # --- Fill missing cells with global median, then interpolate ---
     # Java fills missing visible cells with median before calling
@@ -467,72 +466,8 @@ def sample_grid_at_points(grid, xi, yi, x_m, y_m):
 
 def _grid_x_derivative(grid, cell_width):
     """
-    X-derivative on a 2D grid.
-    Matches Java AnalyticSignalFilter.getXDerivative() exactly:
-      - 5-point stencil for interior columns (j in 2..n-3)
-      - 3-point central for j=1 and j=n-2
-      - Forward/backward difference at edges j=0, j=n-1
-    NaN propagation matches Java (NaN if any input is NaN).
-    """
-    m, n = grid.shape
-    dx = np.full((m, n), np.nan)
-
-    for i in range(m):
-        for j in range(n):
-            if j > 1 and j < n - 2:
-                v = [grid[i][j - 2], grid[i][j - 1], grid[i][j + 1], grid[i][j + 2]]
-                if not any(np.isnan(v)):
-                    dx[i, j] = (-grid[i][j + 2] + 8.0 * grid[i][j + 1]
-                                - 8.0 * grid[i][j - 1] + grid[i][j - 2]) / (12.0 * cell_width)
-                    continue
-            if j > 0 and j < n - 1:
-                if not (np.isnan(grid[i][j - 1]) or np.isnan(grid[i][j + 1])):
-                    dx[i, j] = (grid[i][j + 1] - grid[i][j - 1]) / (2.0 * cell_width)
-                    continue
-            if j == 0 and j < n - 1:
-                if not (np.isnan(grid[i][j]) or np.isnan(grid[i][j + 1])):
-                    dx[i, j] = (grid[i][j + 1] - grid[i][j]) / cell_width
-            elif j == n - 1 and j > 0:
-                if not (np.isnan(grid[i][j]) or np.isnan(grid[i][j - 1])):
-                    dx[i, j] = (grid[i][j] - grid[i][j - 1]) / cell_width
-
-    return dx
-
-
-def _grid_y_derivative(grid, cell_height):
-    """
-    Y-derivative on a 2D grid.
-    Matches Java AnalyticSignalFilter.getYDerivative() exactly.
-    """
-    m, n = grid.shape
-    dy = np.full((m, n), np.nan)
-
-    for i in range(m):
-        for j in range(n):
-            if i > 1 and i < m - 2:
-                v = [grid[i - 2][j], grid[i - 1][j], grid[i + 1][j], grid[i + 2][j]]
-                if not any(np.isnan(v)):
-                    dy[i, j] = (-grid[i + 2][j] + 8.0 * grid[i + 1][j]
-                                - 8.0 * grid[i - 1][j] + grid[i - 2][j]) / (12.0 * cell_height)
-                    continue
-            if i > 0 and i < m - 1:
-                if not (np.isnan(grid[i - 1][j]) or np.isnan(grid[i + 1][j])):
-                    dy[i, j] = (grid[i + 1][j] - grid[i - 1][j]) / (2.0 * cell_height)
-                    continue
-            if i == 0 and i < m - 1:
-                if not (np.isnan(grid[i][j]) or np.isnan(grid[i + 1][j])):
-                    dy[i, j] = (grid[i + 1][j] - grid[i][j]) / cell_height
-            elif i == m - 1 and i > 0:
-                if not (np.isnan(grid[i][j]) or np.isnan(grid[i - 1][j])):
-                    dy[i, j] = (grid[i][j] - grid[i - 1][j]) / cell_height
-
-    return dy
-
-
-def _grid_x_derivative_vectorised(grid, cell_width):
-    """
-    Vectorised version of _grid_x_derivative (much faster for large grids).
-    Matches Java logic: 5-point → 3-point → forward/backward.
+    X-derivative matching Java AnalyticSignalFilter.getXDerivative():
+    5-point stencil → 3-point central → forward/backward at edges.
     """
     m, n = grid.shape
     dx = np.full((m, n), np.nan)
@@ -574,9 +509,10 @@ def _grid_x_derivative_vectorised(grid, cell_width):
     return dx
 
 
-def _grid_y_derivative_vectorised(grid, cell_height):
+def _grid_y_derivative(grid, cell_height):
     """
-    Vectorised version of _grid_y_derivative.
+    Y-derivative matching Java AnalyticSignalFilter.getYDerivative():
+    5-point stencil → 3-point central → forward/backward at edges.
     """
     m, n = grid.shape
     dy = np.full((m, n), np.nan)
@@ -693,12 +629,8 @@ def compute_as_2d(grid, cell_width, cell_height):
     grid_filled = _fill_nan_priority_queue(grid, cell_width, cell_height)
 
     # Step 2-3: Compute derivatives on the filled grid
-    if m * n > 500:
-        dx = _grid_x_derivative_vectorised(grid_filled, cell_width)
-        dy = _grid_y_derivative_vectorised(grid_filled, cell_height)
-    else:
-        dx = _grid_x_derivative(grid_filled, cell_width)
-        dy = _grid_y_derivative(grid_filled, cell_height)
+    dx = _grid_x_derivative(grid_filled, cell_width)
+    dy = _grid_y_derivative(grid_filled, cell_height)
 
     dz = _grid_z_derivative(grid_filled, cell_width, cell_height)
 
@@ -1027,6 +959,7 @@ def main():
         "Quality_Flag",
     }
     original_cols = [c for c in data.columns if c not in _SCRIPT_OUTPUT_COLS]
+    data = data[original_cols]  # drop any stale script-output columns from previous runs
 
     missing = [c for c in [mag_col, "Latitude", "Longitude"] if c not in data.columns]
     if missing:
@@ -1123,9 +1056,6 @@ def main():
     # ------------------------------------------------------------------
     # Output arrays
     # ------------------------------------------------------------------
-    out_tmi_anom = tmi_detrended.copy()
-    out_igrf = igrf_values.copy()
-    out_as = np.round(as_at_points, 6)
     out_dist_a = np.full(n_rows, np.nan)
     out_depth_a = np.full(n_rows, np.nan)
     out_dist_b = np.full(n_rows, np.nan)
@@ -1192,16 +1122,12 @@ def main():
         out[np.isnan(arr)] = ""
         return out
 
-    data["TMI_anom"] = _as_col(out_tmi_anom)
-    data["IGRF_field"] = _as_col(out_igrf)
-    data["Analytic_Signal"] = _as_col(out_as)
     data["Estimated_Distance_A"] = _as_col(out_dist_a)
-    data["Estimated_Depth_A"] = _as_col(out_depth_a)
+    data["Estimated_Depth_A"]    = _as_col(out_depth_a)
     data["Estimated_Distance_B"] = _as_col(out_dist_b)
-    data["Estimated_Depth_B"] = _as_col(out_depth_b)
-    data["Estimated_Distance"] = _as_col(out_dist_mean)
-    data["Estimated_Depth"] = _as_col(out_depth_mean)
-    data["Quality_Flag"] = out_quality
+    data["Estimated_Depth_B"]    = _as_col(out_depth_b)
+    data["Estimated_Distance"]   = _as_col(out_dist_mean)
+    data["Estimated_Depth"]      = _as_col(out_depth_mean)
 
     print(f"Writing result to {input_path}")
     data.to_csv(input_path, index=False, sep=CSV_SEPARATOR)
@@ -1211,8 +1137,9 @@ def main():
     targets_df = data.loc[target_mask, original_cols + [
         "Estimated_Distance_A", "Estimated_Depth_A",
         "Estimated_Distance_B", "Estimated_Depth_B",
-        "Estimated_Distance", "Estimated_Depth",
+        "Estimated_Distance",   "Estimated_Depth",
     ]].copy()
+    targets_df["Quality_Flag"] = out_quality[target_mask]
     print(f"Writing targets to {targets_path}")
     targets_df.to_csv(targets_path, index=False, sep=CSV_SEPARATOR)
     print(f"Done. {anomaly_id} anomaly group(s) processed.")

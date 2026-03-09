@@ -10,13 +10,6 @@
       "required": true
     },
     {
-      "name": "altitude-amsl-column",
-      "display_name": "Altitude AMSL column",
-      "type": "COLUMN_NAME",
-      "default_value": "",
-      "required": false
-    },
-    {
       "name": "altitude-agl-column",
       "display_name": "Altitude AGL column",
       "type": "COLUMN_NAME",

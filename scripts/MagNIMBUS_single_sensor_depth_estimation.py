@@ -7,12 +7,8 @@ import pandas as pd
 from scipy.interpolate import griddata, RBFInterpolator
 from scipy.spatial import cKDTree
 from scipy.ndimage import uniform_filter
+from scipy.signal import butter, filtfilt
 from script_utils import normalize_input_stem
-
-try:
-    import ppigrf
-except ImportError:
-    ppigrf = None
 
 try:
     import matplotlib
@@ -33,7 +29,9 @@ MIN_WINDOW_SAMPLES = 20
 K_FACTOR = 1.0
 CB_FACTOR = 3.0
 MAX_PEAK_OFFSET_M = 2.0
-AS_PEAK_SEARCH_RADIUS_M = 5.0
+AS_PEAK_SEARCH_RADIUS_M = 5.0   # radius used by the weight estimator b_max search
+ANOMALY_CENTER_RADIUS_M = 15.0  # larger radius for AS-peak / Method B: handles marks placed
+                                 # up to ~15 m before the actual anomaly centre
 DIPOLE_CHECK_RADIUS_M = 15.0
 METHOD_DISAGREE_THRESHOLD = 0.35
 MIN_HALFWIDTH_M = 0.5
@@ -41,7 +39,33 @@ MAX_HALFWIDTH_M = 50.0
 SPATIAL_BIN_M = 0.5
 MIN_AS_THRESHOLD = 1.0      # nT/m — AS values below this are noise; Method B is skipped
 MAX_DISTANCE_M   = 20.0     # m    — distances above this are discarded as implausible
-DEPTH_WARNING_THRESHOLD_M = 2.0  # m — estimated depths above this get Quality_Flag = WARNING
+# Background removal (Step 4)
+BACKGROUND_METHOD    = "lowpass"  # "lowpass" or "linear" (legacy polynomial fit)
+LOWPASS_WAVELENGTH_M = 15.0       # m — spatial cut-off wavelength for Butterworth LP filter
+                                   #     internally: f_cut = 1/λ (cycles/m)
+                                   # 15 m captures geological features (wavelength ~20 m) in the
+                                   # background while leaving target anomalies (< 10 m) in the
+                                   # residual.  30 m was too coarse for dense geological terrain.
+# Mass estimation constants (spec_mass_estimation.md v0.3)
+K_DIPOLE            = 5e-3      # A·m²·nT⁻¹·m⁻³  — dipole moment coefficient (exact, physical)
+DEFAULT_IGRF_NT     = 50000.0   # nT — fallback Earth field when IGRF unavailable
+DENSITY_STEEL       = 7800.0    # kg/m³ — default material density
+CHI_STEEL           = 200.0     # SI — relative susceptibility of steel (rod geometry)
+N_SPHERE            = 1.0 / 3.0 # demagnetisation factor, sphere
+# Calibrated effective magnetisation for sphere geometry (spec v0.3, Section 2.3).
+# Geometric-mean fit to 5 steel objects (9–26 kg, Brandenburg 2024 ground-truth survey).
+# J_EFF_SPHERE_AM ≈ 17.7 × theoretical induced-only value (119 A/m), accounting for the
+# remanent (permanent) magnetisation component common in steel tools / ordnance.
+# Calibrated K_M = 5e-3 × 7800 / 2112 ≈ 0.01847 kg/(nT·m³)  [was 0.327 before calibration]
+J_EFF_SPHERE_AM     = 2112.0    # A/m — calibrated J_eff, sphere (induced + remanent)
+# Fraction of the harmonic distance used to bracket weight_min / weight_max.
+# Because W ∝ D³ a small distance spread maps to a large weight spread.
+# 4.4 % in D  →  ((1+f)/(1−f))³ ≈ 1.30  →  ≈ 30 % weight range.
+WEIGHT_SPREAD_D_FRAC = 0.044
+# When dist_A (FWHM) exceeds this multiple of dist_B (AS-ratio), the half-width
+# search is assumed to have latched onto window-padding artefacts (e.g. on a
+# short stationary traverse) and dist_B is preferred as the central estimate.
+LARGE_FWHM_RATIO     = 2.5
 CSV_SEPARATOR = ","
 # Default grid cell size (metres).  If not supplied, estimated from data.
 DEFAULT_CELL_SIZE_M = None
@@ -63,26 +87,6 @@ def build_along_track(lats, lons):
     return np.concatenate([[0.0], np.cumsum(seg)])
 
 
-def compute_igrf(lons, lats, alts_m, timestamps):
-    if ppigrf is None:
-        print("Warning: ppigrf not installed — IGRF skipped, TMI used as anomaly.")
-        return np.zeros(len(lats))
-    ts = pd.to_datetime(pd.Series(timestamps), errors="coerce")
-    date_series = ts.dt.date
-    result = np.zeros(len(lats))
-    for d in date_series.dropna().unique():
-        mask = (date_series == d).values
-        if not mask.any():
-            continue
-        mean_lat = float(np.nanmean(lats[mask]))
-        mean_lon = float(np.nanmean(lons[mask]))
-        mean_alt_km = float(np.nanmean(alts_m[mask])) / 1000.0
-        try:
-            Be, Bn, Bu = ppigrf.igrf(mean_lon, mean_lat, mean_alt_km, d)
-            result[mask] = float(np.sqrt(Be ** 2 + Bn ** 2 + Bu ** 2))
-        except Exception:
-            pass
-    return result
 
 
 def split_into_lines(ts_series, gap_seconds=LINE_GAP_SECONDS):
@@ -123,12 +127,64 @@ def aggregate_spatial(x, tmi, marks, agl, lat, lon, ts, bin_m=SPATIAL_BIN_M):
     )
 
 
-def remove_trend(tmi_anom, x, marks, degree=TREND_DEGREE, min_samples=MIN_TREND_SAMPLES):
-    unmarked = marks == 0
-    if unmarked.sum() < min_samples:
-        return tmi_anom.copy(), True
-    coeffs = np.polyfit(x[unmarked], tmi_anom[unmarked], degree)
-    return tmi_anom - np.polyval(coeffs, x), False
+def remove_background(tmi, x_pos, wavelength_m=LOWPASS_WAVELENGTH_M,
+                      method=BACKGROUND_METHOD, marks=None,
+                      degree=TREND_DEGREE, min_samples=MIN_TREND_SAMPLES):
+    """
+    Remove slowly-varying background from TMI along one flight line.
+
+    method='linear'  — polynomial fit to unmarked points (legacy behaviour).
+    method='lowpass' — spatial Butterworth LP filter (zero-phase, 4th-order) on a
+                       uniform spatial grid, followed by a rolling spatial median for
+                       robustness against residual spikes, then interpolated back to
+                       the original sample positions.
+
+    Returns (tmi_detrended, is_poor_fit).
+    """
+    if method == "linear":
+        unmarked = (marks == 0) if marks is not None else np.ones(len(tmi), dtype=bool)
+        if unmarked.sum() < min_samples:
+            return tmi.copy(), True
+        coeffs = np.polyfit(x_pos[unmarked], tmi[unmarked], degree)
+        return tmi - np.polyval(coeffs, x_pos), False
+
+    # ── lowpass path ──────────────────────────────────────────────────────────
+    n = len(tmi)
+    if n < 4:
+        return tmi.copy(), True
+
+    x0, x1 = float(x_pos[0]), float(x_pos[-1])
+    track_len = x1 - x0
+    if track_len <= 0.0 or track_len < wavelength_m * 0.5:
+        # Line too short for chosen wavelength — subtract constant mean
+        return tmi - np.nanmean(tmi), True   # is_poor = True
+
+    # 1. Resample to uniform spatial grid at DS m spacing
+    DS = 0.5  # m
+    x_u = np.arange(x0, x1 + DS, DS)
+    tmi_u = np.interp(x_u, x_pos, tmi)
+
+    # 2. Butterworth LP filter (spatial domain)
+    #    f_cut = 1 / wavelength_m  (cycles/m)
+    #    f_nyq = 1 / (2 * DS)
+    #    Wn    = f_cut / f_nyq  =  2 * DS / wavelength_m
+    Wn = min(2.0 * DS / wavelength_m, 0.99)
+    b_f, a_f = butter(4, Wn, btype="low")
+    if len(tmi_u) < 3 * max(len(a_f), len(b_f)):
+        return tmi - np.nanmean(tmi), True
+
+    bg_lp = filtfilt(b_f, a_f, tmi_u)
+
+    # 3. Rolling spatial median — additional guard against residual anomaly spikes
+    win = max(3, int(round(wavelength_m / DS)))
+    bg = (pd.Series(bg_lp)
+          .rolling(win, center=True, min_periods=1)
+          .median()
+          .to_numpy())
+
+    # 4. Interpolate background back to original (irregular) sample positions
+    background = np.interp(x_pos, x_u, bg)
+    return tmi - background, False
 
 
 def find_local_halfwidth(x_arr, y_arr, peak_idx):
@@ -693,8 +749,11 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
         mark_center_x = (float(np.mean(marked_x_arr)) if len(marked_x_arr) > 0
                          else float(np.median(window_x)))
 
-    near_mask = ((x_valid >= mark_center_x - AS_PEAK_SEARCH_RADIUS_M) &
-                 (x_valid <= mark_center_x + AS_PEAK_SEARCH_RADIUS_M))
+    # Use ANOMALY_CENTER_RADIUS_M (larger than AS_PEAK_SEARCH_RADIUS_M) so the
+    # AS peak is found even when the operator placed marks several metres before
+    # actually crossing the anomaly centre.
+    near_mask = ((x_valid >= mark_center_x - ANOMALY_CENTER_RADIUS_M) &
+                 (x_valid <= mark_center_x + ANOMALY_CENTER_RADIUS_M))
     if near_mask.any():
         near_indices = np.where(near_mask)[0]
         as_peak_local = int(near_indices[int(np.argmax(AS_valid[near_mask]))])
@@ -722,24 +781,30 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
             flags.add("wide_anomaly")
             distance_A = None
 
-    # --- Method B: AS Ratio ---
-    marked_b = window_b[marked_mask_in_window]
-    marked_as = AS[marked_mask_in_window]
-    b_max_nT = distance_B = None
+    # --- Method B: AS Ratio (spec Section 2.3) ---
+    # d_B = C_B * |B(x_AS_peak)| / A(x_AS_peak)
+    #
+    # Both b and AS are evaluated at the AS-peak position — the best available
+    # estimate of the anomaly centre.  Using the AS peak (rather than marked bins)
+    # ensures that an offset mark (operator walking toward a target and pressing
+    # the button before crossing it) does not bias the ratio:
+    #   • At the true centre: dB/dx ≈ 0, A(0) = 3|B_max|/D → d_B = D ✓
+    #   • At the AS peak the AS/B ratio is correct by construction; a systematic
+    #     AS inflation that affects all targets equally is largely cancelled in the
+    #     ratio, making Method B self-consistent.
+    b_at_as_peak = float(window_b[as_peak_idx])
+    b_max_nT     = b_at_as_peak      # recorded for output / diagnostics
+    distance_B   = None
 
-    if len(marked_b) == 0:
+    if AS_max < MIN_AS_THRESHOLD:
+        flags.add("peak_mismatch")
+    elif abs(b_at_as_peak) < 1.0:
         flags.add("peak_mismatch")
     else:
-        b_max_idx = int(np.argmax(np.abs(marked_b)))
-        b_max_nT = float(marked_b[b_max_idx])
-        AS_at_peak = float(marked_as[b_max_idx])
-        if AS_at_peak < MIN_AS_THRESHOLD:
+        distance_B = CB_FACTOR * abs(b_at_as_peak) / AS_max
+        if distance_B > MAX_DISTANCE_M:
             flags.add("peak_mismatch")
-        else:
-            distance_B = CB_FACTOR * abs(b_max_nT) / AS_at_peak
-            if distance_B > MAX_DISTANCE_M:
-                flags.add("peak_mismatch")
-                distance_B = None
+            distance_B = None
 
     # --- Dipole check ---
     dipole_mask = ((window_x >= mark_center_x - DIPOLE_CHECK_RADIUS_M) &
@@ -793,16 +858,46 @@ def resolve_timestamp(data):
     )
 
 
-def resolve_altitude_for_igrf(data, alt_amsl_col, alt_agl_col):
-    for col in [alt_amsl_col, alt_agl_col]:
-        if col and col in data.columns:
-            vals = pd.to_numeric(data[col], errors="coerce")
-            if vals.notna().any():
-                if col == alt_agl_col and alt_amsl_col and alt_amsl_col not in data.columns:
-                    print(f"Info: Using '{alt_agl_col}' as IGRF altitude proxy.")
-                return vals.fillna(0).values
-    print("Info: No altitude column for IGRF — using 0 m (error < 1 nT).")
-    return np.zeros(len(data))
+
+# ---------------------------------------------------------------------------
+# Mass estimation (spec_mass_estimation.md Steps 15–18)
+# ---------------------------------------------------------------------------
+
+def estimate_weight(b_max_nt, distance_m, igrf_nt, density, geometry):
+    """
+    Estimate source weight from peak field and sensor-to-source distance.
+
+    Steps (spec_mass_estimation.md v0.3):
+      15. J_eff = J_EFF_SPHERE_AM  (sphere, calibrated incl. remanence)
+                  or  chi_steel·B_earth/µ0  (rod, theoretical induced only)
+      16. m     = K_DIPOLE · |B_max| [nT] · D³ [m³]
+      17. V     = m / J_eff ;  M = density · V
+
+    Sphere J_eff uses the empirically calibrated constant J_EFF_SPHERE_AM = 2112 A/m,
+    which is the geometric-mean fit to 5 steel ground-truth objects (9–26 kg) and
+    accounts for typical remanent magnetisation (≈ 17.7× induced-only value of 119 A/m).
+
+    Returns weight_kg (float) or None when computation is not possible.
+    """
+    MU0 = 4.0 * math.pi * 1e-7
+
+    if b_max_nt is None or distance_m is None:
+        return None
+
+    if b_max_nt <= 0.0:
+        return None
+
+    b_earth_t = igrf_nt * 1e-9
+    if geometry == "rod":
+        j_eff = CHI_STEEL * b_earth_t / MU0   # theoretical, induced only
+    else:                                      # sphere (default) — calibrated
+        j_eff = J_EFF_SPHERE_AM
+
+    m_moment  = K_DIPOLE * b_max_nt * (distance_m ** 3)   # A·m²
+    volume    = m_moment / j_eff                            # m³
+    weight_kg = density * volume                            # kg
+
+    return round(weight_kg, 2)
 
 
 # ---------------------------------------------------------------------------
@@ -815,8 +910,10 @@ def _process_anomaly_group(
         agg_as,
         orig_line_idx, orig_x, orig_marks,
         poor_trend_fit,
-        out_dist_a, out_depth_a, out_dist_b, out_depth_b,
-        out_dist_mean, out_depth_mean, out_quality, out_error_pct,
+        density, geometry,
+        out_dist_min, out_depth_min, out_dist_max, out_depth_max,
+        out_dist_avg, out_depth_avg,
+        out_weight_min, out_weight_max, out_weight_avg,
 ):
     x_start = agg_x[g_start] - WINDOW_PADDING_M
     x_end = agg_x[g_end] + WINDOW_PADDING_M
@@ -831,7 +928,6 @@ def _process_anomaly_group(
             (orig_x <= grp_agg_x_end + SPATIAL_BIN_M) &
             (orig_marks == 1)
             ]
-        out_quality[orig_in_group] = "WARNING"
         return
 
     win_x = agg_x[win_idx]
@@ -858,107 +954,136 @@ def _process_anomaly_group(
     mean_agl = float(np.mean(valid_agl)) if len(valid_agl) > 0 else np.nan
 
     def _depth(dist):
+        """Distance → depth below ground (clamped to 0). None if AGL unknown."""
         if dist is None or math.isnan(mean_agl):
-            return None, False
-        d = dist - mean_agl
-        return max(0.0, d), d < 0
+            return None
+        return max(0.0, dist - mean_agl)
 
     dist_a = result["distance_A"]
     dist_b = result["distance_B"]
-    dist_mean = result["distance_mean"]
-    depth_a_val, neg_a = _depth(dist_a)
-    depth_b_val, neg_b = _depth(dist_b)
 
-    if neg_a:
-        flags.add("negative_depth_A")
-    if neg_b:
-        flags.add("negative_depth_B")
+    # ── Distance range: [min(A, B), max(A, B)] ───────────────────────────────
+    valid_dists = [d for d in (dist_a, dist_b) if d is not None]
+    if valid_dists:
+        dist_min_out = min(valid_dists)
+        dist_max_out = max(valid_dists)
+    else:
+        dist_min_out = dist_max_out = None
 
-    depth_mean_val = None
-    dist_mean_out = dist_mean
-    is_dipole = "dipole_anomaly" in flags
+    depth_min_out = _depth(dist_min_out)
+    depth_max_out = _depth(dist_max_out)
 
-    if depth_a_val is not None and depth_b_val is not None:
-        if neg_b and not neg_a:
-            depth_mean_val = depth_a_val
-            dist_mean_out = dist_a
-        elif neg_a and not neg_b:
-            depth_mean_val = depth_b_val
-            dist_mean_out = dist_b
-        elif dist_mean is not None:
-            if (not is_dipole
-                    and "method_disagreement" in flags
-                    and dist_a is not None and dist_b is not None):
-                if dist_a < dist_b:
-                    # Narrow FWHM (e.g. interference from a nearby anomaly)
-                    # makes Method A underestimate — trust Method B instead.
-                    depth_mean_val = depth_b_val
-                    dist_mean_out = dist_b
-                else:
-                    # Inflated AS (e.g. grid interpolation noise) makes
-                    # Method B underestimate — trust Method A instead.
-                    depth_mean_val = depth_a_val
-                    dist_mean_out = dist_a
-            else:
-                depth_mean_val = (depth_a_val + depth_b_val) / 2.0
-
-    if depth_mean_val is None:
-        if depth_b_val is not None:
-            depth_mean_val = depth_b_val
-            dist_mean_out = dist_b
-        elif depth_a_val is not None:
-            depth_mean_val = depth_a_val
-            dist_mean_out = dist_a
-
-    # Quality flag: WARNING if depth could not be estimated or exceeds threshold.
-    quality = ("WARNING"
-               if depth_mean_val is None or depth_mean_val > DEPTH_WARNING_THRESHOLD_M
-               else "OK")
-
-    # Error percent: estimated depth as a percentage of the 2 m warning threshold.
-    # 100 % = exactly at the limit; > 100 % = over the limit (only written for WARNING).
-    error_pct_val = None
-    if depth_mean_val is not None:
-        error_pct_val = round(depth_mean_val / DEPTH_WARNING_THRESHOLD_M * 100.0, 1)
+    # Best-estimate distance — rule-based selection with harmonic-mean fallback.
+    #
+    # Rule 1 (physical impossibility):
+    #   dist_B < mean_agl  →  AS-ratio method claims the target is closer than
+    #   the sensor height, which is impossible.  The FWHM estimate is far less
+    #   sensitive to AS grid noise; fall back to dist_A alone.
+    #
+    # Rule 2 (inflated FWHM):
+    #   dist_A > LARGE_FWHM_RATIO × dist_B  →  the half-width search found its
+    #   half-amplitude points far outside the true anomaly (e.g. on a short
+    #   stationary traverse where the AS profile pedestal is wide). The AS-ratio
+    #   estimator is locally computed and is more trustworthy; use dist_B alone.
+    #
+    # Fallback: harmonic mean — pulled toward the smaller, more reliable value
+    #   compared with the arithmetic mean, with no effect when both methods agree.
+    if dist_a is not None and dist_b is not None:
+        if not math.isnan(mean_agl) and dist_b < mean_agl:
+            # Rule 1: AS-ratio result is sub-AGL → trust FWHM only
+            dist_avg_out = dist_a
+        elif dist_a > LARGE_FWHM_RATIO * dist_b:
+            # Rule 2: FWHM >> AS-ratio → FWHM is window-inflated → trust AS-ratio
+            dist_avg_out = dist_b
+        else:
+            _sum = dist_a + dist_b
+            dist_avg_out = (2.0 * dist_a * dist_b / _sum if _sum > 0.0 else dist_a)
+    else:
+        dist_avg_out = dist_a if dist_a is not None else dist_b
+    depth_avg_out = _depth(dist_avg_out)
 
     grp_orig_marked = orig_line_idx[
         (orig_x >= agg_x[g_start] - SPATIAL_BIN_M) &
         (orig_x <= agg_x[g_end] + SPATIAL_BIN_M) &
         (orig_marks == 1)
         ]
-    out_quality[grp_orig_marked] = quality
-    if dist_a is not None:
-        out_dist_a[grp_orig_marked] = round(dist_a, 4)
-    if depth_a_val is not None:
-        out_depth_a[grp_orig_marked] = round(depth_a_val, 4)
-    if dist_b is not None:
-        out_dist_b[grp_orig_marked] = round(dist_b, 4)
-    if depth_b_val is not None:
-        out_depth_b[grp_orig_marked] = round(depth_b_val, 4)
-    if dist_mean_out is not None:
-        out_dist_mean[grp_orig_marked] = round(dist_mean_out, 4)
-    if depth_mean_val is not None:
-        out_depth_mean[grp_orig_marked] = round(depth_mean_val, 4)
-    if error_pct_val is not None and quality == "WARNING":
-        out_error_pct[grp_orig_marked] = error_pct_val
+    if dist_min_out is not None:
+        out_dist_min[grp_orig_marked] = round(dist_min_out, 4)
+    if depth_min_out is not None:
+        out_depth_min[grp_orig_marked] = round(depth_min_out, 4)
+    if dist_max_out is not None:
+        out_dist_max[grp_orig_marked] = round(dist_max_out, 4)
+    if depth_max_out is not None:
+        out_depth_max[grp_orig_marked] = round(depth_max_out, 4)
+    if dist_avg_out is not None:
+        out_dist_avg[grp_orig_marked] = round(dist_avg_out, 4)
+    if depth_avg_out is not None:
+        out_depth_avg[grp_orig_marked] = round(depth_avg_out, 4)
+
+    # ── Weight estimation (Steps 15–18) ──────────────────────────────────────
+    # |B_max|: maximum |TMI_anom| within ±AS_PEAK_SEARCH_RADIUS_M of the mark
+    # centre across the full window (not just the marked bins).
+    # Rationale: the operator often presses the mark button while still walking
+    # toward the anomaly peak, so the marked bin under-represents the true peak
+    # field amplitude.  Searching the neighbourhood gives a more physically
+    # correct b_max for the weight formula.  Falls back to the marked-bins
+    # maximum if no window bins fall within the search radius.
+    if mark_center_x is not None:
+        near_mark = np.abs(win_x - mark_center_x) <= AS_PEAK_SEARCH_RADIUS_M
+        if near_mark.any():
+            b_max_nt = float(np.max(np.abs(win_b[near_mark])))
+        elif marked_in_win.any():
+            b_max_nt = float(np.max(np.abs(win_b[marked_in_win])))
+        else:
+            b_max_nt = None
+    else:
+        marked_tmi = win_b[marked_in_win]
+        b_max_nt   = float(np.max(np.abs(marked_tmi))) if marked_tmi.size else None
+
+    # Distance used for weight — floor at mean_agl so that a depth-clamped
+    # estimate (D_harm < AGL → depth = 0) still produces a physically valid D.
+    # When D_harm is already ≥ AGL the floor has no effect.
+    if dist_avg_out is not None and not math.isnan(mean_agl):
+        dist_weight = max(dist_avg_out, mean_agl)
+    else:
+        dist_weight = dist_avg_out
+
+    # All three weights are anchored on dist_weight (AGL-floored harmonic
+    # distance).  Min / Max are offset by ±WEIGHT_SPREAD_D_FRAC in D so that
+    # the weight range stays near 30 % regardless of method disagreement.
+    # Using dist_min / dist_max directly would amplify a wide distance band
+    # by D³ and produce a meaningless thousands-of-percent weight range.
+    w_avg = estimate_weight(b_max_nt, dist_weight, DEFAULT_IGRF_NT, density, geometry)
+    if dist_weight is not None:
+        w_min = estimate_weight(b_max_nt, dist_weight * (1.0 - WEIGHT_SPREAD_D_FRAC),
+                                DEFAULT_IGRF_NT, density, geometry)
+        w_max = estimate_weight(b_max_nt, dist_weight * (1.0 + WEIGHT_SPREAD_D_FRAC),
+                                DEFAULT_IGRF_NT, density, geometry)
+    else:
+        w_min = w_max = None
+    if w_min is not None:
+        out_weight_min[grp_orig_marked] = w_min
+    if w_max is not None:
+        out_weight_max[grp_orig_marked] = w_max
+    if w_avg is not None:
+        out_weight_avg[grp_orig_marked] = w_avg
 
 
 def visualize_results(
         grid, xi, yi,
         x_m, y_m, marks,
-        out_dist_a, out_depth_a,
-        out_dist_b, out_depth_b,
-        out_dist_mean, out_depth_mean,
-        out_quality,
+        out_dist_min, out_depth_min,
+        out_dist_max, out_depth_max,
+        out_dist_avg, out_depth_avg,
         png_path,
 ):
     """
     Save a 2×3 figure showing the TMI anomaly grid as background and the
-    estimated depth / distance values labelled at each target location.
+    estimated depth / distance range values labelled at each target location.
 
     Layout:
-        Row 1 :  Estimated_Depth_A   |  Estimated_Depth_B   |  Estimated_Depth
-        Row 2 :  Estimated_Distance_A | Estimated_Distance_B | Estimated_Distance
+        Row 1 :  Estimated_Depth_Min   |  Estimated_Depth_Max   |  Estimated_Depth_Harmonic
+        Row 2 :  Estimated_Distance_Min | Estimated_Distance_Max | Estimated_Distance_Harmonic
     """
     if not _MATPLOTLIB_OK:
         print("Warning: matplotlib not installed — skipping visualisation.")
@@ -974,15 +1099,14 @@ def visualize_results(
     target_mask = marks == 1
     tx = x_m[target_mask]
     ty = y_m[target_mask]
-    t_quality = out_quality[target_mask]
 
     panels = [
-        (out_depth_a[target_mask],    "Estimated_Depth_A"),
-        (out_depth_b[target_mask],    "Estimated_Depth_B"),
-        (out_depth_mean[target_mask], "Estimated_Depth"),
-        (out_dist_a[target_mask],     "Estimated_Distance_A"),
-        (out_dist_b[target_mask],     "Estimated_Distance_B"),
-        (out_dist_mean[target_mask],  "Estimated_Distance"),
+        (out_depth_min[target_mask],  "Estimated_Depth_Min"),
+        (out_depth_max[target_mask],  "Estimated_Depth_Max"),
+        (out_depth_avg[target_mask],  "Estimated_Depth_Harmonic"),
+        (out_dist_min[target_mask],   "Estimated_Distance_Min"),
+        (out_dist_max[target_mask],   "Estimated_Distance_Max"),
+        (out_dist_avg[target_mask],   "Estimated_Distance_Harmonic"),
     ]
 
     # ── Smooth grid (NaN-safe: fill → smooth → restore NaN) ───────────────
@@ -1034,18 +1158,17 @@ def visualize_results(
         ax.set_xlim(xi[0], xi[-1])
         ax.set_ylim(yi[0], yi[-1])
 
-        # Colour per panel: orange if this panel's value is NaN OR quality=WARNING
-        valid     = np.isfinite(vals)
-        ok_sel    = (t_quality == "OK") & valid
-        warn_sel  = (t_quality == "WARNING") | ~valid
+        # Colour per panel: cyan if value is valid, orange if N/A
+        valid    = np.isfinite(vals)
+        invalid  = ~valid
 
         # Target dots
-        if ok_sel.any():
-            ax.scatter(tx[ok_sel], ty[ok_sel],
+        if valid.any():
+            ax.scatter(tx[valid], ty[valid],
                        s=40, c="#00e5ff", edgecolors="black",
                        linewidths=0.6, zorder=5)
-        if warn_sel.any():
-            ax.scatter(tx[warn_sel], ty[warn_sel],
+        if invalid.any():
+            ax.scatter(tx[invalid], ty[invalid],
                        s=40, c="#ff9800", edgecolors="black",
                        linewidths=0.6, zorder=5)
 
@@ -1069,21 +1192,151 @@ def visualize_results(
     legend_handles = [
         Line2D([0], [0], marker="o", color="none", markersize=9,
                markerfacecolor="#00e5ff", markeredgecolor="black",
-               markeredgewidth=0.6, label="OK — depth ≤ 2 m"),
+               markeredgewidth=0.6, label="Estimated"),
         Line2D([0], [0], marker="o", color="none", markersize=9,
                markerfacecolor="#ff9800", markeredgecolor="black",
-               markeredgewidth=0.6, label="WARNING / N/A — depth > 2 m or not estimated"),
+               markeredgewidth=0.6, label="N/A — not estimated"),
     ]
     fig.legend(handles=legend_handles, loc="lower center", ncol=2,
                frameon=True, framealpha=0.25, edgecolor="#555555",
                facecolor="#1a1a1a", fontsize=9,
                labelcolor="white", bbox_to_anchor=(0.5, 0.01))
 
-    fig.suptitle("Depth & Distance Estimation", color="white", fontsize=12)
+    fig.suptitle("Depth & Distance Range Estimation", color="white", fontsize=12)
     plt.savefig(png_path, dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
     plt.close(fig)
     print(f"Visualisation saved to {png_path}")
+
+
+def visualize_weight(
+        grid, xi, yi,
+        x_m, y_m, marks,
+        out_weight_min, out_weight_max, out_weight_avg,
+        density, geometry,
+        png_path,
+):
+    """
+    Save a 1×3 figure showing estimated source weight (min / avg / max) at each target.
+
+    Layout:
+        Estimated_Weight_Min  |  Estimated_Weight_Harmonic  |  Estimated_Weight_Max
+
+    Background: smoothed + hillshaded TMI anomaly grid.
+    Dot colour: cyan = estimated, orange = N/A.
+    """
+    if not _MATPLOTLIB_OK:
+        print("Warning: matplotlib not installed — skipping weight visualisation.")
+        return
+
+    from scipy.ndimage import gaussian_filter
+    from matplotlib.colors import LightSource, Normalize
+    from matplotlib.lines import Line2D
+
+    SMOOTH_SIGMA = 1.5
+    VERT_EXAG    = 3.0
+
+    target_mask = marks == 1
+    tx = x_m[target_mask]
+    ty = y_m[target_mask]
+
+    panels = [
+        (out_weight_min[target_mask], "Estimated_Weight_Min"),
+        (out_weight_avg[target_mask], "Estimated_Weight_Harmonic"),
+        (out_weight_max[target_mask], "Estimated_Weight_Max"),
+    ]
+
+    # ── Smooth + hillshade (same recipe as depth map) ──────────────────────
+    nan_mask    = ~np.isfinite(grid)
+    fill_val    = float(np.nanmedian(grid)) if np.isfinite(grid).any() else 0.0
+    grid_fill   = np.where(nan_mask, fill_val, grid)
+    grid_smooth = gaussian_filter(grid_fill, sigma=SMOOTH_SIGMA)
+    grid_smooth[nan_mask] = np.nan
+
+    finite = grid_smooth[np.isfinite(grid_smooth)]
+    vmax  = float(np.percentile(np.abs(finite), 98)) if finite.size else 1.0
+    norm  = Normalize(vmin=-vmax, vmax=vmax)
+    cmap  = plt.cm.RdYlGn_r
+    ls    = LightSource(azdeg=315, altdeg=45)
+    shade_input = np.where(np.isfinite(grid_smooth), grid_smooth, fill_val)
+    rgb_hs = ls.shade(shade_input, cmap=cmap, norm=norm,
+                      blend_mode="overlay", vert_exag=VERT_EXAG)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+
+    # ── Figure size: preserve spatial aspect ratio ─────────────────────────
+    x_range = max(float(xi[-1] - xi[0]), 1.0)
+    y_range = max(float(yi[-1] - yi[0]), 1.0)
+    panel_w = 6.0
+    panel_h = max(panel_w * (y_range / x_range), 2.5)
+    fig_w   = panel_w * 3 + 1.8
+    fig_h   = panel_h + 1.8
+
+    fig, axes = plt.subplots(1, 3, figsize=(fig_w, fig_h),
+                             constrained_layout=False)
+    fig.patch.set_facecolor("#1a1a1a")
+    fig.subplots_adjust(left=0.04, right=0.97, top=0.90,
+                        bottom=0.12, wspace=0.25)
+
+    extent  = [float(xi[0]), float(xi[-1]), float(yi[0]), float(yi[-1])]
+    outline = [pe.withStroke(linewidth=2, foreground="black")]
+
+    geom_label = "sphere (N=1/3)" if geometry == "sphere" else "rod (χ·H)"
+
+    for ax, (t_weight, title) in zip(axes.flat, panels):
+        ax.set_facecolor("#2a2a2a")
+        ax.imshow(rgb_hs, origin="lower", extent=extent,
+                  aspect="equal", interpolation="bilinear")
+        ax.set_xlim(xi[0], xi[-1])
+        ax.set_ylim(yi[0], yi[-1])
+
+        valid_w   = np.isfinite(t_weight)
+        invalid_w = ~valid_w
+
+        if valid_w.any():
+            ax.scatter(tx[valid_w], ty[valid_w], s=50,
+                       c="#00e5ff", edgecolors="black", linewidths=0.7, zorder=5)
+        if invalid_w.any():
+            ax.scatter(tx[invalid_w], ty[invalid_w], s=50,
+                       c="#ff9800", edgecolors="black", linewidths=0.7, zorder=5)
+
+        for x, y, v in zip(tx[valid_w], ty[valid_w], t_weight[valid_w]):
+            ax.annotate(f"{v:.2f} kg", xy=(x, y),
+                        xytext=(6, 6), textcoords="offset points",
+                        fontsize=8, color="white", fontweight="bold",
+                        path_effects=outline, zorder=6)
+
+        ax.set_title(title, color="white", fontsize=9, pad=4)
+        ax.tick_params(colors="gray", labelsize=7)
+        for spine in ax.spines.values():
+            spine.set_edgecolor("#555555")
+
+        cbar = fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02)
+        cbar.ax.tick_params(colors="gray", labelsize=6)
+        cbar.set_label("nT", color="gray", fontsize=6)
+
+    legend_handles = [
+        Line2D([0], [0], marker="o", color="none", markersize=9,
+               markerfacecolor="#00e5ff", markeredgecolor="black",
+               markeredgewidth=0.7, label="Estimated"),
+        Line2D([0], [0], marker="o", color="none", markersize=9,
+               markerfacecolor="#ff9800", markeredgecolor="black",
+               markeredgewidth=0.7, label="N/A — not estimated"),
+    ]
+    fig.legend(handles=legend_handles, loc="lower center", ncol=2,
+               frameon=True, framealpha=0.25, edgecolor="#555555",
+               facecolor="#1a1a1a", fontsize=8,
+               labelcolor="white", bbox_to_anchor=(0.5, 0.01))
+
+    fig.suptitle(
+        f"Estimated Source Weight  |  density={density:.0f} kg/m³  |  geometry={geom_label}",
+        color="white", fontsize=11,
+    )
+    plt.savefig(png_path, dpi=150, bbox_inches="tight",
+                facecolor=fig.get_facecolor())
+    plt.close(fig)
+    print(f"Weight visualisation saved to {png_path}")
 
 
 def _build_targets_path(input_path, output_dir):
@@ -1107,8 +1360,6 @@ def main():
     parser.add_argument("file_path", help="Input CSV file path")
     parser.add_argument("--mag-column", default="TMI",
                         help="TMI column name (default: TMI)")
-    parser.add_argument("--altitude-amsl-column", default="",
-                        help="Altitude AMSL column for IGRF (optional)")
     parser.add_argument("--altitude-agl-column", default="Altitude AGL",
                         help="Altitude AGL column (default: 'Altitude AGL')")
     parser.add_argument("--output-dir", dest="output_dir", default="",
@@ -1117,11 +1368,14 @@ def main():
                         help="Grid cell size in metres (default: auto from data)")
     parser.add_argument("--blanking-distance", type=float, default=None,
                         help="Blanking distance in metres (default: 10 × cell size)")
+    parser.add_argument("--density", type=float, default=DENSITY_STEEL,
+                        help=f"Material density kg/m³ (default: {DENSITY_STEEL} steel)")
+    parser.add_argument("--geometry", choices=["sphere", "rod"], default="sphere",
+                        help="Magnetisation geometry: sphere (N=1/3) or rod (uses CHI_STEEL)")
     args = parser.parse_args()
 
     input_path = args.file_path
     mag_col = args.mag_column
-    alt_amsl_col = args.altitude_amsl_column.strip()
     alt_agl_col = args.altitude_agl_column.strip()
     mark_col = MARK_COLUMN
 
@@ -1131,11 +1385,16 @@ def main():
     print(f"Reading {input_path}")
     data = pd.read_csv(input_path, sep=CSV_SEPARATOR)
     _SCRIPT_OUTPUT_COLS = {
-        "TMI_anom", "IGRF_field", "Analytic_Signal",
-        "Estimated_Distance_A", "Estimated_Depth_A",
-        "Estimated_Distance_B", "Estimated_Depth_B",
-        "Estimated_Distance", "Estimated_Depth",
-        "Quality_Flag", "Error_Percent",
+        "TMI_anom", "IGRF_field", "Analytic_Signal", "TMI_LPF",
+        "Estimated_Distance_A",   "Estimated_Depth_A",   # legacy — stripped
+        "Estimated_Distance_B",   "Estimated_Depth_B",   # legacy — stripped
+        "Estimated_Distance",     "Estimated_Depth",     # legacy — stripped
+        "Estimated_Distance_Min", "Estimated_Depth_Min",
+        "Estimated_Distance_Max", "Estimated_Depth_Max",
+        "Estimated_Distance_Harmonic", "Estimated_Depth_Harmonic",
+        "Quality_Flag", "Error_Percent",                 # legacy — stripped
+        "Est_Weight", "Weight_Quality_Flag",             # legacy — stripped
+        "Estimated_Weight_Min", "Estimated_Weight_Max", "Estimated_Weight_Harmonic",
     }
     original_cols = [c for c in data.columns if c not in _SCRIPT_OUTPUT_COLS]
     data = data[original_cols]  # drop any stale script-output columns from previous runs
@@ -1145,6 +1404,16 @@ def main():
         print(f"Error: Missing required columns: {', '.join(missing)}")
         sys.exit(1)
 
+    # If the specified AGL column is absent, try common alternative names
+    # (e.g. MagNIMBUS exports "Altitude" rather than "Altitude AGL").
+    _AGL_FALLBACKS = ["Altitude", "AGL", "Height AGL", "Height"]
+    if alt_agl_col and alt_agl_col not in data.columns:
+        for _fb in _AGL_FALLBACKS:
+            if _fb in data.columns and _fb != alt_agl_col:
+                print(f"Warning: AGL column '{alt_agl_col}' not found — "
+                      f"using '{_fb}' instead.")
+                alt_agl_col = _fb
+                break
     has_agl = bool(alt_agl_col and alt_agl_col in data.columns)
 
     # ------------------------------------------------------------------
@@ -1162,18 +1431,11 @@ def main():
     print(f"Found {n_marked} marked point(s)")
 
     # ------------------------------------------------------------------
-    # Timestamps, IGRF, anomaly
+    # Timestamps, raw TMI (no IGRF subtraction — background removed per-line)
     # ------------------------------------------------------------------
     ts_series = resolve_timestamp(data)
 
-    alt_for_igrf = resolve_altitude_for_igrf(data, alt_amsl_col or None, alt_agl_col or None)
-    igrf_values = compute_igrf(
-        data["Longitude"].values,
-        data["Latitude"].values,
-        alt_for_igrf,
-        ts_series.values,
-    )
-    tmi_anom = pd.to_numeric(data[mag_col], errors="coerce").values - igrf_values
+    tmi_raw = pd.to_numeric(data[mag_col], errors="coerce").values
 
     # ------------------------------------------------------------------
     # AGL
@@ -1200,18 +1462,22 @@ def main():
     print(f"Detected {len(lines)} flight line(s)")
 
     # ------------------------------------------------------------------
-    # Per-line trend removal (before gridding)
+    # Per-line background removal (lowpass filter replaces linear trend)
     # ------------------------------------------------------------------
     n_rows = len(data)
     tmi_detrended = np.full(n_rows, np.nan)
+    tmi_lpf       = np.full(n_rows, np.nan)   # background removed in Step 3 → TMI_LPF
     poor_trend_fit = np.zeros(n_rows, dtype=bool)
 
     for line_idx in lines:
         line_marks = marks[line_idx]
         line_x = x_track[line_idx]
-        line_tmi = tmi_anom[line_idx]
-        line_tmi_dt, is_poor = remove_trend(line_tmi, line_x, line_marks)
+        line_tmi = tmi_raw[line_idx]
+        line_tmi_dt, is_poor = remove_background(
+            line_tmi, line_x, marks=line_marks,
+        )
         tmi_detrended[line_idx] = line_tmi_dt
+        tmi_lpf[line_idx]       = line_tmi - line_tmi_dt   # background = raw − residual
         if is_poor:
             poor_trend_fit[line_idx] = True
 
@@ -1225,7 +1491,15 @@ def main():
                                  blanking_distance=args.blanking_distance)
     print(f"Grid dimensions: {grid.shape[0]} rows × {grid.shape[1]} cols")
 
-    as_grid = compute_as_2d(grid, cell_size, cell_size)
+    # Use actual grid step sizes — integer truncation in build_2d_grid means
+    # xi[1]-xi[0] and yi[1]-yi[0] can differ from cell_size, sometimes by >50 %
+    # for narrow walking-survey grids (e.g. y-extent=2 m, cell_size=0.6 m →
+    # grid_height=3 rows, lat_step=1.0 m).  Using the wrong denominator in the
+    # derivative stencils and the wrong wavenumber scale in the FFT z-derivative
+    # would inflate AS values and bias both depth methods.
+    cell_x = float(xi[1] - xi[0]) if len(xi) > 1 else cell_size
+    cell_y = float(yi[1] - yi[0]) if len(yi) > 1 else cell_size
+    as_grid = compute_as_2d(grid, cell_x, cell_y)
 
     # Sample AS grid at original data positions
     as_at_points = sample_grid_at_points(as_grid, xi, yi, x_m, y_m)
@@ -1235,14 +1509,15 @@ def main():
     # ------------------------------------------------------------------
     # Output arrays
     # ------------------------------------------------------------------
-    out_dist_a = np.full(n_rows, np.nan)
-    out_depth_a = np.full(n_rows, np.nan)
-    out_dist_b = np.full(n_rows, np.nan)
-    out_depth_b = np.full(n_rows, np.nan)
-    out_dist_mean = np.full(n_rows, np.nan)
-    out_depth_mean = np.full(n_rows, np.nan)
-    out_quality = np.full(n_rows, "", dtype=object)
-    out_error_pct = np.full(n_rows, np.nan)
+    out_dist_min   = np.full(n_rows, np.nan)
+    out_depth_min  = np.full(n_rows, np.nan)
+    out_dist_max   = np.full(n_rows, np.nan)
+    out_depth_max  = np.full(n_rows, np.nan)
+    out_dist_avg   = np.full(n_rows, np.nan)
+    out_depth_avg  = np.full(n_rows, np.nan)
+    out_weight_min = np.full(n_rows, np.nan)
+    out_weight_max = np.full(n_rows, np.nan)
+    out_weight_avg = np.full(n_rows, np.nan)
 
     anomaly_id = 0
 
@@ -1257,7 +1532,7 @@ def main():
         line_lat = lats[line_idx]
         line_lon = lons[line_idx]
         line_ts = ts_series.values[line_idx]
-        line_as = as_at_points[line_idx]
+        line_as   = as_at_points[line_idx]
 
         if not np.any(line_marks == 1):
             continue
@@ -1290,8 +1565,10 @@ def main():
                 agg_as,
                 line_idx, line_x, line_marks,
                 poor_trend_fit,
-                out_dist_a, out_depth_a, out_dist_b, out_depth_b,
-                out_dist_mean, out_depth_mean, out_quality, out_error_pct,
+                args.density, args.geometry,
+                out_dist_min, out_depth_min, out_dist_max, out_depth_max,
+                out_dist_avg, out_depth_avg,
+                out_weight_min, out_weight_max, out_weight_avg,
             )
 
     # ------------------------------------------------------------------
@@ -1302,12 +1579,16 @@ def main():
         out[np.isnan(arr)] = ""
         return out
 
-    data["Estimated_Distance_A"] = _as_col(out_dist_a)
-    data["Estimated_Depth_A"]    = _as_col(out_depth_a)
-    data["Estimated_Distance_B"] = _as_col(out_dist_b)
-    data["Estimated_Depth_B"]    = _as_col(out_depth_b)
-    data["Estimated_Distance"]   = _as_col(out_dist_mean)
-    data["Estimated_Depth"]      = _as_col(out_depth_mean)
+    data["TMI_LPF"]                    = tmi_lpf
+    data["Estimated_Distance_Min"]     = _as_col(out_dist_min)
+    data["Estimated_Distance_Max"]     = _as_col(out_dist_max)
+    data["Estimated_Distance_Harmonic"] = _as_col(out_dist_avg)
+    data["Estimated_Depth_Min"]        = _as_col(out_depth_min)
+    data["Estimated_Depth_Max"]        = _as_col(out_depth_max)
+    data["Estimated_Depth_Harmonic"]    = _as_col(out_depth_avg)
+    data["Estimated_Weight_Min"]       = _as_col(out_weight_min)
+    data["Estimated_Weight_Max"]       = _as_col(out_weight_max)
+    data["Estimated_Weight_Harmonic"]   = _as_col(out_weight_avg)
 
     print(f"Writing result to {input_path}")
     data.to_csv(input_path, index=False, sep=CSV_SEPARATOR)
@@ -1315,25 +1596,33 @@ def main():
     targets_path = _build_targets_path(input_path, args.output_dir)
     target_mask = marks == 1
     targets_df = data.loc[target_mask, original_cols + [
-        "Estimated_Distance_A", "Estimated_Depth_A",
-        "Estimated_Distance_B", "Estimated_Depth_B",
-        "Estimated_Distance",   "Estimated_Depth",
+        "TMI_LPF",
+        "Estimated_Distance_Min", "Estimated_Distance_Max", "Estimated_Distance_Harmonic",
+        "Estimated_Depth_Min",    "Estimated_Depth_Max",    "Estimated_Depth_Harmonic",
+        "Estimated_Weight_Min",   "Estimated_Weight_Max",   "Estimated_Weight_Harmonic",
     ]].copy()
-    targets_df["Quality_Flag"] = out_quality[target_mask]
-    targets_df["Error_Percent"] = _as_col(out_error_pct)[target_mask]
     print(f"Writing targets to {targets_path}")
     targets_df.to_csv(targets_path, index=False, sep=CSV_SEPARATOR)
 
-    # ── Visualisation ──────────────────────────────────────────────────────
+    # ── Depth/distance visualisation ───────────────────────────────────────
     png_path = targets_path.replace("-targets-as.csv", "-depth-map.png")
     visualize_results(
         grid, xi, yi,
         x_m, y_m, marks,
-        out_dist_a, out_depth_a,
-        out_dist_b, out_depth_b,
-        out_dist_mean, out_depth_mean,
-        out_quality,
+        out_dist_min, out_depth_min,
+        out_dist_max, out_depth_max,
+        out_dist_avg, out_depth_avg,
         png_path,
+    )
+
+    # ── Weight visualisation ─────────────────────────────────────────────────
+    weight_png_path = targets_path.replace("-targets-as.csv", "-weight-map.png")
+    visualize_weight(
+        grid, xi, yi,
+        x_m, y_m, marks,
+        out_weight_min, out_weight_max, out_weight_avg,
+        args.density, args.geometry,
+        weight_png_path,
     )
 
     print(f"Done. {anomaly_id} anomaly group(s) processed.")

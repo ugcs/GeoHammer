@@ -66,6 +66,11 @@ WEIGHT_SPREAD_D_FRAC = 0.044
 # search is assumed to have latched onto window-padding artefacts (e.g. on a
 # short stationary traverse) and dist_B is preferred as the central estimate.
 LARGE_FWHM_RATIO     = 2.5
+# Cap for FWHM half-width asymmetry.  When one half exceeds the other by more
+# than this ratio the longer half is trimmed.  Corrects geological gradients
+# that inflate one side of the AS profile (observed ratio up to ~2.3 on the
+# Brandenburg 2024 test dataset).
+ASYMMETRY_CAP_RATIO  = 1.35
 CSV_SEPARATOR = ","
 # Default grid cell size (metres).  If not supplied, estimated from data.
 DEFAULT_CELL_SIZE_M = None
@@ -770,6 +775,19 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window,
     if left_x is None or right_x is None:
         flags.add("partial_halfwidth")
     else:
+        peak_x   = float(x_valid[as_peak_local])
+        left_hw  = peak_x - float(left_x)
+        right_hw = float(right_x) - peak_x
+        # Asymmetry cap: when one half-width exceeds the other by more than
+        # ASYMMETRY_CAP_RATIO, a geological gradient is likely inflating that
+        # side.  Trim the larger half to cap × smaller half.
+        if left_hw > 0 and right_hw > 0:
+            if left_hw > right_hw * ASYMMETRY_CAP_RATIO:
+                left_hw = right_hw * ASYMMETRY_CAP_RATIO
+                left_x  = peak_x - left_hw
+            elif right_hw > left_hw * ASYMMETRY_CAP_RATIO:
+                right_hw = left_hw * ASYMMETRY_CAP_RATIO
+                right_x  = peak_x + right_hw
         W = right_x - left_x
         halfwidth_m = W
         if W < MIN_HALFWIDTH_M:
@@ -995,6 +1013,11 @@ def _process_anomaly_group(
         elif dist_a > LARGE_FWHM_RATIO * dist_b:
             # Rule 2: FWHM >> AS-ratio → FWHM is window-inflated → trust AS-ratio
             dist_avg_out = dist_b
+        elif dist_b < dist_a:
+            # Rule 3: Method B underestimates (2D-AS inflated by geology or grid
+            # noise → CB_FACTOR × |B|/AS_max gives dist_B < dist_A).  FWHM shape
+            # is more robust to background contamination; trust Method A.
+            dist_avg_out = dist_a
         else:
             _sum = dist_a + dist_b
             dist_avg_out = (2.0 * dist_a * dist_b / _sum if _sum > 0.0 else dist_a)
@@ -1021,14 +1044,16 @@ def _process_anomaly_group(
         out_depth_avg[grp_orig_marked] = round(depth_avg_out, 4)
 
     # ── Weight estimation (Steps 15–18) ──────────────────────────────────────
-    # |B_max|: maximum |TMI_anom| within ±AS_PEAK_SEARCH_RADIUS_M of the mark
-    # centre across the full window (not just the marked bins).
-    # Rationale: the operator often presses the mark button while still walking
-    # toward the anomaly peak, so the marked bin under-represents the true peak
-    # field amplitude.  Searching the neighbourhood gives a more physically
-    # correct b_max for the weight formula.  Falls back to the marked-bins
-    # maximum if no window bins fall within the search radius.
-    if mark_center_x is not None:
+    # |B_max|: use the field amplitude at the AS-peak position (b_at_as_peak
+    # returned by process_anomaly).  The AS peak is the best available estimate
+    # of the true anomaly centre regardless of inclination, so the B value
+    # there is the most representative amplitude for the weight formula.
+    # If b_at_as_peak is unavailable (peak_mismatch flag), fall back to the
+    # neighbourhood search.
+    b_at_as_peak_val = result["b_max_nT"]
+    if b_at_as_peak_val is not None:
+        b_max_nt = abs(b_at_as_peak_val)
+    elif mark_center_x is not None:
         near_mark = np.abs(win_x - mark_center_x) <= AS_PEAK_SEARCH_RADIUS_M
         if near_mark.any():
             b_max_nt = float(np.max(np.abs(win_b[near_mark])))
@@ -1040,10 +1065,23 @@ def _process_anomaly_group(
         marked_tmi = win_b[marked_in_win]
         b_max_nt   = float(np.max(np.abs(marked_tmi))) if marked_tmi.size else None
 
-    # Distance used for weight — floor at mean_agl so that a depth-clamped
-    # estimate (D_harm < AGL → depth = 0) still produces a physically valid D.
-    # When D_harm is already ≥ AGL the floor has no effect.
-    if dist_avg_out is not None and not math.isnan(mean_agl):
+    # Distance used for weight.
+    # When Rule 3 fired (dist_B is physically valid, i.e. > AGL, but smaller
+    # than dist_A because 2D-AS is inflated by geology), the neighbourhood
+    # b_max is dominated by the same geological source that inflated AS_max.
+    # The B/AS ratio is self-consistent at the AS-peak, so using dist_B for
+    # the D³ term cancels the geological inflation and recovers a realistic
+    # weight.  For all other rules, floor dist at mean_agl as before.
+    _rule3_fired = (
+        dist_a is not None and dist_b is not None
+        and not math.isnan(mean_agl)
+        and dist_b >= mean_agl          # dist_B physically valid
+        and dist_b < dist_a             # Rule 3 condition
+        and not (dist_a > LARGE_FWHM_RATIO * dist_b)  # Rule 2 did not fire
+    )
+    if _rule3_fired:
+        dist_weight = dist_b            # self-consistent AS-ratio distance
+    elif dist_avg_out is not None and not math.isnan(mean_agl):
         dist_weight = max(dist_avg_out, mean_agl)
     else:
         dist_weight = dist_avg_out

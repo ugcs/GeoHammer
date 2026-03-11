@@ -1,6 +1,6 @@
 {
   "filename": "MagNIMBUS_single_sensor_distance_depth_weight_estimation.py",
-  "display_name": "Single-Sensor Distance/Depth/Weight Estimation (Analytical Signal)",
+  "display_name": "Single-Sensor Distance/Depth/Weight Estimation",
   "parameters": [
     {
       "name": "mag-column",

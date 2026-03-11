@@ -2,6 +2,7 @@ package com.ugcs.geohammer.map.provider;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -12,6 +13,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 import javax.imageio.ImageIO;
 
@@ -23,17 +26,36 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class TileMapProvider implements MapProvider {
+public class XyzMapProvider implements MapProvider, Closeable {
 
-	private static final Logger log = LoggerFactory.getLogger(TileMapProvider.class);
+	private static final Logger log = LoggerFactory.getLogger(XyzMapProvider.class);
 
 	private static final int MAP_IMAGE_SIZE = 1280;
 
 	private static final int GRID_SIZE = MAP_IMAGE_SIZE / GoogleCoordUtils.TILE_SIZE;
 
-	protected static final int TILE_COUNT = GRID_SIZE * GRID_SIZE;
+	private static final int TILE_COUNT = GRID_SIZE * GRID_SIZE;
 
-	protected abstract ExecutorService tileFetchPool();
+	private final XyzTileProvider tileProvider;
+
+	private final ExecutorService tilePool;
+
+	public XyzMapProvider(XyzTileProvider tileProvider) {
+		this.tileProvider = tileProvider;
+		this.tilePool = Executors.newFixedThreadPool(
+				tileProvider.maxConcurrentRequests(),
+				Thread.ofVirtual().factory());
+	}
+
+	@Override
+	public void close() {
+		tilePool.shutdown();
+	}
+
+	@Override
+	public int getMaxZoom() {
+		return tileProvider.getMaxZoom();
+	}
 
 	@Nullable
 	@Override
@@ -51,7 +73,7 @@ public abstract class TileMapProvider implements MapProvider {
 			return null;
 		}
 
-		Tile centralTile = latLonToTile(mapCenter, zoom);
+		XyzTile centralTile = latLonToTile(mapCenter, zoom);
 		field.setSceneCenter(getTileCenter(centralTile));
 
 		int m = (GRID_SIZE - 1) / 2;
@@ -60,9 +82,15 @@ public abstract class TileMapProvider implements MapProvider {
 		List<TileFetch> fetches = new ArrayList<>(TILE_COUNT);
 		for (int dx = -m; dx <= m; dx++) {
 			for (int dy = -m; dy <= m; dy++) {
-				Tile tile = new Tile(centralTile.x() + dx, centralTile.y() + dy, centralTile.z());
-				fetches.add(new TileFetch(dx, dy,
-						CompletableFuture.supplyAsync(() -> fetchTile(tile), tileFetchPool())));
+				XyzTile tile = new XyzTile(centralTile.x() + dx, centralTile.y() + dy, centralTile.z());
+				CompletableFuture<BufferedImage> future;
+				try {
+					future = CompletableFuture.supplyAsync(() -> fetchTile(tile), tilePool);
+				} catch (RejectedExecutionException ignored) {
+					// Pool was shut down mid-render due to a provider switch; skip this tile.
+					future = CompletableFuture.completedFuture(null);
+				}
+				fetches.add(new TileFetch(dx, dy, future));
 			}
 		}
 
@@ -96,9 +124,34 @@ public abstract class TileMapProvider implements MapProvider {
 	}
 
 	@Nullable
-	protected abstract BufferedImage fetchTile(Tile tile);
+	private BufferedImage fetchTile(XyzTile tile) {
+		int numTiles = 1 << tile.z();
+		if (tile.x() < 0 || tile.x() >= numTiles
+				|| tile.y() < 0 || tile.y() >= numTiles) {
+			return null;
+		}
 
-	protected void writeToCache(BufferedImage image, File target) {
+		String tempDir = System.getProperty("java.io.tmpdir");
+		String fileName = String.format("%s_%d_%d_%d.png",
+				tileProvider.getCachePrefix(), tile.x(), tile.y(), tile.z());
+		File cacheFile = new File(tempDir + File.separator + fileName);
+
+		if (cacheFile.exists()) {
+			try {
+				return ImageIO.read(cacheFile);
+			} catch (IOException e) {
+				log.warn("Corrupt cached tile {}, re-fetching", cacheFile);
+			}
+		}
+
+		BufferedImage image = tileProvider.fetchTile(tile);
+		if (image != null) {
+			writeToCache(image, cacheFile);
+		}
+		return image;
+	}
+
+	private void writeToCache(BufferedImage image, File target) {
 		File tmp = new File(target.getPath() + ".tmp");
 		try {
 			if (!ImageIO.write(image, "png", tmp)) {
@@ -118,22 +171,20 @@ public abstract class TileMapProvider implements MapProvider {
 		}
 	}
 
-	private Tile latLonToTile(LatLon latLon, int zoom) {
+	private XyzTile latLonToTile(LatLon latLon, int zoom) {
 		double lat = latLon.getLatDgr();
 		double lon = latLon.getLonDgr();
 		int x = (int) Math.floor((lon + 180) / 360 * Math.pow(2, zoom));
 		int y = (int) Math.floor(
 				(1 - Math.log(Math.tan(Math.toRadians(lat)) + 1 / Math.cos(Math.toRadians(lat))) / Math.PI)
 						/ 2 * Math.pow(2, zoom));
-		return new Tile(x, y, zoom);
+		return new XyzTile(x, y, zoom);
 	}
 
-	private LatLon getTileCenter(Tile tile) {
+	private LatLon getTileCenter(XyzTile tile) {
 		Point2D tileCenter = new Point2D(
 				GoogleCoordUtils.TILE_SIZE * (tile.x() + 0.5),
 				GoogleCoordUtils.TILE_SIZE * (tile.y() + 0.5));
 		return GoogleCoordUtils.latLonFromPoint(tileCenter, tile.z());
 	}
-
-	protected record Tile(int x, int y, int z) {}
 }

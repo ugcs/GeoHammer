@@ -12,6 +12,7 @@ import com.ugcs.geohammer.map.provider.HereMapProvider;
 import com.ugcs.geohammer.map.provider.OpenStreetMapProvider;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.BuildInfo;
 import com.ugcs.geohammer.PrefSettings;
 import javafx.geometry.Point2D;
 import javafx.scene.control.MenuButton;
@@ -36,15 +37,17 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	private final Model model;
 	private final Status status;
-    private final PrefSettings prefSettings;
+	private final PrefSettings prefSettings;
+	private final BuildInfo buildInfo;
 
 	private int lastTileZoom = -1;
 
-	public SatelliteMap(Model model, Status status, PrefSettings prefSettings) {
+	public SatelliteMap(Model model, Status status, PrefSettings prefSettings, BuildInfo buildInfo) {
 		this.model = model;
 		this.status = status;
-        this.prefSettings = prefSettings;
-    }
+		this.prefSettings = prefSettings;
+		this.buildInfo = buildInfo;
+	}
 
 	private LatLon click;
 
@@ -90,7 +93,7 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		});
 
 		menuItem3.setOnAction(e -> {
-			model.getMapField().setMapProvider(new OpenStreetMapProvider());
+			model.getMapField().setMapProvider(new OpenStreetMapProvider(buildInfo.getBuildVersion()));
 			setActive(model.getMapField().getMapProvider() != null);
 			clearTiles();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
-import com.ugcs.geohammer.map.provider.GoogleMapProvider;
 
 import java.awt.image.BufferedImage;
 
@@ -20,12 +19,11 @@ public class GoogleMapProviderTest {
                 return true;
             }
         };
-        
+
         field.setZoom(10);
         field.setSceneCenter(new LatLon(52.520008, 13.404954)); // Berlin coordinates
 
-        // Create an instance of GoogleMapProvider
-        GoogleMapProvider mapProvider = new GoogleMapProvider();
+        MapProvider mapProvider = new XyzMapProvider(new GoogleTileProvider());
 
         // Call the loadimg method
         BufferedImage image = mapProvider.loadimg(field);
@@ -36,8 +34,7 @@ public class GoogleMapProviderTest {
 
     @Test
     public void testGetMaxZoom() {
-        // Create an instance of GoogleMapProvider
-        GoogleMapProvider mapProvider = new GoogleMapProvider();
+        MapProvider mapProvider = new XyzMapProvider(new GoogleTileProvider());
 
         // Call the getMaxZoom method
         int maxZoom = mapProvider.getMaxZoom();

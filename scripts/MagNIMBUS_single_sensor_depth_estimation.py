@@ -26,7 +26,7 @@ TREND_DEGREE = 1
 MIN_TREND_SAMPLES = 10
 WINDOW_PADDING_M = 20.0
 MIN_WINDOW_SAMPLES = 20
-K_FACTOR = 1.0
+K_FACTOR = 1.03
 CB_FACTOR = 3.0
 MAX_PEAK_OFFSET_M = 2.0
 AS_PEAK_SEARCH_RADIUS_M = 5.0   # radius used by the weight estimator b_max search
@@ -70,7 +70,7 @@ LARGE_FWHM_RATIO     = 2.5
 # than this ratio the longer half is trimmed.  Corrects geological gradients
 # that inflate one side of the AS profile (observed ratio up to ~2.3 on the
 # Brandenburg 2024 test dataset).
-ASYMMETRY_CAP_RATIO  = 1.35
+ASYMMETRY_CAP_RATIO  = 1.20
 CSV_SEPARATOR = ","
 # Default grid cell size (metres).  If not supplied, estimated from data.
 DEFAULT_CELL_SIZE_M = None

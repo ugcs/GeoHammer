@@ -16,6 +16,7 @@ public class ResourceImageHolder {
 
 	public static Image IMG_VER_SLIDER;
 	public static Image IMG_GPS;
+	public static Image IMG_GPS_BODY;
 	public static Image IMG_CLOSE_FILE;
 	public static Image IMG_CLOSE;
 
@@ -219,6 +220,8 @@ public class ResourceImageHolder {
 					.getResourceAsStream("vertSlid16.png"));
 			IMG_GPS = ImageIO.read(getClassLoader()
 					.getResourceAsStream("gps32.png"));
+			IMG_GPS_BODY = ImageIO.read(getClassLoader()
+					.getResourceAsStream("gps32body.png"));
 			IMG_CLOSE_FILE = ImageIO.read(getClassLoader()
 					.getResourceAsStream("closeFile.png"));
 			IMG_CLOSE = ImageIO.read(getClassLoader()

@@ -2,7 +2,7 @@ package com.ugcs.geohammer.chart;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.model.TraceKey;
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.Model;
@@ -71,7 +71,7 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
     public abstract void reload();
 
     // trace == null -> clear current selection
-    public abstract void selectTrace(@Nullable TraceKey trace, boolean focus);
+    public abstract void selectTrace(@Nullable SelectedTrace selectedTrace, boolean focus);
 
     public abstract int getSelectedLineIndex();
 

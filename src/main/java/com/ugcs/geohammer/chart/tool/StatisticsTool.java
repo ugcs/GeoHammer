@@ -5,6 +5,7 @@ import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
+import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
@@ -33,7 +34,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -42,8 +42,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
-import javafx.scene.Cursor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -156,9 +154,10 @@ public class StatisticsTool extends ToolView {
             this.seriesName.setText(series);
 
             String valueText = NO_VALUE;
-            TraceKey selectedTrace = model.getSelectedTrace(chart);
-            if (selectedTrace != null) {
-                int index = selectedTrace.getIndex();
+			SelectedTrace selectedTrace = model.getSelectedTrace(chart);
+            TraceKey traceKey = selectedTrace != null ? selectedTrace.trace() : null;
+            if (traceKey != null) {
+                int index = traceKey.getIndex();
                 List<GeoData> values = chart.getFile().getGeoData();
                 Number nearestValue = findNearestValue(values, series, index);
                 if (nearestValue != null) {
@@ -331,8 +330,7 @@ public class StatisticsTool extends ToolView {
         }
 
         Label createValueLabel(String text) {
-            Label label = new Label(text);
-            return label;
+			return new Label(text);
         }
 
         void updateIndex() {
@@ -405,9 +403,10 @@ public class StatisticsTool extends ToolView {
                 case VISIBLE_AREA:
                     return chart.getVisibleRange();
                 case LINE:
-                    TraceKey selectedTrace = model.getSelectedTrace(chart);
-                    if (selectedTrace != null) {
-                        int selectedIndex = selectedTrace.getIndex();
+					SelectedTrace selectedTrace = model.getSelectedTrace(chart);
+                    TraceKey traceKey = selectedTrace != null ? selectedTrace.trace() : null;
+                    if (traceKey != null) {
+                        int selectedIndex = traceKey.getIndex();
                         int traceLineIndex = chart.getValueLineIndex(selectedIndex);
                         return chart.getFile().getLineRanges().get(traceLineIndex);
                     }

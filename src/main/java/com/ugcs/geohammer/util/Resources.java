@@ -15,9 +15,17 @@ public final class Resources {
 
     public static InputStream get(@NonNull String path) {
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
-        InputStream in = loader.getResourceAsStream(path);
-        if (in != null) {
-            return in;
+        if (loader == null) {
+            loader = Resources.class.getClassLoader();
+        }
+        if (loader == null) {
+            loader = ClassLoader.getSystemClassLoader();
+        }
+        if (loader != null) {
+            InputStream in = loader.getResourceAsStream(path);
+            if (in != null) {
+                return in;
+            }
         }
         try {
             return Files.newInputStream(Path.of(path));

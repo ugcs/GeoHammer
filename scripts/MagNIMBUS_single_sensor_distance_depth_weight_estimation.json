@@ -24,5 +24,5 @@
       "required": true
     }
   ],
-  "templates": ["MagNIMBUS", "MagDrone R1", "MagDrone R3", "MagDrone R4"]
+  "templates": ["MagNIMBUS", "MagDrone R1", "MagDrone R3", "MagDrone R4", "MagDrone ASC"]
 }

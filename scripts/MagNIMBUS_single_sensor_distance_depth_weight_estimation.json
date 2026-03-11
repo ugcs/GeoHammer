@@ -1,6 +1,6 @@
 {
-  "filename": "MagNIMBUS_single_sensor_depth_estimation.py",
-  "display_name": "Single-Sensor Depth Estimation (Analytical Signal)",
+  "filename": "MagNIMBUS_single_sensor_distance_depth_weight_estimation.py",
+  "display_name": "Single-Sensor Distance/Depth/Weight Estimation (Analytical Signal)",
   "parameters": [
     {
       "name": "mag-column",
@@ -24,5 +24,5 @@
       "required": true
     }
   ],
-  "templates": ["MagNIMBUS", "MagDrone R1"]
+  "templates": ["MagNIMBUS", "MagDrone R1", "MagDrone R3", "MagDrone R4"]
 }

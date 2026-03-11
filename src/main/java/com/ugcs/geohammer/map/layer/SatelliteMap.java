@@ -3,19 +3,26 @@ package com.ugcs.geohammer.map.layer;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
 import com.ugcs.geohammer.map.RenderQueue;
-import com.ugcs.geohammer.map.provider.GoogleMapProvider;
+import com.ugcs.geohammer.map.provider.GoogleTileProvider;
 import com.ugcs.geohammer.map.provider.HereMapProvider;
+import com.ugcs.geohammer.map.provider.OsmTileProvider;
+import com.ugcs.geohammer.map.provider.XyzMapProvider;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.BuildInfo;
 import com.ugcs.geohammer.PrefSettings;
 import javafx.geometry.Point2D;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.RadioMenuItem;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -33,17 +40,21 @@ import javafx.scene.layout.HBox;
 @Component
 public class SatelliteMap extends BaseLayer implements InitializingBean {
 
+	private static final Logger log = LoggerFactory.getLogger(SatelliteMap.class);
+
 	private final Model model;
 	private final Status status;
-    private final PrefSettings prefSettings;
+	private final PrefSettings prefSettings;
+	private final BuildInfo buildInfo;
 
 	private int lastTileZoom = -1;
 
-	public SatelliteMap(Model model, Status status, PrefSettings prefSettings) {
+	public SatelliteMap(Model model, Status status, PrefSettings prefSettings, BuildInfo buildInfo) {
 		this.model = model;
 		this.status = status;
-        this.prefSettings = prefSettings;
-    }
+		this.prefSettings = prefSettings;
+		this.buildInfo = buildInfo;
+	}
 
 	private LatLon click;
 
@@ -67,21 +78,32 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 			}
 		};
 
-		optionsMenuBtn.getItems().addAll(menuItem1, menuItem2, menuItem3);
+		optionsMenuBtn.getItems().addAll(menuItem1, menuItem2, menuItem3, menuItem4);
 		ToggleGroup toggleGroup = new ToggleGroup();
 		menuItem1.setToggleGroup(toggleGroup);
 		menuItem2.setToggleGroup(toggleGroup);
 		menuItem3.setToggleGroup(toggleGroup);
+		menuItem4.setToggleGroup(toggleGroup);
 
 		menuItem1.setOnAction(e -> {
-			model.getMapField().setMapProvider(new GoogleMapProvider());
+			closeCurrentProvider();
+			model.getMapField().setMapProvider(new XyzMapProvider(new GoogleTileProvider()));
 			setActive(model.getMapField().getMapProvider() != null);
 			clearTiles();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
 		});
 
 		menuItem2.setOnAction(e -> {
+			closeCurrentProvider();
 			model.getMapField().setMapProvider(new HereMapProvider(prefSettings.getString("maps", "here_api_key")));
+			setActive(model.getMapField().getMapProvider() != null);
+			clearTiles();
+			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
+		});
+
+		menuItem3.setOnAction(e -> {
+			closeCurrentProvider();
+			model.getMapField().setMapProvider(new XyzMapProvider(new OsmTileProvider(buildInfo.getBuildVersion())));
 			setActive(model.getMapField().getMapProvider() != null);
 			clearTiles();
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.mapzoom));
@@ -90,7 +112,8 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		menuItem2.setSelected(true);
 		menuItem2.fire();
 
-		menuItem3.setOnAction(e -> {
+		menuItem4.setOnAction(e -> {
+			closeCurrentProvider();
 			model.getMapField().setMapProvider(null);
 			setActive(model.getMapField().getMapProvider() != null);
 			clearTiles();
@@ -100,7 +123,8 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 
 	RadioMenuItem menuItem1 = new RadioMenuItem("google maps");
 	RadioMenuItem menuItem2 = new RadioMenuItem("here.com");
-	RadioMenuItem menuItem3 = new RadioMenuItem("turn off");
+	RadioMenuItem menuItem3 = new RadioMenuItem("open street map");
+	RadioMenuItem menuItem4 = new RadioMenuItem("turn off");
 
 	private final MenuButton optionsMenuBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.MAP, new MenuButton());
 
@@ -206,6 +230,16 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 		getRepaintListener().repaint();
 
 		return true;
+	}
+
+	private void closeCurrentProvider() {
+		if (model.getMapField().getMapProvider() instanceof Closeable mapProvider) {
+			try {
+				mapProvider.close();
+			} catch (IOException e) {
+				log.warn("Failed to close map provider", e);
+			}
+		}
 	}
 
 	@Override

@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -270,6 +271,42 @@ public class Model implements InitializingBean {
                 .toList();
     }
 
+    public int getGprChartCount() {
+        int count = 0;
+        for (Chart c : charts.values()) {
+            if (c instanceof GPRChart) count++;
+        }
+        return count;
+    }
+
+    private void forEachGprChart(java.util.function.Consumer<GPRChart> action) {
+        for (Chart c : charts.values()) {
+            if (c instanceof GPRChart gprChart) {
+                action.accept(gprChart);
+            }
+        }
+    }
+
+    public void syncDepthFromChart(GPRChart source) {
+        var settings = source.getField().getProfileSettings();
+        int layer = settings.getLayer();
+        int hpage = settings.hpage;
+        forEachGprChart(other -> {
+            if (other == source) {
+                return;
+            }
+            int max = other.getField().getMaxHeightInSamples();
+            if (max <= 0) {
+                return;
+            }
+            int clampedLayer = Math.min(Math.max(0, layer), max - 1);
+            int clampedHpage = Math.min(Math.max(1, hpage), max - clampedLayer);
+            other.getField().getProfileSettings().setLayer(clampedLayer);
+            other.getField().getProfileSettings().hpage = clampedHpage;
+            other.repaintEvent();
+        });
+    }
+
     public @Nullable String getSelectedSeriesName(@Nullable SgyFile file) {
         if (file == null) {
             return null;
@@ -451,10 +488,10 @@ public class Model implements InitializingBean {
 				return false;
 			}
 			// clear selection
-			getSelectedData().setStyle("-fx-border-width: 2px; -fx-border-color: transparent;");
+			getSelectedData().setStyle("-fx-border-width: 3px; -fx-border-color: transparent;");
 		}
 
-		node.setStyle("-fx-border-width: 2px; -fx-border-color: lightblue;");
+		node.setStyle("-fx-border-width: 3px; -fx-border-color: #1E90FF;");
 		setSelectedData(node);
 
 		fileDataContainer.selectFile();
@@ -542,6 +579,11 @@ public class Model implements InitializingBean {
 	private void fileClosed(FileClosedEvent event) {
 		Chart chart = getChart(event.getFile());
 		clearSelectedTrace(chart);
+	}
+
+	@EventListener
+	private void onContextClosed(ContextClosedEvent event) {
+		forEachGprChart(GPRChart::saveViewSettings);
 	}
 
 	@EventListener

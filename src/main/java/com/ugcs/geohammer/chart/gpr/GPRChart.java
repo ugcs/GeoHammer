@@ -36,6 +36,7 @@ import com.ugcs.geohammer.view.BaseSlider;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Range;
 import javafx.application.Platform;
+import javafx.scene.control.Tooltip;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -94,6 +96,9 @@ public class GPRChart extends Chart {
     private int height = 600;
 
     private final PaintLimiter repaintLimiter = new PaintLimiter(60, () -> draw(width, height));
+
+    private final Tooltip depthSliderTooltip = new Tooltip("Hold Ctrl to move independently");
+    private boolean depthSliderPressed;
 
     private double contrast = 50;
 
@@ -166,8 +171,22 @@ public class GPRChart extends Chart {
         if (!confirmUnsavedChanges()) {
             return;
         }
+        saveViewSettings();
         repaintLimiter.stop();
         model.publishEvent(new FileClosedEvent(this, getFile()));
+    }
+
+    public void saveViewSettings() {
+        TraceFile traceFile = profileField.getFile();
+        if (traceFile.getMetaFile() == null) {
+            return;
+        }
+        setAmplitudeRangeToMeta();
+        try {
+            traceFile.saveMeta();
+        } catch (IOException e) {
+            log.warn("Failed to save view settings for {}", traceFile.getFile().getName(), e);
+        }
     }
 
     @Override
@@ -299,6 +318,7 @@ public class GPRChart extends Chart {
         canvas.setOnMousePressed(mousePressHandler);
         canvas.setOnMouseReleased(mouseReleaseHandler);
         canvas.setOnMouseMoved(mouseMoveHandler);
+        canvas.setOnMouseExited(event -> depthSliderTooltip.hide());
         canvas.setOnMouseClicked(mouseClickHandler);
         canvas.addEventFilter(MouseEvent.DRAG_DETECTED, dragDetectedHandler);
         canvas.addEventFilter(MouseEvent.MOUSE_DRAGGED, mouseMoveHandler);
@@ -685,6 +705,7 @@ public class GPRChart extends Chart {
                 public void handle(MouseEvent event) {
 
                     Point2D p = getLocalCoords(event);
+                    depthSliderTooltip.hide();
                     if (auxEditHandler.mousePressHandle(p, GPRChart.this)) {
                         selectedMouseHandler = auxEditHandler;
                     } else if (scrollHandler.mousePressHandle(p, GPRChart.this)) {
@@ -692,6 +713,7 @@ public class GPRChart extends Chart {
                     } else {
                         selectedMouseHandler = null;
                     }
+                    depthSliderPressed = auxEditHandler.getPressedElement() instanceof DepthStart;
                     canvas.setCursor(Cursor.CLOSED_HAND);
                 }
             };
@@ -705,8 +727,7 @@ public class GPRChart extends Chart {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
-
-					setAmplitudeRangeToMeta();
+                    depthSliderPressed = false;
                 }
             };
 
@@ -730,6 +751,7 @@ public class GPRChart extends Chart {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
+                    depthSliderPressed = false;
 
                     canvas.setCursor(Cursor.DEFAULT);
 
@@ -746,9 +768,18 @@ public class GPRChart extends Chart {
                     Point2D p = getLocalCoords(event);
                     if (selectedMouseHandler != null) {
                         selectedMouseHandler.mouseMoveHandle(p, GPRChart.this);
+                        if (depthSliderPressed && !event.isControlDown()) {
+                            model.syncDepthFromChart(GPRChart.this);
+                        }
                     } else {
-                        if (!auxEditHandler.mouseMoveHandle(p, GPRChart.this)) {
-                            //do nothing
+                        BaseObject hovered = auxEditHandler.hoveredElement(p, GPRChart.this);
+                        canvas.setCursor(hovered != null ? Cursor.HAND : Cursor.DEFAULT);
+                        if (model.getGprChartCount() > 1 && hovered instanceof DepthStart) {
+                            if (!depthSliderTooltip.isShowing()) {
+                                depthSliderTooltip.show(canvas, event.getScreenX() + 12, event.getScreenY() + 12);
+                            }
+                        } else {
+                            depthSliderTooltip.hide();
                         }
                     }
                 }

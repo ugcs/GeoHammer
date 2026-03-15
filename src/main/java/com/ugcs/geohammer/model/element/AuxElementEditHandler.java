@@ -98,6 +98,16 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		return result.isPresent() && result.get() == ButtonType.OK;
 	}
 
+	@Nullable
+	public BaseObject hoveredElement(Point2D localPoint, ScrollableData profField) {
+		return lookupElement(localPoint, profField);
+	}
+
+	@Nullable
+	public BaseObject getPressedElement() {
+		return mouseInput;
+	}
+
 	@Override
 	public boolean mousePressHandle(Point2D localPoint, ScrollableData profField) {
 		BaseObject element = lookupElement(localPoint, profField);

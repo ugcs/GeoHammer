@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.model;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -271,27 +272,18 @@ public class Model implements InitializingBean {
                 .toList();
     }
 
-    public int getGprChartCount() {
-        int count = 0;
-        for (Chart c : charts.values()) {
-            if (c instanceof GPRChart) count++;
-        }
-        return count;
-    }
-
-    private void forEachGprChart(java.util.function.Consumer<GPRChart> action) {
-        for (Chart c : charts.values()) {
-            if (c instanceof GPRChart gprChart) {
-                action.accept(gprChart);
-            }
-        }
+    public List<GPRChart> getGprCharts() {
+        return charts.values().stream()
+                .filter(c -> c instanceof GPRChart)
+                .map(c -> (GPRChart) c)
+                .toList();
     }
 
     public void syncDepthFromChart(GPRChart source) {
         var settings = source.getField().getProfileSettings();
         int layer = settings.getLayer();
         int hpage = settings.hpage;
-        forEachGprChart(other -> {
+        getGprCharts().forEach(other -> {
             if (other == source) {
                 return;
             }
@@ -583,7 +575,16 @@ public class Model implements InitializingBean {
 
 	@EventListener
 	private void onContextClosed(ContextClosedEvent event) {
-		forEachGprChart(GPRChart::saveViewSettings);
+		getGprCharts().forEach(chart -> {
+			try {
+				chart.saveDepthRangeToMeta();
+			} catch (IOException e) {
+				File file = chart.getFile().getFile();
+				String fileName = file != null ? file.getName() : "unknown";
+				log.error("Failed to save amplitude range for {} on shutdown",
+						fileName, e);
+			}
+		});
 	}
 
 	@EventListener

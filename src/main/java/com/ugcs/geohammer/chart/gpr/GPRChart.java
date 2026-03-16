@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -98,6 +99,7 @@ public class GPRChart extends Chart {
     private final PaintLimiter repaintLimiter = new PaintLimiter(60, () -> draw(width, height));
 
     private final Tooltip depthSliderTooltip = new Tooltip("Hold Ctrl to move independently");
+
     private boolean depthSliderPressed;
 
     private double contrast = 50;
@@ -147,7 +149,7 @@ public class GPRChart extends Chart {
         contrastSlider = new ContrastSlider(profileField.getProfileSettings(), sliderListener);
 
 		setContrastFromMeta(contrastSlider, traceFile);
-		setAmplitudeRangeFromMeta(traceFile);
+		setDepthRangeFromMeta(traceFile);
 
         getProfileScroll().setChangeListener(new ChangeListener<Number>() {
             //TODO: fix with change listener
@@ -171,22 +173,24 @@ public class GPRChart extends Chart {
         if (!confirmUnsavedChanges()) {
             return;
         }
-        saveViewSettings();
+		try {
+			saveDepthRangeToMeta();
+		} catch (IOException e) {
+			File file = getFile().getFile();
+			String fileName = file != null ? file.getName() : "unknown";
+			log.error("Failed to save amplitude range for {}", fileName, e);
+		}
         repaintLimiter.stop();
         model.publishEvent(new FileClosedEvent(this, getFile()));
     }
 
-    public void saveViewSettings() {
+    public void saveDepthRangeToMeta() throws IOException {
         TraceFile traceFile = profileField.getFile();
         if (traceFile.getMetaFile() == null) {
             return;
         }
-        setAmplitudeRangeToMeta();
-        try {
-            traceFile.saveMeta();
-        } catch (IOException e) {
-            log.warn("Failed to save view settings for {}", traceFile.getFile().getName(), e);
-        }
+        updateDepthRangeInMeta();
+        traceFile.saveMeta();
     }
 
     @Override
@@ -247,7 +251,7 @@ public class GPRChart extends Chart {
 		}
 	}
 
-	private void setAmplitudeRangeToMeta() {
+	private void updateDepthRangeInMeta() {
 		TraceFile traceFile = profileField.getFile();
 		MetaFile meta = traceFile.getMetaFile();
 		if (meta != null) {
@@ -267,7 +271,7 @@ public class GPRChart extends Chart {
 		}
 	}
 
-	private void setAmplitudeRangeFromMeta(TraceFile traceFile) {
+	private void setDepthRangeFromMeta(TraceFile traceFile) {
 		MetaFile meta = traceFile.getMetaFile();
 		Range savedRange = meta != null ? meta.getAmplitudeRange() : null;
 		if (savedRange != null) {
@@ -727,6 +731,7 @@ public class GPRChart extends Chart {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
+                    updateDepthRangeInMeta();
                     depthSliderPressed = false;
                 }
             };
@@ -751,7 +756,6 @@ public class GPRChart extends Chart {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
-                    depthSliderPressed = false;
 
                     canvas.setCursor(Cursor.DEFAULT);
 
@@ -774,7 +778,7 @@ public class GPRChart extends Chart {
                     } else {
                         BaseObject hovered = auxEditHandler.hoveredElement(p, GPRChart.this);
                         canvas.setCursor(hovered != null ? Cursor.HAND : Cursor.DEFAULT);
-                        if (model.getGprChartCount() > 1 && hovered instanceof DepthStart) {
+                        if (model.getGprCharts().size() > 1 && hovered instanceof DepthStart) {
                             if (!depthSliderTooltip.isShowing()) {
                                 depthSliderTooltip.show(canvas, event.getScreenX() + 12, event.getScreenY() + 12);
                             }

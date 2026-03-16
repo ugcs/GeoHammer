@@ -178,7 +178,7 @@ public class GPRChart extends Chart {
 		} catch (IOException e) {
 			File file = getFile().getFile();
 			String fileName = file != null ? file.getName() : "unknown";
-			log.error("Failed to save amplitude range for {}", fileName, e);
+			log.error("Failed to save depth range for {}", fileName, e);
 		}
         repaintLimiter.stop();
         model.publishEvent(new FileClosedEvent(this, getFile()));
@@ -731,7 +731,9 @@ public class GPRChart extends Chart {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
-                    updateDepthRangeInMeta();
+                    if (depthSliderPressed) {
+                        model.getGprCharts().forEach(chart -> chart.updateDepthRangeInMeta());
+                    }
                     depthSliderPressed = false;
                 }
             };

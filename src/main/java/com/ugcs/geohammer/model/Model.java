@@ -581,7 +581,7 @@ public class Model implements InitializingBean {
 			} catch (IOException e) {
 				File file = chart.getFile().getFile();
 				String fileName = file != null ? file.getName() : "unknown";
-				log.error("Failed to save amplitude range for {} on shutdown",
+				log.error("Failed to save depth range for {} on shutdown",
 						fileName, e);
 			}
 		});

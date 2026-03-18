@@ -7,11 +7,12 @@ import com.ugcs.geohammer.model.TraceSample;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.ScrollableData;
 import javafx.geometry.Point2D;
+import javafx.scene.control.Tooltip;
 
 public class DepthHeight extends DepthStart {
-	
-	public DepthHeight(Shape shape) { //, GPRChart profField) {
-		super(shape); //, profField);
+
+	public DepthHeight(Shape shape, Tooltip tooltip) {
+		super(shape, tooltip);
 	}
 
 	@Override

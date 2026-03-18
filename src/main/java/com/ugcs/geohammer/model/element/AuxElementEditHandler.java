@@ -36,6 +36,9 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 	@Nullable
 	private BaseObject mouseInput;
 
+	@Nullable
+	private BaseObject lastHovered;
+
 	private final Button createMarkButton = ResourceImageHolder.setButtonImage(
 			ResourceImageHolder.ADD_MARK, new Button());
 
@@ -98,14 +101,11 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		return result.isPresent() && result.get() == ButtonType.OK;
 	}
 
-	@Nullable
-	public BaseObject hoveredElement(Point2D localPoint, ScrollableData profField) {
-		return lookupElement(localPoint, profField);
-	}
-
-	@Nullable
-	public BaseObject getPressedElement() {
-		return mouseInput;
+	public void clearHover(ScrollableData profField) {
+		if (lastHovered != null) {
+			lastHovered.onHoverEnd(profField);
+			lastHovered = null;
+		}
 	}
 
 	@Override
@@ -140,22 +140,25 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		return null;
 	}
 
-	private boolean isAboveElement(Point2D localPoint, ScrollableData profField) {
-		return lookupElement(localPoint, profField) != null;
-	}
-
 	@Override
 	public boolean mouseMoveHandle(Point2D localPoint, ScrollableData profField) {
 		if (mouseInput != null) {
 			mouseInput.mouseMoveHandle(localPoint, profField);
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 			return true;
+		}
+		BaseObject hovered = lookupElement(localPoint, profField);
+		if (hovered != lastHovered) {
+			if (lastHovered != null) {
+				lastHovered.onHoverEnd(profField);
+			}
+			lastHovered = hovered;
+		}
+		if (hovered != null) {
+			profField.setCursor(Cursor.HAND);
+			hovered.mouseMoveHandle(localPoint, profField);
 		} else {
-			if (isAboveElement(localPoint, profField)) {
-				profField.setCursor(Cursor.HAND);
-			} else {
-				profField.setCursor(Cursor.DEFAULT);
-			}			
+			profField.setCursor(Cursor.DEFAULT);
 		}
 		return false;
 	}
@@ -174,5 +177,9 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 			return true;
 		}
 		return false;
+	}
+
+	public boolean isDepthSliderPressed() {
+		return mouseInput instanceof DepthStart;
 	}
 }

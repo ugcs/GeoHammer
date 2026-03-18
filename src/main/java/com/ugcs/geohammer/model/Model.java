@@ -1,7 +1,6 @@
 package com.ugcs.geohammer.model;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +38,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -277,26 +275,6 @@ public class Model implements InitializingBean {
                 .filter(c -> c instanceof GPRChart)
                 .map(c -> (GPRChart) c)
                 .toList();
-    }
-
-    public void syncDepthFromChart(GPRChart source) {
-        var settings = source.getField().getProfileSettings();
-        int layer = settings.getLayer();
-        int hpage = settings.hpage;
-        getGprCharts().forEach(other -> {
-            if (other == source) {
-                return;
-            }
-            int max = other.getField().getMaxHeightInSamples();
-            if (max <= 0) {
-                return;
-            }
-            int clampedLayer = Math.min(Math.max(0, layer), max - 1);
-            int clampedHpage = Math.min(Math.max(1, hpage), max - clampedLayer);
-            other.getField().getProfileSettings().setLayer(clampedLayer);
-            other.getField().getProfileSettings().hpage = clampedHpage;
-            other.repaintEvent();
-        });
     }
 
     public @Nullable String getSelectedSeriesName(@Nullable SgyFile file) {
@@ -571,20 +549,6 @@ public class Model implements InitializingBean {
 	private void fileClosed(FileClosedEvent event) {
 		Chart chart = getChart(event.getFile());
 		clearSelectedTrace(chart);
-	}
-
-	@EventListener
-	private void onContextClosed(ContextClosedEvent event) {
-		getGprCharts().forEach(chart -> {
-			try {
-				chart.saveDepthRangeToMeta();
-			} catch (IOException e) {
-				File file = chart.getFile().getFile();
-				String fileName = file != null ? file.getName() : "unknown";
-				log.error("Failed to save depth range for {} on shutdown",
-						fileName, e);
-			}
-		});
 	}
 
 	@EventListener

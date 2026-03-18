@@ -6,6 +6,8 @@ import com.ugcs.geohammer.model.Range;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 public class TraceMeta {
 
     @Expose
@@ -17,11 +19,15 @@ public class TraceMeta {
     @Expose
     private List<TraceMark> marks;
 
-	@Expose
-	private Double contrast;
+    @Expose
+    private Double contrast;
 
-	@Expose
-	private Range amplitudeRange;
+    @Expose
+    private IndexRange depthRange;
+
+    @Deprecated
+    @Expose
+    private Range amplitudeRange;
 
     public IndexRange getSampleRange() {
         return sampleRange;
@@ -47,19 +53,26 @@ public class TraceMeta {
         this.marks = marks;
     }
 
-	public Double getContrast() {
-		return contrast;
-	}
+    public Double getContrast() {
+        return contrast;
+    }
 
-	public void setContrast(Double contrast) {
-		this.contrast = contrast;
-	}
+    public void setContrast(Double contrast) {
+        this.contrast = contrast;
+    }
 
-	public Range getAmplitudeRange() {
-		return amplitudeRange;
-	}
+    @Nullable
+    public IndexRange getDepthRange() {
+        if (depthRange != null) {
+            return depthRange;
+        }
+        if (amplitudeRange != null) {
+            return new IndexRange((int) amplitudeRange.getMin(), (int) amplitudeRange.getMax());
+        }
+        return null;
+    }
 
-	public void setAmplitudeRange(Range amplitudeRange) {
-		this.amplitudeRange = amplitudeRange;
-	}
+    public void setDepthRange(@Nullable IndexRange depthRange) {
+        this.depthRange = depthRange;
+    }
 }

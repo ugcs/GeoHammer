@@ -186,7 +186,7 @@ public class GPRChart extends Chart {
         ProfileView profileView = AppContext.getInstance(ProfileView.class);
         setSize(
                 (int)(profileView.getCenter().getWidth() - 21),
-                (int)(Math.max(400, vbox.getHeight()) - 4));
+                (int)(Math.max(400, vbox.getHeight()) - 6));
         fitFull();
     }
 

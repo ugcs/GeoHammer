@@ -52,9 +52,6 @@ import org.jfree.fx.FXGraphics2D;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -86,6 +83,7 @@ public class GPRChart extends Chart {
 
 	private static final int MIN_CONTRAST = 0;
 	private static final int MAX_CONTRAST = 100;
+	private static final String DEPTH_SLIDER_TOOLTIP = "Hold Ctrl to move independently";
 
 	private BaseObject selectedMouseHandler;
     private final BaseObject scrollHandler;
@@ -98,10 +96,6 @@ public class GPRChart extends Chart {
     private int height = 600;
 
     private final PaintLimiter repaintLimiter = new PaintLimiter(60, () -> draw(width, height));
-
-    private final Tooltip depthSliderTooltip = new Tooltip("Hold Ctrl to move independently");
-
-    private boolean depthSliderPressed;
 
     private double contrast = 50;
 
@@ -549,8 +543,8 @@ public class GPRChart extends Chart {
             auxElements.add(removeLine);
         }
 
-        auxElements.add(new DepthStart(ShapeHolder.topSelection, depthSliderTooltip));
-        auxElements.add(new DepthHeight(ShapeHolder.botSelection, depthSliderTooltip));
+        auxElements.add(new DepthStart(ShapeHolder.topSelection, new Tooltip(DEPTH_SLIDER_TOOLTIP)));
+        auxElements.add(new DepthHeight(ShapeHolder.botSelection, new Tooltip(DEPTH_SLIDER_TOOLTIP)));
         auxElements.add(leftRulerController.getTB());
         auxElements.add(horizontalRulerController.getTB());
 
@@ -724,7 +718,6 @@ public class GPRChart extends Chart {
                     } else {
                         selectedMouseHandler = null;
                     }
-                    depthSliderPressed = auxEditHandler.isDepthSliderPressed();
                     canvas.setCursor(Cursor.CLOSED_HAND);
                 }
             };
@@ -734,14 +727,14 @@ public class GPRChart extends Chart {
                 @Override
                 public void handle(MouseEvent event) {
                     Point2D p = getLocalCoords(event);
+                    boolean isDepthSliderPressed = auxEditHandler.isDepthSliderPressed();
                     if (selectedMouseHandler != null) {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
-                    if (depthSliderPressed) {
+                    if (isDepthSliderPressed) {
                         updateDepthRangeInMeta();
                     }
-                    depthSliderPressed = false;
                 }
             };
 
@@ -781,7 +774,7 @@ public class GPRChart extends Chart {
                     Point2D p = getLocalCoords(event);
                     if (selectedMouseHandler != null) {
                         selectedMouseHandler.mouseMoveHandle(p, GPRChart.this);
-                        if (depthSliderPressed && !event.isControlDown()) {
+                        if (auxEditHandler.isDepthSliderPressed() && !event.isControlDown()) {
                             var settings = getField().getProfileSettings();
                             model.publishEvent(new DepthRangeUpdatedEvent(GPRChart.this,
                                     new IndexRange(settings.getLayer(), settings.getLayer() + settings.hpage)));
@@ -1050,17 +1043,4 @@ public class GPRChart extends Chart {
         zoom(-1, false);
     }
 
-    @Component
-    public static class DepthRangeSyncListener {
-
-        @Autowired
-        private Model model;
-
-        @EventListener
-        public void onDepthRangeUpdated(DepthRangeUpdatedEvent event) {
-            model.getGprCharts().stream()
-                    .filter(chart -> chart != event.getSource())
-                    .forEach(chart -> chart.applyDepthRange(event.getDepthRange()));
-        }
-    }
 }

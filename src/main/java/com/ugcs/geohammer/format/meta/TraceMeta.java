@@ -26,7 +26,7 @@ public class TraceMeta {
     private IndexRange depthRange;
 
     @Deprecated
-    @Expose
+    @Expose(serialize = false)
     private Range amplitudeRange;
 
     public IndexRange getSampleRange() {

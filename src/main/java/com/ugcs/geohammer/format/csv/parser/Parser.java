@@ -37,7 +37,6 @@ import com.ugcs.geohammer.util.GpsTime;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
-import org.jspecify.annotations.Nullable;
 
 public abstract class Parser {
 
@@ -137,6 +136,7 @@ public abstract class Parser {
 
             // read value lines
             String[] valueTokens;
+            int rowsMissingCoordinates = 0;
             while ((valueTokens = readValues(r)) != null) {
                 if (Thread.currentThread().isInterrupted()) {
                     break;
@@ -144,7 +144,17 @@ public abstract class Parser {
                 GeoData value = parseValues(valueTokens, columns);
                 if (value != null) {
                     values.add(value);
+                } else {
+                    rowsMissingCoordinates++;
                 }
+            }
+
+            if (rowsMissingCoordinates > 0 && values.isEmpty()) {
+                throw new ParseException(
+                    "File contains " + rowsMissingCoordinates + " data row(s), but none have valid coordinates. "
+                    + "Check that the '" + mapping.getLatitude().getHeader()
+                    + "' and '" + mapping.getLongitude().getHeader()
+                    + "' columns contain non-empty latitude/longitude values.");
             }
         }
 

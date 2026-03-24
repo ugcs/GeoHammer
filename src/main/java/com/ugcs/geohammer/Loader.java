@@ -279,9 +279,6 @@ public class Loader {
 		CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
 
 		csvFile.open(file);
-		if (csvFile.getGeoData().isEmpty()) {
-			throw new IOException("File has no data.");
-		}
 
 		Platform.runLater(() -> {
             model.initChart(csvFile);

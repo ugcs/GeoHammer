@@ -151,11 +151,14 @@ public abstract class Parser {
 
             if (rowsMissingCoordinates > 0 && values.isEmpty()) {
                 throw new ParseException(
-                    "File contains " + rowsMissingCoordinates + " data row(s), but none have valid coordinates. "
+                    "File contains data rows, but none have valid coordinates. "
                     + "Check that the '" + mapping.getLatitude().getHeader()
                     + "' and '" + mapping.getLongitude().getHeader()
                     + "' columns contain non-empty latitude/longitude values.");
             }
+			if (values.isEmpty()) {
+				throw new ParseException("File has no data.");
+			}
         }
 
         // decide which columns to display

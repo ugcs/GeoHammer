@@ -89,6 +89,7 @@ public class SgyLoader {
         		.withSourceYFormat(FormatEntry.create(76, 80))
         		.withGroupXFormat(FormatEntry.create(80, 84))
         		.withGroupYFormat(FormatEntry.create(84, 88))
+                .withDelayRecordingTimeFormat(FormatEntry.create(108, 110))
         		.withXOfCDPPositionFormat(FormatEntry.create(180, 184))
         		.withYOfCDPPositionFormat(FormatEntry.create(184, 188))
                 //115 116
@@ -100,7 +101,6 @@ public class SgyLoader {
 				.withHourOfDayFormat(FormatEntry.create(160, 162))
 				. withMinuteOfHourFormat(FormatEntry.create(162, 164))
 				.withSecondOfMinuteFormat(FormatEntry.create(164, 166))
-				.withDelayRecordingTimeFormat(FormatEntry.create(164, 166))
 				.withTraceWeightingFactorFormat(FormatEntry.create(168, 170))
                 .build();
     }

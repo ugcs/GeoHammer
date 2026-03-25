@@ -44,8 +44,16 @@ public class HorizontalProfile {
         this.altitudes = altitudes;
     }
 
+    public double[] getAltitudes() {
+        return altitudes;
+    }
+
     public void setEllipsoidalHeights(double[] ellipsoidalHeights) {
         this.ellipsoidalHeights = ellipsoidalHeights;
+    }
+
+    public double[] getEllipsoidalHeights() {
+        return ellipsoidalHeights;
     }
 
     public Color getColor() {

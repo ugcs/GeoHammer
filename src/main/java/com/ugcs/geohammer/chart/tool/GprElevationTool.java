@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.chart.Chart;
+import com.ugcs.geohammer.chart.tool.projection.ProjectionView;
 import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.format.PositionFile;
 import com.ugcs.geohammer.format.SgyFile;
@@ -52,6 +53,8 @@ public class GprElevationTool extends FilterToolView {
 
     private final Button flattenSurface;
 
+    private final Button reproject;
+
     private final ExpandableSlider traceOffsetSlider;
 
     private final ExpandableSlider sampleOffsetSlider;
@@ -64,7 +67,7 @@ public class GprElevationTool extends FilterToolView {
 
     private final CheckBox removeAirGap;
 
-    public GprElevationTool(Model model, UndoModel undoModel, ExecutorService executor) {
+    public GprElevationTool(Model model, UndoModel undoModel, ProjectionView gprReprojectionView, ExecutorService executor) {
         super(executor);
 
         this.model = model;
@@ -170,10 +173,17 @@ public class GprElevationTool extends FilterToolView {
         flattenSurface.setMaxWidth(150);
         flattenSurface.setOnAction(event -> flattenSurface());
 
+        // reproject button
+        reproject = new Button("Reproject");
+        reproject.setPrefWidth(150);
+        reproject.setMaxWidth(150);
+        reproject.setOnAction(event -> gprReprojectionView.toggle());
+
         HBox flattenSurfaceContainer = new HBox(Tools.DEFAULT_SPACING,
                 removeAirGap,
                 Views.createSpacer(),
-                flattenSurface);
+                flattenSurface,
+                reproject);
         flattenSurfaceContainer.setAlignment(Pos.BASELINE_LEFT);
         inputContainer.getChildren().setAll(
                 elevationSource,

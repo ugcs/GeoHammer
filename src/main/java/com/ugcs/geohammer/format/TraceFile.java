@@ -273,6 +273,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
         return traces;
     }
 
+    public int getFileTraceIndex(int index) {
+        return metaFile != null
+                ? metaFile.getTraceIndex(index)
+                : index;
+    }
+
     protected void setTraces(List<Trace> traces) {
         this.traces = traces;
         updateEdges();

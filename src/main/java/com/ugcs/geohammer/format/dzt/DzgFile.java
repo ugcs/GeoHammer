@@ -52,8 +52,12 @@ public class DzgFile {
 
         LatLon from = floor.getValue().latLon;
         LatLon to = ceiling.getValue().latLon;
-        if (from == null) return to;
-        if (to == null) return from;
+        if (from == null) {
+			return to;
+		}
+        if (to == null) {
+			return from;
+		}
 
         double k = ((double) (traceIndex - floor.getKey()))
                 / ((double) (ceiling.getKey() - floor.getKey()));

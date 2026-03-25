@@ -36,7 +36,7 @@ public class TraceProfile {
     }
 
     public void setRelativePermittivity(double relativePermittivity) {
-        erSqrt = Math.sqrt(relativePermittivity);
+        erSqrt = Math.sqrt(Math.max(1, relativePermittivity));
     }
 
     public double getSampleIntervalNanos() {
@@ -143,10 +143,15 @@ public class TraceProfile {
     }
 
     public Rectangle2D getEnvelope() {
-        double minX = 0;
-        double minY = 0;
-        double maxX = 0;
-        double maxY = 0;
+        if (origins.isEmpty()) {
+            return Rectangle2D.EMPTY;
+        }
+
+        Point2D first = origins.getFirst();
+        double minX = first.getX();
+        double minY = first.getY();
+        double maxX = first.getX();
+        double maxY = first.getY();
 
         int n = origins.size();
         for (int i = 0; i < n; i++) {

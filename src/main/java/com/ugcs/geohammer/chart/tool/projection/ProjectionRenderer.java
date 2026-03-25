@@ -32,7 +32,7 @@ class ProjectionRenderer {
 
     private static final Color ANTENNA_COLOR = Color.SALMON;
 
-    private static final Color TERRAIN_COLOR = Color.LINEN; // MEDIUMAQUAMARINE MINTCREAM
+    private static final Color TERRAIN_COLOR = Color.LINEN;
 
     private static final double TERRAIN_WIDTH = 1.0;
 

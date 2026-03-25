@@ -38,6 +38,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.converter.NumberStringConverter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -51,6 +52,8 @@ public class ProjectionView extends CanvasWindow {
     private final ProjectionModel projectionModel;
 
     private final ProjectionController projectionController;
+
+    private @Nullable ProjectionRenderer renderer;
 
     // drag state
 
@@ -102,6 +105,10 @@ public class ProjectionView extends CanvasWindow {
     @Override
     protected void onCreate() {
         super.onCreate();
+
+        if (canvas != null) {
+            renderer = new ProjectionRenderer(projectionModel, canvas);
+        }
 
         if (root != null) {
             Node toolBar = createToolBar();
@@ -350,8 +357,7 @@ public class ProjectionView extends CanvasWindow {
     }
 
 	private void draw() {
-        if (isShowing() && canvas != null) {
-            ProjectionRenderer renderer = new ProjectionRenderer(projectionModel, canvas);
+        if (isShowing() && renderer != null) {
             renderer.draw();
         }
 	}

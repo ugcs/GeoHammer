@@ -48,7 +48,7 @@ public class Grid {
         int m = (int) Math.ceil(envelope.getWidth() / cellWidth) + 1;
         int n = (int) Math.ceil(envelope.getHeight() / cellHeight) + 1;
 
-        double k = (double)MAX_CELLS / (m * n);
+        double k = (double)MAX_CELLS / ((long)m * n);
         if (k < 1.0) {
             double kSqrt = Math.sqrt(k);
             m = (int)(kSqrt * m);

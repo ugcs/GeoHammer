@@ -10,8 +10,6 @@ public abstract class HoverHandle extends BaseObjectImpl {
 
     private final Tooltip tooltip;
 
-    private boolean dragging;
-
     protected HoverHandle(Tooltip tooltip) {
         this.tooltip = tooltip;
     }
@@ -19,46 +17,33 @@ public abstract class HoverHandle extends BaseObjectImpl {
     @Override
     public boolean mousePressHandle(Point2D localPoint, ScrollableData profField) {
         if (isPointInside(localPoint, profField)) {
-            dragging = true;
             tooltip.hide();
             return true;
         }
         return false;
     }
 
-    @Override
-    public boolean mouseReleaseHandle(Point2D localPoint, ScrollableData profField) {
-        dragging = false;
-        return false;
-    }
+	@Override
+	public boolean mouseHoverHandle(Point2D point, ScrollableData profField) {
+		if (canShowTooltip(profField) && profField instanceof GPRChart gprChart) {
+			if (!tooltip.isShowing()) {
+				Point2D canvas = gprChart.localToCanvas(point);
+				Point2D screen = gprChart.getCanvas().localToScreen(canvas.getX(), canvas.getY());
+				tooltip.show(gprChart.getCanvas(), screen.getX() + 12, screen.getY() + 12);
+			}
+		} else {
+			tooltip.hide();
+		}
+		return true;
+	}
 
-    @Override
-    public boolean mouseMoveHandle(Point2D localPoint, ScrollableData scrollable) {
-        if (dragging) {
-            return handleDrag(localPoint, scrollable);
-        }
-        if (canShowTooltip(scrollable) && scrollable instanceof GPRChart gprChart) {
-            if (!tooltip.isShowing()) {
-                Point2D canvas = gprChart.localToCanvas(localPoint);
-                Point2D screen = gprChart.getCanvas().localToScreen(canvas.getX(), canvas.getY());
-                tooltip.show(gprChart.getCanvas(), screen.getX() + 12, screen.getY() + 12);
-            }
-        } else {
-            tooltip.hide();
-        }
-        return true;
-    }
-
-    @Override
-    public void onHoverEnd(ScrollableData profField) {
-        tooltip.hide();
-    }
+	@Override
+	public boolean mouseHoverEndHandle(Point2D point, ScrollableData profField) {
+		tooltip.hide();
+		return true;
+	}
 
     protected boolean canShowTooltip(ScrollableData scrollable) {
         return true;
-    }
-
-    protected boolean handleDrag(Point2D localPoint, ScrollableData scrollable) {
-        return false;
     }
 }

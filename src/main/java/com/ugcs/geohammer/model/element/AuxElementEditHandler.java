@@ -101,11 +101,14 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		return result.isPresent() && result.get() == ButtonType.OK;
 	}
 
-	public void clearHover(ScrollableData profField) {
+	@Override
+	public boolean mouseExitHandle(ScrollableData profField) {
 		if (lastHovered != null) {
-			lastHovered.onHoverEnd(profField);
+			lastHovered.mouseHoverEndHandle(null, profField);
 			lastHovered = null;
+			return true;
 		}
+		return false;
 	}
 
 	@Override
@@ -150,13 +153,13 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		BaseObject hovered = lookupElement(localPoint, profField);
 		if (hovered != lastHovered) {
 			if (lastHovered != null) {
-				lastHovered.onHoverEnd(profField);
+				lastHovered.mouseHoverEndHandle(localPoint, profField);
 			}
 			lastHovered = hovered;
 		}
 		if (hovered != null) {
 			profField.setCursor(Cursor.HAND);
-			hovered.mouseMoveHandle(localPoint, profField);
+			hovered.mouseHoverHandle(localPoint, profField);
 		} else {
 			profField.setCursor(Cursor.DEFAULT);
 		}
@@ -177,9 +180,5 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 			return true;
 		}
 		return false;
-	}
-
-	public boolean isDepthSliderPressed() {
-		return mouseInput instanceof DepthStart;
 	}
 }

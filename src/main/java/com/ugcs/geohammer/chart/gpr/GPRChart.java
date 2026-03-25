@@ -34,7 +34,6 @@ import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.view.BaseSlider;
 import com.ugcs.geohammer.model.IndexRange;
-import com.ugcs.geohammer.model.event.DepthRangeUpdatedEvent;
 import javafx.application.Platform;
 import javafx.scene.control.Tooltip;
 import javafx.beans.value.ChangeListener;
@@ -86,6 +85,9 @@ public class GPRChart extends Chart {
 	private static final String DEPTH_SLIDER_TOOLTIP = "Hold Ctrl to move independently";
 
 	private BaseObject selectedMouseHandler;
+
+	private boolean dragCtrlDown;
+
     private final BaseObject scrollHandler;
 
     private final Model model;
@@ -230,14 +232,14 @@ public class GPRChart extends Chart {
 		}
 	}
 
-	void applyDepthRange(IndexRange depthRange) {
+	public void applyDepthRange(IndexRange depthRange) {
 		int max = getField().getMaxHeightInSamples();
 		if (max <= 0) {
 			return;
 		}
 		var settings = getField().getProfileSettings();
 		int clampedLayer = Math.min(Math.max(0, depthRange.from()), max - 1);
-		int clampedHpage = Math.min(Math.max(1, depthRange.to() - depthRange.from()), max - clampedLayer);
+		int clampedHpage = Math.min(Math.max(0, depthRange.to() - depthRange.from()), max - clampedLayer);
 		settings.setLayer(clampedLayer);
 		settings.hpage = clampedHpage;
 		repaintEvent();
@@ -313,7 +315,7 @@ public class GPRChart extends Chart {
         canvas.setOnMousePressed(mousePressHandler);
         canvas.setOnMouseReleased(mouseReleaseHandler);
         canvas.setOnMouseMoved(mouseMoveHandler);
-        canvas.setOnMouseExited(event -> auxEditHandler.clearHover(GPRChart.this));
+        canvas.setOnMouseExited(event -> auxEditHandler.mouseExitHandle(GPRChart.this));
         canvas.setOnMouseClicked(mouseClickHandler);
         canvas.addEventFilter(MouseEvent.DRAG_DETECTED, dragDetectedHandler);
         canvas.addEventFilter(MouseEvent.MOUSE_DRAGGED, mouseMoveHandler);
@@ -727,14 +729,11 @@ public class GPRChart extends Chart {
                 @Override
                 public void handle(MouseEvent event) {
                     Point2D p = getLocalCoords(event);
-                    boolean isDepthSliderPressed = auxEditHandler.isDepthSliderPressed();
                     if (selectedMouseHandler != null) {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
                     }
-                    if (isDepthSliderPressed) {
-                        updateDepthRangeInMeta();
-                    }
+					updateDepthRangeInMeta();
                 }
             };
 
@@ -773,12 +772,8 @@ public class GPRChart extends Chart {
 
                     Point2D p = getLocalCoords(event);
                     if (selectedMouseHandler != null) {
+                        dragCtrlDown = event.isControlDown();
                         selectedMouseHandler.mouseMoveHandle(p, GPRChart.this);
-                        if (auxEditHandler.isDepthSliderPressed() && !event.isControlDown()) {
-                            var settings = getField().getProfileSettings();
-                            model.publishEvent(new DepthRangeUpdatedEvent(GPRChart.this,
-                                    new IndexRange(settings.getLayer(), settings.getLayer() + settings.hpage)));
-                        }
                     } else {
                         auxEditHandler.mouseMoveHandle(p, GPRChart.this);
                     }
@@ -1042,5 +1037,9 @@ public class GPRChart extends Chart {
     public void zoomOut() {
         zoom(-1, false);
     }
+
+	public boolean isDragCtrlDown() {
+		return dragCtrlDown;
+	}
 
 }

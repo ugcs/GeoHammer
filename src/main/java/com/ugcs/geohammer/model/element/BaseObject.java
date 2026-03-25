@@ -61,6 +61,15 @@ public interface BaseObject {
 		return false;
 	}
 
-	default void onHoverEnd(ScrollableData profField) {
+	default boolean mouseHoverHandle(Point2D point, ScrollableData profField) {
+		return false;
+	}
+
+	default boolean mouseHoverEndHandle(Point2D point, ScrollableData profField) {
+		return false;
+	}
+
+	default boolean mouseExitHandle(ScrollableData profField) {
+		return false;
 	}
 }

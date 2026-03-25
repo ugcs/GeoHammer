@@ -22,6 +22,7 @@ import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.element.AuxElementEditHandler;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.model.element.FoundPlace;
+import com.ugcs.geohammer.model.event.DepthRangeUpdatedEvent;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.BaseEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
@@ -567,7 +568,14 @@ public class Model implements InitializingBean {
                 chart.setTraceUnit(unit);
             }
         }
-}
+	}
+
+	@EventListener
+	public void onDepthRangeUpdated(DepthRangeUpdatedEvent event) {
+		getGprCharts().stream()
+				.filter(chart -> chart != event.getSource())
+				.forEach(chart -> chart.applyDepthRange(event.getDepthRange()));
+	}
 
 	// trace selection
 

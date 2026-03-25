@@ -9,7 +9,9 @@ import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.ScrollableData;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.TraceSample;
+import com.ugcs.geohammer.model.event.DepthRangeUpdatedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import javafx.geometry.Point2D;
 import javafx.scene.control.Tooltip;
@@ -38,10 +40,14 @@ public class DepthStart extends HoverHandle {
 	}
 
 	@Override
-	protected boolean handleDrag(Point2D point, ScrollableData scrollable) {
+	public boolean mouseMoveHandle(Point2D point, ScrollableData scrollable) {
 		TraceSample ts = scrollable.screenToTraceSample(point);
 		if (scrollable instanceof GPRChart gprChart) {
-			controlToSettings(ts, gprChart.getField());
+			IndexRange indexRange = buildIndexRange(ts, gprChart.getField());
+			gprChart.applyDepthRange(indexRange);
+			if (!gprChart.isDragCtrlDown()) {
+				AppContext.model.publishEvent(new DepthRangeUpdatedEvent(gprChart, indexRange));
+			}
 		}
 		AppContext.model.publishEvent(new WhatChanged(this, WhatChanged.Change.adjusting));
 		return true;
@@ -52,10 +58,9 @@ public class DepthStart extends HoverHandle {
 		return AppContext.model.getGprCharts().size() > 1;
 	}
 
-	protected void controlToSettings(TraceSample ts, ProfileField profField) {
-		int max = profField.getMaxHeightInSamples();
-		profField.getProfileSettings().setLayer(Math.min(max - profField.getProfileSettings().hpage,
-			Math.max(0, ts.getSample())));
+	protected IndexRange buildIndexRange(TraceSample ts, ProfileField profField) {
+		var settings = profField.getProfileSettings();
+		return new IndexRange(ts.getSample(), ts.getSample() + settings.hpage);
 	}
 
 	@Override

@@ -459,10 +459,10 @@ public class Model implements InitializingBean {
 				return false;
 			}
 			// clear selection
-			getSelectedData().setStyle("-fx-border-width: 3px; -fx-border-color: transparent;");
+			getSelectedData().setStyle("-fx-border-width: 2px; -fx-border-color: transparent;");
 		}
 
-		node.setStyle("-fx-border-width: 3px; -fx-border-color: #1E90FF;");
+		node.setStyle("-fx-border-width: 2px; -fx-border-color: #6495ED;");
 		setSelectedData(node);
 
 		fileDataContainer.selectFile();

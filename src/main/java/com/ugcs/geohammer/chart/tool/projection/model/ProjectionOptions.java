@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProjectionOptions {
 
+    public static final double MIN_RESAMPLING_STEP = 0.005;
+
     private final DoubleProperty relativePermittivity = new SimpleDoubleProperty(5.0);
 
     // pulse delay offset

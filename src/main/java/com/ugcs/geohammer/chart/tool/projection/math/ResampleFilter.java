@@ -1,18 +1,16 @@
 package com.ugcs.geohammer.chart.tool.projection.math;
 
+import com.ugcs.geohammer.math.LinearInterpolator;
 import javafx.geometry.Point2D;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ResamplingFilter implements TraceFilter {
-
-    private final SegmentInterpolator interpolator;
+public class ResampleFilter implements TraceFilter {
 
     private final double minStep;
 
-    public ResamplingFilter(SegmentInterpolator interpolator, double minStep) {
-        this.interpolator = interpolator;
+    public ResampleFilter(double minStep) {
         this.minStep = minStep;
     }
 
@@ -40,7 +38,7 @@ public class ResamplingFilter implements TraceFilter {
             double dx = b.getX() - a.getX();
             double t = Math.abs(dx) > 1e-18 ? (x - a.getX()) / dx : 0;
 
-            Point2D p = interpolator.interpolate(a, b, t);
+            Point2D p = LinearInterpolator.interpolate(a, b, t);
             resampled.add(p);
         }
         if (resampled.getLast().getX() < maxX) {

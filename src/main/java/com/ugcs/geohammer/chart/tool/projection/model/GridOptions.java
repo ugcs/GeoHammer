@@ -11,9 +11,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class GridOptions {
 
-    private final DoubleProperty cellWidth = new SimpleDoubleProperty(0.05);
+    public static final double DEFAULT_CELL_WIDTH = 0.05;
 
-    private final DoubleProperty cellHeight = new SimpleDoubleProperty(0.05);
+    public static final double DEFAULT_CELL_HEIGHT = 0.05;
+
+    private final DoubleProperty cellWidth = new SimpleDoubleProperty(DEFAULT_CELL_WIDTH);
+
+    private final DoubleProperty cellHeight = new SimpleDoubleProperty(DEFAULT_CELL_HEIGHT);
 
     private final ObjectProperty<GridSamplingMethod> samplingMethod = new SimpleObjectProperty<>(GridSamplingMethod.DEPTH_WEIGHTED);
 

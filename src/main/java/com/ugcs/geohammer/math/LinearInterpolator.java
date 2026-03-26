@@ -1,9 +1,24 @@
 package com.ugcs.geohammer.math;
 
+import javafx.geometry.Point2D;
+
 public final class LinearInterpolator {
 
 	private LinearInterpolator() {
 	}
+
+    public static Point2D interpolate(Point2D a, Point2D b, double t) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        return new Point2D(
+                a.getX() + (b.getX() - a.getX()) * t,
+                a.getY() + (b.getY() - a.getY()) * t
+        );
+    }
 
 	// TODO use Range for xRange and yRange
 	public static double interpolate(double x, double xMin, double xMax, double yMin, double yMax) {

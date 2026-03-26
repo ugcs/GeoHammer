@@ -176,11 +176,11 @@ public class ProjectionView extends CanvasWindow {
         terrainOffset.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.terrainOffsetProperty()));
 
-        SliderWithLabel antennaSmoothing = new SliderWithLabel("Antenna smoothing", "cm", new Range(0, 300));
+        SliderWithLabel antennaSmoothing = new SliderWithLabel("Antenna smoothing", "cm", new Range(0, 500));
         antennaSmoothing.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.antennaSmoothingRadiusProperty()));
 
-        SliderWithLabel terrainSmoothing = new SliderWithLabel("Terrain smoothing", "cm", new Range(0, 500));
+        SliderWithLabel terrainSmoothing = new SliderWithLabel("Terrain smoothing", "cm", new Range(0, 1000));
         terrainSmoothing.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.terrainSmoothingRadiusProperty()));
 
@@ -364,7 +364,7 @@ public class ProjectionView extends CanvasWindow {
 	}
 
     @EventListener
-    protected void onFileSelected(FileSelectedEvent event) {
+    private void onFileSelected(FileSelectedEvent event) {
         if (!isShowing()) {
             return;
         }

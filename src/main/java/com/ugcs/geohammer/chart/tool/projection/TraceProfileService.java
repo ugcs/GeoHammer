@@ -1,14 +1,14 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
 import com.ugcs.geohammer.chart.tool.projection.math.GaussianFilter;
-import com.ugcs.geohammer.chart.tool.projection.math.LinearInterpolator;
 import com.ugcs.geohammer.chart.tool.projection.math.Normal;
 import com.ugcs.geohammer.chart.tool.projection.math.NormalDiffusion;
 import com.ugcs.geohammer.chart.tool.projection.math.Polyline;
-import com.ugcs.geohammer.chart.tool.projection.math.ResamplingFilter;
+import com.ugcs.geohammer.chart.tool.projection.math.ResampleFilter;
 import com.ugcs.geohammer.chart.tool.projection.math.TraceFilter;
 import com.ugcs.geohammer.chart.tool.projection.model.BackgroundFilter;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
+import com.ugcs.geohammer.chart.tool.projection.model.ProjectionOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceSamples;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceSamplesView;
@@ -67,7 +67,7 @@ public class TraceProfileService {
         List<Point2D> terrain = buildTerrain(file, range, origins);
         traceProfile.setTerrain(terrain);
 
-        List<Point2D> terrainFiltered = filterTerrain(terrain, origins);
+        List<Point2D> terrainFiltered = filterTerrain(terrain);
         traceProfile.setTerrainFiltered(terrainFiltered);
 
         List<Normal> normals = buildNormals(origins, terrainFiltered);
@@ -89,12 +89,8 @@ public class TraceProfileService {
     }
 
     private List<Point2D> buildOrigins(TraceFile file, IndexRange range) {
-        double antennaOffset = projectionModel
-                .getProjectionOptions()
-                .getAntennaOffset();
-
         double[] x = getX(file, range);
-        double[] y = getAntennaY(file, range, antennaOffset);
+        double[] y = getAntennaY(file, range);
 
         int n = x.length;
         Check.condition(y.length == n);
@@ -136,7 +132,7 @@ public class TraceProfileService {
         return x;
     }
 
-    private double[] getAntennaY(TraceFile file, IndexRange range, double antennaOffset) {
+    private double[] getAntennaY(TraceFile file, IndexRange range) {
         List<Trace> traces = file.getTraces();
         int n = range.size();
 
@@ -145,6 +141,11 @@ public class TraceProfileService {
                 ? profile.getEllipsoidalHeights()
                 : null;
         double[] antennaY = new double[n];
+
+        double antennaOffset = projectionModel
+                .getProjectionOptions()
+                .getAntennaOffset();
+
         for (int i = 0; i < n; i++) {
             int traceIndex = range.from() + i;
             int fileTraceIndex = file.getFileTraceIndex(traceIndex);
@@ -190,14 +191,9 @@ public class TraceProfileService {
         return terrain;
     }
 
-    private List<Point2D> filterTerrain(List<Point2D> terrain, List<Point2D> origins) {
-        // resample terrain
-        double minResamplingStep = 0.005;
-
-        LinearInterpolator interpolator = new LinearInterpolator();
-        ResamplingFilter resampling = new ResamplingFilter(interpolator, minResamplingStep);
-
-        List<Point2D> filtered = resampling.filter(terrain);
+    private List<Point2D> filterTerrain(List<Point2D> terrain) {
+        ResampleFilter resampleFilter = new ResampleFilter(ProjectionOptions.MIN_RESAMPLING_STEP);
+        List<Point2D> filtered = resampleFilter.filter(terrain);
 
         double smoothingRadius = projectionModel
                 .getProjectionOptions()

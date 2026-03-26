@@ -56,8 +56,14 @@ public class ProjectionController {
 
     private void initListeners() {
         TraceSelection selection = projectionModel.getSelection();
-        Listeners.onChange(selection.fileProperty(), v -> initFile());
-        Listeners.onChange(selection.lineProperty(), v -> updateTraceProfile());
+        Listeners.onChange(selection.fileProperty(), v -> {
+            projectionModel.getResult().gridProperty().set(null);
+            initFile();
+        });
+        Listeners.onChange(selection.lineProperty(), v -> {
+            projectionModel.getResult().gridProperty().set(null);
+            updateTraceProfile();
+        });
 
         RenderOptions renderOptions = projectionModel.getRenderOptions();
         Listeners.onChange(renderOptions.removeBackgroundProperty(), v -> updateTraceProfile());
@@ -174,7 +180,9 @@ public class ProjectionController {
         int numSamples = traceProfile.numSamples();
 
         if (numTraces < 2) {
-            return new Point2D(0.05, 0.05);
+            return new Point2D(
+                    GridOptions.DEFAULT_CELL_WIDTH,
+                    GridOptions.DEFAULT_CELL_HEIGHT);
         }
 
         // w

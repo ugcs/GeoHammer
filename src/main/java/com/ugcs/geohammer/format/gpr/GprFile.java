@@ -119,9 +119,7 @@ public class GprFile extends TraceFile {
 		Traces.fillMissingLatLon(traces);
 
 		if (!traces.isEmpty() && traces.stream().allMatch(t -> t.getLatLon() == null)) {
-			throw new IOException(
-				"File '" + file.getName() + "' contains " + traces.size() + " trace(s) "
-				+ "but no valid GPS coordinates were found in any trace header.");
+			throw new IOException("File '" + file.getName() + "' has no valid GPS coordinates in any trace header.");
 		}
 
 		loadMeta(traces);

@@ -173,24 +173,29 @@ public class GprElevationTool extends FilterToolView {
         flattenSurface.setMaxWidth(150);
         flattenSurface.setOnAction(event -> flattenSurface());
 
+        HBox flattenSurfaceContainer = new HBox(Tools.DEFAULT_SPACING,
+                removeAirGap,
+                Views.createSpacer(),
+                flattenSurface);
+
         // reproject button
         reproject = new Button("Reproject");
         reproject.setPrefWidth(150);
         reproject.setMaxWidth(150);
         reproject.setOnAction(event -> gprReprojectionView.toggle());
 
-        HBox flattenSurfaceContainer = new HBox(Tools.DEFAULT_SPACING,
-                removeAirGap,
+        HBox reprojectContainer = new HBox(Tools.DEFAULT_SPACING,
                 Views.createSpacer(),
-                flattenSurface,
                 reproject);
+
         flattenSurfaceContainer.setAlignment(Pos.BASELINE_LEFT);
         inputContainer.getChildren().setAll(
                 elevationSource,
                 traceOffsetSlider,
                 sampleOffsetSlider,
                 surfaceOptions,
-                flattenSurfaceContainer);
+                flattenSurfaceContainer,
+                reprojectContainer);
 
         // disable base filter buttons
         buttonContainer.setVisible(false);

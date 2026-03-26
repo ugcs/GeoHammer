@@ -30,15 +30,17 @@ class ProjectionRenderer {
 
     private static final double NORMAL_WIDTH = 0.5;
 
-    private static final Color ANTENNA_COLOR = Color.SALMON;
+    private static final Color ANTENNA_COLOR = Color.web("#72DDF7");
 
-    private static final Color TERRAIN_COLOR = Color.LINEN;
+    private static final double ANTENNA_WIDTH = 1.8;
+
+    private static final Color TERRAIN_COLOR = Color.WHEAT;
 
     private static final double TERRAIN_WIDTH = 1.0;
 
-    private static final Color TERRAIN_FILTERED_COLOR = Color.YELLOWGREEN;
+    private static final Color TERRAIN_FILTERED_COLOR = Color.web("#FB7185");
 
-    private static final double TERRAIN_FILTERED_WIDTH = 2.0;
+    private static final double TERRAIN_FILTERED_WIDTH = 1.8;
 
     private final ProjectionModel projectionModel;
 
@@ -131,12 +133,13 @@ class ProjectionRenderer {
 
     private void drawOrigins(TraceProfile traceProfile) {
         List<Point2D> points = Nulls.toEmpty(traceProfile.getOrigins());
-        drawPolyline(points, ANTENNA_COLOR);
+        drawPolyline(points, ANTENNA_COLOR, ANTENNA_WIDTH);
     }
 
     private void drawTerrain(TraceProfile traceProfile) {
         List<Point2D> points = Nulls.toEmpty(traceProfile.getTerrain());
         drawPolyline(points, TERRAIN_COLOR, TERRAIN_WIDTH);
+
         List<Point2D> filteredPoints = Nulls.toEmpty(traceProfile.getTerrainFiltered());
         drawPolyline(filteredPoints, TERRAIN_FILTERED_COLOR, TERRAIN_FILTERED_WIDTH);
     }

@@ -21,6 +21,7 @@ import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.Bindings;
 import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Listeners;
+import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.chart.tool.projection.control.FoldableGroup;
 import com.ugcs.geohammer.chart.tool.projection.control.SliderWithLabel;
@@ -65,7 +66,7 @@ public class ProjectionView extends CanvasWindow {
             Model model,
             ProjectionModel projectionModel,
             ProjectionController projectionController) {
-        super("Reprojection (experimental)", "styles/theme/dark.css");
+        super("Reprojection (experimental)", Styles.DARK_THEME_PATH);
 
         this.model = model;
         this.projectionModel = projectionModel;

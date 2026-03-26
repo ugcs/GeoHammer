@@ -57,7 +57,7 @@ public class UtilityWindow {
 
         Scene scene = new Scene(root, INIT_WIDTH, INIT_HEIGHT);
         if (!Strings.isNullOrEmpty(style)) {
-            scene.getStylesheets().add(style);
+            Styles.addResource(scene, style);
         }
         window.setScene(scene);
 

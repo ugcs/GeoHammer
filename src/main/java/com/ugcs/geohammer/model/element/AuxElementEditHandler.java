@@ -36,6 +36,9 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 	@Nullable
 	private BaseObject mouseInput;
 
+	@Nullable
+	private BaseObject lastHovered;
+
 	private final Button createMarkButton = ResourceImageHolder.setButtonImage(
 			ResourceImageHolder.ADD_MARK, new Button());
 
@@ -99,6 +102,16 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 	}
 
 	@Override
+	public boolean mouseExitHandle(ScrollableData profField) {
+		if (lastHovered != null) {
+			lastHovered.mouseHoverEndHandle(null, profField);
+			lastHovered = null;
+			return true;
+		}
+		return false;
+	}
+
+	@Override
 	public boolean mousePressHandle(Point2D localPoint, ScrollableData profField) {
 		BaseObject element = lookupElement(localPoint, profField);
 		if (element != null) {
@@ -130,22 +143,25 @@ public class AuxElementEditHandler extends BaseObjectImpl {
 		return null;
 	}
 
-	private boolean isAboveElement(Point2D localPoint, ScrollableData profField) {
-		return lookupElement(localPoint, profField) != null;
-	}
-
 	@Override
 	public boolean mouseMoveHandle(Point2D localPoint, ScrollableData profField) {
 		if (mouseInput != null) {
 			mouseInput.mouseMoveHandle(localPoint, profField);
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 			return true;
+		}
+		BaseObject hovered = lookupElement(localPoint, profField);
+		if (hovered != lastHovered) {
+			if (lastHovered != null) {
+				lastHovered.mouseHoverEndHandle(localPoint, profField);
+			}
+			lastHovered = hovered;
+		}
+		if (hovered != null) {
+			profField.setCursor(Cursor.HAND);
+			hovered.mouseHoverHandle(localPoint, profField);
 		} else {
-			if (isAboveElement(localPoint, profField)) {
-				profField.setCursor(Cursor.HAND);
-			} else {
-				profField.setCursor(Cursor.DEFAULT);
-			}			
+			profField.setCursor(Cursor.DEFAULT);
 		}
 		return false;
 	}

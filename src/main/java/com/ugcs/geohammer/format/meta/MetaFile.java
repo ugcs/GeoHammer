@@ -33,7 +33,10 @@ public class MetaFile {
 
 	private @Nullable Double contrast;
 
+    @Deprecated
 	private @Nullable Range amplitudeRange;
+
+    private @Nullable IndexRange depthRange;
 
     // mark position indices in a local values list
     private Set<Integer> marks = new HashSet<>();
@@ -66,12 +69,19 @@ public class MetaFile {
 
     public void setContrast(Double contrast) { this.contrast = contrast; }
 
-    public @Nullable Range getAmplitudeRange() {
-        return amplitudeRange;
+    @Nullable
+    public IndexRange getDepthRange() {
+        if (depthRange != null) {
+            return depthRange;
+        }
+        if (amplitudeRange != null) {
+            return new IndexRange((int) amplitudeRange.getMin(), (int) amplitudeRange.getMax());
+        }
+        return null;
     }
 
-    public void setAmplitudeRange(Range amplitudeRange) {
-        this.amplitudeRange = amplitudeRange;
+    public void setDepthRange(@Nullable IndexRange depthRange) {
+        this.depthRange = depthRange;
     }
 
     public Set<Integer> getMarks() {
@@ -145,7 +155,7 @@ public class MetaFile {
 
         meta.setSampleRange(sampleRange);
         meta.setContrast(contrast);
-        meta.setAmplitudeRange(amplitudeRange);
+        meta.setDepthRange(depthRange);
 
         // lines
         List<TraceLine> lines = buildLinesFor(values);
@@ -174,7 +184,7 @@ public class MetaFile {
 
         sampleRange = meta.getSampleRange();
         contrast = meta.getContrast();
-        amplitudeRange = meta.getAmplitudeRange();
+        depthRange = meta.getDepthRange();
 
         // lines
         List<TraceLine> lines = Nulls.toEmpty(meta.getLines());

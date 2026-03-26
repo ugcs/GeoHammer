@@ -3,24 +3,23 @@ package com.ugcs.geohammer.model.element;
 import java.awt.Shape;
 
 import com.ugcs.geohammer.chart.gpr.ProfileField;
-import com.ugcs.geohammer.model.TraceSample;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.ScrollableData;
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.TraceSample;
 import javafx.geometry.Point2D;
+import javafx.scene.control.Tooltip;
 
 public class DepthHeight extends DepthStart {
-	
-	public DepthHeight(Shape shape) { //, GPRChart profField) {
-		super(shape); //, profField);
+
+	public DepthHeight(Shape shape, Tooltip tooltip) {
+		super(shape, tooltip);
 	}
 
 	@Override
-	public void controlToSettings(TraceSample ts, ProfileField profField) {
-		int max = profField.getMaxHeightInSamples();
-		
-		profField.getProfileSettings().hpage =
-			Math.min(max - profField.getProfileSettings().getLayer(), Math.max(
-				0, ts.getSample() - profField.getProfileSettings().getLayer()));
+	protected IndexRange buildIndexRange(TraceSample ts, ProfileField profField) {
+		var settings = profField.getProfileSettings();
+		return new IndexRange(settings.getLayer(), ts.getSample());
 	}
 
 	@Override

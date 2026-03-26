@@ -5,39 +5,33 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Shape;
 
-import com.ugcs.geohammer.chart.gpr.GPRChart;
-import com.ugcs.geohammer.chart.ScrollableData;
-import javafx.geometry.Point2D;
-
-import com.ugcs.geohammer.chart.gpr.ProfileField;
-import com.ugcs.geohammer.model.TraceSample;
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.chart.ScrollableData;
+import com.ugcs.geohammer.chart.gpr.GPRChart;
+import com.ugcs.geohammer.chart.gpr.ProfileField;
+import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.TraceSample;
+import com.ugcs.geohammer.model.event.DepthRangeUpdatedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import javafx.geometry.Point2D;
+import javafx.scene.control.Tooltip;
 
-public class DepthStart extends BaseObjectImpl {
+public class DepthStart extends HoverHandle {
 
 	int horM;
 	int verM;
 	int offsetX;
 	int offsetY;
-		
+
 	Shape shape;
-	//ProfileField profField;
-	
-	public DepthStart(Shape shape) {
+
+	public DepthStart(Shape shape, Tooltip tooltip) {
+		super(tooltip);
 		this.shape = shape;
 		horM = shape.getBounds().width;
 		verM = shape.getBounds().height;
 		offsetX = shape.getBounds().x;
 		offsetY = shape.getBounds().y;
-	}
-	
-	@Override
-	public boolean mousePressHandle(Point2D localPoint, ScrollableData profField) {
-		if (isPointInside(localPoint, profField)) {
-			return true;
-		}
-		return false;
 	}
 
 	@Override
@@ -45,21 +39,28 @@ public class DepthStart extends BaseObjectImpl {
 		return null;
 	}
 
-
 	@Override
 	public boolean mouseMoveHandle(Point2D point, ScrollableData scrollable) {
 		TraceSample ts = scrollable.screenToTraceSample(point);
 		if (scrollable instanceof GPRChart gprChart) {
-			controlToSettings(ts, gprChart.getField());
+			IndexRange indexRange = buildIndexRange(ts, gprChart.getField());
+			gprChart.applyDepthRange(indexRange);
+			if (!gprChart.isDragCtrlDown()) {
+				AppContext.model.publishEvent(new DepthRangeUpdatedEvent(gprChart, indexRange));
+			}
 		}
 		AppContext.model.publishEvent(new WhatChanged(this, WhatChanged.Change.adjusting));
 		return true;
 	}
 
-	protected void controlToSettings(TraceSample ts, ProfileField profField) {
-		int max = profField.getMaxHeightInSamples();
-		profField.getProfileSettings().setLayer(Math.min(max - profField.getProfileSettings().hpage,
-			Math.max(0, ts.getSample())));
+	@Override
+	protected boolean canShowTooltip(ScrollableData scrollable) {
+		return AppContext.model.getGprCharts().size() > 1;
+	}
+
+	protected IndexRange buildIndexRange(TraceSample ts, ProfileField profField) {
+		var settings = profField.getProfileSettings();
+		return new IndexRange(ts.getSample(), ts.getSample() + settings.hpage);
 	}
 
 	@Override
@@ -93,7 +94,7 @@ public class DepthStart extends BaseObjectImpl {
 		Rectangle rect = getRect(profField);
 		return rect.contains(localPoint.getX(), localPoint.getY());
 	}
-	
+
 	//@Override
 	private Rectangle getRect(ScrollableData profField) {
 		Point2D scr = getCenter(profField);

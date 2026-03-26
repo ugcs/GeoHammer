@@ -22,6 +22,7 @@ import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.element.AuxElementEditHandler;
 import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.model.element.FoundPlace;
+import com.ugcs.geohammer.model.event.DepthRangeUpdatedEvent;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.BaseEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
@@ -270,6 +271,13 @@ public class Model implements InitializingBean {
                 .toList();
     }
 
+    public List<GPRChart> getGprCharts() {
+        return charts.values().stream()
+                .filter(c -> c instanceof GPRChart)
+                .map(c -> (GPRChart) c)
+                .toList();
+    }
+
     public @Nullable String getSelectedSeriesName(@Nullable SgyFile file) {
         if (file == null) {
             return null;
@@ -451,10 +459,10 @@ public class Model implements InitializingBean {
 				return false;
 			}
 			// clear selection
-			getSelectedData().setStyle("-fx-border-width: 2px; -fx-border-color: transparent;");
+			getSelectedData().setStyle("-fx-border-width: 3px; -fx-border-color: transparent;");
 		}
 
-		node.setStyle("-fx-border-width: 2px; -fx-border-color: lightblue;");
+		node.setStyle("-fx-border-width: 3px; -fx-border-color: #1E90FF;");
 		setSelectedData(node);
 
 		fileDataContainer.selectFile();
@@ -560,7 +568,14 @@ public class Model implements InitializingBean {
                 chart.setTraceUnit(unit);
             }
         }
-}
+	}
+
+	@EventListener
+	public void onDepthRangeUpdated(DepthRangeUpdatedEvent event) {
+		getGprCharts().stream()
+				.filter(chart -> chart != event.getSource())
+				.forEach(chart -> chart.applyDepthRange(event.getDepthRange()));
+	}
 
 	// trace selection
 

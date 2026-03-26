@@ -303,7 +303,7 @@ public class ProfileView implements InitializingBean {
 		}
 		chart.setSize(
 				(int) (center.getWidth() - 21),
-				(int) (Math.max(400, ((VBox) chart.getRootNode()).getHeight()) - 4));
+				(int) (Math.max(400, ((VBox) chart.getRootNode()).getHeight()) - 6));
 	}
 
 	private Region getFixedWidthSpacer() {

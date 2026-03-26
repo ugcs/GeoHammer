@@ -534,7 +534,7 @@ public class Model implements InitializingBean {
 
 	@EventListener
 	private void onChange(WhatChanged event) {
-		if (event.isJustdraw() || event.isTraceValues()) {
+		if (event.isJustdraw() || event.isTraceCut() || event.isTraceValues()) {
 			charts.values().forEach(chart ->
 					Platform.runLater(chart::repaint)
 			);

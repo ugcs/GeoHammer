@@ -1,11 +1,14 @@
 package com.ugcs.geohammer.view;
 
 import com.ugcs.geohammer.util.Check;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.Blend;
@@ -160,4 +163,24 @@ public final class Views {
 		separator.setStyle("-fx-background-color: #cccccc;");
 		return separator;
 	}
+
+    public static ScrollPane createVerticalScrollContainer(Node content, Node parent) {
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        // set reasonably large amount to fit tab height;
+        // this seems the only way to force pane to fill container
+        // in height
+        scrollPane.setPrefHeight(10_000);
+        if (parent != null) {
+            scrollPane.focusedProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue) {
+                    // redirect focus to the parent node
+                    Platform.runLater(parent::requestFocus);
+                }
+            });
+        }
+        return scrollPane;
+    }
 }

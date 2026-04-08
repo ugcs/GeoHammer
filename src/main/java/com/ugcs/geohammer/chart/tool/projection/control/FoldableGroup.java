@@ -1,6 +1,5 @@
 package com.ugcs.geohammer.chart.tool.projection.control;
 
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
@@ -8,7 +7,7 @@ import javafx.scene.layout.VBox;
 
 public class FoldableGroup extends VBox {
 
-    private static final String COLLAPSED = "⏵";
+    private static final String FOLDED = "⏵";
 
     private static final String EXPANDED = "⏷";
 
@@ -31,15 +30,20 @@ public class FoldableGroup extends VBox {
         content.getStyleClass().add("group-content");
 
         getStyleClass().add("group");
-        VBox.setMargin(this, new Insets(4, 0, 4, 0));
         getChildren().addAll(header, content);
     }
 
-    public void toggle() {
-        boolean expand = !content.isVisible();
+    public boolean isFolded() {
+        return !content.isVisible();
+    }
 
-        content.setVisible(expand);
-        content.setManaged(expand);
-        icon.setText(expand ? EXPANDED : COLLAPSED);
+    public void setFolded(boolean value) {
+        content.setVisible(!value);
+        content.setManaged(!value);
+        icon.setText(value ? FOLDED : EXPANDED);
+    }
+
+    public void toggle() {
+        setFolded(!isFolded());
     }
 }

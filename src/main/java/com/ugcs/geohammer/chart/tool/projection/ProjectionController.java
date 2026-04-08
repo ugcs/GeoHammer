@@ -1,24 +1,21 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
 import com.github.thecoldwine.sigrun.common.TraceHeader;
-import com.ugcs.geohammer.chart.tool.projection.math.Normal;
 import com.ugcs.geohammer.chart.tool.projection.model.Grid;
 import com.ugcs.geohammer.chart.tool.projection.model.GridOptions;
+import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
+import com.ugcs.geohammer.chart.tool.projection.model.ProjectionOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionResult;
 import com.ugcs.geohammer.chart.tool.projection.model.RenderOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
-import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
-import com.ugcs.geohammer.chart.tool.projection.model.ProjectionOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceSelection;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.IndexRange;
-import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.SinglePendingExecutor;
 import com.ugcs.geohammer.view.Listeners;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
-import javafx.geometry.Point2D;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -69,23 +66,25 @@ public class ProjectionController {
         Listeners.onChange(renderOptions.removeBackgroundProperty(), v -> updateTraceProfile());
 
         ProjectionOptions projectionOptions = projectionModel.getProjectionOptions();
-        Listeners.onChange(projectionOptions.relativePermittivityProperty(), v -> updateTraceProfile());
         Listeners.onChange(projectionOptions.sampleOffsetProperty(), v -> updateTraceProfile());
+        Listeners.onChange(projectionOptions.centerFrequencyProperty(), v -> updateTraceProfile());
+        Listeners.onChange(projectionOptions.relativePermittivityProperty(), v -> updateTraceProfile());
         Listeners.onChange(projectionOptions.antennaOffsetProperty(), v -> updateTraceProfile());
         Listeners.onChange(projectionOptions.terrainOffsetProperty(), v -> updateTraceProfile());
         Listeners.onChange(projectionOptions.antennaSmoothingRadiusProperty(), v -> updateTraceProfile());
         Listeners.onChange(projectionOptions.terrainSmoothingRadiusProperty(), v -> updateTraceProfile());
-        Listeners.onChange(projectionOptions.diffuseNormalsProperty(), v -> updateTraceProfile());
+        Listeners.onChange(projectionOptions.normalWeightProperty(), v -> updateTraceProfile());
 
         GridOptions gridOptions = projectionModel.getGridOptions();
-        Listeners.onChange(gridOptions.cellWidthProperty(), v -> updateGrid());
-        Listeners.onChange(gridOptions.cellHeightProperty(), v -> updateGrid());
-        Listeners.onChange(gridOptions.samplingMethodProperty(), v -> updateGrid());
-        Listeners.onChange(gridOptions.interpolateGridProperty(), v -> updateGrid());
-        Listeners.onChange(gridOptions.cropAirProperty(), v -> updateGrid());
+        Listeners.onChange(gridOptions.resolutionProperty(), v -> autoUpdateGrid());
+        Listeners.onChange(gridOptions.migrationProperty(), v -> autoUpdateGrid());
+        Listeners.onChange(gridOptions.refractionProperty(), v -> autoUpdateGrid());
+        Listeners.onChange(gridOptions.fresnelApertureFactorProperty(), v -> autoUpdateGrid());
+        Listeners.onChange(gridOptions.interpolateGridProperty(), v -> autoUpdateGrid());
+        Listeners.onChange(gridOptions.cropAirProperty(), v -> autoUpdateGrid());
 
         ProjectionResult result = projectionModel.getResult();
-        Listeners.onChange(result.profileProperty(), v -> updateGrid());
+        Listeners.onChange(result.profileProperty(), v -> autoUpdateGrid());
     }
 
     public void selectFile(TraceFile file) {
@@ -118,6 +117,8 @@ public class ProjectionController {
 
         // request zoom
         requestZoomToProfile();
+
+        updateTraceProfile();
     }
 
     private int getPulseDelaySamples(TraceFile file) {
@@ -163,41 +164,8 @@ public class ProjectionController {
         projectionModel.getViewport().zoomToProfileProperty().set(true);
     }
 
-    public void autoSizeGridCell() {
-        TraceProfile traceProfile = projectionModel.getResult().getProfile();
-        if (traceProfile == null) {
-            return;
-        }
-        Point2D gridUnit = estimateGridUnit(traceProfile);
-        projectionModel.getGridOptions().cellWidthProperty().set(gridUnit.getX());
-        projectionModel.getGridOptions().cellHeightProperty().set(gridUnit.getY());
-    }
-
-    private Point2D estimateGridUnit(TraceProfile traceProfile) {
-        Check.notNull(traceProfile);
-
-        int numTraces = traceProfile.numTraces();
-        int numSamples = traceProfile.numSamples();
-
-        if (numTraces < 2) {
-            return new Point2D(
-                    GridOptions.DEFAULT_CELL_WIDTH,
-                    GridOptions.DEFAULT_CELL_HEIGHT);
-        }
-
-        // w
-        Point2D p0 = traceProfile.getOrigin(0);
-        Point2D pn = traceProfile.getOrigin(numTraces - 1);
-        double w = (pn.getX() - p0.getX()) / numTraces;
-
-        // h
-        int i = numTraces / 2;
-        Normal normal = traceProfile.getNormal(i);
-        double l0 = traceProfile.getSampleDepth(0, normal.length());
-        double ln = traceProfile.getSampleDepth(numSamples - 1, normal.length());
-        double h = (ln - l0) / numSamples;
-
-        return new Point2D(w, h);
+    public void buildGrid() {
+        updateGrid();
     }
 
     public void updateTraceProfile() {
@@ -211,6 +179,13 @@ public class ProjectionController {
         Platform.runLater(() -> {
             projectionModel.getResult().profileProperty().setValue(traceProfile);
         });
+    }
+
+    public void autoUpdateGrid() {
+        if (!projectionModel.getGridOptions().isAutoUpdate()) {
+            return;
+        }
+        updateGrid();
     }
 
     public void updateGrid() {

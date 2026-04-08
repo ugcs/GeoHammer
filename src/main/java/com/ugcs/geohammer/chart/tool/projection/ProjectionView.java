@@ -1,9 +1,10 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
+import com.ugcs.geohammer.chart.tool.projection.control.FoldableGroup;
 import com.ugcs.geohammer.chart.tool.projection.control.InputWithLabel;
 import com.ugcs.geohammer.chart.tool.projection.control.SelectorWithLabel;
+import com.ugcs.geohammer.chart.tool.projection.control.SliderWithLabel;
 import com.ugcs.geohammer.chart.tool.projection.model.GridOptions;
-import com.ugcs.geohammer.chart.tool.projection.model.GridSamplingMethod;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionResult;
@@ -17,23 +18,20 @@ import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.palette.SpectrumType;
-import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.Bindings;
 import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Listeners;
 import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Views;
-import com.ugcs.geohammer.chart.tool.projection.control.FoldableGroup;
-import com.ugcs.geohammer.chart.tool.projection.control.SliderWithLabel;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
@@ -89,7 +87,6 @@ public class ProjectionView extends CanvasWindow {
         Listeners.onChange(renderOptions.showOriginsProperty(), v -> draw());
         Listeners.onChange(renderOptions.showTerrainProperty(), v -> draw());
         Listeners.onChange(renderOptions.showNormalsProperty(), v -> draw());
-        Listeners.onChange(renderOptions.showGridProperty(), v -> draw());
         Listeners.onChange(renderOptions.maxGainProperty(), v -> draw());
         Listeners.onChange(renderOptions.contrastProperty(), v -> draw());
         Listeners.onChange(renderOptions.spectrumTypeProperty(), v -> draw());
@@ -112,10 +109,9 @@ public class ProjectionView extends CanvasWindow {
         }
 
         if (root != null) {
-            Node toolBar = createToolBar();
+            Node toolBar = createToolBar(root);
             StackPane.setAlignment(toolBar, Pos.TOP_RIGHT);
             StackPane.setMargin(toolBar, new Insets(16));
-
             root.getChildren().add(toolBar);
 
             initMouseHandlers(root);
@@ -123,22 +119,34 @@ public class ProjectionView extends CanvasWindow {
         }
     }
 
-    private Node createToolBar() {
+    private Node createToolBar(Node parent) {
         VBox toolBar = new VBox(8,
-                createSelectionGroup(),
+                createSelectGroup(),
+                createGridGroup(),
                 createRenderGroup(),
                 createProjectionGroup(),
-                createGridGroup()
+                createAdvancedGroup()
         );
-        toolBar.getStyleClass().add("tool-panel");
         toolBar.setAlignment(Pos.TOP_LEFT);
-        toolBar.setPrefWidth(240);
-        toolBar.setMaxWidth(240);
-        toolBar.setMaxHeight(VBox.USE_PREF_SIZE);
-        return toolBar;
+
+        ScrollPane scrollContainer = Views.createVerticalScrollContainer(toolBar, parent);
+        scrollContainer.getStyleClass().add("tool-panel");
+        scrollContainer.setPrefWidth(240);
+        scrollContainer.setMaxWidth(240);
+        scrollContainer.setMaxHeight(VBox.USE_PREF_SIZE);
+
+        scrollContainer.addEventFilter(ScrollEvent.SCROLL, event -> {
+            if (scrollContainer.getVvalue() == 0 && event.getDeltaY() > 0) {
+                event.consume();
+            } else if (scrollContainer.getVvalue() == 1.0 && event.getDeltaY() < 0) {
+                event.consume();
+            }
+        });
+
+        return scrollContainer;
     }
 
-    private Node createSelectionGroup() {
+    private Node createSelectGroup() {
         TraceSelection selection = projectionModel.getSelection();
 
         SelectorWithLabel<Integer> line = new SelectorWithLabel<>("Line", List.of());
@@ -157,12 +165,74 @@ public class ProjectionView extends CanvasWindow {
         return new HBox(line, fitButton);
     }
 
+    private Node createGridGroup() {
+        GridOptions gridOptions = projectionModel.getGridOptions();
+
+        SliderWithLabel resolution = new SliderWithLabel("Resolution", "%", new Range(1, 100));
+        resolution.getSlider().valueProperty().bindBidirectional(
+                Bindings.fractionToPercent(gridOptions.resolutionProperty()));
+
+        CheckBox autoUpdateGrid = new CheckBox("Auto-update");
+        autoUpdateGrid.selectedProperty().bindBidirectional(gridOptions.autoUpdateProperty());
+
+        Button gridButton = new Button("Grid");
+        gridButton.setOnAction(e -> {
+            projectionController.buildGrid();
+        });
+        gridButton.setMinWidth(50);
+
+        HBox gridActionGroup = new HBox(autoUpdateGrid, Views.createSpacer(), gridButton);
+        gridActionGroup.setAlignment(Pos.BASELINE_LEFT);
+
+        ProgressBar gridProgress = new ProgressBar();
+        gridProgress.setMaxWidth(Double.MAX_VALUE);
+        gridProgress.setPrefHeight(3);
+        gridProgress.progressProperty().bind(gridOptions.gridProgressProperty());
+        gridProgress.visibleProperty().bind(
+                gridOptions.gridProgressProperty().greaterThan(0)
+                        .and(gridOptions.gridProgressProperty().lessThan(1)));
+
+        VBox group = new VBox(
+                resolution,
+                gridActionGroup,
+                gridProgress
+        );
+        group.getStyleClass().add("group");
+        return group;
+    }
+
+    private Node createRenderGroup() {
+        RenderOptions renderOptions = projectionModel.getRenderOptions();
+
+        SelectorWithLabel<SpectrumType> spectrum = new SelectorWithLabel<>("Palette", List.of(SpectrumType.values()));
+        spectrum.getSelector().valueProperty().bindBidirectional(renderOptions.spectrumTypeProperty());
+
+        SliderWithLabel gain = new SliderWithLabel("Gain at max depth", "dB", new Range(0, 128));
+        gain.getSlider().valueProperty().bindBidirectional(renderOptions.maxGainProperty());
+
+        SliderWithLabel contrast = new SliderWithLabel("Contrast", "%", new Range(0, 100));
+        contrast.getSlider().valueProperty().bindBidirectional(
+                Bindings.fractionToPercent(renderOptions.contrastProperty()));
+
+        VBox group = new VBox(
+                spectrum,
+                gain,
+                contrast
+        );
+        group.getStyleClass().add("group");
+        return group;
+    }
+
     private Node createProjectionGroup() {
         ProjectionOptions projectionOptions = projectionModel.getProjectionOptions();
 
         InputWithLabel zeroSample = new InputWithLabel("Zero ns sample");
         zeroSample.getInput().textProperty().bindBidirectional(
                 projectionOptions.sampleOffsetProperty(), new NumberStringConverter());
+
+        InputWithLabel centerFrequency = new InputWithLabel("Center frequency, MHz");
+        centerFrequency.getInput().textProperty().bindBidirectional(
+                projectionOptions.centerFrequencyProperty(), new NumberStringConverter());
 
         InputWithLabel relativePermittivity = new InputWithLabel("Relative permittivity εr");
         relativePermittivity.getInput().textProperty().bindBidirectional(
@@ -176,123 +246,77 @@ public class ProjectionView extends CanvasWindow {
         terrainOffset.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.terrainOffsetProperty()));
 
-        SliderWithLabel antennaSmoothing = new SliderWithLabel("Antenna smoothing", "cm", new Range(0, 300));
+        SliderWithLabel antennaSmoothing = new SliderWithLabel("Antenna smoothing", "cm", new Range(0, 500));
         antennaSmoothing.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.antennaSmoothingRadiusProperty()));
 
-        SliderWithLabel terrainSmoothing = new SliderWithLabel("Terrain smoothing", "cm", new Range(0, 500));
+        SliderWithLabel terrainSmoothing = new SliderWithLabel("Terrain smoothing", "cm", new Range(0, 1000));
         terrainSmoothing.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.terrainSmoothingRadiusProperty()));
 
-        CheckBox diffuseNormals = new CheckBox("Diffuse normals");
-        diffuseNormals.selectedProperty().bindBidirectional(projectionOptions.diffuseNormalsProperty());
+        SliderWithLabel normalWeight = new SliderWithLabel("Normal weight", "", new Range(0, 1));
+        normalWeight.getSlider().valueProperty().bindBidirectional(
+                projectionOptions.normalWeightProperty());
 
         return new FoldableGroup(
                 "Projection",
-                relativePermittivity,
                 zeroSample,
+                centerFrequency,
+                relativePermittivity,
                 antennaOffset,
                 terrainOffset,
                 antennaSmoothing,
                 terrainSmoothing,
-                diffuseNormals
+                normalWeight
         );
     }
 
-    private Node createGridGroup() {
-        GridOptions gridOptions = projectionModel.getGridOptions();
-
-        SelectorWithLabel<GridSamplingMethod> gridSampling = new SelectorWithLabel<>("Sampling", List.of(GridSamplingMethod.values()));
-        gridSampling.getSelector().valueProperty().bindBidirectional(gridOptions.samplingMethodProperty());
-
-        SliderWithLabel cellWidth = new SliderWithLabel("Cell width", "cm", new Range(0.5, 30));
-        cellWidth.getSlider().valueProperty().bindBidirectional(
-                Bindings.metersToCentimeters(gridOptions.cellWidthProperty()));
-
-        SliderWithLabel cellHeight = new SliderWithLabel("Cell height", "cm", new Range(0.5, 30));
-        cellHeight.getSlider().valueProperty().bindBidirectional(
-                Bindings.metersToCentimeters(gridOptions.cellHeightProperty()));
-
-        ProjectionResult result = projectionModel.getResult();
-        Label gridDetails = new Label();
-        Listeners.onChange(result.gridProperty(), grid -> {
-            String text = grid != null
-                    ? "Grid " + grid.getWidth() + " ✕ " + grid.getHeight()
-                    : Strings.empty();
-            gridDetails.setText(text);
-        });
-
-        Button autoSizeButton = new Button("Auto-size");
-        autoSizeButton.setOnAction(e -> {
-            projectionController.autoSizeGridCell();
-        });
-        autoSizeButton.setMinWidth(50);
-
-        HBox statusRow = new HBox(gridDetails, Views.createSpacer(), autoSizeButton);
-        statusRow.setAlignment(Pos.BASELINE_LEFT);
-
-        return new FoldableGroup(
-                "Grid",
-                gridSampling,
-                cellWidth,
-                cellHeight,
-                statusRow
-        );
-    }
-
-    private Node createRenderGroup() {
+    private Node createAdvancedGroup() {
         RenderOptions renderOptions = projectionModel.getRenderOptions();
         GridOptions gridOptions = projectionModel.getGridOptions();
 
-        CheckBox showOrigins = new CheckBox("Origins");
+        CheckBox showOrigins = new CheckBox("Show trace origins");
         showOrigins.selectedProperty().bindBidirectional(renderOptions.showOriginsProperty());
 
-        CheckBox showTerrain = new CheckBox("Terrain");
+        CheckBox showTerrain = new CheckBox("Show terrain");
         showTerrain.selectedProperty().bindBidirectional(renderOptions.showTerrainProperty());
 
-        CheckBox showNormals = new CheckBox("Normals");
+        CheckBox showNormals = new CheckBox("Show trace normals");
         showNormals.selectedProperty().bindBidirectional(renderOptions.showNormalsProperty());
-
-        CheckBox showGrid = new CheckBox("Grid");
-        showGrid.selectedProperty().bindBidirectional(renderOptions.showGridProperty());
 
         CheckBox interpolateGrid = new CheckBox("Interpolate grid");
         interpolateGrid.selectedProperty().bindBidirectional(gridOptions.interpolateGridProperty());
 
-        CheckBox cropAir = new CheckBox("Crop air");
-        cropAir.selectedProperty().bindBidirectional(gridOptions.cropAirProperty());
-
         CheckBox removeBackground = new CheckBox("Remove background");
         removeBackground.selectedProperty().bindBidirectional(renderOptions.removeBackgroundProperty());
 
-        SliderWithLabel gain = new SliderWithLabel("Gain at max depth", "dB", new Range(0, 128));
-        gain.getSlider().valueProperty().bindBidirectional(renderOptions.maxGainProperty());
+        CheckBox cropAir = new CheckBox("Crop air gap");
+        cropAir.selectedProperty().bindBidirectional(gridOptions.cropAirProperty());
 
-        SliderWithLabel contrast = new SliderWithLabel("Contrast", "", new Range(0, 100));
-        contrast.getSlider().valueProperty().bindBidirectional(renderOptions.contrastProperty());
+        CheckBox migration = new CheckBox("Migration (sector summation)");
+        migration.selectedProperty().bindBidirectional(gridOptions.migrationProperty());
 
-        SelectorWithLabel<SpectrumType> spectrum = new SelectorWithLabel<>("Palette", List.of(SpectrumType.values()));
-        spectrum.getSelector().valueProperty().bindBidirectional(renderOptions.spectrumTypeProperty());
+        CheckBox refraction = new CheckBox("Refraction");
+        refraction.selectedProperty().bindBidirectional(gridOptions.refractionProperty());
 
-        GridPane checkboxGrid = new GridPane();
-        ColumnConstraints columnConstraints = new ColumnConstraints();
-        columnConstraints.setPercentWidth(50);
-        checkboxGrid.getColumnConstraints().addAll(
-                columnConstraints,
-                columnConstraints
-        );
-        checkboxGrid.addRow(0, showOrigins, showGrid);
-        checkboxGrid.addRow(1, showTerrain, interpolateGrid);
-        checkboxGrid.addRow(2, showNormals, cropAir);
+        SliderWithLabel fresnelApertureFactor = new SliderWithLabel("Fresnel aperture factor", "", new Range(1, 3));
+        fresnelApertureFactor.getSlider().valueProperty().bindBidirectional(
+                gridOptions.fresnelApertureFactorProperty());
 
-        return new FoldableGroup(
-                "View",
-                checkboxGrid,
+        FoldableGroup group = new FoldableGroup(
+                "Advanced",
+                showOrigins,
+                showTerrain,
+                showNormals,
+                interpolateGrid,
                 removeBackground,
-                gain,
-                contrast,
-                spectrum
+                cropAir,
+                migration,
+                refraction,
+                fresnelApertureFactor
         );
+        group.setFolded(true);
+        return group;
     }
 
     private void initMouseHandlers(StackPane pane) {
@@ -338,6 +362,13 @@ public class ProjectionView extends CanvasWindow {
     }
 
     @Override
+    protected void onHide() {
+        super.onHide();
+
+        projectionController.selectFile(null);
+    }
+
+    @Override
     protected void onDraw() {
         super.onDraw();
         draw();
@@ -364,7 +395,7 @@ public class ProjectionView extends CanvasWindow {
 	}
 
     @EventListener
-    protected void onFileSelected(FileSelectedEvent event) {
+    private void onFileSelected(FileSelectedEvent event) {
         if (!isShowing()) {
             return;
         }

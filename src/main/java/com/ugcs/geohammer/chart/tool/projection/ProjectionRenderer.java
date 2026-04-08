@@ -2,12 +2,13 @@ package com.ugcs.geohammer.chart.tool.projection;
 
 import com.ugcs.geohammer.chart.tool.projection.math.ContrastCurve;
 import com.ugcs.geohammer.chart.tool.projection.math.DbGain;
-import com.ugcs.geohammer.chart.tool.projection.math.Normal;
+import com.ugcs.geohammer.chart.tool.projection.math.Polyline;
 import com.ugcs.geohammer.chart.tool.projection.model.Grid;
-import com.ugcs.geohammer.chart.tool.projection.model.ProjectionResult;
-import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
+import com.ugcs.geohammer.chart.tool.projection.model.ProjectionResult;
 import com.ugcs.geohammer.chart.tool.projection.model.RenderOptions;
+import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
+import com.ugcs.geohammer.chart.tool.projection.model.TraceRay;
 import com.ugcs.geohammer.chart.tool.projection.model.Viewport;
 import com.ugcs.geohammer.service.palette.Palettes;
 import com.ugcs.geohammer.service.palette.Spectrum;
@@ -21,6 +22,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 
 import java.util.List;
+import java.util.function.Function;
 
 class ProjectionRenderer {
 
@@ -34,13 +36,13 @@ class ProjectionRenderer {
 
     private static final double ANTENNA_WIDTH = 1.8;
 
-    private static final Color TERRAIN_COLOR = Color.WHEAT;
+    private static final Color RAW_TERRAIN_COLOR = Color.WHEAT;
 
-    private static final double TERRAIN_WIDTH = 1.0;
+    private static final double RAW_TERRAIN_WIDTH = 1.0;
 
-    private static final Color TERRAIN_FILTERED_COLOR = Color.web("#FB7185");
+    private static final Color TERRAIN_COLOR = Color.web("#FB7185");
 
-    private static final double TERRAIN_FILTERED_WIDTH = 1.8;
+    private static final double TERRAIN_WIDTH = 1.8;
 
     private final ProjectionModel projectionModel;
 
@@ -65,9 +67,7 @@ class ProjectionRenderer {
         if (traceProfile != null) {
             Grid grid =  projectionResult.getGrid();
             if (grid != null) {
-                if (renderOptions.isShowGrid()) {
-                    drawGrid(traceProfile, grid);
-                }
+                drawGrid(grid);
             }
             if (renderOptions.isShowNormals()) {
                 drawNormals(traceProfile);
@@ -89,7 +89,7 @@ class ProjectionRenderer {
                 | color.getBlue();
     }
 
-    private void drawGrid(TraceProfile traceProfile, Grid grid) {
+    private void drawGrid(Grid grid) {
         Viewport viewport = projectionModel.getViewport();
 
         int w = (int)canvas.getWidth();
@@ -99,7 +99,7 @@ class ProjectionRenderer {
         }
 
         RenderOptions renderOptions = projectionModel.getRenderOptions();
-        ContrastCurve contrastCurve = new ContrastCurve(renderOptions.getContrast());
+        ContrastCurve contrastCurve = new ContrastCurve(100 * renderOptions.getContrast());
         DbGain gainFunction = new DbGain(0, renderOptions.getMaxGain());
         float maxDepth = grid.getMaxDepth();
 
@@ -108,20 +108,22 @@ class ProjectionRenderer {
         int[] buffer = new int[w * h];
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
-                Point2D p = viewport.toWorld(new Point2D(x, y));
-                Grid.Index gridIndex = grid.getIndex(p);
-                if (gridIndex == null) {
+                Point2D point = viewport.toWorld(new Point2D(x, y));
+                Grid.Index cellIndex = grid.getIndex(point);
+                if (cellIndex == null) {
                     continue;
                 }
-
-                Grid.Cell cell = grid.getCell(gridIndex);
-                float v = cell.value();
-                if (Float.isNaN(v)) {
+                Grid.Cell cell = grid.getCell(cellIndex);
+                if (cell == null) {
                     continue;
                 }
-                float gain = gainFunction.getGain(maxDepth > 0 ? cell.depth() / maxDepth : 0);
-                v *= gain;
-                buffer[y * w + x] = getColor(spectrum, contrastCurve.map(v));
+                float value = cell.getValue();
+                if (Float.isNaN(value)) {
+                    continue;
+                }
+                float gain = gainFunction.getGain(maxDepth > 0 ? cell.getDepth() / maxDepth : 0);
+                value *= gain;
+                buffer[y * w + x] = getColor(spectrum, contrastCurve.map(value));
             }
         }
 
@@ -132,38 +134,34 @@ class ProjectionRenderer {
     }
 
     private void drawOrigins(TraceProfile traceProfile) {
-        List<Point2D> points = Nulls.toEmpty(traceProfile.getOrigins());
-        drawPolyline(points, ANTENNA_COLOR, ANTENNA_WIDTH);
+        List<TraceRay> rays = Nulls.toEmpty(traceProfile.getRays());
+        drawPolyline(rays, TraceRay::origin, ANTENNA_COLOR, ANTENNA_WIDTH);
     }
 
     private void drawTerrain(TraceProfile traceProfile) {
-        List<Point2D> points = Nulls.toEmpty(traceProfile.getTerrain());
-        drawPolyline(points, TERRAIN_COLOR, TERRAIN_WIDTH);
+        List<Point2D> rawTerrainPoints = Nulls.toEmpty(traceProfile.getRawTerrain());
+        drawPolyline(rawTerrainPoints, RAW_TERRAIN_COLOR, RAW_TERRAIN_WIDTH);
 
-        List<Point2D> filteredPoints = Nulls.toEmpty(traceProfile.getTerrainFiltered());
-        drawPolyline(filteredPoints, TERRAIN_FILTERED_COLOR, TERRAIN_FILTERED_WIDTH);
+        Polyline terrain = traceProfile.getTerrain();
+        if (terrain != null) {
+            List<Point2D> terrainPoints = Nulls.toEmpty(terrain.getPoints());
+            drawPolyline(terrainPoints, TERRAIN_COLOR, TERRAIN_WIDTH);
+        }
     }
 
     private void drawNormals(TraceProfile traceProfile) {
         int n = traceProfile.numTraces();
         for (int i = 0; i < n; i++) {
-            Point2D p = traceProfile.getOrigin(i);
-            Normal normal = traceProfile.getNormal(i);
-            Point2D q = p.add(normal.unit().multiply(normal.length()));
-            drawLine(p, q, NORMAL_COLOR, NORMAL_WIDTH);
+            TraceRay ray = traceProfile.getRay(i);
+            if (ray.soilOrigin() != null) {
+                drawLine(ray.origin(), ray.soilOrigin(), NORMAL_COLOR, NORMAL_WIDTH);
+            }
         }
     }
 
     public void clear() {
         g2.setFill(BACKGROUND_COLOR);
         g2.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-    }
-
-    public void drawCircle(Point2D p, double r, Color color) {
-        Viewport viewport = projectionModel.getViewport();
-        Point2D local = viewport.fromWorld(p);
-        g2.setStroke(color);
-        g2.strokeOval(local.getX() - r, local.getY() - r, 2 * r, 2 * r);
     }
 
     public void drawLine(Point2D p1, Point2D p2, Color color) {
@@ -181,20 +179,22 @@ class ProjectionRenderer {
         g2.setLineWidth(lw);
     }
 
-    public void drawPolyline(List<Point2D> points, Color color) {
-        drawPolyline(points, color, g2.getLineWidth());
+    public void drawPolyline(List<Point2D> points, Color color, double lineWidth) {
+        drawPolyline(points, p -> p, color, lineWidth);
     }
 
-    public void drawPolyline(List<Point2D> points, Color color, double lineWidth) {
+    public <T> void drawPolyline(List<T> items, Function<T, Point2D> toPoint, Color color, double lineWidth) {
         Viewport viewport = projectionModel.getViewport();
-        int n = points.size();
+        int n = items.size();
         if (n < 2) {
             return;
         }
         double[] xs = new double[n];
         double[] ys = new double[n];
         for (int i = 0; i < n; i++) {
-            Point2D local = viewport.fromWorld(points.get(i));
+            T item = items.get(i);
+            Point2D point = toPoint.apply(item);
+            Point2D local = viewport.fromWorld(point);
             xs[i] = local.getX();
             ys[i] = local.getY();
         }

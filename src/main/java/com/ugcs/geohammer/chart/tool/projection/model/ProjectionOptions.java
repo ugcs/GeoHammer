@@ -1,9 +1,7 @@
 package com.ugcs.geohammer.chart.tool.projection.model;
 
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import org.springframework.stereotype.Component;
@@ -11,28 +9,24 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProjectionOptions {
 
-    private final DoubleProperty relativePermittivity = new SimpleDoubleProperty(5.0);
+    public static final double MIN_RESAMPLING_STEP = 0.005;
 
     // pulse delay offset
     private final IntegerProperty sampleOffset = new SimpleIntegerProperty(0);
 
+    private final DoubleProperty centerFrequency = new SimpleDoubleProperty(150);
+
+    private final DoubleProperty relativePermittivity = new SimpleDoubleProperty(5.0);
+
     private final DoubleProperty antennaOffset = new SimpleDoubleProperty(-0.15);
 
-    private final DoubleProperty terrainOffset = new SimpleDoubleProperty(0);
+    private final DoubleProperty terrainOffset = new SimpleDoubleProperty(0.45);
 
     private final DoubleProperty antennaSmoothingRadius = new SimpleDoubleProperty(0);
 
     private final DoubleProperty terrainSmoothingRadius = new SimpleDoubleProperty(2.5);
 
-    private final BooleanProperty diffuseNormals = new SimpleBooleanProperty(false);
-
-    public double getRelativePermittivity() {
-        return relativePermittivity.get();
-    }
-
-    public DoubleProperty relativePermittivityProperty() {
-        return relativePermittivity;
-    }
+    private final DoubleProperty normalWeight = new SimpleDoubleProperty(0.5);
 
     public int getSampleOffset() {
         return sampleOffset.get();
@@ -40,6 +34,22 @@ public class ProjectionOptions {
 
     public IntegerProperty sampleOffsetProperty() {
         return sampleOffset;
+    }
+
+    public double getCenterFrequency() {
+        return centerFrequency.get();
+    }
+
+    public DoubleProperty centerFrequencyProperty() {
+        return centerFrequency;
+    }
+
+    public double getRelativePermittivity() {
+        return relativePermittivity.get();
+    }
+
+    public DoubleProperty relativePermittivityProperty() {
+        return relativePermittivity;
     }
 
     public double getAntennaOffset() {
@@ -74,11 +84,11 @@ public class ProjectionOptions {
         return terrainSmoothingRadius;
     }
 
-    public boolean isDiffuseNormals() {
-        return diffuseNormals.get();
+    public double getNormalWeight() {
+        return normalWeight.get();
     }
 
-    public BooleanProperty diffuseNormalsProperty() {
-        return diffuseNormals;
+    public DoubleProperty normalWeightProperty() {
+        return normalWeight;
     }
 }

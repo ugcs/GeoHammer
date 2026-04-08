@@ -1,17 +1,16 @@
 package com.ugcs.geohammer.chart.tool;
 
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.view.Views;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-
-import com.ugcs.geohammer.format.SgyFile;
-
-import javafx.geometry.Insets;
-import javafx.scene.layout.VBox;
 
 @Component
 public class OptionPane extends VBox {
@@ -60,7 +59,7 @@ public class OptionPane extends VBox {
         );
         toolContainer.setPadding(new Insets(10, 8, 10, 8));
 
-        ScrollPane scrollContainer = Tools.createVerticalScrollContainer(toolContainer, this);
+        ScrollPane scrollContainer = Views.createVerticalScrollContainer(toolContainer, this);
         getChildren().addAll(seriesControl, scrollContainer);
     }
 

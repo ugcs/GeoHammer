@@ -1,15 +1,15 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
 import com.ugcs.geohammer.chart.tool.projection.math.GaussianFilter;
-import com.ugcs.geohammer.chart.tool.projection.math.LinearInterpolator;
-import com.ugcs.geohammer.chart.tool.projection.math.Normal;
-import com.ugcs.geohammer.chart.tool.projection.math.NormalDiffusion;
 import com.ugcs.geohammer.chart.tool.projection.math.Polyline;
-import com.ugcs.geohammer.chart.tool.projection.math.ResamplingFilter;
+import com.ugcs.geohammer.chart.tool.projection.math.ResampleFilter;
 import com.ugcs.geohammer.chart.tool.projection.math.TraceFilter;
+import com.ugcs.geohammer.chart.tool.projection.math.Vectors;
 import com.ugcs.geohammer.chart.tool.projection.model.BackgroundFilter;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
+import com.ugcs.geohammer.chart.tool.projection.model.ProjectionOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
+import com.ugcs.geohammer.chart.tool.projection.model.TraceRay;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceSamples;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceSamplesView;
 import com.ugcs.geohammer.format.HorizontalProfile;
@@ -19,7 +19,6 @@ import com.ugcs.geohammer.math.SphericalMercator;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.Nulls;
 import javafx.geometry.Point2D;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +27,8 @@ import java.util.List;
 
 @Service
 public class TraceProfileService {
+
+    private static final int RANGE_LIMIT = 5000;
 
     private final ProjectionModel projectionModel;
 
@@ -49,12 +50,13 @@ public class TraceProfileService {
         if (range == null) {
             range = new IndexRange(0, file.numTraces());
         }
+        if (range.size() > RANGE_LIMIT) {
+            range = new IndexRange(range.from(), range.from() + RANGE_LIMIT);
+        }
 
         TraceProfile traceProfile = new TraceProfile();
 
-        double relativePermittivity = projectionModel
-                .getProjectionOptions()
-                .getRelativePermittivity();
+        double relativePermittivity = projectionModel.getProjectionOptions().getRelativePermittivity();
         traceProfile.setRelativePermittivity(relativePermittivity);
 
         // sgy sample interval is in microseconds
@@ -62,24 +64,20 @@ public class TraceProfileService {
         traceProfile.setSampleIntervalNanos(sampleIntervalNanos);
 
         List<Point2D> origins = buildOrigins(file, range);
-        traceProfile.setOrigins(origins);
+        List<Point2D> rawTerrain = buildTerrain(file, range, origins);
+        List<Point2D> filteredTerrain = filterTerrain(rawTerrain);
+        Polyline terrain = new Polyline(filteredTerrain);
 
-        List<Point2D> terrain = buildTerrain(file, range, origins);
         traceProfile.setTerrain(terrain);
+        traceProfile.setRawTerrain(rawTerrain);
 
-        List<Point2D> terrainFiltered = filterTerrain(terrain, origins);
-        traceProfile.setTerrainFiltered(terrainFiltered);
+        List<TraceRay> rays = buildTraceRays(origins, terrain, Math.sqrt(relativePermittivity));
+        traceProfile.setRays(rays);
 
-        List<Normal> normals = buildNormals(origins, terrainFiltered);
-        traceProfile.setNormals(normals);
+        int sampleOffset = projectionModel.getProjectionOptions().getSampleOffset();
+        boolean removeBackground = projectionModel.getRenderOptions().isRemoveBackground();
 
-        int sampleOffset = projectionModel
-                .getProjectionOptions()
-                .getSampleOffset();
         TraceSamples samples = new TraceSamplesView(file, range, sampleOffset);
-        boolean removeBackground = projectionModel
-                .getRenderOptions()
-                .isRemoveBackground();
         if (removeBackground) {
             samples = new BackgroundFilter(samples);
         }
@@ -89,12 +87,8 @@ public class TraceProfileService {
     }
 
     private List<Point2D> buildOrigins(TraceFile file, IndexRange range) {
-        double antennaOffset = projectionModel
-                .getProjectionOptions()
-                .getAntennaOffset();
-
         double[] x = getX(file, range);
-        double[] y = getAntennaY(file, range, antennaOffset);
+        double[] y = getAntennaY(file, range);
 
         int n = x.length;
         Check.condition(y.length == n);
@@ -136,7 +130,7 @@ public class TraceProfileService {
         return x;
     }
 
-    private double[] getAntennaY(TraceFile file, IndexRange range, double antennaOffset) {
+    private double[] getAntennaY(TraceFile file, IndexRange range) {
         List<Trace> traces = file.getTraces();
         int n = range.size();
 
@@ -145,6 +139,11 @@ public class TraceProfileService {
                 ? profile.getEllipsoidalHeights()
                 : null;
         double[] antennaY = new double[n];
+
+        double antennaOffset = projectionModel
+                .getProjectionOptions()
+                .getAntennaOffset();
+
         for (int i = 0; i < n; i++) {
             int traceIndex = range.from() + i;
             int fileTraceIndex = file.getFileTraceIndex(traceIndex);
@@ -190,14 +189,9 @@ public class TraceProfileService {
         return terrain;
     }
 
-    private List<Point2D> filterTerrain(List<Point2D> terrain, List<Point2D> origins) {
-        // resample terrain
-        double minResamplingStep = 0.005;
-
-        LinearInterpolator interpolator = new LinearInterpolator();
-        ResamplingFilter resampling = new ResamplingFilter(interpolator, minResamplingStep);
-
-        List<Point2D> filtered = resampling.filter(terrain);
+    private List<Point2D> filterTerrain(List<Point2D> terrain) {
+        ResampleFilter resampleFilter = new ResampleFilter(ProjectionOptions.MIN_RESAMPLING_STEP);
+        List<Point2D> filtered = resampleFilter.filter(terrain);
 
         double smoothingRadius = projectionModel
                 .getProjectionOptions()
@@ -210,29 +204,26 @@ public class TraceProfileService {
         return filtered;
     }
 
-    private List<Normal> buildNormals(List<Point2D> origins, List<Point2D> terrain) {
-        if (Nulls.toEmpty(terrain).size() < 2) {
-            return List.of();
-        }
+    private List<TraceRay> buildTraceRays(List<Point2D> origins, Polyline terrain, double erSqrt) {
 
-        Polyline polyline = new Polyline(terrain);
+        Point2D yDown = new Point2D(0, -1);
+        double normalWeight = projectionModel.getProjectionOptions().getNormalWeight();
+        boolean refract = projectionModel.getGridOptions().isRefraction();
 
-        boolean diffuseNormals = projectionModel
-                .getProjectionOptions()
-                .isDiffuseNormals();
-        if (diffuseNormals) {
-            NormalDiffusion normalDiffusion = new NormalDiffusion();
-            return normalDiffusion.getNormals(origins, polyline);
-        } else {
-            int n = origins.size();
-            List<Normal> normals = new ArrayList<>(n);
-            for (Point2D p : origins) {
-                Polyline.Projection projected = polyline.project(p);
-                Point2D v = projected.point().subtract(p);
-                Normal normal = new Normal(v.normalize(), v.magnitude());
-                normals.add(normal);
-            }
-            return normals;
+        int n = origins.size();
+        List<TraceRay> rays = new ArrayList<>(n);
+        for (Point2D origin : origins) {
+            Polyline.SegmentPoint projected = terrain.project(origin);
+            Point2D normal = projected != null
+                    ? projected.point().subtract(origin).normalize()
+                    : yDown;
+
+            Point2D direction = Vectors.weightedBisector(yDown, normal, normalWeight);
+            TraceRay ray = TraceRay.create(origin, direction, terrain, erSqrt, refract);
+            rays.add(ray);
         }
+        return rays;
     }
+
+
 }

@@ -12,7 +12,6 @@ import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 
-import java.util.Arrays;
 import java.util.List;
 
 public class Grid {
@@ -20,8 +19,6 @@ public class Grid {
     private static final GeometryFactory gf = new GeometryFactory();
 
     private static final int MAX_CELLS = 10_000_000;
-
-    public static final Cell EMPTY_CELL = new Cell(Float.NaN, 0);
 
     private final Point2D origin;
 
@@ -60,9 +57,15 @@ public class Grid {
         origin = new Point2D(envelope.getMinX(), envelope.getMinY());
         unit = new Point2D(cellWidth, cellHeight);
 
+        // init cells
         cells = new Cell[m][n];
-        for (Cell[] row : cells) {
-            Arrays.fill(row, EMPTY_CELL);
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                Coordinate coordinate = getCoordinate(i, j);
+                if (bounds.contains(gf.createPoint(coordinate))) {
+                    cells[i][j] = new Cell();
+                }
+            }
         }
     }
 
@@ -154,7 +157,7 @@ public class Grid {
 
     public Cell getCell(Index index) {
         if (index == null) {
-            return EMPTY_CELL;
+            return null;
         }
         return cells[index.i][index.j];
     }
@@ -177,26 +180,30 @@ public class Grid {
         float maxDepth = 0;
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                maxDepth = Math.max(maxDepth, cells[i][j].depth);
+                Cell cell = cells[i][j];
+                if (cell != null && !Float.isNaN(cell.depth)) {
+                    maxDepth = Math.max(maxDepth, cell.depth);
+                }
             }
         }
         this.maxDepth = maxDepth;
     }
 
-    public boolean inBounds(Point2D point) {
-        return bounds.contains(gf.createPoint(new Coordinate(point.getX(), point.getY())));
-    }
-
     public boolean inBounds(int i, int j) {
-        Coordinate coordinate = getCoordinate(i, j);
-        return bounds.contains(gf.createPoint(coordinate));
+        return i >= 0 && i < cells.length && j >= 0 && j < cells[i].length && cells[i][j] != null;
     }
 
-    private Cell interpolate(Cell a, Cell b, float t) {
-        return new Cell(
-                a.value + t * (b.value - a.value),
-                a.depth + t * (b.depth - a.depth)
-        );
+    public void normalize() {
+        int m = getWidth();
+        int n = getHeight();
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                Cell cell = cells[i][j];
+                if (cell != null) {
+                    cell.normalize();
+                }
+            }
+        }
     }
 
     public void interpolate() {
@@ -209,15 +216,15 @@ public class Grid {
             int left = -1;
             for (int i = 0; i < m; i++) {
                 Cell cell = cells[i][j];
-                if (!Float.isNaN(cell.value)) {
+                if (cell != null && !Float.isNaN(cell.value)) {
                     if (left >= 0 && i - left > 1) {
-                        Cell vLeft = cells[left][j];
-                        Cell vRight = cells[i][j];
+                        Cell leftCell = cells[left][j];
+                        Cell rightCell = cells[i][j];
                         int gap = i - left;
                         for (int k = left + 1; k < i; k++) {
-                            float t = (float) (k - left) / gap;
                             if (inBounds(k, j)) {
-                                cells[k][j] = interpolate(vLeft, vRight, t);
+                                float t = (float) (k - left) / gap;
+                                cells[k][j] = Cell.interpolate(leftCell, rightCell, t);
                             }
                         }
                     }
@@ -232,15 +239,15 @@ public class Grid {
             int top = -1;
             for (int j = 0; j < n; j++) {
                 Cell cell = cells[i][j];
-                if (!Float.isNaN(cell.value)) {
+                if (cell != null && !Float.isNaN(cell.value)) {
                     if (top >= 0 && j - top > 1) {
-                        Cell vTop = cells[i][top];
-                        Cell vBottom = cells[i][j];
+                        Cell topCell = cells[i][top];
+                        Cell bottomCell = cells[i][j];
                         int gap = j - top;
                         for (int k = top + 1; k < j; k++) {
-                            float t = (float) (k - top) / gap;
                             if (inBounds(i, k)) {
-                                cells[i][k] = interpolate(vTop, vBottom, t);
+                                float t = (float) (k - top) / gap;
+                                cells[i][k] = Cell.interpolate(topCell, bottomCell, t);
                             }
                         }
                     }
@@ -253,6 +260,75 @@ public class Grid {
     public record Index(int i, int j) {
     }
 
-    public record Cell(float value, float depth) {
+    public static class Cell {
+
+        private float value = Float.NaN;
+
+        private float depth = Float.NaN;
+
+        private float weight = 1f;
+
+        public float getValue() {
+            return value;
+        }
+
+        public void setValue(float value) {
+            this.value = value;
+        }
+
+        public float getDepth() {
+            return depth;
+        }
+
+        public void setDepth(float depth) {
+            this.depth = depth;
+        }
+
+        public float getWeight() {
+            return weight;
+        }
+
+        public void setWeight(float weight) {
+            this.weight = weight;
+        }
+
+        public void accumulate(float value, float depth, float weight) {
+            if (Float.isNaN(value)) {
+                return; // skip
+            }
+            Check.condition(!Float.isNaN(depth));
+            if (Float.isNaN(this.value)) {
+                this.value = value * weight;
+                this.depth = depth * weight;
+                this.weight = weight;
+            } else {
+                this.value += value * weight;
+                this.depth += depth * weight;
+                this.weight += weight;
+            }
+        }
+
+        public void normalize() {
+            if (weight == 1f) {
+                return;
+            }
+            if (Float.isNaN(value) || weight == 0f) {
+                value = Float.NaN;
+                depth = Float.NaN;
+                weight = 1f;
+            } else {
+                value /= weight;
+                depth /= weight;
+                weight = 1f;
+            }
+        }
+
+        public static Cell interpolate(Cell a, Cell b, float t) {
+            Cell interpolated = new Cell();
+            interpolated.value = a.value + t * (b.value - a.value);
+            interpolated.depth = a.depth + t * (b.depth - a.depth);
+            interpolated.weight = 1f;
+            return interpolated;
+        }
     }
 }

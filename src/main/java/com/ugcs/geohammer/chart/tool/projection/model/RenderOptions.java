@@ -16,15 +16,13 @@ public class RenderOptions {
 
     private final BooleanProperty showTerrain = new SimpleBooleanProperty(true);
 
-    private final BooleanProperty showNormals = new SimpleBooleanProperty(false);
-
-    private final BooleanProperty showGrid = new SimpleBooleanProperty(true);
+    private final BooleanProperty showNormals = new SimpleBooleanProperty(true);
 
     private final BooleanProperty removeBackground = new SimpleBooleanProperty(true);
 
     private final DoubleProperty maxGain = new SimpleDoubleProperty(16);
 
-    private final DoubleProperty contrast = new SimpleDoubleProperty(50);
+    private final DoubleProperty contrast = new SimpleDoubleProperty(0.5);
 
     private final ObjectProperty<SpectrumType> spectrumType = new SimpleObjectProperty<>(SpectrumType.GRAYSCALE);
 
@@ -50,14 +48,6 @@ public class RenderOptions {
 
     public BooleanProperty showNormalsProperty() {
         return showNormals;
-    }
-
-    public boolean isShowGrid() {
-        return showGrid.get();
-    }
-
-    public BooleanProperty showGridProperty() {
-        return showGrid;
     }
 
     public boolean isRemoveBackground() {

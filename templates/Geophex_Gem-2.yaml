@@ -1,0 +1,31 @@
+  # Template display name
+  name: "Geophex Gem-2"
+  # Type of template for parsing data. Options are CSV and ColumnsFixedWidth
+  file-type: CSV
+  # Applies to the first 10 non-empty lines of the file to detect template
+  match-regex: >-
+    ^\s*Line.*Sample.*Lat.*Lon.*Time.*
+  file-format:
+  # Applies to CSV type. 'true' if the file has headers, otherwise false
+    has-header: true
+    # The symbol which uses to make a comment
+    comment-prefix: '%'
+    # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
+    decimal-separator: '.'
+    # Applies to CSV type. The symbol to separate values from line in CSV file;
+    separator: ','
+  # Mapping data from source file to data. Required fields are latitude, longitude, time or timestamp, date or date-time
+  data-mapping:
+    latitude:
+      header: 'Lat'
+    longitude:
+      header: 'Lon'
+    time:
+      header: 'Time[hhmmss.sss]'
+      format: 'HHmmss.fff'
+    data-values:
+      - header: "GPSalt"
+        semantic: "Altitude"
+        read-only: true
+        units: "m"
+

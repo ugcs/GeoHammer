@@ -164,13 +164,14 @@ public class InspectorView {
 
     private HBox createValueRow(Value value, int rowIndex) {
         TextField nameField = Views.createSelectableLabel(value.header());
-        nameField.setMinWidth(120);
-        nameField.setMaxWidth(120);
+        nameField.setMinWidth(60);
+        nameField.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(nameField, Priority.ALWAYS);
 
         TextField valueField = Views.createSelectableLabel(value.displayValue());
         valueField.setAlignment(Pos.CENTER_RIGHT);
-        valueField.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(valueField, Priority.ALWAYS);
+        nameField.setMinWidth(60);
+        HBox.setHgrow(valueField, Priority.NEVER);
 
         Button copyButton = Views.createSvgButton(
                 ResourceImageHolder.COPY,

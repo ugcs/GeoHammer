@@ -34,4 +34,25 @@ public final class FileNames {
         Matcher matcher = GPR_PART_SUFFIX.matcher(baseName);
         return matcher.find();
     }
+
+    public static String addSuffix(String fileName, String suffix) {
+        return addSuffix(fileName, suffix, "-");
+    }
+
+    public static String addSuffix(String fileName, String suffix, String separator) {
+        if (fileName == null) {
+            return null;
+        }
+        if (Strings.isNullOrEmpty(suffix)) {
+            return fileName;
+        }
+        int k = fileName.lastIndexOf('.');
+        if (k != -1) {
+            String base = fileName.substring(0, k);
+            String extension = fileName.substring(k);
+            return base + separator + suffix + extension;
+        } else {
+            return fileName + separator + suffix;
+        }
+    }
 }

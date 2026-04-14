@@ -396,6 +396,7 @@ public final class GridLayer extends BaseLayer {
             }
 
             grid = new Grid(
+                    result.seriesName(),
                     values,
                     sortedValues,
                     result.minLatLon(),
@@ -498,6 +499,7 @@ public final class GridLayer extends BaseLayer {
     }
 
     public record Grid(
+            String seriesName,
             float[][] values,
             float[] sortedValues,
             LatLon minLatLon,

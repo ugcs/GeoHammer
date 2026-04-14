@@ -13,7 +13,7 @@
     # The symbol used to separate the integer part from the fractional part of a number written in decimal form. Options are ',' and '.'
     decimal-separator: '.'
     # Applies to CSV type. The symbol to separate values from line in CSV file;
-    separator: '	'
+    separator: '\t'
   # Data before the header that have to be skipped
   skip-lines-to:
     match-regex: Raw track data

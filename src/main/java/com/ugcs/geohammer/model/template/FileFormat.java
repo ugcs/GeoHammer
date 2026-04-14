@@ -1,7 +1,12 @@
 package com.ugcs.geohammer.model.template;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.NullUnmarked;
 import org.springframework.util.StringUtils;
 
@@ -19,6 +24,8 @@ public class FileFormat {
 
     private String separator;
 
+    private List<String> separators;
+
     private boolean repeatableSeparator = false;
 
     private String decimalSeparator;
@@ -35,7 +42,7 @@ public class FileFormat {
      */
     public boolean isFormatValid(Template.FileType type, DataMapping columns) {
         return switch (type) {
-            case CSV -> isDecimalSeparatorValid() && separator != null && commentPrefix != null
+            case CSV -> isDecimalSeparatorValid() && isSeparatorValid() && commentPrefix != null
                     && columns != null && isDateTimeColumnsValid(columns)
                     && (hasHeader ? (columns.getLatitude() != null 
                             && StringUtils.hasLength(columns.getLatitude().getHeader())
@@ -88,6 +95,21 @@ public class FileFormat {
                                 && StringUtils.hasLength(columns.getTime().getFormat()));
     } 
 
+    private boolean isSeparatorValid() {
+        if (!Strings.isNullOrEmpty(separator)) {
+            return true;
+        }
+        if (!Nulls.isNullOrEmpty(separators)) {
+            for (String s : separators) {
+                if (Strings.isNullOrEmpty(s)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     private boolean isDecimalSeparatorValid() {
         return ".".equals(decimalSeparator) || ",".equals(decimalSeparator);
     }
@@ -122,6 +144,29 @@ public class FileFormat {
 
     public void setSeparator(String separator) {
         this.separator = separator;
+    }
+
+    public List<String> getSeparators() {
+        return separators;
+    }
+
+    public void setSeparators(List<String> separators) {
+        this.separators = separators;
+    }
+
+    public List<String> mergeSeparators() {
+        Set<String> seen = new HashSet<>();
+        List<String> merged = new ArrayList<>();
+        if (!Strings.isNullOrEmpty(separator)) {
+            merged.add(separator);
+            seen.add(separator);
+        }
+        for (String s : Nulls.toEmpty(separators)) {
+            if (!Strings.isNullOrEmpty(s) && seen.add(s)) {
+                merged.add(s);
+            }
+        }
+        return merged;
     }
 
     public boolean isRepeatableSeparator() {

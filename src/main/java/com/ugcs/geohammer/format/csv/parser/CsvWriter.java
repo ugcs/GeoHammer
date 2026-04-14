@@ -35,6 +35,7 @@ public class CsvWriter extends Writer {
 
         Parser parser = csvFile.getParser();
         FileFormat format = template.getFileFormat();
+        String separator = getSeparator(csvFile);
 
         // target headers may differ from the source headers
         List<String> headers = getHeadersToSave(csvFile);
@@ -49,7 +50,7 @@ public class CsvWriter extends Writer {
 
             // headers
             if (format.isHasHeader()) {
-                writer.write(String.join(format.getSeparator(), buildHeadersLine(headers)));
+                writer.write(String.join(separator, buildHeadersLine(headers)));
                 writer.newLine();
             }
 
@@ -58,7 +59,7 @@ public class CsvWriter extends Writer {
                 if (value == null) {
                     continue;
                 }
-                writer.write(String.join(format.getSeparator(), buildDataLine(value, headers)));
+                writer.write(String.join(separator, buildDataLine(value, headers)));
                 writer.newLine();
             }
         }
@@ -67,6 +68,20 @@ public class CsvWriter extends Writer {
         if (parser != null) {
             parser.setHeaders(headers);
         }
+    }
+
+    private String getSeparator(CsvFile csvFile) {
+        Parser parser = csvFile.getParser();
+        if (parser instanceof CsvParser csvParser) {
+            String separator = csvParser.getSeparator();
+            if (!Strings.isNullOrEmpty(separator)) {
+                return separator;
+            }
+        }
+        FileFormat format = template.getFileFormat();
+        List<String> variants = format.mergeSeparators();
+        Check.condition(!Nulls.isNullOrEmpty(variants));
+        return Text.unescape(variants.getFirst());
     }
 
     private List<String> getHeadersToSave(CsvFile csvFile) {

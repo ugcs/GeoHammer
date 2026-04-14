@@ -166,4 +166,28 @@ public final class Text {
             return null;
         }
     }
+
+    public static String unescape(String escaped) {
+        if (escaped == null) {
+            return null;
+        }
+        int n = escaped.length();
+        StringBuilder sb = new StringBuilder(n);
+        for (int i = 0; i < n; i++) {
+            char c0 = escaped.charAt(i);
+            if (c0 == '\\' && i + 1 < n) {
+                char c1 = escaped.charAt(++i);
+                switch (c1) {
+                    case 't' -> sb.append('\t');
+                    case 'n' -> sb.append('\n');
+                    case 'r' -> sb.append('\r');
+                    case '\\' -> sb.append('\\');
+                    default -> sb.append(c0).append(c1);
+                }
+            } else {
+                sb.append(c0);
+            }
+        }
+        return sb.toString();
+    }
 }

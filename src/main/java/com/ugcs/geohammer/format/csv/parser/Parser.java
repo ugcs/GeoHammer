@@ -421,7 +421,11 @@ public abstract class Parser {
         DateTime dateTimeColumn = mapping.getDateTime();
         if (hasHeader(dateTimeColumn)) {
             String value = getString(values, dateTimeColumn);
-            dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
+			dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
+			if (dateTime == null) {
+				throw new IncorrectDateFormatException(
+						"Date-time value '" + value + "' does not match template format '" + dateTimeColumn.getFormat() + "'");
+			}
         }
         if (dateTime != null) {
             return dateTime;
@@ -431,19 +435,25 @@ public abstract class Parser {
         // date from filename + time column
         DateTime timeColumn = mapping.getTime();
         if (hasHeader(timeColumn)) {
-            LocalTime time = Text.parseTime(getString(values, timeColumn), timeColumn.getFormat());
-            if (time != null) {
-                Date dateColumn = mapping.getDate();
-                if (hasHeader(dateColumn)) {
-                    LocalDate date = Text.parseDate(getString(values, dateColumn), dateColumn.getFormat());
-                    if (date != null) {
-                        dateTime = LocalDateTime.of(date, time);
-                    }
-                }
-                if (dateTime == null && dateFromFilename != null) {
-                    dateTime = LocalDateTime.of(dateFromFilename, time);
-                }
-            }
+            String timeValue = getString(values, timeColumn);
+			LocalTime time = Text.parseTime(timeValue, timeColumn.getFormat());
+			if (time == null) {
+				throw new IncorrectDateFormatException(
+						"Time value '" + timeValue + "' does not match template format '" + timeColumn.getFormat() + "'");
+			}
+			Date dateColumn = mapping.getDate();
+			if (hasHeader(dateColumn)) {
+				String dateValue = getString(values, dateColumn);
+				LocalDate date = Text.parseDate(dateValue, dateColumn.getFormat());
+				if (date == null) {
+					throw new IncorrectDateFormatException(
+							"Date value '" + dateValue + "' does not match template format '" + dateColumn.getFormat() + "'");
+				}
+				dateTime = LocalDateTime.of(date, time);
+			}
+			if (dateTime == null && dateFromFilename != null) {
+				dateTime = LocalDateTime.of(dateFromFilename, time);
+			}
         }
         if (dateTime != null) {
             return dateTime;

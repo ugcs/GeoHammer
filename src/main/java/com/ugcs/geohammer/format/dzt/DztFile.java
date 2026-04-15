@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 
-import com.ugcs.geohammer.format.HorizontalProfile;
+import com.ugcs.geohammer.format.MultiChannelFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.meta.MetaFile;
@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DztFile extends TraceFile {
+public class DztFile extends TraceFile implements MultiChannelFile {
 
 	private static final Logger log = LoggerFactory.getLogger(DztFile.class);
 
@@ -52,7 +52,13 @@ public class DztFile extends TraceFile {
 
 	private DztHeader header = new DztHeader();
 
-	private MinMaxAvg sampleAvg = new MinMaxAvg();
+	private List<DztHeader> channelHeaders = new ArrayList<>();
+
+	private List<List<Trace>> channels = new ArrayList<>();
+
+	private List<MinMaxAvg> channelSampleAverages = new ArrayList<>();
+
+	private int activeChannelIndex = 0;
 
 	@Override
 	public int getSampleInterval() {
@@ -67,6 +73,53 @@ public class DztFile extends TraceFile {
 	@Override
 	public double getSamplesToCmAir() {
 		return header.rhf_depth * 100.0 / header.rh_nsamp;
+	}
+
+	@Override
+	public int getChannelCount() {
+		return channels.size();
+	}
+
+	@Override
+	public int getActiveChannelIndex() {
+		return activeChannelIndex;
+	}
+
+	@Override
+	public void setActiveChannelIndex(int channelIndex) throws IOException {
+		if (channelIndex < 0 || channelIndex >= channels.size()) {
+			throw new IllegalArgumentException("Channel index out of range: " + channelIndex);
+		}
+		activeChannelIndex = channelIndex;
+		header = channelHeaders.get(channelIndex);
+		reloadTracesForChannel(channelIndex);
+		rebuildDerivedState();
+	}
+
+	private void reloadTracesForChannel(int channelIndex) throws IOException {
+		IndexRange sampleRange = metaFile != null ? metaFile.getSampleRange() : null;
+		List<Trace> channelTraces = channels.get(channelIndex);
+		setTraces(channelTraces);
+		loadMeta(channelTraces);
+		if (sampleRange != null && metaFile != null) {
+			metaFile.setSampleRange(sampleRange);
+		}
+	}
+
+	private void rebuildDerivedState() {
+		updateTraces();
+		copyMarkedTracesToAuxElements();
+		updateTraceDistances();
+	}
+
+	@Override
+	public String getChannelLabel(int channelIndex) {
+		if (channelIndex < 0 || channelIndex >= channelHeaders.size()) {
+			return "Channel " + (channelIndex + 1);
+		}
+		DztHeader header = channelHeaders.get(channelIndex);
+		String antName = header.rh_antname != null && !header.rh_antname.isBlank() ? header.rh_antname.trim() : "Unknown antenna";
+		return String.format("Channel %d: %s — %.0f ns / %.1f m", channelIndex + 1, antName, header.rhf_range, header.rhf_depth);
 	}
 
 	private File getDzgFile(File file) {
@@ -84,38 +137,48 @@ public class DztFile extends TraceFile {
 
 		dzg.load(getDzgFile(file));
 
-		List<Trace> traces;
 		try (SeekableByteChannel channel = Files.newByteChannel(file.toPath(), StandardOpenOption.READ)) {
-			ByteBuffer buffer = readHeader(channel);
-
-			ObjectByteMapper obm = new ObjectByteMapper();
-			obm.readObject(header, buffer);
+			channelHeaders = readAllHeaders(channel);
+			header = channelHeaders.getFirst();
 			logHeader();
 
+			int numChannels = channelHeaders.size();
 			channel.position(getDataPosition());
-			traces = readTraces(channel, getSampleCodec());
+
+			ChannelData data = readTracesMultiChannel(channel, numChannels);
+			channels = data.channels();
+			channelSampleAverages = data.averages();
+			for (int channelIndex = 0; channelIndex < numChannels; channelIndex++) {
+				Check.notEmpty(channels.get(channelIndex), "Corrupted file: channel " + (channelIndex + 1) + " has no traces");
+				shiftSamples(channels.get(channelIndex), -(float) channelSampleAverages.get(channelIndex).getAverage());
+			}
 		}
-		Check.notEmpty(traces, "Corrupted file");
 
-		loadMeta(traces);
-
-		subtractAverage(traces);
-		setTraces(traces);
-
-		updateTraces();
-		copyMarkedTracesToAuxElements();
-		updateTraceDistances();
-
+		setActiveChannelIndex(0);
 		setUnsaved(false);
 	}
 
-	private ByteBuffer readHeader(SeekableByteChannel channel) throws IOException {
-		ByteBuffer buffer = ByteBuffer
-				.allocate(1024)
-				.order(ByteOrder.LITTLE_ENDIAN);
+	private List<DztHeader> readAllHeaders(SeekableByteChannel channel) throws IOException {
+		List<DztHeader> headers = new ArrayList<>();
+		ObjectByteMapper byteMapper = new ObjectByteMapper();
+
+		ByteBuffer firstBuffer = ByteBuffer.allocate(MINHEADSIZE).order(ByteOrder.LITTLE_ENDIAN);
 		channel.position(0);
-		channel.read(buffer);
-		return buffer;
+		channel.read(firstBuffer);
+		DztHeader firstHeader = new DztHeader();
+		byteMapper.readObject(firstHeader, firstBuffer);
+		headers.add(firstHeader);
+
+		int numChannels = Math.max(1, firstHeader.rh_nchan);
+		for (int channelIndex = 1; channelIndex < numChannels; channelIndex++) {
+			ByteBuffer buffer = ByteBuffer.allocate(MINHEADSIZE).order(ByteOrder.LITTLE_ENDIAN);
+			channel.position((long) channelIndex * MINHEADSIZE);
+			channel.read(buffer);
+			DztHeader header = new DztHeader();
+			byteMapper.readObject(header, buffer);
+			headers.add(header);
+		}
+		return headers;
 	}
 
 	private void logHeader() {
@@ -131,9 +194,10 @@ public class DztFile extends TraceFile {
 	}
 
 	private int getDataPosition() {
-		return header.rh_data < MINHEADSIZE
-				? MINHEADSIZE * header.rh_data
-				: header.rh_nchan * header.rh_data;
+		DztHeader firstChannel = channelHeaders.getFirst();
+		return firstChannel.rh_data < MINHEADSIZE
+				? MINHEADSIZE * firstChannel.rh_data
+				: firstChannel.rh_nchan * firstChannel.rh_data;
 	}
 
 	private SampleCodec getSampleCodec() {
@@ -150,47 +214,60 @@ public class DztFile extends TraceFile {
 		return Math.max(0, header.rh_nsamp - 1);
 	}
 
-	private List<Trace> readTraces(SeekableByteChannel channel, SampleCodec sampleCodec)
-			throws IOException {
+	private record ChannelData(List<List<Trace>> channels, List<MinMaxAvg> averages) {}
 
-		List<Trace> traces = new ArrayList<>();
-		int traceIndex = 0;
+	private ChannelData readTracesMultiChannel(SeekableByteChannel channel,
+			int numChannels) throws IOException {
 
+		List<List<Trace>> result = new ArrayList<>();
+		List<MinMaxAvg> averages = new ArrayList<>();
+		for (int i = 0; i < numChannels; i++) {
+			result.add(new ArrayList<>());
+			averages.add(new MinMaxAvg());
+		}
+
+		int globalIndex = 0;
 		while (channel.position() < channel.size()) {
 			if (Thread.currentThread().isInterrupted()) {
 				throw new CancellationException();
 			}
-
-			Trace trace = readTrace(channel, sampleCodec, traceIndex++);
-			traces.add(trace);
+			int channelIndex = globalIndex % numChannels;
+			int scanIndex = globalIndex / numChannels;
+			Trace trace = readTrace(channel, channelHeaders.get(channelIndex), scanIndex, averages.get(channelIndex));
+			result.get(channelIndex).add(trace);
+			globalIndex++;
 		}
-		return traces;
+		return new ChannelData(result, averages);
 	}
 
-	private Trace readTrace(SeekableByteChannel channel, SampleCodec sampleCodec, int traceIndex)
-			throws IOException {
+	private Trace readTrace(SeekableByteChannel channel, DztHeader channelHeader,
+			int traceIndex, MinMaxAvg average) throws IOException {
 
-		int numSamples = numSamplesPerTrace();
+		int numSamples = Math.max(0, channelHeader.rh_nsamp - 1);
+		SampleCodec sampleCodec = SAMPLE_CODECS.get((int) channelHeader.rh_bits);
+		if (sampleCodec == null) {
+			throw new IOException("Unsupported sample bit depth: " + channelHeader.rh_bits);
+		}
+		int bufferSize = (channelHeader.rh_bits / 8) * (numSamples + 1);
 
 		ByteBuffer buffer = ByteBuffer
-				.allocate(getTraceBufferSize(numSamples))
+				.allocate(bufferSize)
 				.order(ByteOrder.LITTLE_ENDIAN);
 		channel.read(buffer);
 		buffer.position(0);
 
 		if (buffer.position() < buffer.capacity()) {
 			// read trace number
-			int traceNumber = sampleCodec.read(buffer);
+			sampleCodec.read(buffer);
 		}
 
 		float[] samples = new float[numSamples];
 		int sampleIndex = 0;
-		sampleAvg = new MinMaxAvg();
 
 		while (buffer.position() < buffer.capacity() && sampleIndex < samples.length) {
 			int sample = sampleCodec.read(buffer);
 			samples[sampleIndex++] = sample;
-			sampleAvg.put(sample);
+			average.put(sample);
 		}
 
 		LatLon latLon = dzg.getLatLon(traceIndex);
@@ -305,9 +382,15 @@ public class DztFile extends TraceFile {
         // ground profile is not copied
         DztFile copy = new DztFile();
 		copy.header = this.header;
-		copy.sampleAvg = this.sampleAvg;
 		copy.sourceFile = this.sourceFile;
 		copy.dzg = this.dzg;
+		copy.channelHeaders = new ArrayList<>(this.channelHeaders);
+		copy.channelSampleAverages = new ArrayList<>(this.channelSampleAverages);
+		copy.channels = new ArrayList<>(this.channels.size());
+		for (List<Trace> ch : this.channels) {
+			copy.channels.add(new ArrayList<>(ch));
+		}
+		copy.activeChannelIndex = this.activeChannelIndex;
 
 		copy.setFile(getFile());
 		copy.setUnsaved(isUnsaved());
@@ -322,31 +405,26 @@ public class DztFile extends TraceFile {
 		}
 
 		copy.setTraces(tracesCopy);
+		copy.channels.set(copy.activeChannelIndex, tracesCopy);
 		copy.setAuxElements(elementsCopy);
 
 		return copy;
 	}
 
-	public void subtractAverage(List<Trace> traces) {
-		float avg = (float) sampleAvg.getAvg();
-
+	private void shiftSamples(List<Trace> traces, float delta) {
 		for (Trace trace : traces) {
 			for (int i = 0; i < trace.numSamples(); i++) {
-				float value = trace.getSample(i) - avg;
-				trace.setSample(i, value);
+				trace.setSample(i, trace.getSample(i) + delta);
 			}
 		}
 	}
 
-	public void addAverage(List<Trace> traces) {
-		float avg = (float) sampleAvg.getAvg();
+	public void subtractAverage(List<Trace> traces) {
+		shiftSamples(traces, -(float) channelSampleAverages.get(activeChannelIndex).getAverage());
+	}
 
-		for (Trace trace : traces) {
-			for (int i = 0; i < trace.numSamples(); i++) {
-				float value = trace.getSample(i) + avg;
-				trace.setSample(i, value);
-			}
-		}
+	public void addAverage(List<Trace> traces) {
+		shiftSamples(traces, (float) channelSampleAverages.get(activeChannelIndex).getAverage());
 	}
 
 	@Override

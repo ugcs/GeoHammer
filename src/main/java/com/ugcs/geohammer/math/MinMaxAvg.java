@@ -23,7 +23,7 @@ public class MinMaxAvg {
 		cnt++;
 	}
 
-	public double getAvg() {
+	public double getAverage() {
 		if (cnt > 0) {
 			return sum / cnt;
 		} else {

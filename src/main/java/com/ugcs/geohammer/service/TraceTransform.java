@@ -262,8 +262,8 @@ public class TraceTransform {
             chart.reload();
         }
 
-        model.publishEvent(new WhatChanged(this,
-                WhatChanged.Change.traceCut));
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
+        model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
     }
 
     private boolean isGeoDataInsideSelection(MapField field, List<Point2D> border, GeoData geoData) {

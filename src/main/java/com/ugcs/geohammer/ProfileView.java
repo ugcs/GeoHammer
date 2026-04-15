@@ -1,17 +1,15 @@
 package com.ugcs.geohammer;
 
-import java.io.File;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.ProfileScroll;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
+import com.ugcs.geohammer.format.MultiChannelFile;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.geotagger.view.GeotaggerView;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
@@ -19,6 +17,7 @@ import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TraceTransform;
+import com.ugcs.geohammer.view.MessageBoxHelper;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -27,6 +26,7 @@ import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
@@ -59,6 +59,10 @@ public class ProfileView implements InitializingBean {
 
 	private final Button geotaggerBtn = new Button("Geotagging");
 
+	private static final String CHANNEL_PLACEHOLDER = "Select channel";
+
+	private final ComboBox<String> channelComboBox = new ComboBox<>();
+
 	private SgyFile currentFile;
 
 	@Nullable
@@ -89,6 +93,10 @@ public class ProfileView implements InitializingBean {
 
 		geotaggerBtn.setTooltip(new Tooltip("Geotagging tool"));
 		geotaggerBtn.setOnAction(this::showGeotaggerWindow);
+
+		channelComboBox.setTooltip(new Tooltip(CHANNEL_PLACEHOLDER));
+		channelComboBox.setOnAction(e -> onChannelSelected());
+		resetChannelComboBox();
 
 	}
 
@@ -152,6 +160,7 @@ public class ProfileView implements InitializingBean {
 		toolBar.getItems().add(getFixedWidthSpacer());
 
 		toolBar.getItems().add(cropSamples);
+		toolBar.getItems().add(channelComboBox);
 		toolBar.getItems().add(getFlexibleSpacer());
 
 		toolBar.getItems().add(geotaggerBtn);
@@ -235,6 +244,9 @@ public class ProfileView implements InitializingBean {
 
 		model.removeChart(closedFile);
 		model.updateAuxElements();
+
+		Platform.runLater(() -> updateChannelComboBox(currentFile));
+
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
 	}
@@ -294,7 +306,44 @@ public class ProfileView implements InitializingBean {
 			}
 		}
 
-		Platform.runLater(this::enableToolbar);
+		Platform.runLater(() -> {
+			enableToolbar();
+			updateChannelComboBox(event.getFile());
+		});
+	}
+
+	private void resetChannelComboBox() {
+		channelComboBox.getItems().clear();
+		channelComboBox.setValue(CHANNEL_PLACEHOLDER);
+		channelComboBox.setDisable(true);
+	}
+
+	private void updateChannelComboBox(SgyFile file) {
+		if (file instanceof MultiChannelFile multiChannelFile && multiChannelFile.getChannelCount() > 1) {
+			channelComboBox.getItems().clear();
+			for (int i = 0; i < multiChannelFile.getChannelCount(); i++) {
+				channelComboBox.getItems().add(multiChannelFile.getChannelLabel(i));
+			}
+			channelComboBox.getSelectionModel().select(multiChannelFile.getActiveChannelIndex());
+			channelComboBox.setDisable(false);
+		} else {
+			resetChannelComboBox();
+		}
+	}
+
+	private void onChannelSelected() {
+		if (!(currentFile instanceof MultiChannelFile file)) {
+			return;
+		}
+		int channelIndex = channelComboBox.getSelectionModel().getSelectedIndex();
+		if (channelIndex >= 0 && channelIndex != file.getActiveChannelIndex()) {
+			try {
+				file.setActiveChannelIndex(channelIndex);
+				model.reload(currentFile);
+			} catch (Exception e) {
+				MessageBoxHelper.showError("Error", "Error switching channel: " + e.getMessage());
+			}
+		}
 	}
 
 	private void updateGprChartSize(GPRChart chart) {

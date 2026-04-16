@@ -74,7 +74,7 @@ class CsvParserTest extends BaseParsersTest {
         Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
-        assertThrows(IncorrectDateFormatException.class, () -> {
+        assertThrows(IncorrectFormatException.class, () -> {
             parser.parse(Paths.get(CSVTestDataFolder + "Missed-date-position.csv").toFile());
         });
     }
@@ -96,7 +96,7 @@ class CsvParserTest extends BaseParsersTest {
 
     @Test
     void invalidCSV() throws IOException {
-        var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplateWithoutHeaders.yaml";
+        var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = loadTemplate(file);

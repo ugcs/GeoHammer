@@ -74,7 +74,7 @@ class CsvParserTest extends BaseParsersTest {
         Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
-        assertThrows(IncorrectDateFormatException.class, () -> {
+        assertThrows(IncorrectFormatException.class, () -> {
             parser.parse(Paths.get(CSVTestDataFolder + "Missed-date-position.csv").toFile());
         });
     }

@@ -12,6 +12,8 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.ugcs.geohammer.format.csv.parser.IncorrectFormatException;
+
 public final class Text {
 
     public static final String GPST_FORMAT = "GPST";
@@ -114,7 +116,7 @@ public final class Text {
         try {
             return LocalDate.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
         } catch (DateTimeParseException e) {
-            return null;
+            throw new IncorrectFormatException(value, format);
         }
     }
 
@@ -123,11 +125,11 @@ public final class Text {
             return null;
         }
         Check.notNull(format, "Time format is not specified");
-        format = format.replaceAll("f", "S");
+        String normalizedFormat = format.replace("f", "S");
         try {
-            return LocalTime.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
+            return LocalTime.parse(value, DateTimeFormatter.ofPattern(normalizedFormat, Locale.US));
         } catch (DateTimeParseException e) {
-            return null;
+            throw new IncorrectFormatException(value, format);
         }
     }
 
@@ -139,11 +141,11 @@ public final class Text {
         if (format.equals(GPST_FORMAT)) {
             return parseGpsDateTime(value);
         }
-        format = format.replaceAll("f", "S");
+        String normalizedFormat = format.replace("f", "S");
         try {
-            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
+            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern(normalizedFormat, Locale.US));
         } catch (DateTimeParseException e) {
-            return null;
+            throw new IncorrectFormatException(value, format);
         }
     }
 

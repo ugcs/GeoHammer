@@ -393,7 +393,7 @@ public abstract class Parser {
         Date dateColumn = template.getDataMapping().getDate();
         String value = Text.matchPattern(filename, dateColumn.getRegex(), false);
         if (Strings.isNullOrEmpty(value)) {
-            throw new IncorrectDateFormatException("Incorrect file name. Cannot match date pattern");
+            throw new IncorrectFormatException("Incorrect file name. Cannot match date pattern");
         }
 
         LocalDate date = null;
@@ -401,13 +401,13 @@ public abstract class Parser {
             if (Strings.isNullOrEmpty(format)) {
                 continue;
             }
-            date = Text.parseDate(value, format);
+                date = Text.parseDate(value, format);
             if (date != null) {
                 break;
             }
         }
         if (date == null) {
-            throw new IncorrectDateFormatException("Incorrect date formats");
+            throw new IncorrectFormatException("Incorrect date formats");
         }
         return date;
     }
@@ -422,10 +422,6 @@ public abstract class Parser {
         if (hasHeader(dateTimeColumn)) {
             String value = getString(values, dateTimeColumn);
 			dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
-			if (dateTime == null) {
-				throw new IncorrectDateFormatException(
-						"Date-time value '" + value + "' does not match template format '" + dateTimeColumn.getFormat() + "'");
-			}
         }
         if (dateTime != null) {
             return dateTime;
@@ -437,18 +433,10 @@ public abstract class Parser {
         if (hasHeader(timeColumn)) {
             String timeValue = getString(values, timeColumn);
 			LocalTime time = Text.parseTime(timeValue, timeColumn.getFormat());
-			if (time == null) {
-				throw new IncorrectDateFormatException(
-						"Time value '" + timeValue + "' does not match template format '" + timeColumn.getFormat() + "'");
-			}
 			Date dateColumn = mapping.getDate();
 			if (hasHeader(dateColumn)) {
 				String dateValue = getString(values, dateColumn);
 				LocalDate date = Text.parseDate(dateValue, dateColumn.getFormat());
-				if (date == null) {
-					throw new IncorrectDateFormatException(
-							"Date value '" + dateValue + "' does not match template format '" + dateColumn.getFormat() + "'");
-				}
 				dateTime = LocalDateTime.of(date, time);
 			}
 			if (dateTime == null && dateFromFilename != null) {

@@ -96,7 +96,7 @@ class CsvParserTest extends BaseParsersTest {
 
     @Test
     void invalidCSV() throws IOException {
-        var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplateWithoutHeaders.yaml";
+        var path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplate.yaml";
         String file = new String(Files.readAllBytes(Paths.get(path)));
 
         Template template = loadTemplate(file);

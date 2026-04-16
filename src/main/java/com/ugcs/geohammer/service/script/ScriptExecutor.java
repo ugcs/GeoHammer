@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.ugcs.geohammer.Loader;
 import com.ugcs.geohammer.analytics.EventSender;
@@ -34,6 +35,8 @@ public class ScriptExecutor {
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutor.class);
 
 	public static final String SCRIPTS_DIRECTORY = "scripts";
+
+	private static final String CHECK_IMPORTS_SCRIPT = "check_imports.py";
 
 	private final Loader loader;
 
@@ -61,7 +64,8 @@ public class ScriptExecutor {
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
-							  Consumer<String> onScriptOutput) throws IOException, InterruptedException {
+							  Consumer<String> onScriptOutput, Predicate<String> confirmReinstall)
+			throws IOException, InterruptedException {
 		Check.notNull(sgyFile);
 		Check.notNull(scriptMetadata);
 
@@ -78,7 +82,8 @@ public class ScriptExecutor {
 				throw new IOException("Script file not found: " + scriptFile.getAbsolutePath());
 			}
 
-			pythonService.installDependencies(scriptFile, onScriptOutput);
+			File checkImportsScript = getScriptsPath().resolve(CHECK_IMPORTS_SCRIPT).toFile();
+			pythonService.installDependencies(scriptFile, checkImportsScript, onScriptOutput, confirmReinstall);
 
 			tempFile = copyToTempFile(sgyFile);
 

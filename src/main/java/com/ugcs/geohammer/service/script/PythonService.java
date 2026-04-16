@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.util.FileNames;
@@ -18,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Service
 public class PythonService {
@@ -42,16 +43,15 @@ public class PythonService {
 		this.prefSettings = prefSettings;
 	}
 
-	/**
-	 * Installs the required Python dependencies for the given script file if they are not already installed.
-	 *
-	 * @param scriptFile the script file
-	 * @param onOutput a consumer to handle output messages
-	 * @throws IOException if an I/O error occurs
-	 * @throws InterruptedException if the operation is interrupted
-	 */
-	public void installDependencies(File scriptFile, Consumer<String> onOutput) throws IOException, InterruptedException {
+	public void installDependencies(File scriptFile, File checkImportsScript,
+			Consumer<String> onOutput, Predicate<String> confirmReinstall) throws IOException, InterruptedException {
 		String filename = scriptFile.getName();
+
+		String failingModule = checkImports(scriptFile, checkImportsScript);
+		if (failingModule == null) {
+			onOutput.accept("Dependencies already satisfied for script " + filename);
+			return;
+		}
 
 		if (!isPackageInstalled(REQUIREMENTS_ANALYZER)) {
 			try {
@@ -75,19 +75,22 @@ public class PythonService {
 				return;
 			}
 
-			if (areAllPackagesInstalled(tempDirectory)) {
-				onOutput.accept("Dependencies already installed for script " + filename);
-				return;
-			}
-
 			installDependenciesFromRequirements(tempDirectory, onOutput);
-			if (areAllPackagesInstalled(tempDirectory)) {
-				onOutput.accept("Dependencies installed successfully for script " + filename);
+
+			failingModule = checkImports(scriptFile, checkImportsScript);
+			if (failingModule == null) {
+				onOutput.accept("Dependencies installed for script " + filename);
 				return;
 			}
 
-			reinstallDependenciesFromRequirements(tempDirectory, onOutput);
-			onOutput.accept("Dependencies reinstalled successfully for script " + filename);
+			// Module registered in pip but still not importable — offer force reinstall
+			String reason = "Module '" + failingModule + "' is installed but cannot be imported.";
+			if (confirmReinstall.test(reason)) {
+				reinstallDependenciesFromRequirements(tempDirectory, onOutput);
+			} else {
+				throw new IllegalStateException(
+						"Module '" + failingModule + "' cannot be imported. Script execution aborted.");
+			}
 		} catch (IOException | CommandExecutionException e) {
 			log.warn("Dependency installation failed (possibly offline): {}", e.getMessage(), e);
 		} catch (InterruptedException e) {
@@ -98,33 +101,46 @@ public class PythonService {
 		}
 	}
 
-	private boolean areAllPackagesInstalled(Path directory) throws IOException, InterruptedException {
-		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
-		List<String> requiredPackages = Files.readAllLines(requirementsPath).stream()
-				.map(String::trim)
-				.filter(line -> !line.isEmpty() && !line.startsWith("#"))
-				.map(line -> line.split("[=<>~!]")[0].trim())
-				.toList();
-
-		for (String packageName : requiredPackages) {
-			if (!canImportPackage(packageName)) {
-				return false;
-			}
+	// Returns the name of the first module that cannot be imported, or null if all imports succeed.
+	@Nullable
+	public String checkImports(File scriptFile, File checkImportsScript) throws IOException, InterruptedException {
+		if (!checkImportsScript.exists()) {
+			log.warn("Import check script not found: {}", checkImportsScript);
+			return null;
 		}
-		return true;
+		List<String> command = List.of(
+				getPythonPath().toString(),
+				checkImportsScript.getAbsolutePath(),
+				scriptFile.getAbsolutePath()
+		);
+		String[] failingModule = {null};
+		try {
+			commandExecutor.executeCommand(command, line -> {
+				if (!line.isBlank() && failingModule[0] == null) {
+					failingModule[0] = line.trim();
+				}
+			});
+			return null;
+		} catch (CommandExecutionException e) {
+			return failingModule[0];
+		}
 	}
 
-	private boolean canImportPackage(String packageName) throws InterruptedException, IOException {
-		String pythonExecutorPath = getPythonPath().toString();
-		String importCommand = String.format("import %s", packageName);
-		List<String> command = List.of(pythonExecutorPath, "-c", importCommand);
-
-		try {
-			commandExecutor.executeCommand(command, null);
-			return true;
-		} catch (CommandExecutionException e) {
-			return false;
+	private void reinstallDependenciesFromRequirements(Path directory, Consumer<String> onOutput)
+			throws IOException, InterruptedException {
+		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
+		if (!Files.exists(requirementsPath)) {
+			log.warn("No requirements.txt found in {}, skipping dependency re-installation.", directory);
+			return;
 		}
+		List<String> command = List.of(
+				getPythonPath().toString(),
+				"-m", "pip", "install",
+				"--force-reinstall",
+				"--no-cache-dir",
+				"-r", requirementsPath.toString()
+		);
+		commandExecutor.executeCommand(command, onOutput);
 	}
 
 	public boolean isPackageInstalled(String packageName) throws InterruptedException, IOException {
@@ -268,28 +284,6 @@ public class PythonService {
 				"-m",
 				"pip",
 				"install",
-				"-r",
-				requirementsPath.toString()
-		);
-		commandExecutor.executeCommand(command, onOutput);
-	}
-
-	private void reinstallDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,
-			InterruptedException {
-		Path requirementsPath = directory.resolve(REQUIREMENTS_FILE);
-		if (!Files.exists(requirementsPath)) {
-			log.warn("No requirements.txt found in {}, skipping dependency re-installation.", directory);
-			return;
-		}
-
-		String pythonExecutorPath = getPythonPath().toString();
-		List<String> command = List.of(
-				pythonExecutorPath,
-				"-m",
-				"pip",
-				"install",
-				"--force-reinstall",
-				"--no-cache-dir",
 				"-r",
 				requirementsPath.toString()
 		);

@@ -8,13 +8,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.PrefSettings;
@@ -42,7 +45,10 @@ import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -418,11 +424,13 @@ public class ScriptExecutionTool extends FilterToolView {
 
 		Platform.runLater(this::disableAndShowProgress);
 
+		Predicate<String> confirmReinstall = createReinstallConfirmation();
+
 		AtomicInteger remainingFiles = new AtomicInteger(files.size());
 		Future<Void> future = executor.submit(() -> {
 			for (SgyFile sgyFile : files) {
 				try {
-					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput);
+					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, confirmReinstall);
 					showSuccess(scriptMetadata);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
@@ -449,6 +457,30 @@ public class ScriptExecutionTool extends FilterToolView {
 			taskName += " on " + filesCount + " files";
 		}
 		AppContext.getInstance(TaskService.class).registerTask(future, taskName);
+	}
+
+	private Predicate<String> createReinstallConfirmation() {
+		return reason -> {
+			FutureTask<Boolean> task = new FutureTask<>(() -> {
+				Alert alert = new Alert(AlertType.CONFIRMATION);
+				alert.setTitle("Reinstall Dependencies");
+				alert.setHeaderText("Dependency issue detected");
+				Label content = new Label(reason + "\n\nForce reinstall dependencies?");
+				content.setWrapText(true);
+				content.setPrefWidth(400);
+				alert.getDialogPane().setContent(content);
+				alert.initOwner(AppContext.stage);
+				Optional<ButtonType> result = alert.showAndWait();
+				return result.isPresent() && result.get() == ButtonType.OK;
+			});
+			Platform.runLater(task);
+			try {
+				return task.get();
+			} catch (Exception e) {
+				log.warn("Failed to show reinstall confirmation dialog", e);
+				return false;
+			}
+		};
 	}
 
 	private void showSuccess(ScriptMetadata scriptMetadata) {

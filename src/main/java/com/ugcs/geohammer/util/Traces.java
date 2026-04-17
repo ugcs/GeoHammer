@@ -58,6 +58,14 @@ public final class Traces {
         return copy(traces, null);
     }
 
+    public static void shiftSamples(List<Trace> traces, float delta) {
+        for (Trace trace : traces) {
+            for (int i = 0; i < trace.numSamples(); i++) {
+                trace.setSample(i, trace.getSample(i) + delta);
+            }
+        }
+    }
+
     public static void fillMissingLatLon(List<Trace> traces) {
         if (traces == null) {
             return;

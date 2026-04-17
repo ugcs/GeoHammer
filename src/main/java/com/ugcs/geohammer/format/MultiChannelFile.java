@@ -1,14 +1,15 @@
 package com.ugcs.geohammer.format;
 
 import java.io.IOException;
+import java.util.List;
 
 public interface MultiChannelFile {
 
-	int getChannelCount();
+	int numChannel();
 
-	int getActiveChannelIndex();
+	List<Channel> getChannels();
 
-	void setActiveChannelIndex(int channel) throws IOException;
+	int getSelectedChannelIndex();
 
-	String getChannelLabel(int channel);
+	void selectChannel(int channelIndex) throws IOException;
 }

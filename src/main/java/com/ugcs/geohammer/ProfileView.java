@@ -27,6 +27,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
@@ -59,7 +60,7 @@ public class ProfileView implements InitializingBean {
 
 	private final Button geotaggerBtn = new Button("Geotagging");
 
-	private static final String CHANNEL_PLACEHOLDER = "Select channel";
+	private static final String CHANNEL_PLACEHOLDER = "—";
 
 	private final ComboBox<String> channelComboBox = new ComboBox<>();
 
@@ -94,8 +95,29 @@ public class ProfileView implements InitializingBean {
 		geotaggerBtn.setTooltip(new Tooltip("Geotagging tool"));
 		geotaggerBtn.setOnAction(this::showGeotaggerWindow);
 
-		channelComboBox.setTooltip(new Tooltip(CHANNEL_PLACEHOLDER));
+		channelComboBox.setTooltip(new Tooltip("Select channel"));
 		channelComboBox.setOnAction(e -> onChannelSelected());
+		channelComboBox.setCellFactory(list -> new ListCell<>() {
+			@Override
+			protected void updateItem(String item, boolean empty) {
+				super.updateItem(item, empty);
+				setText(empty || item == null ? null : item);
+			}
+		});
+		channelComboBox.setButtonCell(new ListCell<>() {
+			@Override
+			protected void updateItem(String item, boolean empty) {
+				super.updateItem(item, empty);
+				if (empty || item == null) {
+					setText(CHANNEL_PLACEHOLDER);
+				} else {
+					int index = channelComboBox.getSelectionModel().getSelectedIndex();
+					setText(String.valueOf(index + 1));
+				}
+			}
+		});
+		channelComboBox.setPrefWidth(70);
+		channelComboBox.setMaxWidth(70);
 		resetChannelComboBox();
 
 	}
@@ -221,7 +243,7 @@ public class ProfileView implements InitializingBean {
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (changed.isJustdraw() && currentFile instanceof TraceFile traceFile) {
+		if ((changed.isJustdraw() || changed.isTraceCut()) && currentFile instanceof TraceFile traceFile) {
 			GPRChart gprChart = model.getGprChart(traceFile);
 			if (gprChart != null) {
 				gprChart.updateScroll();
@@ -319,12 +341,12 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void updateChannelComboBox(SgyFile file) {
-		if (file instanceof MultiChannelFile multiChannelFile && multiChannelFile.getChannelCount() > 1) {
+		if (file instanceof MultiChannelFile multiChannelFile && multiChannelFile.numChannel() > 1) {
 			channelComboBox.getItems().clear();
-			for (int i = 0; i < multiChannelFile.getChannelCount(); i++) {
-				channelComboBox.getItems().add(multiChannelFile.getChannelLabel(i));
+			for (var channel : multiChannelFile.getChannels()) {
+				channelComboBox.getItems().add(channel.getName());
 			}
-			channelComboBox.getSelectionModel().select(multiChannelFile.getActiveChannelIndex());
+			channelComboBox.getSelectionModel().select(multiChannelFile.getSelectedChannelIndex());
 			channelComboBox.setDisable(false);
 		} else {
 			resetChannelComboBox();
@@ -336,9 +358,9 @@ public class ProfileView implements InitializingBean {
 			return;
 		}
 		int channelIndex = channelComboBox.getSelectionModel().getSelectedIndex();
-		if (channelIndex >= 0 && channelIndex != file.getActiveChannelIndex()) {
+		if (channelIndex >= 0 && channelIndex != file.getSelectedChannelIndex()) {
 			try {
-				file.setActiveChannelIndex(channelIndex);
+				file.selectChannel(channelIndex);
 				model.reload(currentFile);
 			} catch (Exception e) {
 				MessageBoxHelper.showError("Error", "Error switching channel: " + e.getMessage());

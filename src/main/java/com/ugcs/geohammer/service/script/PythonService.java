@@ -10,7 +10,6 @@ import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.util.FileNames;
@@ -44,13 +43,16 @@ public class PythonService {
 	}
 
 	public void installDependencies(File scriptFile, File checkImportsScript,
-			Consumer<String> onOutput, Predicate<String> confirmReinstall) throws IOException, InterruptedException {
+			Consumer<String> onOutput, boolean forceReinstall)
+			throws IOException, InterruptedException, DependencyImportException {
 		String filename = scriptFile.getName();
 
-		String failingModule = checkImports(scriptFile, checkImportsScript);
-		if (failingModule == null) {
-			onOutput.accept("Dependencies already satisfied for script " + filename);
-			return;
+		if (!forceReinstall) {
+			String failingModule = checkImports(scriptFile, checkImportsScript);
+			if (failingModule == null) {
+				onOutput.accept("Dependencies already satisfied for script " + filename);
+				return;
+			}
 		}
 
 		if (!isPackageInstalled(REQUIREMENTS_ANALYZER)) {
@@ -75,21 +77,19 @@ public class PythonService {
 				return;
 			}
 
-			installDependenciesFromRequirements(tempDirectory, onOutput);
-
-			failingModule = checkImports(scriptFile, checkImportsScript);
-			if (failingModule == null) {
-				onOutput.accept("Dependencies installed for script " + filename);
-				return;
-			}
-
-			// Module registered in pip but still not importable — offer force reinstall
-			String reason = "Module '" + failingModule + "' is installed but cannot be imported.";
-			if (confirmReinstall.test(reason)) {
+			if (forceReinstall) {
 				reinstallDependenciesFromRequirements(tempDirectory, onOutput);
+				onOutput.accept("Dependencies reinstalled for script " + filename);
 			} else {
-				throw new IllegalStateException(
-						"Module '" + failingModule + "' cannot be imported. Script execution aborted.");
+				installDependenciesFromRequirements(tempDirectory, onOutput);
+
+				String failingModule = checkImports(scriptFile, checkImportsScript);
+				if (failingModule == null) {
+					onOutput.accept("Dependencies installed for script " + filename);
+					return;
+				}
+
+				throw new DependencyImportException(failingModule);
 			}
 		} catch (IOException | CommandExecutionException e) {
 			log.warn("Dependency installation failed (possibly offline): {}", e.getMessage(), e);
@@ -103,10 +103,9 @@ public class PythonService {
 
 	// Returns the name of the first module that cannot be imported, or null if all imports succeed.
 	@Nullable
-	public String checkImports(File scriptFile, File checkImportsScript) throws IOException, InterruptedException {
+	String checkImports(File scriptFile, File checkImportsScript) throws IOException, InterruptedException {
 		if (!checkImportsScript.exists()) {
-			log.warn("Import check script not found: {}", checkImportsScript);
-			return null;
+			throw new IOException("Import check script not found: " + checkImportsScript.getAbsolutePath());
 		}
 		List<String> command = List.of(
 				getPythonPath().toString(),

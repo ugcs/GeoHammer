@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import com.ugcs.geohammer.Loader;
 import com.ugcs.geohammer.analytics.EventSender;
@@ -64,8 +63,14 @@ public class ScriptExecutor {
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
-							  Consumer<String> onScriptOutput, Predicate<String> confirmReinstall)
-			throws IOException, InterruptedException {
+							  Consumer<String> onScriptOutput)
+			throws IOException, InterruptedException, DependencyImportException {
+		executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, false);
+	}
+
+	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
+							  Consumer<String> onScriptOutput, boolean forceReinstall)
+			throws IOException, InterruptedException, DependencyImportException {
 		Check.notNull(sgyFile);
 		Check.notNull(scriptMetadata);
 
@@ -83,7 +88,7 @@ public class ScriptExecutor {
 			}
 
 			File checkImportsScript = getScriptsPath().resolve(CHECK_IMPORTS_SCRIPT).toFile();
-			pythonService.installDependencies(scriptFile, checkImportsScript, onScriptOutput, confirmReinstall);
+			pythonService.installDependencies(scriptFile, checkImportsScript, onScriptOutput, forceReinstall);
 
 			tempFile = copyToTempFile(sgyFile);
 

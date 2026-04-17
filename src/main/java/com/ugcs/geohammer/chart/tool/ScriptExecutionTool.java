@@ -17,7 +17,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.PrefSettings;
@@ -31,6 +30,7 @@ import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.service.script.CommandExecutionException;
+import com.ugcs.geohammer.service.script.DependencyImportException;
 import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptExecutor;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
@@ -424,14 +424,26 @@ public class ScriptExecutionTool extends FilterToolView {
 
 		Platform.runLater(this::disableAndShowProgress);
 
-		Predicate<String> confirmReinstall = createReinstallConfirmation();
-
 		AtomicInteger remainingFiles = new AtomicInteger(files.size());
 		Future<Void> future = executor.submit(() -> {
 			for (SgyFile sgyFile : files) {
 				try {
-					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, confirmReinstall);
+					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput);
 					showSuccess(scriptMetadata);
+				} catch (DependencyImportException e) {
+					boolean confirmed = showReinstallConfirmation(e.getModuleName());
+					if (confirmed) {
+						try {
+							scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, true);
+							showSuccess(scriptMetadata);
+						} catch (Exception retryException) {
+							String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
+							showError(scriptMetadata, retryException, scriptOutput);
+						}
+					} else {
+						showError("Module '" + e.getModuleName()
+								+ "' cannot be imported. Script execution aborted.");
+					}
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 				} catch (Exception e) {
@@ -459,28 +471,27 @@ public class ScriptExecutionTool extends FilterToolView {
 		AppContext.getInstance(TaskService.class).registerTask(future, taskName);
 	}
 
-	private Predicate<String> createReinstallConfirmation() {
-		return reason -> {
-			FutureTask<Boolean> task = new FutureTask<>(() -> {
-				Alert alert = new Alert(AlertType.CONFIRMATION);
-				alert.setTitle("Reinstall Dependencies");
-				alert.setHeaderText("Dependency issue detected");
-				Label content = new Label(reason + "\n\nForce reinstall dependencies?");
-				content.setWrapText(true);
-				content.setPrefWidth(400);
-				alert.getDialogPane().setContent(content);
-				alert.initOwner(AppContext.stage);
-				Optional<ButtonType> result = alert.showAndWait();
-				return result.isPresent() && result.get() == ButtonType.OK;
-			});
-			Platform.runLater(task);
-			try {
-				return task.get();
-			} catch (Exception e) {
-				log.warn("Failed to show reinstall confirmation dialog", e);
-				return false;
-			}
-		};
+	private boolean showReinstallConfirmation(String moduleName) {
+		FutureTask<Boolean> task = new FutureTask<>(() -> {
+			Alert alert = new Alert(AlertType.CONFIRMATION);
+			alert.setTitle("Reinstall Dependencies");
+			alert.setHeaderText("Dependency issue detected");
+			String reason = "Module '" + moduleName + "' is installed but cannot be imported.";
+			Label content = new Label(reason + "\n\nForce reinstall dependencies?");
+			content.setWrapText(true);
+			content.setPrefWidth(400);
+			alert.getDialogPane().setContent(content);
+			alert.initOwner(AppContext.stage);
+			Optional<ButtonType> result = alert.showAndWait();
+			return result.isPresent() && result.get() == ButtonType.OK;
+		});
+		Platform.runLater(task);
+		try {
+			return task.get();
+		} catch (Exception e) {
+			log.warn("Failed to show reinstall confirmation dialog", e);
+			return false;
+		}
 	}
 
 	private void showSuccess(ScriptMetadata scriptMetadata) {

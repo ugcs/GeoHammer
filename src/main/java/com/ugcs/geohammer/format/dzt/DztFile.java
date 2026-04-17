@@ -204,8 +204,8 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		return SAMPLE_CODECS.get((int)header.rh_bits);
 	}
 
-	private int getTraceBufferSize(int numSamples) {
-		int bytesPerSample = header.rh_bits / 8;
+	private int getTraceBufferSize(DztHeader channelHeader, int numSamples) {
+		int bytesPerSample = channelHeader.rh_bits / 8;
 		return bytesPerSample * (numSamples + 1);
 	}
 
@@ -248,7 +248,7 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		if (sampleCodec == null) {
 			throw new IOException("Unsupported sample bit depth: " + channelHeader.rh_bits);
 		}
-		int bufferSize = (channelHeader.rh_bits / 8) * (numSamples + 1);
+		int bufferSize = getTraceBufferSize(channelHeader, numSamples);
 
 		ByteBuffer buffer = ByteBuffer
 				.allocate(bufferSize)
@@ -317,7 +317,7 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 				Check.condition(numSamples == trace.numSamples());
 
 				ByteBuffer buffer = ByteBuffer
-						.allocate(getTraceBufferSize(numSamples))
+						.allocate(getTraceBufferSize(header, numSamples))
 						.order(ByteOrder.LITTLE_ENDIAN);
 				buffer.position(0);
 

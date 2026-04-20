@@ -10,7 +10,7 @@ public class DztChannel extends Channel {
 
 	private final DztHeader header;
 	private final MinMaxAvg sampleAverage;
-	private List<Trace> traces;
+	private final List<Trace> traces;
 
 	DztChannel(int index, String name, DztHeader header,
 			List<Trace> traces, MinMaxAvg sampleAverage) {
@@ -31,10 +31,6 @@ public class DztChannel extends Channel {
 	@Override
 	public List<Trace> getTraces() {
 		return traces;
-	}
-
-	void setTraces(List<Trace> traces) {
-		this.traces = traces;
 	}
 
 	static String formatName(int index, DztHeader header) {

@@ -116,8 +116,8 @@ public class ProfileView implements InitializingBean {
 				}
 			}
 		});
-		channelComboBox.setPrefWidth(70);
-		channelComboBox.setMaxWidth(70);
+		channelComboBox.setPrefWidth(60);
+		channelComboBox.setMaxWidth(60);
 		resetChannelComboBox();
 
 	}

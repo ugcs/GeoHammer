@@ -2,7 +2,8 @@ package com.ugcs.geohammer.format.dzt;
 
 public class DztHeader {
 	// constants
-	private static final int MINHEADSIZE = 1024;
+	static final int MINHEADSIZE = 1024;
+
 	private static final int PARAREASIZE = 128;
 	private static final int GPSAREASIZE = 2 * 4; //sizeof(RGPS); !!!!!!!
 	private static final int INFOAREASIZE = (MINHEADSIZE - PARAREASIZE- GPSAREASIZE) ;
@@ -138,4 +139,9 @@ public class DztHeader {
 	@BaseField(position = 944)
 	byte[] rh_RGPS = new byte[24]; // GPS info 944
 
+	static long getDataPosition(DztHeader firstHeader) {
+		return firstHeader.rh_data < MINHEADSIZE
+				? (long) MINHEADSIZE * firstHeader.rh_data
+				: (long) firstHeader.rh_nchan * firstHeader.rh_data;
+	}
 }

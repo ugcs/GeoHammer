@@ -1,12 +1,7 @@
 package com.ugcs.geohammer.format.dzt;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -118,73 +113,8 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		Check.notNull(file);
 		Check.notNull(sourceFile);
 
-		// TODO instead of reloading DZT header from source
-		//  implement serialization of the header structure
-
-		ByteBuffer headerBuffer = readSourceHeader();
-
-		int numSamples = 0;
-		if (numTraces() > 0) {
-			numSamples = getTraces().getFirst().numSamples();
-		}
-
-		// update num samples; add extra sample for index
-		headerBuffer.position(4); // rh_nsamp
-		headerBuffer.putShort((short) (numSamples + 1));
-		headerBuffer.position(0);
-
-		DztHeader header = selectedChannel().getHeader();
-		SampleCodec sampleCodec = SampleCodec.forBitDepth(header.rh_bits);
-		int traceBufferSize = SampleCodec.traceBufferSize(header.rh_bits, numSamples);
-
-		try (FileOutputStream out = new FileOutputStream(file);
-			 FileChannel channel = out.getChannel()) {
-
-			channel.write(headerBuffer);
-
-			List<Trace> fileTraces = getTraces();
-
-			for (int i = range.from(); i < range.to(); i++) {
-				Trace trace = fileTraces.get(i);
-				Check.condition(numSamples == trace.numSamples());
-
-				ByteBuffer buffer = ByteBuffer
-						.allocate(traceBufferSize)
-						.order(ByteOrder.LITTLE_ENDIAN);
-				buffer.position(0);
-
-				sampleCodec.write(buffer, trace.getIndex());
-				for (int j = 0; j < numSamples; j++) {
-					sampleCodec.write(buffer, (int) trace.getSample(j));
-				}
-
-				buffer.position(0);
-				channel.write(buffer);
-			}
-		}
-
-		List<DzgFile.IndexMapping> mappings = buildDzgMappings(range);
-		dzg.save(getDzgFile(file), mappings);
-	}
-
-	private ByteBuffer readSourceHeader() throws IOException {
-		Check.notNull(sourceFile);
-
-		DztHeader firstHeader = channels.getFirst().getHeader();
-		long size = firstHeader.rh_data < DztReader.MINHEADSIZE
-				? (long) DztReader.MINHEADSIZE * firstHeader.rh_data
-				: (long) firstHeader.rh_nchan * firstHeader.rh_data;
-
-		ByteBuffer buffer = ByteBuffer
-				.allocate((int) size)
-				.order(ByteOrder.LITTLE_ENDIAN);
-
-		try (FileInputStream in = new FileInputStream(sourceFile);
-			 FileChannel channel = in.getChannel()) {
-			channel.position(0);
-			channel.read(buffer);
-		}
-		return buffer;
+		new DztWriter().write(file, sourceFile, channels, range);
+		dzg.save(getDzgFile(file), buildDzgMappings(range));
 	}
 
 	private File getDzgFile(File file) {
@@ -237,7 +167,6 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		DztFile copy = new DztFile();
 		copy.sourceFile = this.sourceFile;
 		copy.dzg = this.dzg;
-		copy.channels = new ArrayList<>(this.channels);
 		copy.selectedChannelIndex = this.selectedChannelIndex;
 
 		copy.setFile(getFile());
@@ -246,6 +175,17 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		List<Trace> tracesCopy = Traces.copy(traces);
 		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
 
+		copy.channels = new ArrayList<>(this.channels.size());
+		for (int i = 0; i < this.channels.size(); i++) {
+			DztChannel src = this.channels.get(i);
+			if (i == this.selectedChannelIndex) {
+				copy.channels.add(new DztChannel(src.getIndex(), src.getName(),
+						src.getHeader(), tracesCopy, src.getSampleAverage()));
+			} else {
+				copy.channels.add(src);
+			}
+		}
+
 		if (metaFile != null) {
 			copy.metaFile = new MetaFile();
 			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
@@ -253,8 +193,6 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		}
 
 		copy.setTraces(tracesCopy);
-		DztChannel selected = copy.channels.get(copy.selectedChannelIndex);
-		selected.setTraces(tracesCopy);
 		copy.setAuxElements(elementsCopy);
 
 		return copy;

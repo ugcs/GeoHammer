@@ -5,6 +5,7 @@ import java.util.Deque;
 import java.util.stream.Collectors;
 
 import com.ugcs.geohammer.release.ReleaseView;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Toast;
 import com.ugcs.geohammer.view.Views;
@@ -72,9 +73,18 @@ public class StatusBar extends HBox implements Status, InitializingBean {
             releaseView.update();
         });
 
+		Label submitFeedback = new Label("Feedback");
+		Styles.addResource(submitFeedback, Styles.STATUS_STYLE_PATH);
+		submitFeedback.getStyleClass().add("clickable");
+		submitFeedback.setId("submit-feedback");
+		submitFeedback.setOnMouseClicked(e -> {
+			Dialogs.showFeedback();
+		});
+
+		setSpacing(4);
         setAlignment(Pos.CENTER_LEFT);
         setPadding(new Insets(0, 16, 0, 16));
-        getChildren().addAll(textField, Views.createSpacer(), taskStatusView, versionStatus);
+        getChildren().addAll(textField, Views.createSpacer(), taskStatusView, versionStatus, submitFeedback);
 
 		AppContext.status = this;
 	}

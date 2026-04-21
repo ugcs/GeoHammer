@@ -1,5 +1,6 @@
 #version-status {
-    -fx-padding: 4px 12px 4px 12px;
+    -fx-padding: 2px 8px 2px 8px;
+    -fx-background-radius: 6px;
 }
 
 #version-status:hover {
@@ -39,3 +40,34 @@
 .current-version {
     -fx-font-weight: bold;
 }
+
+.clickable {
+    -fx-padding: 2px 8px;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6px;
+    -fx-background-color: #a8a8a8;
+}
+
+.clickable:hover {
+    -fx-cursor: hand;
+    -fx-background-color: #b8b8b8;
+}
+
+.clickable:pressed {
+    -fx-background-color: #939393;
+}
+
+.clickable#submit-feedback {
+    -fx-background-color: linear-gradient(to right, #65a0f8, #65b6f8);
+}
+
+.clickable#submit-feedback:hover {
+    -fx-background-color: linear-gradient(to right, #65b6f8, #65d1f8);
+}
+
+.clickable#submit-feedback:pressed {
+    -fx-background-color: #65a0f8;
+}
+
+

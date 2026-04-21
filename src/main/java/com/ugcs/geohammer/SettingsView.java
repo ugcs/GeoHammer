@@ -6,7 +6,7 @@ import java.util.List;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.service.script.PythonService;
-import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -125,7 +125,7 @@ public class SettingsView implements ToolProducer {
 		try {
 			pythonPath = pythonService.getPythonPath().toString();
 		} catch (Exception e) {
-			MessageBoxHelper.showError("Error", "Could not determine Python executable path: " + e.getMessage());
+			Dialogs.showError("Error", "Could not determine Python executable path: " + e.getMessage(), e);
 		}
 
 		pythonPathField.setText(pythonPath);
@@ -204,11 +204,11 @@ public class SettingsView implements ToolProducer {
 			try {
 				threshold = Double.parseDouble(traceLookupThresholdField.getText());
 				if (threshold < 0) {
-					MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a non-negative number.");
+					Dialogs.showError("Invalid Input", "Trace lookup threshold must be a non-negative number.");
 					return;
 				}
 			} catch (NumberFormatException e) {
-				MessageBoxHelper.showError("Invalid Input", "Trace lookup threshold must be a valid number.");
+				Dialogs.showError("Invalid Input", "Trace lookup threshold must be a valid number.", e);
 				return;
 			}
 		}

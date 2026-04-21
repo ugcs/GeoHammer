@@ -25,7 +25,7 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.event.ActionEvent;
@@ -391,7 +391,7 @@ public class Saver implements ToolProducer, InitializingBean {
 						+ Strings.nullToEmpty(actionName));
 			} catch (Exception e) {
 				log.error("Error", e);
-				MessageBoxHelper.showError(e.getMessage(), "");
+				Dialogs.showError(e.getMessage(), "", e);
 			}
 		};
 		new TaskRunner(status, task).start();

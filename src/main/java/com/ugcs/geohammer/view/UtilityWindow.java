@@ -11,21 +11,10 @@ import org.jspecify.annotations.Nullable;
 
 public class UtilityWindow {
 
-    private static final double MIN_WIDTH = 600;
+    private final WindowProperties properties;
 
-    private static final double MIN_HEIGHT = 400;
-
-    private static final double INIT_WIDTH = 1200;
-
-    private static final double INIT_HEIGHT = 840;
-
-    private final String title;
-
-    private final String style;
-
-    public UtilityWindow(String title, String style) {
-        this.title = title;
-        this.style = style;
+    public UtilityWindow(WindowProperties properties) {
+        this.properties = properties;
     }
 
     @Nullable
@@ -45,19 +34,19 @@ public class UtilityWindow {
     private Stage createWindow() {
         Stage window = new Stage();
 
-        window.setTitle(title);
+        window.setTitle(properties.title());
         window.initOwner(AppContext.stage);
         window.initStyle(StageStyle.UTILITY);
         window.setResizable(true);
-        window.setMinWidth(MIN_WIDTH);
-        window.setMinHeight(MIN_HEIGHT);
+        window.setMinWidth(properties.minWidth());
+        window.setMinHeight(properties.minHeight());
 
         root = new StackPane();
         root.setMinSize(0, 0);
 
-        Scene scene = new Scene(root, INIT_WIDTH, INIT_HEIGHT);
-        if (!Strings.isNullOrEmpty(style)) {
-            Styles.addResource(scene, style);
+        Scene scene = new Scene(root, properties.width(), properties.height());
+        if (!Strings.isNullOrEmpty(properties.style())) {
+            Styles.addResource(scene, properties.style());
         }
         window.setScene(scene);
 

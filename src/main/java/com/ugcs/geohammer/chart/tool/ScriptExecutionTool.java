@@ -37,7 +37,7 @@ import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
-import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -174,7 +174,7 @@ public class ScriptExecutionTool extends FilterToolView {
         if (sgyFile != null) {
             executeScript(scriptMetadata, List.of(sgyFile));
         } else {
-            MessageBoxHelper.showError("No file selected",
+            Dialogs.showError("No file selected",
                     "Please select a file to apply the script");
         }
     }
@@ -201,8 +201,8 @@ public class ScriptExecutionTool extends FilterToolView {
 			scriptsMetadata = filterScriptsByTemplate(file, loadedScriptsMetadata);
 		} catch (Exception e) {
 			scriptsMetadata = List.of();
-			MessageBoxHelper.showError("Scripts Directory Error",
-					"Failed to load scripts metadata: " + e.getMessage());
+			Dialogs.showError("Scripts Directory Error",
+					"Failed to load scripts metadata: " + e.getMessage(), e);
 		}
 
 		restoreScriptSelection();
@@ -472,7 +472,7 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private void showError(String message) {
-		MessageBoxHelper.showError("Script Execution Error", message);
+		Dialogs.showError("Script Execution Error", message);
 	}
 
 	private Map<String, String> extractScriptParams() {

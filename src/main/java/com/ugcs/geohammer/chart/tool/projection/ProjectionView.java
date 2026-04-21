@@ -21,6 +21,7 @@ import com.ugcs.geohammer.service.palette.SpectrumType;
 import com.ugcs.geohammer.view.Bindings;
 import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Listeners;
+import com.ugcs.geohammer.view.WindowProperties;
 import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Insets;
@@ -64,12 +65,19 @@ public class ProjectionView extends CanvasWindow {
             Model model,
             ProjectionModel projectionModel,
             ProjectionController projectionController) {
-        super("Reprojection (experimental)", Styles.DARK_THEME_PATH);
+        super(getWindowProperties());
 
         this.model = model;
         this.projectionModel = projectionModel;
         this.projectionController = projectionController;
 	}
+
+    private static WindowProperties getWindowProperties() {
+        return new WindowProperties("Reprojection (experimental)")
+                .withStyle(Styles.DARK_THEME_PATH)
+                .withSize(1200, 840)
+                .withMinSize(600, 400);
+    }
 
     private void initListeners() {
         // draw on viewport updates

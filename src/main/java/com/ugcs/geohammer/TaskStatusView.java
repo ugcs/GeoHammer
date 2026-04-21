@@ -6,16 +6,14 @@ import com.ugcs.geohammer.model.event.TaskRegisteredEvent;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.view.Views;
+import com.ugcs.geohammer.view.Styles;
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
-import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -34,7 +32,7 @@ public class TaskStatusView extends HBox implements InitializingBean {
 
     private final Label title;
 
-    private final Button cancelButton;
+    private final Label cancel;
 
     private final ContextMenu taskMenu;
     
@@ -42,7 +40,7 @@ public class TaskStatusView extends HBox implements InitializingBean {
         this.taskService = taskService;
 
         this.title = new Label(DEFAULT_TITLE);
-        this.cancelButton = Views.createFlatButton("Cancel", 15);
+        this.cancel = new Label("Cancel");
         this.taskMenu = new ContextMenu();
 
         initView();
@@ -54,19 +52,21 @@ public class TaskStatusView extends HBox implements InitializingBean {
     }
     
     private void initView() {
+        Styles.addResource(this, Styles.STATUS_STYLE_PATH);
+
         setAlignment(Pos.CENTER_LEFT);
-        setSpacing(7);
+        setSpacing(6);
 
         title.setAlignment(Pos.BASELINE_RIGHT);
-        title.setTranslateY(1); // to align with the cancel button
         title.setMinWidth(Region.USE_PREF_SIZE);
         title.setMaxWidth(Region.USE_PREF_SIZE);
 
-        cancelButton.setOnAction(this::onCancelClick);
+        cancel.getStyleClass().add("clickable");
+        cancel.setOnMouseClicked(this::onCancelClick);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        getChildren().addAll(spacer, title, cancelButton);
+        getChildren().addAll(spacer, title, cancel);
         setVisible(true);
     }
     
@@ -84,12 +84,12 @@ public class TaskStatusView extends HBox implements InitializingBean {
             } else {
                 title.setText(numTasks + " tasks in progress");
             }
-            cancelButton.setDisable(numTasks == 0);
+            cancel.setDisable(numTasks == 0);
             setVisible(numTasks > 0);
         });
     }
 
-    private void onCancelClick(ActionEvent e) {
+    private void onCancelClick(MouseEvent e) {
         List<Task<?>> tasks = taskService.getTasks();
         if (tasks.isEmpty()) {
             return;
@@ -101,7 +101,7 @@ public class TaskStatusView extends HBox implements InitializingBean {
                 taskMenu.hide();
             } else {
                 updateTaskMenu(tasks);
-                taskMenu.show(cancelButton, Side.TOP, 0, 0);
+                taskMenu.show(cancel, Side.TOP, 0, 0);
             }
         }
     }

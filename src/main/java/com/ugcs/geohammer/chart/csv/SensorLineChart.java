@@ -20,7 +20,7 @@ import javafx.embed.swing.SwingFXUtils;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.service.TraceTransform;
-import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.chart.csv.axis.SensorLineChartXAxis;
@@ -1015,7 +1015,7 @@ public class SensorLineChart extends Chart {
         LineChartWithMarkers chart = getChart(seriesName);
         if (chart == null) {
             String errorMessage = "Cannot apply filter to %s.".formatted(seriesName);
-            MessageBoxHelper.showError(errorMessage, "");
+            Dialogs.showError(errorMessage, "");
             return;
         }
 

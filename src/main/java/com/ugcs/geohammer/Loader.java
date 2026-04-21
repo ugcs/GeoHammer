@@ -27,7 +27,7 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
 import org.slf4j.Logger;
@@ -140,9 +140,10 @@ public class Loader {
 					listener.progressMsg("Error: " + e.getMessage());
 
 					eventPublisher.publishEvent(new FileOpenErrorEvent(this, file, e));
-					MessageBoxHelper.showError(
+					Dialogs.showError(
 							"Can`t open file " + file.getName(),
-							Strings.nullToEmpty(e.getMessage()));
+							Strings.nullToEmpty(e.getMessage()),
+							e);
 				} finally {
 					model.setLoading(false);
 				}

@@ -10,8 +10,8 @@ public class CanvasWindow extends UtilityWindow {
     @Nullable
     protected Canvas canvas;
 
-    public CanvasWindow(String title, String style) {
-        super(title, style);
+    public CanvasWindow(WindowProperties properties) {
+        super(properties);
     }
 
     public @Nullable Canvas getCanvas() {

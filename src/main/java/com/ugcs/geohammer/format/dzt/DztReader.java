@@ -8,135 +8,129 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 
 import com.ugcs.geohammer.format.gpr.Trace;
-import com.ugcs.geohammer.math.MinMaxAvg;
 import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.Traces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class DztReader {
+public class DztReader {
 
 	private static final Logger log = LoggerFactory.getLogger(DztReader.class);
 
-	List<DztChannel> read(File file, DzgFile dzg) throws IOException {
+	public List<DztChannel> read(File file, DzgFile dzg) throws IOException {
 		try (SeekableByteChannel channel = Files.newByteChannel(file.toPath(), StandardOpenOption.READ)) {
 			List<DztHeader> headers = readHeaders(channel);
-			logHeader(headers.getFirst());
-
-			List<ChannelDecoder> decoders = prepareDecoders(headers);
-			channel.position(DztHeader.getDataPosition(headers.getFirst()));
-			readTraces(channel, decoders, dzg);
-
-			return buildChannels(headers, decoders);
+			return readChannels(channel, dzg, headers);
 		}
 	}
 
-	private record ChannelDecoder(SampleCodec codec, int numSamples, int traceBufferSize,
-			List<Trace> traces, MinMaxAvg average) {
+	private List<DztHeader> readHeaders(SeekableByteChannel in) throws IOException {
 
-		void readTrace(SeekableByteChannel in, LatLon latLon) throws IOException {
-			ByteBuffer buffer = ByteBuffer
-					.allocate(traceBufferSize)
-					.order(ByteOrder.LITTLE_ENDIAN);
-			in.read(buffer);
-			buffer.position(0);
+		DztHeader firstHeader = readHeaderAt(in, 0);
+		int numChannels = Math.max(1, firstHeader.rh_nchan);
 
-			// first value is a trace index, skip it
-			codec.read(buffer);
+		List<DztHeader> headers = new ArrayList<>(numChannels);
+		headers.add(firstHeader);
+		logHeader(firstHeader);
+		for (int i = 1; i < numChannels; i++) {
+			DztHeader header = readHeaderAt(in, (long) i * DztHeader.MINHEADSIZE);
+			headers.add(header);
+			logHeader(header);
+		}
+		return headers;
+	}
 
-			float[] samples = new float[numSamples];
-			int sampleIndex = 0;
-			while (buffer.position() < buffer.capacity() && sampleIndex < samples.length) {
-				int sample = codec.read(buffer);
-				samples[sampleIndex++] = sample;
-				average.put(sample);
+	private DztHeader readHeaderAt(SeekableByteChannel in, long position) throws IOException {
+		ByteBuffer buffer = ByteBuffer.allocate(DztHeader.MINHEADSIZE).order(ByteOrder.LITTLE_ENDIAN);
+		in.position(position);
+		in.read(buffer);
+		DztHeader header = new DztHeader();
+		ObjectByteMapper.readObject(header, buffer);
+		return header;
+	}
+
+	private List<DztChannel> readChannels(SeekableByteChannel in, DzgFile dzg, List<DztHeader> headers) throws IOException {
+		if (headers.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		int numTraces = computeNumTraces(headers, in.size());
+		int numChannels = headers.size();
+
+		List<DztChannel> channels = new ArrayList<>(numChannels);
+		for (int headerIndex = 0; headerIndex < numChannels; headerIndex++) {
+			DztChannel channel = new DztChannel(headerIndex, headers.get(headerIndex), numTraces);
+			channels.add(channel);
+		}
+
+		in.position(headers.getFirst().getDataAreaStart());
+
+		for (int traceIndex = 0; traceIndex < numTraces; traceIndex++) {
+			if (Thread.currentThread().isInterrupted()) {
+				throw new CancellationException();
 			}
-
-			traces.add(new Trace(null, null, samples, latLon, null));
+			LatLon tracePosition = dzg.getLatLon(traceIndex);
+			for (int channelIndex = 0; channelIndex < numChannels; channelIndex++) {
+				float[] samples = readSamples(in, headers.get(channelIndex));
+				Trace trace = new Trace(null, null, samples, tracePosition, null);
+				channels.get(channelIndex).addTrace(trace);
+			}
 		}
+
+		return channels;
 	}
 
-	private List<ChannelDecoder> prepareDecoders(List<DztHeader> headers) throws IOException {
-		List<ChannelDecoder> decoders = new ArrayList<>(headers.size());
+	private static int computeNumTraces(List<DztHeader> headers, long fileSize) throws IOException {
+		long dataStart = headers.getFirst().getDataAreaStart();
+		long scanSize = 0;
 		for (DztHeader header : headers) {
-			decoders.add(prepareDecoder(header));
+			if (SampleCodec.forBitDepth(header.rh_bits) == null) {
+				throw new IOException("Unsupported sample bit depth: " + header.rh_bits);
+			}
+			int numSamples = Math.max(0, header.rh_nsamp - 1);
+			scanSize += SampleCodec.traceBufferSize(header.rh_bits, numSamples);
 		}
-		return decoders;
+		long dataBytes = fileSize - dataStart;
+		if (dataBytes <= 0) {
+			throw new IOException("DZT file has no trace data");
+		}
+		if (dataBytes % scanSize != 0) {
+			throw new IOException("Truncated or misaligned DZT: "
+					+ dataBytes + " bytes, scanSize=" + scanSize);
+		}
+		long numTraces = dataBytes / scanSize;
+		return (int) numTraces;
 	}
 
-	private ChannelDecoder prepareDecoder(DztHeader header) throws IOException {
+	private float[] readSamples(SeekableByteChannel in, DztHeader header) throws IOException {
 		SampleCodec codec = SampleCodec.forBitDepth(header.rh_bits);
 		if (codec == null) {
 			throw new IOException("Unsupported sample bit depth: " + header.rh_bits);
 		}
 		int numSamples = Math.max(0, header.rh_nsamp - 1);
 		int bufferSize = SampleCodec.traceBufferSize(header.rh_bits, numSamples);
-		return new ChannelDecoder(codec, numSamples, bufferSize,
-				new ArrayList<>(), new MinMaxAvg());
-	}
 
-	private List<DztHeader> readHeaders(SeekableByteChannel channel) throws IOException {
-		ObjectByteMapper byteMapper = new ObjectByteMapper();
+		ByteBuffer buffer = ByteBuffer
+				.allocate(bufferSize)
+				.order(ByteOrder.LITTLE_ENDIAN);
+		in.read(buffer);
+		buffer.position(0);
 
-		DztHeader firstHeader = readHeaderAt(channel, byteMapper, 0);
-		int numChannels = Math.max(1, firstHeader.rh_nchan);
+		// first value is a trace index, skip it
+		codec.read(buffer);
 
-		List<DztHeader> headers = new ArrayList<>(numChannels);
-		headers.add(firstHeader);
-		for (int i = 1; i < numChannels; i++) {
-			headers.add(readHeaderAt(channel, byteMapper, (long) i * DztHeader.MINHEADSIZE));
+		float[] samples = new float[numSamples];
+		int sampleIndex = 0;
+		while (buffer.position() < buffer.capacity() && sampleIndex < samples.length) {
+			int sample = codec.read(buffer);
+			samples[sampleIndex++] = sample;
 		}
-		return headers;
-	}
 
-	private DztHeader readHeaderAt(SeekableByteChannel channel,
-			ObjectByteMapper byteMapper, long position) throws IOException {
-		ByteBuffer buffer = ByteBuffer.allocate(DztHeader.MINHEADSIZE).order(ByteOrder.LITTLE_ENDIAN);
-		channel.position(position);
-		channel.read(buffer);
-		DztHeader header = new DztHeader();
-		byteMapper.readObject(header, buffer);
-		return header;
-	}
-
-	private void readTraces(SeekableByteChannel channel,
-			List<ChannelDecoder> decoders, DzgFile dzg) throws IOException {
-
-		int numChannels = decoders.size();
-
-		int globalIndex = 0;
-		while (channel.position() < channel.size()) {
-			if (Thread.currentThread().isInterrupted()) {
-				throw new CancellationException();
-			}
-			int ch = globalIndex % numChannels;
-			int traceIndex = globalIndex / numChannels;
-
-			decoders.get(ch).readTrace(channel, dzg.getLatLon(traceIndex));
-			globalIndex++;
-		}
-	}
-
-	private List<DztChannel> buildChannels(List<DztHeader> headers,
-			List<ChannelDecoder> decoders) {
-
-		List<DztChannel> result = new ArrayList<>(headers.size());
-		for (int i = 0; i < headers.size(); i++) {
-			ChannelDecoder decoder = decoders.get(i);
-			Check.notEmpty(decoder.traces(),
-					"Corrupted file: channel " + (i + 1) + " has no traces");
-			Traces.shiftSamples(decoder.traces(), -(float) decoder.average().getAverage());
-
-			String name = DztChannel.formatName(i, headers.get(i));
-			result.add(new DztChannel(i, name, headers.get(i),
-					decoder.traces(), decoder.average()));
-		}
-		return result;
+		return samples;
 	}
 
 

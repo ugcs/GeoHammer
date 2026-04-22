@@ -341,10 +341,11 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void updateChannelComboBox(SgyFile file) {
-		if (file instanceof MultiChannelFile multiChannelFile && multiChannelFile.numChannel() > 1) {
+		if (file instanceof MultiChannelFile multiChannelFile && multiChannelFile.numChannels() > 1) {
 			channelComboBox.getItems().clear();
-			for (var channel : multiChannelFile.getChannels()) {
-				channelComboBox.getItems().add(channel.getName());
+			for (int i = 0; i < multiChannelFile.numChannels(); i++) {
+				String channelName = multiChannelFile.getChannel(i).getName();
+				channelComboBox.getItems().add(channelName);
 			}
 			channelComboBox.getSelectionModel().select(multiChannelFile.getSelectedChannelIndex());
 			channelComboBox.setDisable(false);

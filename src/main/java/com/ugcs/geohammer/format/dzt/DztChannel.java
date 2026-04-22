@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.format.dzt;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.ugcs.geohammer.format.Channel;
@@ -12,20 +13,31 @@ public class DztChannel extends Channel {
 	private final MinMaxAvg sampleAverage;
 	private final List<Trace> traces;
 
-	DztChannel(int index, String name, DztHeader header,
-			List<Trace> traces, MinMaxAvg sampleAverage) {
-		super(index, name);
+	DztChannel(int index, DztHeader header, int numTraces) {
+		super(index, formatName(index, header));
 		this.header = header;
-		this.traces = traces;
-		this.sampleAverage = sampleAverage;
+		this.traces = new ArrayList<>(numTraces);
+		this.sampleAverage = new MinMaxAvg();
 	}
 
 	public DztHeader getHeader() {
 		return header;
 	}
 
-	public MinMaxAvg getSampleAverage() {
-		return sampleAverage;
+	public void addTrace(Trace trace) {
+		for (float sample : trace.getFileSamples()) {
+			sampleAverage.put(sample);
+		}
+		traces.add(trace);
+	}
+
+	public DztChannel copy() {
+		DztChannel copy = new DztChannel(getIndex(), header, traces.size());
+		for (Trace trace : traces) {
+			copy.traces.add(trace.copy());
+		}
+		copy.sampleAverage.copyFrom(sampleAverage);
+		return copy;
 	}
 
 	@Override
@@ -33,7 +45,23 @@ public class DztChannel extends Channel {
 		return traces;
 	}
 
-	static String formatName(int index, DztHeader header) {
+	public void normalize() {
+		for (Trace trace : traces) {
+			for (int i = 0; i < trace.numSamples(); i++) {
+				trace.setSample(i, trace.getSample(i) - (float) sampleAverage.getAverage());
+			}
+		}
+	}
+
+	public void denormalize() {
+		for (Trace trace : traces) {
+			for (int i = 0; i < trace.numSamples(); i++) {
+				trace.setSample(i, trace.getSample(i) + (float) sampleAverage.getAverage());
+			}
+		}
+	}
+
+	private static String formatName(int index, DztHeader header) {
 		String antName = header.rh_antname != null && !header.rh_antname.isBlank()
 				? header.rh_antname.trim()
 				: "Unknown antenna";

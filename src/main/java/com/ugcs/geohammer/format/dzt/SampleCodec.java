@@ -5,20 +5,20 @@ import java.util.Map;
 
 interface SampleCodec {
 
-	int read(ByteBuffer buffer);
-
-	void write(ByteBuffer buffer, int value);
-
 	Map<Integer, SampleCodec> CODECS = Map.of(
 			16, new Sample16Bit(),
 			32, new Sample32Bit());
+
+	int read(ByteBuffer buffer);
+
+	void write(ByteBuffer buffer, int value);
 
 	static SampleCodec forBitDepth(int bits) {
 		return CODECS.get(bits);
 	}
 
 	static int traceBufferSize(int bits, int numSamples) {
-		int bytesPerSample = bits / 8;
+		int bytesPerSample = bits >> 3;
 		return bytesPerSample * (numSamples + 1);
 	}
 }

@@ -139,9 +139,9 @@ public class DztHeader {
 	@BaseField(position = 944)
 	byte[] rh_RGPS = new byte[24]; // GPS info 944
 
-	static long getDataPosition(DztHeader firstHeader) {
-		return firstHeader.rh_data < MINHEADSIZE
-				? (long) MINHEADSIZE * firstHeader.rh_data
-				: (long) firstHeader.rh_nchan * firstHeader.rh_data;
+	public long getDataAreaStart() {
+		return rh_data < MINHEADSIZE
+				? (long) MINHEADSIZE * rh_data
+				: (long) rh_nchan * rh_data;
 	}
 }

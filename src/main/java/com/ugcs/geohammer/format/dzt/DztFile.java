@@ -3,7 +3,6 @@ package com.ugcs.geohammer.format.dzt;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import com.ugcs.geohammer.format.Channel;
@@ -17,7 +16,6 @@ import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.util.Traces;
 import org.jspecify.annotations.Nullable;
 
 public class DztFile extends TraceFile implements MultiChannelFile {
@@ -53,11 +51,6 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 	}
 
 	@Override
-	public List<Channel> getChannels() {
-		return Collections.unmodifiableList(channels);
-	}
-
-	@Override
 	public int getSelectedChannelIndex() {
 		return selectedChannelIndex;
 	}
@@ -84,8 +77,16 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 	}
 
 	@Override
-	public int numChannel() {
+	public int numChannels() {
 		return channels.size();
+	}
+
+	@Override
+	public Channel getChannel(int channelIndex) {
+		if (channelIndex < 0 || channelIndex >= channels.size()) {
+			throw new IllegalArgumentException("Channel index out of range: " + channelIndex);
+		}
+		return channels.get(channelIndex);
 	}
 
 	@Override
@@ -98,6 +99,10 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		dzg.load(getDzgFile(file));
 
 		channels = new DztReader().read(file, dzg);
+		
+		for (DztChannel channel : channels) {
+			channel.normalize();
+		}
 
 		selectChannel(0);
 		setUnsaved(false);
@@ -113,8 +118,19 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		Check.notNull(file);
 		Check.notNull(sourceFile);
 
-		new DztWriter().write(file, sourceFile, channels, range);
-		dzg.save(getDzgFile(file), buildDzgMappings(range));
+		// Lift in-memory invariant: writer expects raw samples on disk.
+		// finally restores the normalized state whatever happens below.
+		for (DztChannel channel : channels) {
+			channel.denormalize();
+		}
+		try {
+			new DztWriter().write(file, sourceFile, channels, range);
+			dzg.save(getDzgFile(file), buildDzgMappings(range));
+		} finally {
+			for (DztChannel channel : channels) {
+				channel.normalize();
+			}
+		}
 	}
 
 	private File getDzgFile(File file) {
@@ -151,14 +167,12 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 
 	@Override
 	public void normalize() {
-		Traces.shiftSamples(traces,
-				-(float) selectedChannel().getSampleAverage().getAverage());
+		selectedChannel().normalize();
 	}
 
 	@Override
 	public void denormalize() {
-		Traces.shiftSamples(traces,
-				(float) selectedChannel().getSampleAverage().getAverage());
+		selectedChannel().denormalize();
 	}
 
 	@Override
@@ -172,19 +186,15 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		copy.setFile(getFile());
 		copy.setUnsaved(isUnsaved());
 
-		List<Trace> tracesCopy = Traces.copy(traces);
-		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
-
 		copy.channels = new ArrayList<>(this.channels.size());
-		for (int i = 0; i < this.channels.size(); i++) {
-			DztChannel src = this.channels.get(i);
-			if (i == this.selectedChannelIndex) {
-				copy.channels.add(new DztChannel(src.getIndex(), src.getName(),
-						src.getHeader(), tracesCopy, src.getSampleAverage()));
-			} else {
-				copy.channels.add(src);
-			}
+		for (DztChannel src : this.channels) {
+			copy.channels.add(src.copy());
 		}
+
+		// Invariant: DztFile.traces and selectedChannel.getTraces() are the
+		// same list reference. Take it from the freshly copied channel.
+		List<Trace> tracesCopy = copy.channels.get(copy.selectedChannelIndex).getTraces();
+		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
 
 		if (metaFile != null) {
 			copy.metaFile = new MetaFile();

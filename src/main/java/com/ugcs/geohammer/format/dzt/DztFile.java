@@ -65,7 +65,11 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		DztChannel channel = selectedChannel();
 		IndexRange sampleRange = metaFile != null ? metaFile.getSampleRange() : null;
 		setTraces(channel.getTraces());
-		loadMeta(channel.getTraces());
+		if (metaFile == null) {
+			loadMeta(channel.getTraces());
+		} else {
+			syncMeta(channel.getTraces());
+		}
 		if (sampleRange != null && metaFile != null) {
 			metaFile.setSampleRange(sampleRange);
 			syncMeta(channel.getTraces());

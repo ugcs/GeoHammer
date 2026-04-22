@@ -41,6 +41,8 @@ public class DztWriter implements Closeable {
 	}
 
 	private void writeHeaders(List<DztChannel> channels) throws IOException {
+		long dataStart = channels.getFirst().getHeader().getDataStart();
+
 		for (DztChannel channel : channels) {
 			List<Trace> traces = channel.getTraces();
 			int numSamples = !Nulls.isNullOrEmpty(traces)
@@ -52,6 +54,14 @@ public class DztWriter implements Closeable {
 			setNumSamples(buffer, numSamples);
 			buffer.position(0);
 			out.getChannel().write(buffer);
+		}
+
+		// Some file variants (e.g. SIR-3000) have extra space between the last
+		// channel header and the data area. Pad with zeros so the saved file
+		// preserves the same data-start offset that getDataStart() returns.
+		long headerBytesWritten = (long) channels.size() * DztHeader.MINHEADSIZE;
+		if (headerBytesWritten < dataStart) {
+			out.getChannel().write(ByteBuffer.allocate((int) (dataStart - headerBytesWritten)));
 		}
 	}
 

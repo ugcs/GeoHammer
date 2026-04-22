@@ -23,7 +23,7 @@ public class MinMaxAvg {
 		cnt++;
 	}
 
-	public double getAvg() {
+	public double getAverage() {
 		if (cnt > 0) {
 			return sum / cnt;
 		} else {
@@ -44,6 +44,14 @@ public class MinMaxAvg {
 	}
 	
 	public boolean isNotEmpty() {
-		return !first; 
+		return !first;
+	}
+
+	public void copyFrom(MinMaxAvg other) {
+		this.sum = other.sum;
+		this.cnt = other.cnt;
+		this.min = other.min;
+		this.max = other.max;
+		this.first = other.first;
 	}
 }

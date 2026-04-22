@@ -84,7 +84,7 @@ public class DzgFile {
                     record = new Record();
                     records.put(parseIndex(line), record);
                     record.line1 = line;
-                } else if (line.startsWith("$GPGGA")) {
+                } else if (line.startsWith("$GPGGA") || line.startsWith("$GNGGA")) {
                     if (record != null) {
                         record.line2 = line;
                         record.latLon = parseLatLon(line);

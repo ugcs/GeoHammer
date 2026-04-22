@@ -68,16 +68,17 @@ public abstract class TraceFile extends SgyFileWithMeta {
         Check.notNull(source);
 
         Path metaPath = MetaFile.getMetaPath(source);
-        metaFile = new MetaFile();
+        MetaFile newMeta = new MetaFile();
         if (Files.exists(metaPath)) {
             // load existing meta
-            metaFile.load(metaPath);
+            newMeta.load(metaPath);
         } else {
             // init meta
             TraceMeta meta = getMetaFromTraces(traces);
-            metaFile.setMetaToState(meta);
+            newMeta.setMetaToState(meta);
         }
 
+        metaFile = newMeta;
         syncMeta(traces);
     }
 

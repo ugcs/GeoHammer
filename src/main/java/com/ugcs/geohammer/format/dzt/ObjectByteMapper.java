@@ -7,7 +7,7 @@ import java.util.Map;
 public class ObjectByteMapper {
 
 
-	public void readObject(Object instance, ByteBuffer buffer) {
+	public static void readObject(Object instance, ByteBuffer buffer) {
 		
 		Class<?> clazz = instance.getClass();
 		

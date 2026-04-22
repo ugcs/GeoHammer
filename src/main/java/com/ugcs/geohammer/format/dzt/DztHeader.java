@@ -1,13 +1,21 @@
 package com.ugcs.geohammer.format.dzt;
 
+import com.ugcs.geohammer.util.Check;
+
+import java.nio.ByteBuffer;
+
 public class DztHeader {
-	// constants
-	private static final int MINHEADSIZE = 1024;
+
+	static final int MINHEADSIZE = 1024;
+
 	private static final int PARAREASIZE = 128;
-	private static final int GPSAREASIZE = 2 * 4; //sizeof(RGPS); !!!!!!!
+
+	private static final int GPSAREASIZE = 2 * 4; // sizeof(RGPS)
+
 	private static final int INFOAREASIZE = (MINHEADSIZE - PARAREASIZE- GPSAREASIZE) ;
 
-	
+	final ByteBuffer buffer;
+
 	@BaseField(position = 0)
 	short rh_tag; // 0x00ff if header, 0xfnff for old file 00
 	
@@ -138,4 +146,23 @@ public class DztHeader {
 	@BaseField(position = 944)
 	byte[] rh_RGPS = new byte[24]; // GPS info 944
 
+	public DztHeader(ByteBuffer buffer) {
+		this.buffer = Check.notNull(buffer);
+		ObjectByteMapper.readObject(this, buffer);
+	}
+
+	public ByteBuffer getBuffer() {
+		return buffer;
+	}
+
+	long getDataStart() {
+		return rh_data < MINHEADSIZE
+				? (long) MINHEADSIZE * rh_data
+				: (long) rh_nchan * rh_data;
+	}
+
+	int traceSize(int numSamples) {
+		int bytesPerSample = rh_bits >> 3;
+		return bytesPerSample * (numSamples + 1);
+	}
 }

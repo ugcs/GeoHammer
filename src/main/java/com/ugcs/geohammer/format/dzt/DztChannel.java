@@ -10,7 +10,9 @@ import com.ugcs.geohammer.math.MinMaxAvg;
 public class DztChannel extends Channel {
 
 	private final DztHeader header;
+
 	private final MinMaxAvg sampleAverage;
+
 	private final List<Trace> traces;
 
 	DztChannel(int index, DztHeader header, int numTraces) {
@@ -46,17 +48,19 @@ public class DztChannel extends Channel {
 	}
 
 	public void normalize() {
+		float average = (float) sampleAverage.getAverage();
 		for (Trace trace : traces) {
 			for (int i = 0; i < trace.numSamples(); i++) {
-				trace.setSample(i, trace.getSample(i) - (float) sampleAverage.getAverage());
+				trace.setSample(i, trace.getSample(i) - average);
 			}
 		}
 	}
 
 	public void denormalize() {
+		float average = (float) sampleAverage.getAverage();
 		for (Trace trace : traces) {
 			for (int i = 0; i < trace.numSamples(); i++) {
-				trace.setSample(i, trace.getSample(i) + (float) sampleAverage.getAverage());
+				trace.setSample(i, trace.getSample(i) + average);
 			}
 		}
 	}

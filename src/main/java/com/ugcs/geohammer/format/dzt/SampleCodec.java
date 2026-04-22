@@ -14,12 +14,11 @@ interface SampleCodec {
 	void write(ByteBuffer buffer, int value);
 
 	static SampleCodec forBitDepth(int bits) {
-		return CODECS.get(bits);
-	}
-
-	static int traceBufferSize(int bits, int numSamples) {
-		int bytesPerSample = bits >> 3;
-		return bytesPerSample * (numSamples + 1);
+		SampleCodec codec = CODECS.get(bits);
+		if (codec == null) {
+			throw new IllegalStateException("Unsupported sample bit depth: " + bits);
+		}
+		return codec;
 	}
 }
 

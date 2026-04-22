@@ -98,8 +98,10 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 
 		dzg.load(getDzgFile(file));
 
-		channels = new DztReader().read(file, dzg);
-		
+		try (DztReader r = new DztReader(file, dzg)) {
+			channels = r.read();
+		}
+
 		for (DztChannel channel : channels) {
 			channel.normalize();
 		}
@@ -123,8 +125,8 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		for (DztChannel channel : channels) {
 			channel.denormalize();
 		}
-		try {
-			new DztWriter().write(file, sourceFile, channels, range);
+		try (DztWriter w = new DztWriter(file)) {
+			w.write(channels, range);
 			dzg.save(getDzgFile(file), buildDzgMappings(range));
 		} finally {
 			for (DztChannel channel : channels) {

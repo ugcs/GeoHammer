@@ -1,8 +1,8 @@
 package com.ugcs.geohammer.chart.tool;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -11,11 +11,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import com.ugcs.geohammer.AppContext;
@@ -30,12 +30,12 @@ import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.service.script.CommandExecutionException;
-import com.ugcs.geohammer.service.script.DependencyImportException;
-import com.ugcs.geohammer.service.script.JsonScriptMetadataLoader;
-import com.ugcs.geohammer.service.script.ScriptExecutor;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptParameter;
+import com.ugcs.geohammer.service.script.ScriptPaths;
+import com.ugcs.geohammer.service.script.ScriptRunListener;
+import com.ugcs.geohammer.service.script.ScriptRunner;
 import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
@@ -58,29 +58,29 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
-
-import java.io.File;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Nullable;
-
 @Component
-public class ScriptExecutionTool extends FilterToolView {
+public class ScriptExecutionTool extends FilterToolView implements ScriptRunListener {
 
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutionTool.class);
-
-	private static final int MAX_OUTPUT_LINES_IN_DIALOG = 7;
 
 	private static final String PREFS_NODE_NAME = "script_execution_tool";
 	public static final String PREFS_LAST_SELECTED_SCRIPT_PREFIX = "last_selected_script";
 
 	private final Model model;
 
-	private final ScriptExecutor scriptExecutor;
+	private final ScriptRunner scriptRunner;
+
+	private final ScriptPaths scriptPaths;
+
+	private final ScriptMetadataLoader scriptMetadataLoader;
+
+	private final TaskService taskService;
 
 	private final Status status;
 
@@ -97,14 +97,19 @@ public class ScriptExecutionTool extends FilterToolView {
 	private final AtomicBoolean isUpdatingColumns = new AtomicBoolean(false);
 
 
-	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, PrefSettings preferences, ScriptExecutor scriptExecutor) {
+	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, PrefSettings preferences,
+			ScriptRunner scriptRunner, ScriptPaths scriptPaths,
+			ScriptMetadataLoader scriptMetadataLoader, TaskService taskService) {
 		super(executor);
 
         this.model = model;
         this.executor = executor;
 		this.status = status;
 		this.preferences = preferences;
-		this.scriptExecutor = scriptExecutor;
+		this.scriptRunner = scriptRunner;
+		this.scriptPaths = scriptPaths;
+		this.scriptMetadataLoader = scriptMetadataLoader;
+		this.taskService = taskService;
 
 		scriptsMetadataSelector = new ComboBox<>();
 		scriptsMetadataSelector.setPromptText("Select script");
@@ -156,10 +161,8 @@ public class ScriptExecutionTool extends FilterToolView {
 			for (ScriptParameter param : scriptMetadata.parameters()) {
 				String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
 						param.defaultValue());
-				VBox paramBox = createParameterInput(param, initialValue);
-				parametersBox.getChildren().add(paramBox);
+				parametersBox.getChildren().add(createParameterInput(param, initialValue));
 			}
-
 			showApply(true);
 			showApplyToAll(true);
 		} else {
@@ -216,9 +219,8 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private List<ScriptMetadata> getLoadedScriptsMetadata() throws IOException {
-		ScriptMetadataLoader scriptsMetadataLoader = new JsonScriptMetadataLoader();
-		Path scriptsPath = scriptExecutor.getScriptsPath();
-		return scriptsMetadataLoader.loadScriptMetadata(scriptsPath);
+		Path scriptsPath = scriptPaths.getScriptsPath();
+		return scriptMetadataLoader.loadScriptMetadata(scriptsPath);
 	}
 
 	private List<ScriptMetadata> filterScriptsByTemplate(@Nullable SgyFile file, List<ScriptMetadata> scriptsMetadata) {
@@ -235,13 +237,11 @@ public class ScriptExecutionTool extends FilterToolView {
 	private void restoreScriptSelection() {
 		String templateName = Templates.getTemplateName(selectedFile);
 		String selectedScriptFilename = preferences.getString(PREFS_NODE_NAME, PREFS_LAST_SELECTED_SCRIPT_PREFIX + "_" + templateName);
-		@Nullable ScriptMetadata selectedScriptMetadata = scriptsMetadata.stream()
+		ScriptMetadata selectedScriptMetadata = scriptsMetadata.stream()
 				.filter(scriptMetadata -> scriptMetadata.filename().equals(selectedScriptFilename))
 				.findAny()
 				.orElse(null);
-		scriptsMetadataSelector.getItems().setAll(
-				scriptsMetadata
-		);
+		scriptsMetadataSelector.getItems().setAll(scriptsMetadata);
 		if (selectedScriptMetadata != null && scriptsMetadataSelector.getItems().contains(selectedScriptMetadata)) {
 			scriptsMetadataSelector.getSelectionModel().select(selectedScriptMetadata);
 		} else {
@@ -252,9 +252,9 @@ public class ScriptExecutionTool extends FilterToolView {
 	}
 
 	private void refreshExecutionStatus(@Nullable SgyFile file) {
-		if (scriptExecutor.isExecuting(file)) {
+		if (scriptRunner.isExecuting(file)) {
             disableAndShowProgress();
-			ScriptMetadata executingScriptMetadata = scriptExecutor.getExecutingScriptMetadata(file);
+			ScriptMetadata executingScriptMetadata = scriptRunner.getExecutingScriptMetadata(file);
 			if (executingScriptMetadata != null) {
 				scriptsMetadataSelector.getSelectionModel().select(executingScriptMetadata);
 			} else {
@@ -269,11 +269,9 @@ public class ScriptExecutionTool extends FilterToolView {
 	private VBox createParameterInput(ScriptParameter param, String initialValue) {
 		VBox paramBox = new VBox(5);
 		String labelText = param.displayName() + (param.required() ? " *" : "");
-		Label label = new Label(labelText);
-
 		Node inputNode = getInputNode(param, initialValue, labelText);
 		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
-			paramBox.getChildren().add(label);
+			paramBox.getChildren().add(new Label(labelText));
 		}
 		paramBox.getChildren().add(inputNode);
 		return paramBox;
@@ -290,28 +288,28 @@ public class ScriptExecutionTool extends FilterToolView {
 		};
 	}
 
-	private static @NotNull TextField createTextField(ScriptParameter param, String initialValue) {
+	private static TextField createTextField(ScriptParameter param, String initialValue) {
 		TextField textField = new TextField(initialValue);
 		textField.setUserData(param);
 		textField.setPromptText(param.displayName());
 		return textField;
 	}
 
-	private static @NotNull TextField createIntegerField(ScriptParameter param, String initialValue) {
+	private static TextField createIntegerField(ScriptParameter param, String initialValue) {
 		TextField textField = new TextField(initialValue);
 		textField.setUserData(param);
 		textField.setPromptText("Enter integer value");
 		return textField;
 	}
 
-	private static @NotNull TextField createDoubleField(ScriptParameter param, String initialValue) {
+	private static TextField createDoubleField(ScriptParameter param, String initialValue) {
 		TextField textField = new TextField(initialValue);
 		textField.setUserData(param);
 		textField.setPromptText("Enter decimal value");
 		return textField;
 	}
 
-	private static @NotNull CheckBox createCheckBox(ScriptParameter param, String initialValue, String labelText) {
+	private static CheckBox createCheckBox(ScriptParameter param, String initialValue, String labelText) {
 		CheckBox checkBox = new CheckBox();
 		checkBox.setUserData(param);
 		checkBox.setSelected(Boolean.parseBoolean(initialValue));
@@ -323,14 +321,10 @@ public class ScriptExecutionTool extends FilterToolView {
 		ComboBox<String> columnSelector = new ComboBox<>();
 		columnSelector.setPromptText("Select column");
 		columnSelector.setMaxWidth(Double.MAX_VALUE);
-
 		columnSelector.setUserData(param);
-
 		if (selectedFile instanceof CsvFile csvFile) {
-			Set<String> columns = getAvailableColumnsForFile(csvFile);
-			updateComboBoxIfChanged(columnSelector, columns, initialValue);
+			updateComboBoxIfChanged(columnSelector, getAvailableColumnsForFile(csvFile), initialValue);
 		}
-
 		return columnSelector;
 	}
 
@@ -354,7 +348,6 @@ public class ScriptExecutionTool extends FilterToolView {
 		selectButton.setOnAction(e -> {
 			DirectoryChooser directoryChooser = new DirectoryChooser();
 			directoryChooser.setTitle("Select Folder");
-
 			String currentPath = pathField.getText();
 			if (!Strings.isNullOrEmpty(currentPath)) {
 				File initialDir = new File(currentPath);
@@ -362,7 +355,6 @@ public class ScriptExecutionTool extends FilterToolView {
 					directoryChooser.setInitialDirectory(initialDir);
 				}
 			}
-
 			File selectedDirectory = directoryChooser.showDialog(selectButton.getScene().getWindow());
 			if (selectedDirectory != null) {
 				pathField.setText(selectedDirectory.getAbsolutePath());
@@ -410,97 +402,80 @@ public class ScriptExecutionTool extends FilterToolView {
 		}
 		storeParamValues(scriptMetadata.filename(), parameters);
 
-		ArrayDeque<String> lastOutputLines = new ArrayDeque<>();
 		Consumer<String> onScriptOutput = line -> {
-			if (Strings.isNullOrEmpty(line)) {
-				return;
+			if (!Strings.isNullOrEmpty(line)) {
+				status.showMessage(line, scriptMetadata.displayName());
 			}
-			lastOutputLines.offer(line);
-			if (lastOutputLines.size() > MAX_OUTPUT_LINES_IN_DIALOG) {
-				lastOutputLines.poll();
-			}
-			status.showMessage(line, scriptMetadata.displayName());
 		};
 
 		Platform.runLater(this::disableAndShowProgress);
 
-		AtomicInteger remainingFiles = new AtomicInteger(files.size());
 		Future<Void> future = executor.submit(() -> {
-			for (SgyFile sgyFile : files) {
-				try {
-					scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput);
-					showSuccess(scriptMetadata);
-				} catch (DependencyImportException e) {
-					boolean confirmed = showReinstallConfirmation(e.getModuleName());
-					if (confirmed) {
-						try {
-							scriptExecutor.executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, true);
-							showSuccess(scriptMetadata);
-						} catch (Exception retryException) {
-							String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
-							showError(scriptMetadata, retryException, scriptOutput);
-						}
-					} else {
-						showError("Module '" + e.getModuleName()
-								+ "' cannot be imported. Script execution aborted.");
-					}
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-				} catch (Exception e) {
-					String scriptOutput = String.join(System.lineSeparator(), lastOutputLines);
-					showError(scriptMetadata, e, scriptOutput);
-				} finally {
-					if (remainingFiles.decrementAndGet() == 0) {
-						Platform.runLater(this::enableAndHideProgress);
-					}
-				}
-			}
+			scriptRunner.run(files, scriptMetadata, parameters, onScriptOutput, this);
+			Platform.runLater(this::enableAndHideProgress);
 			return null;
 		});
 
-		int filesCount = files.size();
+		taskService.registerTask(future, buildTaskName(scriptMetadata, files));
+	}
+
+	private String buildTaskName(ScriptMetadata scriptMetadata, List<SgyFile> files) {
 		String taskName = "Running script " + scriptMetadata.displayName();
-		if (filesCount == 1) {
+		if (files.size() == 1) {
 			SgyFile sgyFile = files.getFirst();
 			if (sgyFile.getFile() != null) {
 				taskName += ": " + sgyFile.getFile().getName();
 			}
-		} else if (filesCount > 1) {
-			taskName += " on " + filesCount + " files";
+		} else if (files.size() > 1) {
+			taskName += " on " + files.size() + " files";
 		}
-		AppContext.getInstance(TaskService.class).registerTask(future, taskName);
+		return taskName;
 	}
 
-	private boolean showReinstallConfirmation(String moduleName) {
-		FutureTask<Boolean> task = new FutureTask<>(() -> {
-			Alert alert = new Alert(AlertType.CONFIRMATION);
-			alert.setTitle("Reinstall Dependencies");
-			alert.setHeaderText("Dependency issue detected");
-			String reason = "Module '" + moduleName + "' is installed but cannot be imported.";
-			Label content = new Label(reason + "\n\nForce reinstall dependencies?");
-			content.setWrapText(true);
-			content.setPrefWidth(400);
-			alert.getDialogPane().setContent(content);
-			alert.initOwner(AppContext.stage);
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.isPresent() && result.get() == ButtonType.OK;
-		});
-		Platform.runLater(task);
+	@Override
+	public void onSuccess(ScriptMetadata metadata) {
+		status.showMessage("Script executed successfully.", metadata.displayName());
+	}
+
+	@Override
+	public void onError(ScriptMetadata metadata, Exception e, String scriptOutput) {
+		showError(metadata, e, scriptOutput);
+	}
+
+	@Override
+	public boolean confirmReinstallDependencies(String moduleName) {
+		if (Platform.isFxApplicationThread()) {
+			return showReinstallDialog(moduleName);
+		}
+		CompletableFuture<Boolean> answer = new CompletableFuture<>();
+		Platform.runLater(() -> answer.complete(showReinstallDialog(moduleName)));
 		try {
-			return task.get();
-		} catch (Exception e) {
-			log.warn("Failed to show reinstall confirmation dialog", e);
+			return answer.get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return false;
+		} catch (ExecutionException e) {
+			log.error("Reinstall confirmation dialog failed", e);
 			return false;
 		}
 	}
 
-	private void showSuccess(ScriptMetadata scriptMetadata) {
-		status.showMessage("Script executed successfully.", scriptMetadata.displayName());
+	private boolean showReinstallDialog(String moduleName) {
+		Alert alert = new Alert(AlertType.CONFIRMATION);
+		alert.setTitle("Reinstall Dependencies");
+		alert.setHeaderText("Dependency issue detected");
+		String reason = "Module '" + moduleName + "' is installed but cannot be imported.";
+		Label content = new Label(reason + "\n\nForce reinstall dependencies?");
+		content.setWrapText(true);
+		content.setPrefWidth(400);
+		alert.getDialogPane().setContent(content);
+		alert.initOwner(AppContext.stage);
+		Optional<ButtonType> result = alert.showAndWait();
+		return result.isPresent() && result.get() == ButtonType.OK;
 	}
 
 	private void showError(ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
 		String message;
-
         if (e instanceof CommandExecutionException commandExecutionException) {
             message = "Script '" + scriptMetadata.filename()
                     + "' failed with exit code " + commandExecutionException.getExitCode() + ".";
@@ -521,31 +496,24 @@ public class ScriptExecutionTool extends FilterToolView {
 	private Map<String, String> extractScriptParams() {
 		Map<String, String> parameters = new HashMap<>();
 		for (Node paramBox : parametersBox.getChildren()) {
-			if (!(paramBox instanceof VBox)) {
+			if (!(paramBox instanceof VBox vbox)) {
 				continue;
 			}
-
-			for (Node inputNode : ((VBox) paramBox).getChildren()) {
-				String paramName = switch (inputNode.getUserData()) {
-					case ScriptParameter param -> param.name();
-					case null, default -> null;
-				};
-				if (paramName == null) {
+			for (Node inputNode : vbox.getChildren()) {
+				if (!(inputNode.getUserData() instanceof ScriptParameter param)) {
 					continue;
 				}
-
 				String value = extractValueFromNode(inputNode);
-				if (value == null) {
-					continue;
+				if (value != null) {
+					parameters.put(param.name(), value);
 				}
-				parameters.put(paramName, value);
 			}
 		}
 		return parameters;
 	}
 
 	@Nullable
-	private String extractValueFromNode(Node node) {
+	private static String extractValueFromNode(Node node) {
 		return switch (node) {
 			case TextField textField -> textField.getText();
 			case CheckBox checkBox -> String.valueOf(checkBox.isSelected());
@@ -580,13 +548,11 @@ public class ScriptExecutionTool extends FilterToolView {
 		if (isUpdatingColumns.get()) {
 			return;
 		}
-
 		Platform.runLater(() -> refreshColumnSelectors(csvFile));
 	}
 
 	private void refreshColumnSelectors(CsvFile csvFile) {
 		Set<String> availableColumns = getAvailableColumnsForFile(csvFile);
-
 		//noinspection unchecked
 		parametersBox.getChildren().stream()
 				.filter(VBox.class::isInstance)
@@ -594,43 +560,38 @@ public class ScriptExecutionTool extends FilterToolView {
 				.flatMap(vbox -> vbox.getChildren().stream())
 				.filter(ComboBox.class::isInstance)
 				.map(node -> (ComboBox<String>) node)
-				.forEach(comboBox ->
-						updateComboBoxIfChanged(comboBox, availableColumns, null)
-				);
+				.forEach(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns, null));
 	}
 
-	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns, @Nullable String initialValue) {
-		Set<String> currentItems = new HashSet<>(comboBox.getItems());
-
+	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns,
+			@Nullable String initialValue) {
 		if (availableColumns.isEmpty()) {
 			comboBox.setPromptText("No columns available");
 			comboBox.setDisable(true);
 			return;
-		} else {
-			comboBox.setDisable(false);
 		}
-
-		if (!currentItems.equals(availableColumns)) {
-			isUpdatingColumns.set(true);
-			String value = comboBox.getValue();
-
-			comboBox.getItems().setAll(availableColumns);
-
-			if (value != null && availableColumns.contains(value)) {
-				comboBox.setValue(value);
-			} else if (comboBox.getUserData() instanceof ScriptParameter param) {
-				String defaultValue = param.defaultValue();
-				if (initialValue != null && availableColumns.contains(initialValue)) {
-					comboBox.setValue(initialValue);
-				} else if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
-					comboBox.setValue(defaultValue);
-				} else {
-					comboBox.setValue(null);
-				}
+		comboBox.setDisable(false);
+		Set<String> currentItems = new HashSet<>(comboBox.getItems());
+		if (currentItems.equals(availableColumns)) {
+			return;
+		}
+		isUpdatingColumns.set(true);
+		String value = comboBox.getValue();
+		comboBox.getItems().setAll(availableColumns);
+		if (value != null && availableColumns.contains(value)) {
+			comboBox.setValue(value);
+		} else if (comboBox.getUserData() instanceof ScriptParameter param) {
+			String defaultValue = param.defaultValue();
+			if (initialValue != null && availableColumns.contains(initialValue)) {
+				comboBox.setValue(initialValue);
+			} else if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
+				comboBox.setValue(defaultValue);
 			} else {
 				comboBox.setValue(null);
 			}
-			isUpdatingColumns.set(false);
+		} else {
+			comboBox.setValue(null);
 		}
+		isUpdatingColumns.set(false);
 	}
 }

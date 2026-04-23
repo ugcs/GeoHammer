@@ -2,11 +2,8 @@ package com.ugcs.geohammer.service.script;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,23 +16,17 @@ import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
-import javax.annotation.Nullable;
 
 @Service
 public class ScriptExecutor {
 
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutor.class);
-
-	public static final String SCRIPTS_DIRECTORY = "scripts";
-
-	private static final String CHECK_IMPORTS_SCRIPT = "check_imports.py";
 
 	private final Loader loader;
 
@@ -47,6 +38,8 @@ public class ScriptExecutor {
 
 	private final PythonService pythonService;
 
+	private final ScriptPaths scriptPaths;
+
 	// sgyFile -> scriptMetadata
 	private final Map<SgyFile, ScriptMetadata> executingScripts = new ConcurrentHashMap<>();
 
@@ -54,12 +47,14 @@ public class ScriptExecutor {
 						  EventSender eventSender,
 						  EventsFactory eventsFactory,
 						  CommandExecutor commandExecutor,
-						  PythonService pythonService) {
+						  PythonService pythonService,
+						  ScriptPaths scriptPaths) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
 		this.commandExecutor = commandExecutor;
 		this.pythonService = pythonService;
+		this.scriptPaths = scriptPaths;
 	}
 
 	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
@@ -68,8 +63,14 @@ public class ScriptExecutor {
 		executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, false);
 	}
 
-	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
-							  Consumer<String> onScriptOutput, boolean forceReinstall)
+	public void executeScriptWithReinstall(SgyFile sgyFile, ScriptMetadata scriptMetadata,
+							  Map<String, String> parameters, Consumer<String> onScriptOutput)
+			throws IOException, InterruptedException, DependencyImportException {
+		executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, true);
+	}
+
+	private void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
+	                           Consumer<String> onScriptOutput, boolean forceReinstall)
 			throws IOException, InterruptedException, DependencyImportException {
 		Check.notNull(sgyFile);
 		Check.notNull(scriptMetadata);
@@ -82,13 +83,16 @@ public class ScriptExecutor {
 		executingScripts.put(sgyFile, scriptMetadata);
 		File tempFile = null;
 		try {
-			File scriptFile = new File(getScriptsPath().toFile(), scriptMetadata.filename());
+			File scriptFile = new File(scriptPaths.getScriptsPath().toFile(), scriptMetadata.filename());
 			if (!scriptFile.exists()) {
 				throw new IOException("Script file not found: " + scriptFile.getAbsolutePath());
 			}
 
-			File checkImportsScript = getScriptsPath().resolve(CHECK_IMPORTS_SCRIPT).toFile();
-			pythonService.installDependencies(scriptFile, checkImportsScript, onScriptOutput, forceReinstall);
+			if (forceReinstall) {
+				pythonService.reinstallDependencies(scriptFile, onScriptOutput);
+			} else {
+				pythonService.installDependencies(scriptFile, onScriptOutput);
+			}
 
 			tempFile = copyToTempFile(sgyFile);
 
@@ -124,8 +128,6 @@ public class ScriptExecutor {
 		String suffix = "." + FileNames.getExtension(fileName);
 
 		File tempFile = Files.createTempFile(prefix, suffix).toFile();
-		// TODO SGY files should be correctly save into temp file with all headers preserved +
-		// if file cutted during previous operations (saving only traces in range) without errors
 		if (sgyFile instanceof TraceFile) {
 			Files.copy(file.toPath(), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			return tempFile;
@@ -134,11 +136,6 @@ public class ScriptExecutor {
 		return tempFile;
 	}
 
-	/**
-	 * Builds the process command:
-	 * [python, <scripts/path>/<script.py>, <tempFile>, --key value | --flag]
-	 *
-	 */
 	private List<String> buildCommand(Path scriptPath,
 									  ScriptMetadata scriptMetadata,
 									  Map<String, String> parameters,
@@ -175,25 +172,6 @@ public class ScriptExecutor {
 	@Nullable
 	public ScriptMetadata getExecutingScriptMetadata(SgyFile sgyFile) {
 		return executingScripts.get(sgyFile);
-	}
-
-	public Path getScriptsPath() {
-		// Try project root first (for IDE/dev)
-		Path projectRoot = Paths.get(System.getProperty("user.dir"));
-		Path scriptsInRoot = projectRoot.resolve(SCRIPTS_DIRECTORY);
-		if (scriptsInRoot.toFile().exists()) {
-			return scriptsInRoot;
-		}
-
-		// Fallback to target/scripts (for packaged app)
-		URI codeSource;
-		try {
-			codeSource = FileTemplates.class.getProtectionDomain().getCodeSource().getLocation().toURI();
-		} catch (URISyntaxException e) {
-			throw new RuntimeException(e);
-		}
-		Path currentDir = Paths.get(codeSource).getParent();
-		return currentDir.resolve(SCRIPTS_DIRECTORY);
 	}
 
 	private boolean isBooleanParameter(ScriptMetadata metadata, String paramName) {

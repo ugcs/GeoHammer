@@ -17,7 +17,7 @@ import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TraceTransform;
-import com.ugcs.geohammer.view.MessageBoxHelper;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -364,7 +364,7 @@ public class ProfileView implements InitializingBean {
 				file.selectChannel(channelIndex);
 				model.reload(currentFile);
 			} catch (Exception e) {
-				MessageBoxHelper.showError("Error", "Error switching channel: " + e.getMessage());
+				Dialogs.showError("Error", "Error switching channel: " + e.getMessage());
 			}
 		}
 	}

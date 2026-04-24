@@ -3,6 +3,7 @@ package com.ugcs.geohammer.geotagger.view;
 
 import java.util.concurrent.ExecutorService;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.geotagger.Geotagger;
 import com.ugcs.geohammer.format.SgyFile;
@@ -128,6 +129,7 @@ public class GeotaggerView {
             stage.setScene(scene);
             stage.setOnHiding(event -> closeWindow());
             stage.setOnCloseRequest(event -> closeWindow());
+			AppContext.addTheme(scene);
 		}
 		if (!stage.isShowing()) {
 			stage.show();

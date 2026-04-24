@@ -65,6 +65,8 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private static final String NO_GPS_TEXT = "There are no coordinates in files";
 
+	private static final Color BACKGROUND_COLOR = new Color(96, 96, 96);
+
 	@Autowired
 	private TraceCutter traceCutter;
 
@@ -257,6 +259,8 @@ public class MapView implements InitializingBean, DisposableBean {
 	}
 
 	private void initImageView() {
+		imageView.setPickOnBounds(true);
+
 		//ZOOM
 		imageView.setOnScroll(event -> {
 			
@@ -392,11 +396,10 @@ public class MapView implements InitializingBean, DisposableBean {
         BufferedImage noGpsImg = new BufferedImage(windowSize.width, windowSize.height, BufferedImage.TYPE_INT_RGB);
 
         Graphics2D g2 = (Graphics2D)noGpsImg.getGraphics();
-        g2.setColor(Color.LIGHT_GRAY);
+		g2.setColor(BACKGROUND_COLOR);
         g2.fillRect(0, 0, windowSize.width, windowSize.height);
 
-        g2.setColor(Color.DARK_GRAY);
-
+        g2.setColor(Color.LIGHT_GRAY);
         FontMetrics fm = g2.getFontMetrics();
         Rectangle2D rect = fm.getStringBounds(NO_GPS_TEXT, g2);
 
@@ -416,7 +419,7 @@ public class MapView implements InitializingBean, DisposableBean {
 		BufferedImage bi = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 		
 		Graphics2D g2 = (Graphics2D) bi.getGraphics();
-		g2.setPaint(Color.DARK_GRAY);
+		g2.setPaint(BACKGROUND_COLOR);
 		g2.fillRect(0, 0, bi.getWidth(), bi.getHeight());
 		
 		g2.translate(width / 2, height / 2);

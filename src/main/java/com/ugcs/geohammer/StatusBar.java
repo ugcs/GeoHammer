@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 import com.ugcs.geohammer.release.ReleaseView;
 import com.ugcs.geohammer.view.Dialogs;
-import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Toast;
 import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.status.Status;
@@ -66,7 +65,6 @@ public class StatusBar extends HBox implements Status, InitializingBean {
         });
         HBox.setHgrow(textField, Priority.ALWAYS);
 
-        Styles.addResource(versionStatus, Styles.STATUS_STYLE_PATH);
         versionStatus.setId("version-status");
         versionStatus.setOnMouseClicked(e -> {
             releaseView.showAbove(versionStatus);
@@ -74,7 +72,6 @@ public class StatusBar extends HBox implements Status, InitializingBean {
         });
 
 		Label submitFeedback = new Label("Feedback");
-		Styles.addResource(submitFeedback, Styles.STATUS_STYLE_PATH);
 		submitFeedback.getStyleClass().add("clickable");
 		submitFeedback.setId("submit-feedback");
 		submitFeedback.setOnMouseClicked(e -> {

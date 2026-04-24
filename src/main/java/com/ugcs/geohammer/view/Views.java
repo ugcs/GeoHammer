@@ -21,6 +21,7 @@ import javafx.scene.layout.Border;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 
@@ -154,6 +155,7 @@ public final class Views {
 	public static Region createSpacer() {
 		Region region = new Region();
 		HBox.setHgrow(region, Priority.ALWAYS);
+        VBox.setVgrow(region, Priority.ALWAYS);
 		return region;
 	}
 

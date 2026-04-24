@@ -7,6 +7,7 @@ import com.ugcs.geohammer.model.FileManager;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.Model;
 import javafx.application.Platform;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
@@ -49,20 +50,32 @@ public class SceneContent extends BorderPane implements InitializingBean {
 	}
 
 	private SplitPane createSplitPane() {
-		SplitPane sp = new SplitPane();
-		sp.setDividerPositions(0.2f, 0.6f, 0.2f);
-		
-		//map view
-		sp.getItems().add(mapView.getCenter());
-		
-		//profile view
+		// map
+		BorderPane mapPane = createPane(mapView.getCenter());
+		mapPane.setMinWidth(100);
+		mapPane.setPrefHeight(350);
+
+		// charts
 		StackPane profilePane = new StackPane(profileView.getCenter(), openHint);
-		sp.getItems().add(profilePane);
-		
-		//options tabs
-		sp.getItems().add(optionPane);
-		
-		return sp;
+		BorderPane chartPane = createPane(profilePane);
+		chartPane.setMinWidth(200);
+
+		// tools
+		BorderPane toolPane = createPane(optionPane);
+		toolPane.setMinWidth(200);
+		toolPane.setMaxWidth(350);
+		toolPane.setPrefHeight(350);
+
+		SplitPane splitPane = new SplitPane(mapPane, chartPane, toolPane);
+		splitPane.setDividerPositions(0.2, 0.6, 0.2);
+
+		return splitPane;
+	}
+
+	private BorderPane createPane(Node content) {
+		BorderPane pane = new BorderPane(content);
+		pane.getStyleClass().add("app-pane");
+		return pane;
 	}
 
 	private Label createOpenHint() {

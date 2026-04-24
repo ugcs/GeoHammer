@@ -26,8 +26,6 @@ import java.util.function.Function;
 
 class ProjectionRenderer {
 
-    private static final Color BACKGROUND_COLOR = Color.web("#333333");
-
     private static final Color NORMAL_COLOR = Color.POWDERBLUE;
 
     private static final double NORMAL_WIDTH = 0.5;
@@ -160,8 +158,7 @@ class ProjectionRenderer {
     }
 
     public void clear() {
-        g2.setFill(BACKGROUND_COLOR);
-        g2.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        g2.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
     }
 
     public void drawLine(Point2D p1, Point2D p2, Color color) {

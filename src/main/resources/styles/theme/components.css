@@ -1,3 +1,24 @@
+.root {
+}
+
+.no-focus {
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.app-pane {
+}
+
+.chart {
+    -fx-border-width: 2px;
+    -fx-border-color: transparent;
+}
+
+.selected-chart {
+    -fx-border-width: 2px;
+    -fx-border-color: #6495ED;
+}
+
 #version-status {
     -fx-padding: 2px 8px 2px 8px;
     -fx-background-radius: 6px;

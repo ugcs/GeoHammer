@@ -22,7 +22,6 @@ import com.ugcs.geohammer.view.Bindings;
 import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Listeners;
 import com.ugcs.geohammer.view.WindowProperties;
-import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
@@ -74,7 +73,6 @@ public class ProjectionView extends CanvasWindow {
 
     private static WindowProperties getWindowProperties() {
         return new WindowProperties("Reprojection (experimental)")
-                .withStyle(Styles.DARK_THEME_PATH)
                 .withSize(1200, 840)
                 .withMinSize(600, 400);
     }

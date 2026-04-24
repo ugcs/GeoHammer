@@ -49,7 +49,6 @@ public class PaletteView {
 	private static final double TICK_LENGTH = 3;
 
     // style
-	private static final Color BACKGROUND_COLOR = Color.web("#494949");
 	private static final Color CDF_COLOR = Color.web("#ccc");
     private static final double CDF_WIDTH = 1.25;
 
@@ -96,6 +95,7 @@ public class PaletteView {
 
 		Scene scene = new Scene(root, 500, 250);
 		window.setScene(scene);
+        AppContext.addTheme(scene);
 
 		window.setOnCloseRequest(event -> {
 			event.consume();
@@ -220,8 +220,7 @@ public class PaletteView {
 	}
 
     private void clear(GraphicsContext g2, Rectangle2D rect) {
-        g2.setFill(BACKGROUND_COLOR);
-        g2.fillRect(rect.getMinX(), rect.getMinY(), rect.getWidth(), rect.getHeight());
+        g2.clearRect(rect.getMinX(), rect.getMinY(), rect.getWidth(), rect.getHeight());
     }
 
     private void drawNoData(GraphicsContext g2, Rectangle2D rect) {

@@ -184,7 +184,7 @@ public class ProfileView implements InitializingBean {
 			center.setMinWidth(100);
 
 			ScrollPane centerScrollPane = new ScrollPane();
-			centerScrollPane.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+			centerScrollPane.getStyleClass().add("no-focus");
             centerScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             centerScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 

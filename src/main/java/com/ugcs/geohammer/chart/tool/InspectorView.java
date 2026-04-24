@@ -105,6 +105,7 @@ public class InspectorView {
 
         Scene scene = new Scene(root, 340, 550);
         window.setScene(scene);
+        AppContext.addTheme(scene);
 
         window.setOnCloseRequest(event -> {
             // just hide, don't destroy

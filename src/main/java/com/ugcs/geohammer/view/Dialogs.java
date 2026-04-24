@@ -49,6 +49,7 @@ public class Dialogs {
 		alert.getDialogPane().setContent(content);
 		alert.initOwner(AppContext.stage);
 
+		AppContext.addTheme(alert.getDialogPane().getScene());
 		return alert;
 	}
 
@@ -153,6 +154,7 @@ public class Dialogs {
 				feedback.submit();
 			});
 
+			AppContext.addTheme(dialogPane.getScene());
 			dialog.show();
 		});
 	}

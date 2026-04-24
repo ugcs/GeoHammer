@@ -6,8 +6,6 @@ public class WindowProperties {
 
     private String title = Strings.empty();
 
-    private String style = Strings.empty();
-
     private double width;
 
     private double height;
@@ -26,15 +24,6 @@ public class WindowProperties {
 
     public WindowProperties withTitle(String title) {
         this.title = title;
-        return this;
-    }
-
-    public String style() {
-        return style;
-    }
-
-    public WindowProperties withStyle(String style) {
-        this.style = style;
         return this;
     }
 

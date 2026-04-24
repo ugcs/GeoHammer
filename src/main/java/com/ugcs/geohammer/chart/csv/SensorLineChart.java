@@ -171,7 +171,6 @@ public class SensorLineChart extends Chart {
         root.setAlignment(Pos.CENTER_RIGHT);
         root.setPadding(new Insets(10));
 
-        root.setStyle("-fx-border-width: 2px; -fx-border-color: transparent;");
         root.setOnMouseClicked(event -> {
             model.selectChart(this);
         });

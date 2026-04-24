@@ -78,14 +78,9 @@ public class Model implements InitializingBean {
 
 	private final AuxElementEditHandler auxEditHandler;
 
-	private final VBox chartsContainer = new VBox(); // Charts container
+	private final VBox chartsContainer = new VBox();
 
     private final Map<SgyFile, Chart> charts = new HashMap<>();
-
-    // TODO rename to csvCharts
-	//private final Map<CsvFile, SensorLineChart> csvFiles = new HashMap<>();
-
-	//private final Map<TraceFile, GPRChart> gprCharts = new HashMap<>();
 
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -326,6 +321,7 @@ public class Model implements InitializingBean {
 
         // create new chart contents
         var newChartBox = (VBox)chart.getRootNode();
+		newChartBox.getStyleClass().add("chart");
 
         // add to container keeping position
         if (index != -1) {
@@ -459,10 +455,10 @@ public class Model implements InitializingBean {
 				return false;
 			}
 			// clear selection
-			getSelectedData().setStyle("-fx-border-width: 2px; -fx-border-color: transparent;");
+			getSelectedData().getStyleClass().remove("selected-chart");
 		}
 
-		node.setStyle("-fx-border-width: 2px; -fx-border-color: #6495ED;");
+		node.getStyleClass().add("selected-chart");
 		setSelectedData(node);
 
 		fileDataContainer.selectFile();

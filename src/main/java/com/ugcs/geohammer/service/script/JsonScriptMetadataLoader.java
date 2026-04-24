@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.service.script;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -9,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+@Component
 public class JsonScriptMetadataLoader implements ScriptMetadataLoader {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 

@@ -19,9 +19,13 @@ public class JsonScriptMetadataLoader implements ScriptMetadataLoader {
 		List<ScriptMetadata> scriptMetadata = new ArrayList<>();
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(scriptsDir, "*.json")) {
 			for (Path metaFile : stream) {
-				ScriptMetadata script =
-						objectMapper.readValue(metaFile.toFile(), ScriptMetadata.class);
-				scriptMetadata.add(script);
+				try {
+					ScriptMetadata script =
+							objectMapper.readValue(metaFile.toFile(), ScriptMetadata.class);
+					scriptMetadata.add(script);
+				} catch (IOException e) {
+					throw new IOException("Error reading '" + metaFile.getFileName() + "': " + e.getMessage(), e);
+				}
 			}
 		}
 		return scriptMetadata;

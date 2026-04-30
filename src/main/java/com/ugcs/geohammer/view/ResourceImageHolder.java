@@ -9,7 +9,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import javafx.scene.control.ButtonBase;
 import javafx.scene.image.ImageView;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 
 public class ResourceImageHolder {
@@ -166,15 +165,17 @@ public class ResourceImageHolder {
 
     public static final double DEFAULT_BUTTON_HEIGHT = 28;
 
-	public static final Color DEFAULT_ICON_COLOR = Color.valueOf("#272525");
-
-	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, Color svgColor,
+	public static <B extends ButtonBase> B setButtonImage(String svgPathContent,
 			double buttonHeight, B button) {
 		SVGPath svgPath = new SVGPath();
+		svgPath.getStyleClass().add("icon");
         svgPath.setContent(svgPathContent);
-        svgPath.setFill(svgColor);
 
-		var scaleFactor = Math.min(1.2, (buttonHeight - 12) / svgPath.prefHeight(-1));
+		double iconSize = Math.max(
+				svgPath.prefWidth(-1),
+				svgPath.prefHeight(-1)
+		);
+		var scaleFactor = (buttonHeight - 12) / iconSize;
 		svgPath.setScaleX(scaleFactor);
 		svgPath.setScaleY(scaleFactor);
 
@@ -186,12 +187,8 @@ public class ResourceImageHolder {
 		return button;
 	}
 
-	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, Color svgColor, B button) {
-		return setButtonImage(svgPathContent, svgColor, DEFAULT_BUTTON_HEIGHT, button);
-	}
-
 	public static <B extends ButtonBase> B setButtonImage(String svgPathContent, B button) {
-		return setButtonImage(svgPathContent, DEFAULT_ICON_COLOR, button);
+		return setButtonImage(svgPathContent, DEFAULT_BUTTON_HEIGHT, button);
 	}
 
 	public static ImageView getImageView(javafx.scene.image.Image image) {

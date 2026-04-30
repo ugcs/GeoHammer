@@ -115,7 +115,7 @@ public class GprElevationTool extends FilterToolView {
                 traceHeader,
                 altitudeHeader,
                 ellipsoidalHeightHeader);
-        elevationSource.setStyle("-fx-border-color: #cccccc;-fx-border-width: 1px;-fx-border-radius: 6px;");
+        elevationSource.getStyleClass().add("group");
         elevationSource.setPadding(new Insets(8));
 
         traceOffsetSlider = new ExpandableSlider(
@@ -161,7 +161,7 @@ public class GprElevationTool extends FilterToolView {
                 detectPeaks,
                 peakWindowSlider,
                 surfaceFilterWindowSlider);
-        surfaceOptions.setStyle("-fx-border-color: #cccccc;-fx-border-width: 1px;-fx-border-radius: 6px;");
+        surfaceOptions.getStyleClass().add("group");
         surfaceOptions.setPadding(new Insets(8));
 
         removeAirGap = new CheckBox("Remove air gap");

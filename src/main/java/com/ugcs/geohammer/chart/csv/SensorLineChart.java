@@ -16,6 +16,7 @@ import com.ugcs.geohammer.model.SelectionType;
 import com.ugcs.geohammer.model.element.ClickPlace;
 import java.awt.image.BufferedImage;
 
+import com.ugcs.geohammer.view.Colors;
 import javafx.embed.swing.SwingFXUtils;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.view.ResourceImageHolder;
@@ -44,7 +45,6 @@ import com.ugcs.geohammer.util.Nodes;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.geometry.Bounds;
@@ -162,7 +162,7 @@ public class SensorLineChart extends Chart {
 
         selectionRect.setManaged(false);
         selectionRect.setFill(null);
-        selectionRect.setStroke(Color.BLUE);
+        selectionRect.setStroke(Color.DODGERBLUE);
         selectionRect.setMouseTransparent(true);
 
         root = new VBox(top, chartsContainer, selectionRect);
@@ -866,7 +866,7 @@ public class SensorLineChart extends Chart {
         Data<Number, Number> flagMarker = new Data<>(flag.getTraceIndex(), 0);
 
         Line line = new Line();
-        line.setStroke(Views.fxColor(flag.getFlagColor()));
+        line.setStroke(Colors.fxColor(flag.getFlagColor()));
         line.setStrokeWidth(0.8);
         line.setTranslateY(46);
 
@@ -894,7 +894,7 @@ public class SensorLineChart extends Chart {
                 10.0, 5.0,
                 15.0, 10.0,
                 0.0, 10.0);
-        flagCloth.setFill(Views.fxColor(flag.getFlagColor()));
+        flagCloth.setFill(Colors.fxColor(flag.getFlagColor()));
         flagCloth.setStroke(Color.BLACK);
         flagCloth.setStrokeWidth(0.8);
 
@@ -1136,8 +1136,6 @@ public class SensorLineChart extends Chart {
         private void initView() {
             setLegendVisible(false); // Hide legend
             setCreateSymbols(false); // Disable symbols
-            lookup(".chart-plot-background").setStyle("-fx-background-color: transparent;");
-
             setSeriesVisible(false);
             setSelected(false);
         }
@@ -1283,7 +1281,7 @@ public class SensorLineChart extends Chart {
         }
 
         public void addMarker(Data<Number, Number> marker, SelectionType type) {
-            Color color = Views.fxColor(switch (type) {
+            Color color = Colors.fxColor(switch (type) {
 				case USER -> ClickPlace.USER_COLOR;
 				case AUTO -> ClickPlace.AUTO_COLOR;
 			});
@@ -1481,11 +1479,11 @@ public class SensorLineChart extends Chart {
         }
 
         public String getStyle() {
-            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 0.6px;";
+            return "-fx-stroke: " + Colors.toColorString(color) + ";" + "-fx-stroke-width: 0.6px;";
         }
 
         public String getSelectedStyle() {
-            return "-fx-stroke: " + Views.toColorString(color) + ";" + "-fx-stroke-width: 1.4px;";
+            return "-fx-stroke: " + Colors.toColorString(color) + ";" + "-fx-stroke-width: 1.4px;";
         }
 
         public List<@Nullable Number> getData() {

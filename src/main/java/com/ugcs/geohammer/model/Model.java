@@ -321,7 +321,7 @@ public class Model implements InitializingBean {
 
         // create new chart contents
         var newChartBox = (VBox)chart.getRootNode();
-		newChartBox.getStyleClass().add("chart");
+		newChartBox.getStyleClass().add("data-chart");
 
         // add to container keeping position
         if (index != -1) {
@@ -455,10 +455,10 @@ public class Model implements InitializingBean {
 				return false;
 			}
 			// clear selection
-			getSelectedData().getStyleClass().remove("selected-chart");
+			getSelectedData().getStyleClass().remove("data-chart-selected");
 		}
 
-		node.getStyleClass().add("selected-chart");
+		node.getStyleClass().add("data-chart-selected");
 		setSelectedData(node);
 
 		fileDataContainer.selectFile();

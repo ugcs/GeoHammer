@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.view;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
@@ -45,7 +46,7 @@ public class UtilityWindow {
 
         Scene scene = new Scene(root, properties.width(), properties.height());
         window.setScene(scene);
-        AppContext.addTheme(scene);
+        AppContext.getInstance(ThemeService.class).registerScene(scene);
 
         window.setOnCloseRequest(event -> {
             event.consume();

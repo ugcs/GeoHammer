@@ -38,8 +38,6 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class FilePane extends VBox {
 
-	protected static final String HEADER_STYLE = "-fx-background-color: linear-gradient(to bottom, #fafafa, #e5e5e5) ;-fx-padding: 5;";
-
 	private final Model model;
 
 	private final StatusBar statusBar;
@@ -60,13 +58,17 @@ public abstract class FilePane extends VBox {
 	}
 
 	private void setupUI() {
-		headerLabel.setStyle("-fx-font-size: 14px;");
+		setSpacing(8);
+		headerLabel.getStyleClass().add("bigger");
 
 		HBox columnHeaders = createHeader();
 		HBox buttons = createButtonBar();
 
 		columnHeaders.setPadding(new Insets(5, 10, 0, 10));
-		getChildren().addAll(headerLabel, columnHeaders, listView, buttons);
+		getChildren().addAll(
+				headerLabel,
+				new VBox(columnHeaders, listView),
+				buttons);
 	}
 
 	private void setupDragAndDrop() {
@@ -76,6 +78,7 @@ public abstract class FilePane extends VBox {
 
 	private ListView<SgyFile> createListView() {
 		ListView<SgyFile> listView = new ListView<>();
+		listView.getStyleClass().add("with-header");
 		listView.setPlaceholder(createPlaceholder());
 		listView.setCellFactory(param -> new FileListCell());
 		VBox.setVgrow(listView, Priority.ALWAYS);

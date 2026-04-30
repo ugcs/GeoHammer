@@ -1,0 +1,61 @@
+.root {
+    -color-background: -fx-base;
+    -color-surface: -fx-background;
+    -color-surface-translucent: -color-surface;
+    -color-surface-accent: -fx-pressed-base;
+    -color-surface-accent-translucent: -color-surface-accent;
+    -color-surface-alternate: derive(-color-surface, 50%);
+    -color-surface-overlay: derive(-color-surface, 60%);
+    -color-surface-overlay-accent: derive(-color-surface, 60%);
+    -color-input: -fx-control-inner-background;
+    -color-outline: -fx-box-border;
+    -color-prompt: derive(-color-input, -45%);
+    -color-text: -fx-text-base-color;
+    -color-warning: #ffa726;
+    -color-error: #ef5350;
+    -color-text-dim: derive(-color-text, 50%);
+    -color-icon: -color-text;
+    -color-accent: -fx-accent;
+    -color-accent-neutral: #b2b2b2;
+    -color-accent-text: white;
+    -color-selection: -color-accent;
+    -color-selection-text: -color-accent-text;
+}
+
+.scroll-pane {
+    -fx-background-color: transparent;
+}
+
+.scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.list-header {
+    -fx-background-color: -fx-body-color;
+    -fx-padding: 5;
+}
+
+.toast {
+    -fx-text-fill: white;
+    -fx-background-color: rgba(0, 0, 0, 0.75);
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-padding: 8;
+    -fx-font-size: 0.9em;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 12, 0.2, 0, 2);
+}
+
+.data-chart {
+    -fx-border-color: transparent;
+    -fx-border-width: 2;
+}
+
+.data-chart-selected {
+    -fx-border-color: -color-accent;
+    -fx-border-width: 2;
+}
+
+.series-selector .combo-box-popup .list-cell:hover,
+.series-selector .combo-box-popup .list-cell:selected {
+    -fx-background-color: -color-surface-accent;
+}

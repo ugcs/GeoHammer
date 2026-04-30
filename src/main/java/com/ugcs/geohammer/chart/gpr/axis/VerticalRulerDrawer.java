@@ -5,10 +5,13 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.util.Ticks;
+import com.ugcs.geohammer.view.Colors;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.ugcs.geohammer.chart.gpr.axis.LeftRulerController.Converter;
@@ -21,7 +24,7 @@ public class VerticalRulerDrawer {
 		this.field = field;
 	}
 	
-	public void draw(Graphics2D g2) {
+	public void draw(Graphics2D g2, Color strokeColor) {
 
 		Rectangle rect = field.getField().getLeftRuleRect();
 		int firstSample;		
@@ -50,18 +53,27 @@ public class VerticalRulerDrawer {
 
 		g2.setFont(new Font("Arial", Font.PLAIN, 11));
 
+
+		Color axisColor = Colors.opaque(strokeColor, 0.25f);
+		Set<Integer> rendered = new HashSet<>();
+
 		int sz = 21;
 		for (int step : steps) {
 			int s = (int)Math.ceil((double)first / step) * step;
 			int f = last / step * step;
 			for (int i = s; i <= f; i += step) {
+				if (rendered.contains(i)) {
+					continue;
+				}
+
 				int y = field.sampleToScreen(converter.back(i));
 
-				g2.setColor(Color.lightGray);
+				g2.setColor(axisColor);
 				g2.drawLine(rect.x, y, rect.x + sz, y);
+				rendered.add(i);
 
 				if (step == tick) {
-					g2.setColor(Color.darkGray);
+					g2.setColor(strokeColor);
 					g2.drawString(String.format("%1$3s", i),
 							rect.x + rect.width / 3, y + 4);
 				}

@@ -11,7 +11,6 @@ import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.status.Status;
 import com.ugcs.geohammer.view.status.StatusMessage;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -48,14 +47,12 @@ public class StatusBar extends HBox implements Status, InitializingBean {
 	private Popup historyPopup;
 
 	public StatusBar(TaskStatusView taskStatusView) {
+		getStyleClass().add("status-bar");
+
         textField.setEditable(false);
         textField.setMinWidth(150);
         textField.setPrefWidth(400);
-        textField.setStyle(
-                "-fx-background-color: transparent; " +
-                "-fx-border-color: transparent; " +
-                "-fx-focus-color: transparent; " +
-                "-fx-faint-focus-color: transparent;");
+		textField.getStyleClass().addAll("label", "no-focus", "no-padding");
 
         // Add click handler to show message history
         textField.setOnMouseClicked(e -> {
@@ -65,22 +62,20 @@ public class StatusBar extends HBox implements Status, InitializingBean {
         });
         HBox.setHgrow(textField, Priority.ALWAYS);
 
-        versionStatus.setId("version-status");
+        versionStatus.getStyleClass().add("status-action");
         versionStatus.setOnMouseClicked(e -> {
             releaseView.showAbove(versionStatus);
             releaseView.update();
         });
 
 		Label submitFeedback = new Label("Feedback");
-		submitFeedback.getStyleClass().add("clickable");
-		submitFeedback.setId("submit-feedback");
+		submitFeedback.getStyleClass().addAll("status-action", "accent");
 		submitFeedback.setOnMouseClicked(e -> {
 			Dialogs.showFeedback();
 		});
 
 		setSpacing(4);
         setAlignment(Pos.CENTER_LEFT);
-        setPadding(new Insets(0, 16, 0, 16));
         getChildren().addAll(textField, Views.createSpacer(), taskStatusView, versionStatus, submitFeedback);
 
 		AppContext.status = this;
@@ -170,8 +165,6 @@ public class StatusBar extends HBox implements Status, InitializingBean {
 
 		// Create a VBox to hold the ListView
 		VBox vbox = new VBox(listView);
-		//vbox.setPadding(new Insets(2));
-		vbox.setStyle("-fx-background-color: white; -fx-border-color: gray; -fx-border-width: 0;");
 
 		// Create and show the popup
 		historyPopup = new Popup();

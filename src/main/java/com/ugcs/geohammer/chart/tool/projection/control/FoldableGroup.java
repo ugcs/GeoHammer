@@ -16,17 +16,19 @@ public class FoldableGroup extends VBox {
     private final VBox content;
 
     public FoldableGroup(String text, Node... children) {
+        setSpacing(8);
+
         Label title = new Label(text);
         title.getStyleClass().add("group-title");
 
         icon = new Label(EXPANDED);
         icon.getStyleClass().add("group-icon");
 
-        HBox header = new HBox(icon, title);
+        HBox header = new HBox(4, icon, title);
         header.getStyleClass().add("group-header");
         header.setOnMouseClicked(e -> toggle());
 
-        content = new VBox(children);
+        content = new VBox(6, children);
         content.getStyleClass().add("group-content");
 
         getStyleClass().add("group");

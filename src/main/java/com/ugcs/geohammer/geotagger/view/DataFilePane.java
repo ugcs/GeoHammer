@@ -39,9 +39,9 @@ public class DataFilePane extends FilePane {
     @Override
     protected HBox createHeader() {
         HBox header = new HBox(5);
+		header.getStyleClass().add("list-header");
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setStyle(HEADER_STYLE);
-        header.getChildren().addAll(
+		header.getChildren().addAll(
 				Views.createFixedLabel("File", 270),
 				Views.createSpacer(),
 				Views.createVerticalSeparator(),

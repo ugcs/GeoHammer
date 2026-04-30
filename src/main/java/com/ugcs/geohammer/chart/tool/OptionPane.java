@@ -35,8 +35,8 @@ public class OptionPane extends VBox {
         setPadding(Insets.EMPTY);
 
         seriesControl = new StackPane(seriesSelectorView);
+        seriesControl.getStyleClass().add("surface-accent");
         seriesControl.setPadding(new Insets(10, 16, 10, 16));
-        seriesControl.setStyle("-fx-background-color: #666666;");
         seriesControl.setVisible(false);
         seriesControl.setManaged(false);
 

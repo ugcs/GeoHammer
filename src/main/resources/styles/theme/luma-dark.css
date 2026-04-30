@@ -1,0 +1,23 @@
+.root {
+    -color-background: #201e1c;
+    -color-surface: #2a2a2a;
+    -color-surface-translucent: #2a2a2add;
+    -color-surface-accent: #52575c;
+    -color-surface-accent-translucent: #52575c88;
+    -color-surface-alternate: derive(-color-surface, 10%);
+    -color-surface-overlay: #ffffff33;
+    -color-surface-overlay-accent: #ffffff66;
+    -color-input: #424547;
+    -color-outline: derive(-color-input, 20%);
+    -color-prompt: derive(-color-input, 45%);
+    -color-text: #c7c7c7;
+    -color-warning: #ffa726;
+    -color-error: #ef5350;
+    -color-text-dim: derive(-color-text, -25%);
+    -color-icon: #9ea3a8;
+    -color-accent: #1976d2;
+    -color-accent-neutral: #60666b;
+    -color-accent-text: #f2f2f2;
+    -color-selection: #18578e;
+    -color-selection-text: -color-text;
+}

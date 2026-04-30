@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.util;
 
+import com.ugcs.geohammer.AppContext;
 import javafx.scene.paint.Color;
 
 public class ColorPalette {
@@ -36,7 +37,7 @@ public class ColorPalette {
     }
 
     public Color getColor(int i) {
-        return colors[i % colors.length];
+        return fitTheme(colors[i % colors.length]);
     }
 
     public Color getColor(String s) {
@@ -46,7 +47,11 @@ public class ColorPalette {
         if (i < 0) {
             i += n;
         }
-        return colors[i];
+        return fitTheme(colors[i]);
+    }
+
+    private Color fitTheme(Color color) {
+        return AppContext.getTheme().dark() ? color.invert() : color;
     }
 
     private static Color generateColor(int i, double minWhiteContrast) {

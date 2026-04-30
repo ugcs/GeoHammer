@@ -1,9 +1,7 @@
 package com.ugcs.geohammer;
 
-import java.io.File;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.ProfileScroll;
@@ -11,7 +9,6 @@ import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.geotagger.view.GeotaggerView;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
@@ -283,9 +280,7 @@ public class ProfileView implements InitializingBean {
 				var gprChart = model.getGprChart(traceFile);
 				if (gprChart != null) {
 					ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> {
-						if (Math.abs(newValue.intValue() - oldValue.intValue()) > 1) {
-							updateGprChartSize(gprChart);
-						}
+						updateGprChartSize(gprChart);
 					};
 					center.widthProperty().addListener(sp2SizeListener);
 					//((VBox) gprChart.getRootNode()).widthProperty().addListener(sp2SizeListener);
@@ -302,7 +297,7 @@ public class ProfileView implements InitializingBean {
 			return;
 		}
 		chart.setSize(
-				(int) (center.getWidth() - 21),
+				(int) (center.getWidth() - 30),
 				(int) (Math.max(400, ((VBox) chart.getRootNode()).getHeight()) - 6));
 	}
 

@@ -8,7 +8,6 @@ import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
-import javafx.scene.text.Text;
 
 public abstract class BaseCheckBox {
 	
@@ -52,7 +51,7 @@ public abstract class BaseCheckBox {
         root.setAlignment(Pos.CENTER_RIGHT);
         root.setPadding(new Insets(5));
         root.setSpacing(5);        
-        root.getChildren().addAll(new Text(name), checkBox);
+        root.getChildren().addAll(new Label(name), checkBox);
         
         return root;
 	}

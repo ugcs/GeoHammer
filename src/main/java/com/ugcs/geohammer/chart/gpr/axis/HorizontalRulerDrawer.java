@@ -7,11 +7,14 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.model.TraceUnit;
+import com.ugcs.geohammer.view.Colors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -25,7 +28,7 @@ public class HorizontalRulerDrawer {
         this.field = field;
     }
 
-    public void draw(Graphics2D g2) {
+    public void draw(Graphics2D g2, Color strokeColor) {
         if (!(field.getFile() instanceof GprFile)) {
             return;
         }
@@ -69,12 +72,18 @@ public class HorizontalRulerDrawer {
 
         g2.setFont(new Font("Arial", Font.PLAIN, 11));
 
+        Color axisColor = Colors.opaque(strokeColor, 0.25f);
+        Set<Integer> rendered = new HashSet<>();
+
         int sz = 21;
         for (int step : steps) {
             int startIndex = (int) Math.ceil((double) first / step) * step;
             int endIndex = last / step * step;
 
             for (int i = startIndex; i <= endIndex; i += step) {
+                if (rendered.contains(i)) {
+                    continue;
+                }
                 int x;
                 if (firstTrace == 0 && totalTraces - lastTrace > 0) {
                     x = rect.x + (int) Math.round((i - firstTrace + totalTraces - lastTrace) * field.getHScale());
@@ -83,13 +92,14 @@ public class HorizontalRulerDrawer {
                 }
 
                 if (x >= rect.x && x <= rect.x + rect.width) {
-                    g2.setColor(Color.lightGray);
+                    g2.setColor(axisColor);
                     g2.drawLine(x, rect.y, x, rect.y + sz);
+                    rendered.add(i);
 
                     if (step == tick) {
                         String label = getLabelByUnit(i, traceUnit);
                         int width = fontMetrics.stringWidth(label);
-                        g2.setColor(Color.darkGray);
+                        g2.setColor(strokeColor);
                         g2.drawString(label, x - width / 2, rect.y + rect.height - 4);
                     }
                 }

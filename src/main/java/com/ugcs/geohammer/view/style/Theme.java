@@ -1,16 +1,11 @@
 package com.ugcs.geohammer.view.style;
 
-import com.ugcs.geohammer.util.Strings;
+import javafx.scene.paint.Color;
 
 import java.util.List;
 import java.util.Objects;
 
 public enum Theme {
-
-    DEFAULT("Default", false, List.of(
-            "/styles/theme/default.css",
-            "/styles/theme/components.css"
-    )),
 
     LUMA_LIGHT("Luma Light", false, List.of(
             "/styles/theme/luma.css",
@@ -21,7 +16,16 @@ public enum Theme {
             "/styles/theme/luma.css",
             "/styles/theme/luma-dark.css",
             "/styles/theme/components.css"
+    )),
+
+    BASIC("Basic", false, List.of(
+            "/styles/theme/basic.css",
+            "/styles/theme/components.css"
     ));
+
+    private static final Color STROKE_COLOR_LIGHT = Color.gray(0.2);
+
+    private static final Color STROKE_COLOR_DARK = Color.gray(0.8);
 
     private final String title;
 
@@ -54,5 +58,9 @@ public enum Theme {
 
     public List<String> stylesheets() {
         return stylesheets;
+    }
+
+    public Color strokeColor() {
+        return dark ? STROKE_COLOR_DARK : STROKE_COLOR_LIGHT;
     }
 }

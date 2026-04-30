@@ -9,6 +9,7 @@ import com.ugcs.geohammer.chart.gpr.axis.LeftRulerController;
 import com.ugcs.geohammer.chart.gpr.axis.VerticalRulerDrawer;
 import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.model.TraceUnit;
+import com.ugcs.geohammer.view.Colors;
 import com.ugcs.geohammer.view.PaintLimiter;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.TraceFile;
@@ -35,6 +36,7 @@ import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.view.BaseSlider;
 import com.ugcs.geohammer.model.IndexRange;
 import javafx.application.Platform;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Tooltip;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -103,7 +105,8 @@ public class GPRChart extends Chart {
 
     private final VBox vbox = new VBox();
     private final Canvas canvas = new Canvas(width, height);
-    private final FXGraphics2D g2 = new FXGraphics2D(canvas.getGraphicsContext2D());
+    private final GraphicsContext gc = canvas.getGraphicsContext2D();
+    private final FXGraphics2D g2 = new FXGraphics2D(gc);
 
     private final PrismDrawer prismDrawer;
     private final ContrastSlider contrastSlider;
@@ -423,31 +426,31 @@ public class GPRChart extends Chart {
             return;
         }
 
+        Color strokeColor = Colors.awtColor(AppContext.getTheme().strokeColor());
+
         if (!(canvas.getWidth() == width && canvas.getHeight() == height)) {
             canvas.setWidth(width);
             canvas.setHeight(height);
-            // fitFull();
         }
 
         if (drawImage == null
                 || drawImage.getWidth() != width
                 || drawImage.getHeight() != height) {
-            drawImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            drawImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         }
         int[] buffer = ((DataBufferInt) drawImage.getRaster().getDataBuffer()).getData();
-        Arrays.fill(buffer, BACK_GROUD_COLOR.getRGB());
+        Arrays.fill(buffer, Colors.AWT_TRANSPARENT.getRGB());
 
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         g2.setClip(null);
-        g2.setColor(BACK_GROUD_COLOR);
-        g2.fillRect(0, 0, (int) canvas.getWidth(), (int) canvas.getHeight());
+        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
-        drawAxis(g2);
+        drawAxis(g2, strokeColor);
 
-        verticalRulerDrawer.draw(g2);
-        horizontalRulerDrawer.draw(g2);
+        verticalRulerDrawer.draw(g2, strokeColor);
+        horizontalRulerDrawer.draw(g2, strokeColor);
 
         var mainRect = profileField.getMainRect();
         g2.setClip(mainRect.x, mainRect.y, mainRect.width, mainRect.height);
@@ -465,7 +468,7 @@ public class GPRChart extends Chart {
                 clipTopMainRect.width,
                 clipTopMainRect.height);
 
-        drawFileName(g2);
+        drawFileName(g2, strokeColor);
         drawLines(g2);
 
         g2.translate(-(mainRect.x + mainRect.width / 2), 0);
@@ -568,14 +571,14 @@ public class GPRChart extends Chart {
         horizontalRulerController.setUnit(traceUnit);
     }
 
-    private void drawAxis(Graphics2D g2) {
+    private void drawAxis(Graphics2D g2, Color strokeColor) {
         var field = getField();
 
         Rectangle topRuleRect = field.getTopRuleRect();
         Rectangle leftRuleRect = field.getLeftRuleRect();
         Rectangle bottomRuleRect = field.getBottomRuleRect();
 
-        g2.setPaint(Color.lightGray);
+        g2.setPaint(Colors.opaque(strokeColor, 0.25f));
         g2.setStroke(new BasicStroke(0.8f));
         g2.drawLine(topRuleRect.x,
                 topRuleRect.y + topRuleRect.height + 1,
@@ -618,11 +621,11 @@ public class GPRChart extends Chart {
         }
     }
 
-    private void drawFileName(Graphics2D g2) {
+    private void drawFileName(Graphics2D g2, Color strokeColor) {
         Rectangle mainRect = profileField.getMainRect();
         int rectStart = -mainRect.width / 2;
 
-        g2.setColor(Color.darkGray);
+        g2.setColor(strokeColor);
         g2.setFont(fontB);
 
         int iconImageWidth = ResourceImageHolder.IMG_CLOSE_FILE.getWidth(null);

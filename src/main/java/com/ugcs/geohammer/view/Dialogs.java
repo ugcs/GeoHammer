@@ -3,6 +3,7 @@ package com.ugcs.geohammer.view;
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.feedback.FeedbackView;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
@@ -49,7 +50,8 @@ public class Dialogs {
 		alert.getDialogPane().setContent(content);
 		alert.initOwner(AppContext.stage);
 
-		AppContext.addTheme(alert.getDialogPane().getScene());
+		AppContext.getInstance(ThemeService.class)
+				.registerScene(alert.getDialogPane().getScene(), false);
 		return alert;
 	}
 
@@ -154,7 +156,8 @@ public class Dialogs {
 				feedback.submit();
 			});
 
-			AppContext.addTheme(dialogPane.getScene());
+			AppContext.getInstance(ThemeService.class)
+					.registerScene(dialogPane.getScene(), false);
 			dialog.show();
 		});
 	}

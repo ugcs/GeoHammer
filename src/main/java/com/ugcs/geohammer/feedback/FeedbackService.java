@@ -20,13 +20,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 @Service
@@ -65,16 +65,28 @@ public class FeedbackService {
         this.executor = executor;
     }
 
-    public void submitFeedback(Feedback feedback, boolean attachScreenshot, boolean attachFiles) {
-        // screenshot should be taken on the fx application thread
-        Screenshot screenshot = attachScreenshot
-                ? Screenshot.take(AppContext.stage.getScene(), "screenshot.png", "png")
-                : null;
+    public List<Attachment> createScreenshotAttachments() {
+        Screenshot screenshot = Screenshot.take(AppContext.stage.getScene(), "png");
+        return List.of(new BytesAttachment("screenshot.png", screenshot.getBytes()));
+    }
 
+    public List<Attachment> createOpenFileAttachments() {
+        List<Attachment> attachments = new ArrayList<>();
+        for (SgyFile sgyFile : Nulls.toEmpty(fileManager.getFiles())) {
+            if (sgyFile != null && sgyFile.getFile() != null) {
+                Path path = sgyFile.getFile().toPath();
+                if (Files.isRegularFile(path)) {
+                    attachments.add(new FileAttachment(path));
+                }
+            }
+        }
+        return attachments;
+    }
+
+    public void submitFeedback(Feedback feedback, List<Attachment> attachments) {
         var future = executor.submit(() -> {
             try {
-                List<Path> paths = attachFiles ? getOpenPaths() : List.of();
-                String attachmentId = uploadAttachment(screenshot, paths);
+                String attachmentId = uploadAttachments(attachments);
                 collectFeedback(feedback, attachmentId);
                 status.showMessage("Feedback submitted", "Feedback");
             } catch (Exception e) {
@@ -85,11 +97,11 @@ public class FeedbackService {
         taskService.registerTask(future, "Sending feedback");
     }
 
-    private String uploadAttachment(Screenshot screenshot, List<Path> paths) {
-        if (screenshot == null && Nulls.isNullOrEmpty(paths)) {
+    private String uploadAttachments(List<Attachment> attachments) {
+        if (Nulls.isNullOrEmpty(attachments)) {
             return null;
         }
-        byte[] attachment = buildAttachment(screenshot, paths);
+        byte[] attachment = zipAttachments(attachments);
         if (attachment.length == 0) {
             return null;
         }
@@ -128,54 +140,26 @@ public class FeedbackService {
         );
     }
 
-    private byte[] buildAttachment(Screenshot screenshot, List<Path> paths) {
-        record Entry(Path path, long size) {}
-        List<Entry> entries = Nulls.toEmpty(paths).stream()
-                .map(path -> {
-                    try {
-                        if (!Files.isRegularFile(path)) {
-                            return null;
-                        }
-                        return new Entry(path, Files.size(path));
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                })
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparingLong(Entry::size))
-                .toList();
+    private byte[] zipAttachments(List<Attachment> attachments) {
+        attachments.sort(Comparator.comparingLong(Attachment::getSize));
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         long uncompressedSize = 0;
 
         try (ZipStream zip = new ZipStream(out)) {
-            if (screenshot != null) {
-                byte[] image = screenshot.getBytes();
-                if (image.length <= ATTACHMENT_SIZE_LIMIT) {
-                    zip.addFile(screenshot.getFileName(), image);
-                    uncompressedSize += image.length;
-                }
-            }
-            for (Entry entry : entries) {
-                if (uncompressedSize + entry.size > ATTACHMENT_SIZE_LIMIT) {
+            for (Attachment attachment : attachments) {
+                long size = attachment.getSize();
+                if (uncompressedSize + size > ATTACHMENT_SIZE_LIMIT) {
                     break;
                 }
-                zip.addFile(entry.path);
-                uncompressedSize += entry.size;
+                try (InputStream in = attachment.getInput()) {
+                    zip.addFile(attachment.getFileName(), in);
+                    uncompressedSize += size;
+                }
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
         return out.toByteArray();
-    }
-
-    private List<Path> getOpenPaths() {
-        List<Path> paths = new ArrayList<>();
-        for (SgyFile sgyFile : Nulls.toEmpty(fileManager.getFiles())) {
-            if (sgyFile != null && sgyFile.getFile() != null) {
-                paths.add(sgyFile.getFile().toPath());
-            }
-        }
-        return paths;
     }
 }

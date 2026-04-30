@@ -120,10 +120,6 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
     -fx-text-fill: -color-text;
 }
 
-.dialog-pane .details-button {
-    -fx-text-fill: -color-accent;
-}
-
 .tooltip, .toast {
     -fx-text-fill: -color-text;
     -fx-background-color: -color-input;

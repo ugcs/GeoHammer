@@ -34,14 +34,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -78,17 +76,17 @@ public class StatisticsTool extends ToolView {
 
         // name and value
         seriesName = new Label(NO_SERIES);
-        seriesName.setStyle("-fx-font-weight: bold;-fx-font-size: 14px;");
+        seriesName.getStyleClass().add("bigger");
         HBox.setHgrow(seriesName, Priority.ALWAYS);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         value = new Label(NO_VALUE);
-        value.setStyle("-fx-font-weight: bold;-fx-font-size: 14px;");
+        value.getStyleClass().add("bigger");
 
         Button showInspector = Views.createSvgButton(
-                ResourceImageHolder.LIST, Color.valueOf("#888888"), 20, "Inspect values");
+                ResourceImageHolder.LIST, 26, "Inspect values");
         showInspector.setOnAction(e -> inspectorView.toggle());
 
         HBox valueGroup = new HBox(seriesName, spacer, value, showInspector);
@@ -98,8 +96,7 @@ public class StatisticsTool extends ToolView {
         // metrics
         metricsView = new MetricsView();
         metricsContextSelector = new MetricsContextSelector();
-        BorderPane metricsGroup = createMetricsGroup(metricsView, metricsContextSelector);
-
+        VBox metricsGroup = createMetricsGroup(metricsView, metricsContextSelector);
         VBox.setMargin(metricsGroup, new Insets(Tools.DEFAULT_SPACING, 0, 0, 0));
 
         VBox container = new VBox(Tools.DEFAULT_SPACING, valueGroup, metricsGroup);
@@ -224,17 +221,9 @@ public class StatisticsTool extends ToolView {
         return String.format("%." + chartDecimals + "f", value);
     }
 
-    private BorderPane createMetricsGroup(MetricsView metricsView, MetricsContextSelector metricsContextSelector) {
-        BorderPane container = new BorderPane();
-
-        container.setCenter(metricsView);
-        container.setBottom(metricsContextSelector);
-
-        container.setStyle("-fx-border-color: #cccccc; -fx-border-width: 1px; -fx-border-radius: 6px;");
-
-        BorderPane.setMargin(metricsView, new Insets(6));
-        BorderPane.setMargin(metricsContextSelector, new Insets(6));
-
+    private VBox createMetricsGroup(MetricsView metricsView, MetricsContextSelector metricsContextSelector) {
+        VBox container = new VBox(6, metricsView, metricsContextSelector);
+        container.getStyleClass().add("group");
         return container;
     }
 
@@ -325,7 +314,7 @@ public class StatisticsTool extends ToolView {
 
         Label createHeaderLabel(String text) {
             Label label = new Label(text);
-            label.setStyle("-fx-font-weight: bold; -fx-font-size: 10px; -fx-text-fill: #888888;");
+            label.getStyleClass().addAll("smaller", "dim");
             return label;
         }
 
@@ -426,17 +415,23 @@ public class StatisticsTool extends ToolView {
 
         MetricsContextSelector() {
             setAlignment(Pos.CENTER);
-            setSpacing(1);
 
             toggleGroup = new ToggleGroup();
 
-            for (MetricsContext context : MetricsContext.values()) {
+            MetricsContext[] contexts = MetricsContext.values();
+            for (MetricsContext context : contexts) {
                 ToggleButton button = new ToggleButton(context.getName());
+                button.getStyleClass().addAll("toggle-group", "smaller");
+                if (context.ordinal() == 0) {
+                    button.setId("first");
+                }
+                if (context.ordinal() == contexts.length - 1) {
+                    button.setId("last");
+                }
                 button.setToggleGroup(toggleGroup);
                 button.setUserData(context);
                 boolean selected = context == MetricsContext.VISIBLE_AREA;
                 button.setSelected(selected);
-                setButtonStyle(button, selected);
                 getChildren().add(button);
             }
 
@@ -444,14 +439,7 @@ public class StatisticsTool extends ToolView {
         }
 
         void onToggleChanged(ObservableValue<? extends Toggle> observable, Toggle oldValue, Toggle newValue) {
-            if (oldValue != null) {
-                ToggleButton oldButton = (ToggleButton)oldValue;
-                setButtonStyle(oldButton, false);
-            }
             if (newValue != null) {
-                ToggleButton newButton = (ToggleButton) newValue;
-                setButtonStyle(newButton, true);
-
                 if (metricsView != null) {
                     metricsView.update();
                 }
@@ -459,30 +447,6 @@ public class StatisticsTool extends ToolView {
                 ToggleButton oldButton = (ToggleButton)oldValue;
                 oldButton.setSelected(true);
             }
-        }
-
-        void setButtonStyle(ToggleButton button, boolean selected) {
-            String style = "-fx-font-size: 11px;-fx-padding: 3px 16px;";
-            if (selected) {
-                style += "-fx-background-color: #999999;-fx-text-fill: white;";
-            } else {
-                style += "-fx-background-color: #e3e3e3;-fx-text-fill: #666666;";
-            }
-
-            MetricsContext context = (MetricsContext) button.getUserData();
-            MetricsContext[] values = MetricsContext.values();
-            boolean isFirst = values.length > 0 && context == values[0];
-            boolean isLast = values.length > 0 && context == values[values.length - 1];
-
-            if (isFirst) {
-                style += "-fx-background-radius: 6px 0 0 6px;";
-            } else if (isLast) {
-                style += "-fx-background-radius: 0 6px 6px 0;";
-            } else {
-                style += "-fx-background-radius: 0;";
-            }
-
-            button.setStyle(style);
         }
 
         MetricsContext getSelectedContext() {

@@ -22,7 +22,6 @@ import com.ugcs.geohammer.view.Bindings;
 import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Listeners;
 import com.ugcs.geohammer.view.WindowProperties;
-import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
@@ -74,7 +73,6 @@ public class ProjectionView extends CanvasWindow {
 
     private static WindowProperties getWindowProperties() {
         return new WindowProperties("Reprojection (experimental)")
-                .withStyle(Styles.DARK_THEME_PATH)
                 .withSize(1200, 840)
                 .withMinSize(600, 400);
     }
@@ -138,7 +136,7 @@ public class ProjectionView extends CanvasWindow {
         toolBar.setAlignment(Pos.TOP_LEFT);
 
         ScrollPane scrollContainer = Views.createVerticalScrollContainer(toolBar, parent);
-        scrollContainer.getStyleClass().add("tool-panel");
+        scrollContainer.getStyleClass().add("surface-translucent");
         scrollContainer.setPrefWidth(240);
         scrollContainer.setMaxWidth(240);
         scrollContainer.setMaxHeight(VBox.USE_PREF_SIZE);
@@ -170,7 +168,7 @@ public class ProjectionView extends CanvasWindow {
         });
         fitButton.setMinWidth(40);
 
-        return new HBox(line, fitButton);
+        return new HBox(8, line, fitButton);
     }
 
     private Node createGridGroup() {
@@ -189,7 +187,7 @@ public class ProjectionView extends CanvasWindow {
         });
         gridButton.setMinWidth(50);
 
-        HBox gridActionGroup = new HBox(autoUpdateGrid, Views.createSpacer(), gridButton);
+        HBox gridActionGroup = new HBox(8, autoUpdateGrid, Views.createSpacer(), gridButton);
         gridActionGroup.setAlignment(Pos.BASELINE_LEFT);
 
         ProgressBar gridProgress = new ProgressBar();
@@ -201,6 +199,7 @@ public class ProjectionView extends CanvasWindow {
                         .and(gridOptions.gridProgressProperty().lessThan(1)));
 
         VBox group = new VBox(
+                8,
                 resolution,
                 gridActionGroup,
                 gridProgress
@@ -223,6 +222,7 @@ public class ProjectionView extends CanvasWindow {
                 Bindings.fractionToPercent(renderOptions.contrastProperty()));
 
         VBox group = new VBox(
+                8,
                 spectrum,
                 gain,
                 contrast

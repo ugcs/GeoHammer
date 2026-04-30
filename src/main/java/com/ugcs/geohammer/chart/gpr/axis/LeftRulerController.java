@@ -6,10 +6,12 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.chart.ScrollableData;
+import com.ugcs.geohammer.view.Colors;
 import javafx.geometry.Point2D;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -100,15 +102,17 @@ public class LeftRulerController {
 		@Override
 		public void drawOnCut(Graphics2D g2, ScrollableData scrollableData) {
 			if (scrollableData instanceof GPRChart gprChart) {
+				Color strokeColor = Colors.awtColor(AppContext.getTheme().strokeColor());
+
 				//setClip(g2, profField.getInfoRect());
 				g2.setClip(null);
 				Rectangle r = getRect(gprChart.getField());
 
 				g2.setStroke(STROKE);
-				g2.setColor(Color.lightGray);
+				g2.setColor(Colors.opaque(strokeColor, 0.25f));
 				g2.drawRoundRect(r.x, r.y, r.width, r.height, 7, 7);
 
-				g2.setColor(Color.darkGray);
+				g2.setColor(strokeColor);
 				String text = getConverter().getUnit();
 				int width = g2.getFontMetrics().stringWidth(text);
 				g2.drawString(text, r.x + r.width - width - 6, r.y + r.height - 7);

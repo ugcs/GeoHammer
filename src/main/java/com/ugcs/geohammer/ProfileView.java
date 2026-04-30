@@ -215,7 +215,7 @@ public class ProfileView implements InitializingBean {
 			center.setMinWidth(100);
 
 			ScrollPane centerScrollPane = new ScrollPane();
-			centerScrollPane.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+			centerScrollPane.getStyleClass().add("no-focus");
             centerScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             centerScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
@@ -317,9 +317,7 @@ public class ProfileView implements InitializingBean {
 				var gprChart = model.getGprChart(traceFile);
 				if (gprChart != null) {
 					ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> {
-						if (Math.abs(newValue.intValue() - oldValue.intValue()) > 1) {
-							updateGprChartSize(gprChart);
-						}
+						updateGprChartSize(gprChart);
 					};
 					center.widthProperty().addListener(sp2SizeListener);
 					//((VBox) gprChart.getRootNode()).widthProperty().addListener(sp2SizeListener);
@@ -374,7 +372,7 @@ public class ProfileView implements InitializingBean {
 			return;
 		}
 		chart.setSize(
-				(int) (center.getWidth() - 21),
+				(int) (center.getWidth() - 30),
 				(int) (Math.max(400, ((VBox) chart.getRootNode()).getHeight()) - 6));
 	}
 

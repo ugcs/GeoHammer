@@ -3,12 +3,14 @@ package com.ugcs.geohammer.geotagger.view;
 
 import java.util.concurrent.ExecutorService;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.geotagger.Geotagger;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.geotagger.domain.CoverageStatus;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.view.Views;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.beans.binding.Bindings;
@@ -92,7 +94,7 @@ public class GeotaggerView {
 		closeButton.setOnAction(event -> closeWindow());
 
 		processButton = new Button("Process");
-		processButton.setStyle("-fx-background-color: #007AFF; -fx-text-fill: white;");
+		processButton.setDefaultButton(true);
 		processButton.setOnAction(event -> processFiles());
 
 		processButton.disableProperty().bind(
@@ -128,6 +130,7 @@ public class GeotaggerView {
             stage.setScene(scene);
             stage.setOnHiding(event -> closeWindow());
             stage.setOnCloseRequest(event -> closeWindow());
+			AppContext.getInstance(ThemeService.class).registerScene(scene);
 		}
 		if (!stage.isShowing()) {
 			stage.show();

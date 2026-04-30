@@ -21,12 +21,7 @@ public class Toast {
 
     private static Label createToastLabel() {
         Label label = new Label();
-        label.setStyle(
-                "-fx-background-color: rgba(0,0,0,0.75); " +
-                "-fx-text-fill: white; " +
-                "-fx-padding: 8px; " +
-                "-fx-border-radius: 4px; " +
-                "-fx-background-radius: 4px;");
+        label.getStyleClass().add("toast");
         return label;
     }
 

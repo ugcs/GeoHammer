@@ -6,6 +6,7 @@ import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.view.Colors;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
@@ -23,7 +24,6 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.ColorPalette;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
-import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -95,7 +95,7 @@ public class SeriesSelectorView extends VBox {
     public record SeriesMeta(String name, String style, BooleanProperty visible) {
 
         public SeriesMeta(String name, Color color, BooleanProperty visible) {
-            this(name, "-fx-text-fill: " + Views.toColorString(color) + ";", visible);
+            this(name, "-fx-text-fill: " + Colors.toColorString(color) + ";", visible);
         }
 
         @Override
@@ -120,12 +120,10 @@ public class SeriesSelectorView extends VBox {
         container.setSpacing(Tools.DEFAULT_SPACING);
 
         title = new Label(DEFAULT_TITLE);
-        title.setStyle("-fx-text-fill: #dddddd;");
         title.setMinHeight(26);
 
         removeSeriesButton = ResourceImageHolder.setButtonImage(
                 ResourceImageHolder.DELETE,
-                Color.web("#666666"),
                 26,
                 new Button());
         removeSeriesButton.setTooltip(new Tooltip("Remove selected column"));
@@ -220,14 +218,11 @@ public class SeriesSelectorView extends VBox {
                 -> new CheckBoxListCell<>(series -> series.visible) {
 
             {
-                setOnMouseEntered(e -> setStyle("-fx-text-fill: white;"));
                 setOnMouseExited(e -> updateStyle(getItem()));
             }
 
             private void updateStyle(SeriesMeta item) {
-                if (isSelected()) {
-                    setStyle("-fx-text-fill: white;");
-                } else if (item != null) {
+                if (item != null) {
                     setStyle(item.style);
                 } else {
                     setStyle(Strings.empty());
@@ -260,6 +255,8 @@ public class SeriesSelectorView extends VBox {
                 }
             }
         });
+
+        seriesSelector.getStyleClass().add("series-selector");
     }
 
     private void showSeriesSelector(boolean show) {

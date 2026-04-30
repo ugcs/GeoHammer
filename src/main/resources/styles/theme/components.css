@@ -1,0 +1,262 @@
+.chart-plot-background {
+    -fx-background-color: transparent;
+}
+
+/* custom classes */
+
+.surface-translucent {
+    -fx-background-color: -color-surface-translucent;
+    -fx-background-radius: 8;
+    -fx-padding: 8;
+}
+
+.surface-accent {
+    -fx-background-color: -color-surface-accent;
+}
+
+.surface-alternate {
+    -fx-background-color: -color-surface-alternate;
+}
+
+.no-focus {
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.no-padding {
+    -fx-padding: 0;
+}
+
+.smaller {
+    -fx-font-size: 0.91em;
+}
+
+.bigger {
+    -fx-font-size: 1.1em;
+}
+
+.dim {
+    -fx-text-fill: -color-text-dim;
+}
+
+.warning {
+    -fx-text-fill: -color-warning;
+    -fx-font-weight: bold;
+}
+
+.icon {
+    -fx-fill: -color-icon;
+}
+
+.button.icon {
+    -fx-background-color: transparent;
+    -fx-cursor: hand;
+    -fx-padding: 2px;
+}
+
+.button.glyph {
+    -fx-background-color: -color-surface-accent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 999;
+    -fx-alignment: center;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+}
+
+.label.glyph-icon {
+    -fx-text-fill: -color-text;
+    -fx-font-family: "System", sans-serif;
+    -fx-font-size: 12;
+    -fx-alignment: center;
+}
+
+.text-input.label {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.vertical-separator {
+    -fx-pref-width: 1px;
+    -fx-background-color: -color-outline;
+}
+
+.horizontal-separator {
+    -fx-pref-height: 1px;
+    -fx-background-color: -color-outline;
+}
+
+.group {
+    -fx-border-color: -color-outline;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-padding: 8;
+}
+
+.group-header {
+    -fx-cursor: hand;
+}
+
+.group-title {
+    -fx-font-weight: bold;
+    -fx-alignment: baseline-left;
+}
+
+.group-icon {
+    -fx-text-fill: -color-icon;
+    -fx-alignment: baseline-center;
+    -fx-pref-width: 12;
+}
+
+.group-content {
+    -fx-padding: 6 0 0 0;
+}
+
+.toggle-button.toggle-group {
+    -fx-background-color: -color-outline, -color-surface;
+    -fx-background-insets: 0, 1 1 1 0;
+    -fx-background-radius: 0, 0;
+    -fx-text-fill: -color-text;
+    -fx-padding: 3 16;
+}
+
+.toggle-button.toggle-group#first {
+    -fx-background-radius: 4 0 0 4;
+    -fx-background-insets: 0, 1;
+}
+
+.toggle-button.toggle-group#last {
+    -fx-background-radius: 0 4 4 0;
+}
+
+.toggle-button.toggle-group:selected {
+    -fx-background-color: -color-outline, -color-surface-accent;
+}
+
+/* ststus */
+
+.status-bar {
+    -fx-text-fill: -color-text-dim;
+    -fx-padding: 6 12;
+}
+
+.status-bar .label {
+    -fx-text-fill: -color-text-dim;
+}
+
+.status-action {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 2 8;
+}
+
+.status-action:hover {
+    -fx-background-color: -color-surface-accent-translucent;
+    -fx-cursor: hand;
+}
+
+.status-action:pressed {
+    -fx-background-color: -color-surface-accent;
+}
+
+.status-action.neutral {
+    -fx-background-color: -color-accent-neutral;
+    -fx-text-fill: -color-accent-text;
+    -fx-font-weight: bold;
+}
+
+.status-action.neutral:hover {
+    -fx-background-color: derive(-color-accent-neutral, 20%);
+}
+
+.status-action.neutral:pressed {
+    -fx-background-color: derive(-color-accent-neutral, -5%);
+}
+
+.status-action.accent {
+    -fx-background-color: linear-gradient(to right, -color-accent, derive(-color-accent, 30%));
+    -fx-text-fill: -color-accent-text;
+    -fx-font-weight: bold;
+}
+
+.status-action.accent:hover {
+    -fx-background-color: linear-gradient(to right,  derive(-color-accent, 20%), derive(-color-accent, 50%));
+}
+
+.status-action.accent:pressed {
+    -fx-background-color: -color-accent;
+}
+
+/* releases */
+
+.release-scroll {
+    -fx-background-color: -color-outline, -color-input;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-fit-to-width: true;
+    -fx-pref-width: 330;
+    -fx-pref-height: 380;
+    -fx-padding: 6;
+}
+
+.release-rows {
+    -fx-spacing: 2;
+}
+
+.release-row-container {
+    -fx-spacing: 6;
+    -fx-padding: 3 6 3 6;
+    -fx-alignment: center-left;
+}
+
+.release-row {
+    -fx-background-radius: 4;
+    -fx-background-color: transparent;
+}
+
+.release-row:hover {
+    -fx-background-color: -color-surface-accent-translucent;
+}
+
+.pre-release {
+    -fx-text-fill: -color-warning;
+}
+
+.current-version {
+    -fx-font-weight: bold;
+}
+
+/* license */
+
+.requires-license .icon {
+    -fx-fill: -color-warning;
+}
+
+.status-action#license {
+    -fx-text-fill: -color-warning;
+    -fx-font-weight: bold;
+}
+
+#activation-code {
+    -fx-font-weight: bold;
+}
+
+.layout {
+    -fx-spacing: 10;
+}
+
+.buttons-layout {
+    -fx-spacing: 10;
+    -fx-alignment: bottom-right;
+}
+
+.error {
+    -fx-text-fill: -color-error;
+}
+
+.feather {
+    -fx-text-fill: -color-text-dim;
+}
+
+.accent {
+    -fx-font-weight: bold;
+}

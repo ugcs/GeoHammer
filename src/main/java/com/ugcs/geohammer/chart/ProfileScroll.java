@@ -2,6 +2,7 @@ package com.ugcs.geohammer.chart;
 
 import java.util.Set;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.model.Model;
 
@@ -19,11 +20,13 @@ import org.jspecify.annotations.Nullable;
 
 public final class ProfileScroll extends Canvas {
 
-	public static final int HEIGHT = 24;
-	private static final int SIDE_WIDTH = 20;
+	public static final int HEIGHT = 22;
+	private static final int SIDE_WIDTH = 22;
 	private static final int CENTER_MARGIN = 5;
 	private static final int V_MARGIN = 4;
 	private static final int V_GRAY_MARGIN = 7;
+	private static final int ARC_WIDTH = 11;
+	private static final int ARC_HEIGHT = 11;
 
 	private double start = 0;
 	private double finish = Double.MAX_VALUE;
@@ -288,40 +291,42 @@ public final class ProfileScroll extends Canvas {
 	}
 	
 	private void draw() {
-		GraphicsContext gc = this.getGraphicsContext2D();	
+		GraphicsContext gc = this.getGraphicsContext2D();
 		gc.clearRect(0, 0, getWidth(), getHeight());
-		
-		gc.setFill(Color.GRAY);
+
+		Color strokeColor = AppContext.getTheme().strokeColor();
+		gc.setStroke(strokeColor);
+
+		Color fill = new Color(
+				strokeColor.getRed(),
+				strokeColor.getGreen(),
+				strokeColor.getBlue(),
+				0.38
+		);
+		gc.setFill(fill);
+
 		gc.fillRect(0, V_GRAY_MARGIN, 
 				getWidth(), getHeight() - 2 * V_GRAY_MARGIN);
 		
-		//gc.setFill(Color.BLUE);
-		
 		Rectangle c = getCenterBar();
-
-		gc.strokeRoundRect(c.getX() + CENTER_MARGIN, 
+		gc.strokeRoundRect(c.getX() + CENTER_MARGIN,
 				c.getY() + V_MARGIN, 
 				c.getWidth() - 2 * CENTER_MARGIN, 
 				c.getHeight() - 2 * V_MARGIN, 
-				10, 10);
+				ARC_WIDTH, ARC_HEIGHT);
 		
 		double centerX = c.getX() + c.getWidth() / 2;
 		gc.strokeLine(centerX, 0, centerX, HEIGHT);
 		
-		//gc.setFill(Color.AQUAMARINE);
 		Rectangle l = getLeftBar();
-		
+		gc.strokeRoundRect(l.getX() + V_MARGIN, l.getY() + V_MARGIN,
+				l.getWidth() - 2 * V_MARGIN, l.getHeight() - 2 * V_MARGIN, ARC_WIDTH, ARC_HEIGHT);
 
-		gc.strokeRoundRect(l.getX() + V_MARGIN, l.getY() + V_MARGIN, 
-				l.getWidth() - 2 * V_MARGIN, l.getHeight() - 2 * V_MARGIN, 10, 10);
-
-		//gc.setFill(Color.AQUAMARINE);
 		Rectangle r = getRightBar();
-		gc.strokeRoundRect(r.getX() + V_MARGIN, r.getY() + V_MARGIN, 
-				r.getWidth() - 2 * V_MARGIN, r.getHeight() - 2 * V_MARGIN, 10, 10);
-		
+		gc.strokeRoundRect(r.getX() + V_MARGIN, r.getY() + V_MARGIN,
+				r.getWidth() - 2 * V_MARGIN, r.getHeight() - 2 * V_MARGIN, ARC_WIDTH, ARC_HEIGHT);
 	}
-	
+
 	private void recalcField() {
 		double scrCenter = (finish + start) / 2;			
 		double scrWidth = (finish - start);

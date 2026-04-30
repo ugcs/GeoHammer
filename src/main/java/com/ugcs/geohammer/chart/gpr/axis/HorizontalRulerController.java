@@ -8,6 +8,7 @@ import java.awt.Stroke;
 import java.util.Arrays;
 import java.util.List;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
 import com.ugcs.geohammer.format.gpr.GprFile;
@@ -20,6 +21,7 @@ import com.ugcs.geohammer.model.element.BaseObjectImpl;
 import com.ugcs.geohammer.model.TemplateSettings;
 import com.ugcs.geohammer.model.event.TemplateUnitChangedEvent;
 import com.ugcs.geohammer.util.Templates;
+import com.ugcs.geohammer.view.Colors;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
 
@@ -68,6 +70,9 @@ public class HorizontalRulerController {
                 if (!(file instanceof GprFile)) {
                     return;
                 }
+
+                Color strokeColor = Colors.awtColor(AppContext.getTheme().strokeColor());
+
                 g2.setClip(null);
                 Rectangle r = getRect(gprChart.getField());
 
@@ -84,17 +89,14 @@ public class HorizontalRulerController {
                 int rectX = r.x + (r.width - rectW) / 2;
                 int rectY = r.y;
 
-                g2.setColor(Color.white);
-                g2.fillRoundRect(rectX, rectY, rectW, rectH, 7, 7);
-
                 g2.setStroke(STROKE);
-                g2.setColor(Color.lightGray);
+                g2.setColor(Colors.opaque(strokeColor, 0.25f));
                 g2.drawRoundRect(rectX, rectY, rectW, rectH, 7, 7);
 
                 int textX = rectX + (rectW - textW) / 2;
                 int textY = rectY + (rectH - textH) / 2 + fm.getAscent() - 2;
 
-                g2.setColor(Color.black);
+                g2.setColor(strokeColor);
                 g2.drawString(text, textX, textY);
             }
         }

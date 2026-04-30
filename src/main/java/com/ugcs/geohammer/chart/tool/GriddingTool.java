@@ -43,7 +43,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import org.controlsfx.control.RangeSlider;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -120,7 +119,7 @@ public class GriddingTool extends FilterToolView {
         this.taskService = taskService;
 
         warning = new Label("Warning: Grid needs to be recalculated.");
-        warning.setStyle("-fx-text-fill: #E7AE3CFF; -fx-font-weight: bold;");
+        warning.getStyleClass().add("warning");
         warning.setVisible(false);
         warning.setManaged(false);
 
@@ -142,7 +141,7 @@ public class GriddingTool extends FilterToolView {
         spectrumSelector.setPrefWidth(0); // allow equal distribution
 
         Button showPalette = Views.createSvgButton(
-                ResourceImageHolder.HISTOGRAM, Color.valueOf("#888888"), 22, "Inspect palette");
+                ResourceImageHolder.HISTOGRAM, 24, "Inspect palette");
         showPalette.setOnAction(e -> {
             paletteView.toggle();
         });
@@ -166,14 +165,14 @@ public class GriddingTool extends FilterToolView {
         labelAndReset.getChildren().addAll(label, labelSeparator, resetButton);
 
         Label minLabel = new Label("min");
-        minLabel.setStyle("-fx-text-fill: #888888;");
+        minLabel.getStyleClass().add("dim");
 
         TextField minInput = new TextField();
         minInput.setMinWidth(50);
         minInput.setPrefWidth(80);
 
         Label maxLabel = new Label("max");
-        maxLabel.setStyle("-fx-text-fill: #888888;");
+        maxLabel.getStyleClass().add("dim");
 
         TextField maxInput = new TextField();
         maxInput.setAlignment(Pos.BASELINE_RIGHT);
@@ -224,8 +223,8 @@ public class GriddingTool extends FilterToolView {
     }
 
     private VBox createGroup(Node... children) {
-        VBox group = new VBox(8, children);
-        group.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 8;");
+        VBox group = new VBox(5, children);
+        group.getStyleClass().add("group");
         VBox.setMargin(group,  new Insets(Tools.DEFAULT_SPACING, 0, Tools.DEFAULT_SPACING, 0));
         return group;
     }

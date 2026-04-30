@@ -8,21 +8,27 @@ import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.service.script.PythonService;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.ResourceImageHolder;
+import com.ugcs.geohammer.view.Views;
+import com.ugcs.geohammer.view.style.Theme;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +45,8 @@ public class SettingsView implements ToolProducer {
 
 	private final PrefSettings prefSettings;
 
+	private final ThemeService themeService;
+
 	private final Model model;
 
 	@Nullable
@@ -50,6 +58,9 @@ public class SettingsView implements ToolProducer {
 	@Nullable
 	private TextField traceLookupThresholdField = null;
 
+	@Nullable
+	private ComboBox<Theme> themeSelector = null;
+
 	private String savedPythonPath = "";
 
 	private double savedTraceLookupThreshold;
@@ -57,9 +68,10 @@ public class SettingsView implements ToolProducer {
 	private final ToggleButton toggleButton =
 			ResourceImageHolder.setButtonImage(ResourceImageHolder.SETTINGS, new ToggleButton());
 
-	public SettingsView(PythonService pythonService, PrefSettings prefSettings, Model model) {
+	public SettingsView(PythonService pythonService, PrefSettings prefSettings, ThemeService themeService, Model model) {
 		this.pythonService = pythonService;
 		this.prefSettings = prefSettings;
+		this.themeService = themeService;
 		this.model = model;
 		model.setTraceLookupThreshold(
 				prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, Model.DEFAULT_LOOKUP_THRESHOLD));
@@ -105,21 +117,30 @@ public class SettingsView implements ToolProducer {
 
 		Node pythonPathSetting = createPythonPathPane(stage);
 		Node traceLookupThresholdSetting = createTraceLookupThresholdPane();
+		Node themeSetting = createThemePane();
 
 		HBox buttonsRow = createButtonsRow(stage);
 
-		VBox root = new VBox(10, pythonPathSetting, traceLookupThresholdSetting, buttonsRow);
-		Scene scene = new Scene(root, 700, 160);
-
+		VBox root = new VBox(10,
+				themeSetting,
+				pythonPathSetting,
+				traceLookupThresholdSetting,
+				Views.createSpacer(),
+				buttonsRow);
+		root.setPadding(new Insets(20));
+		Scene scene = new Scene(root, 500, 200);
 		stage.setScene(scene);
+		themeService.registerScene(scene);
 		return stage;
 	}
 
 	private Node createPythonPathPane(Stage settingsStage) {
-		Label pythonLabel = new Label("Python Executor Path:");
+		Label pythonLabel = new Label("Python executable");
+		HBox.setHgrow(pythonLabel, Priority.ALWAYS);
+
 		pythonPathField = new TextField();
 		pythonPathField.setEditable(false);
-		pythonPathField.setPrefWidth(400);
+		HBox.setHgrow(pythonPathField, Priority.ALWAYS);
 
 		String pythonPath = "";
 		try {
@@ -143,27 +164,38 @@ public class SettingsView implements ToolProducer {
 		pasteButton.setOnAction(event -> onPasteClicked());
 
 		HBox row = new HBox(10, pythonLabel, pythonPathField, pasteButton, browseButton);
-		row.setPadding(new Insets(20, 20, 20, 20));
 		row.setAlignment(Pos.CENTER_LEFT);
 		return row;
 	}
 
 	private Node createTraceLookupThresholdPane() {
-		Label label = new Label("Trace Lookup Threshold (m):");
+		Label label = new Label("Trace lookup threshold (m)");
+		HBox.setHgrow(label, Priority.ALWAYS);
 		traceLookupThresholdField = new TextField();
 		traceLookupThresholdField.setPrefWidth(80);
 		savedTraceLookupThreshold = prefSettings.getDoubleOrDefault(PREF_TRACE, PREF_LOOKUP_THRESHOLD, Model.DEFAULT_LOOKUP_THRESHOLD);
 		traceLookupThresholdField.setText(String.valueOf(savedTraceLookupThreshold));
 
 		HBox row = new HBox(10, label, traceLookupThresholdField);
-		row.setPadding(new Insets(0, 20, 0, 20));
+		row.setAlignment(Pos.CENTER_LEFT);
+		return row;
+	}
+
+	private Node createThemePane() {
+		Label label = new Label("Theme");
+		themeSelector = new ComboBox<>();
+		themeSelector.setConverter(new ThemeTitleConverter());
+		themeSelector.getItems().addAll(Theme.values());
+		themeSelector.setValue(themeService.getTheme());
+
+		HBox row = new HBox(10, label, themeSelector);
 		row.setAlignment(Pos.CENTER_LEFT);
 		return row;
 	}
 
 	private void onBrowseClicked(Stage settingsStage) {
 		FileChooser fileChooser = new FileChooser();
-		fileChooser.setTitle("Select Python Executable");
+		fileChooser.setTitle("Select Python executable");
 		File file = fileChooser.showOpenDialog(settingsStage);
 		if (file != null) {
 			String path = file.getAbsolutePath();
@@ -192,9 +224,8 @@ public class SettingsView implements ToolProducer {
 		closeButton.setPrefWidth(60);
 		closeButton.setOnAction(event -> onClose(settingsStage));
 
-		HBox buttonsBox = new HBox(10, okButton, closeButton);
+		HBox buttonsBox = new HBox(10, closeButton, okButton);
 		buttonsBox.setAlignment(Pos.CENTER_RIGHT);
-		buttonsBox.setPadding(new Insets(0, 20, 20, 20));
 		return buttonsBox;
 	}
 
@@ -222,6 +253,10 @@ public class SettingsView implements ToolProducer {
 			model.setTraceLookupThreshold(threshold);
 			savedTraceLookupThreshold = threshold;
 		}
+		if (themeSelector != null) {
+			Theme theme = themeSelector.getValue();
+			themeService.setTheme(theme);
+		}
 		toggleButton.setSelected(false);
 		settingsStage.close();
 	}
@@ -234,7 +269,23 @@ public class SettingsView implements ToolProducer {
 		if (traceLookupThresholdField != null) {
 			traceLookupThresholdField.setText(String.valueOf(savedTraceLookupThreshold));
 		}
+		if (themeSelector != null) {
+			themeSelector.setValue(themeService.getTheme());
+		}
 		toggleButton.setSelected(false);
 		settingsStage.close();
+	}
+
+	static class ThemeTitleConverter extends StringConverter<Theme> {
+
+		@Override
+		public String toString(Theme theme) {
+			return theme == null ? null : theme.title();
+		}
+
+		@Override
+		public Theme fromString(String title) {
+			return Theme.findByTitle(title);
+		}
 	}
 }

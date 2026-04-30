@@ -8,6 +8,7 @@ import com.ugcs.geohammer.analytics.FileOpenEventsAnalytics;
 
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -40,6 +41,8 @@ public class MainGeoHammer extends Application {
 
 	private EventsFactory eventsFactory;
 
+	private ThemeService themeService;
+
 	public static void main(String[] args) {
 		launch(args);
 	}
@@ -64,6 +67,8 @@ public class MainGeoHammer extends Application {
 		context.getBean(FileOpenEventsAnalytics.class);
 
 		eventsFactory = context.getBean(EventsFactory.class);
+
+		themeService = context.getBean(ThemeService.class);
     }
 
 	@Override
@@ -78,10 +83,9 @@ public class MainGeoHammer extends Application {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         
 		Scene scene = new Scene(sceneContent, screenSize.getWidth()-80, 700);
-		//scene.set
 		stage.setScene(scene);
-		//stage.setMaximized(true);
-		
+		themeService.registerScene(scene);
+
 		stage.setX(0);
 		stage.setY(0);
 		stage.show();

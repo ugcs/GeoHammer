@@ -4,6 +4,8 @@ import com.ugcs.geohammer.view.status.Status;
 import com.ugcs.geohammer.model.Model;
 
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.view.style.Theme;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.springframework.beans.BeansException;
@@ -37,5 +39,9 @@ public final class AppContext implements ApplicationContextAware {
 		Check.notNull(type);
 
 		return context.getBean(type);
+	}
+
+	public static Theme getTheme() {
+		return getInstance(ThemeService.class).getTheme();
 	}
 }

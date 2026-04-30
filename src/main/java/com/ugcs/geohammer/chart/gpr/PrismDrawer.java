@@ -11,6 +11,8 @@ import com.ugcs.geohammer.Settings;
 
 public class PrismDrawer {
 
+	static final int OPACITY_MASK = 0xff << 24;
+
 	private Model model;
 	private Tanh tanh = new Tanh();
 	
@@ -114,7 +116,7 @@ public class PrismDrawer {
                 int baseIndex = baseOffsetX + traceStartX + sampStart * bytesInRow;
                 for (int yt = 0; yt < vscale; yt++) {
                     int rowStart = baseIndex + yt * bytesInRow;
-                    Arrays.fill(buffer, rowStart, rowStart + hscale, color);
+                    Arrays.fill(buffer, rowStart, rowStart + hscale, color | OPACITY_MASK);
                 }
 			}
 		}

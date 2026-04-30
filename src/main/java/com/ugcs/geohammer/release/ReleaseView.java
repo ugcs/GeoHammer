@@ -2,7 +2,6 @@ package com.ugcs.geohammer.release;
 
 import com.ugcs.geohammer.service.github.Release;
 import com.ugcs.geohammer.util.Nulls;
-import com.ugcs.geohammer.view.Styles;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -37,7 +36,6 @@ public class ReleaseView extends Popup {
 
         scrollPane = new ScrollPane(content);
         scrollPane.getStyleClass().add("release-scroll");
-        Styles.addResource(scrollPane, Styles.STATUS_STYLE_PATH);
 
         // parent workaround container (to catch scroll pane focus)
         VBox container = new VBox(scrollPane);

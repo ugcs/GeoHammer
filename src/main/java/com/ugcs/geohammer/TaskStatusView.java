@@ -6,7 +6,6 @@ import com.ugcs.geohammer.model.event.TaskRegisteredEvent;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.view.Styles;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
@@ -52,8 +51,6 @@ public class TaskStatusView extends HBox implements InitializingBean {
     }
     
     private void initView() {
-        Styles.addResource(this, Styles.STATUS_STYLE_PATH);
-
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(6);
 
@@ -61,7 +58,7 @@ public class TaskStatusView extends HBox implements InitializingBean {
         title.setMinWidth(Region.USE_PREF_SIZE);
         title.setMaxWidth(Region.USE_PREF_SIZE);
 
-        cancel.getStyleClass().add("clickable");
+        cancel.getStyleClass().addAll("status-action", "neutral");
         cancel.setOnMouseClicked(this::onCancelClick);
 
         Region spacer = new Region();

@@ -18,6 +18,7 @@ import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.Views;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -29,12 +30,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.layout.Background;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.jspecify.annotations.Nullable;
@@ -94,7 +93,6 @@ public class InspectorView {
 
         valueContainer = new VBox();
         ScrollPane scrollPane = new ScrollPane(valueContainer);
-        scrollPane.setStyle("-fx-background-color: transparent;");
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -105,6 +103,7 @@ public class InspectorView {
 
         Scene scene = new Scene(root, 340, 550);
         window.setScene(scene);
+        AppContext.getInstance(ThemeService.class).registerScene(scene);
 
         window.setOnCloseRequest(event -> {
             // just hide, don't destroy
@@ -120,21 +119,18 @@ public class InspectorView {
 
     private HBox createHeader() {
         title = new Label(NO_MEASUREMENT);
-        title.setStyle("-fx-font-size: 12px; -fx-text-fill: #444444;");
+        title.getStyleClass().add("smaller");
 
-        Color iconColor = Color.valueOf("#666666");
-        double iconButtonHeight = 20;
+        double iconButtonHeight = 22;
 
         previousButton = Views.createSvgButton(
                 ResourceImageHolder.LEFT,
-                iconColor,
                 iconButtonHeight,
                 "Previous measurement");
         previousButton.setOnAction(e -> selectPreviousTrace());
 
         nextButton = Views.createSvgButton(
                 ResourceImageHolder.RIGHT,
-                iconColor,
                 iconButtonHeight,
                 "Next measurement");
         nextButton.setOnAction(e -> selectNextTrace());
@@ -151,7 +147,7 @@ public class InspectorView {
     }
 
     private HBox createFooter() {
-        Button copyAllButton = Views.createFlatButton("Copy All", 18);
+        Button copyAllButton = new Button("Copy All");
         copyAllButton.setTooltip(new Tooltip("Copy all values to clipboard"));
         copyAllButton.setOnAction(e -> copyAllToClipboard());
 
@@ -175,18 +171,18 @@ public class InspectorView {
 
         Button copyButton = Views.createSvgButton(
                 ResourceImageHolder.COPY,
-                Color.valueOf("#999999"),
                 22,
                 "Copy value to clipboard");
 
         copyButton.setOnAction(e -> copyToClipboard(value));
 
         HBox row = new HBox(2, nameField, valueField, copyButton);
-        row.setStyle("-fx-font-size: 12px; -fx-text-fill: #444444;");
+        row.getStyleClass().add("smaller");
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(2, 4, 2, 4));
-        row.setBackground(Background.fill(Color.valueOf(
-                (rowIndex % 2 == 0) ?  "#f3f3f3" : "#fafafa")));
+        if (rowIndex % 2 == 0) {
+            row.getStyleClass().add("surface-alternate");
+        }
 
         return row;
     }

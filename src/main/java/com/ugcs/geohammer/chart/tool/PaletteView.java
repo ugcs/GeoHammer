@@ -10,7 +10,8 @@ import com.ugcs.geohammer.service.palette.Palette;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Formats;
 import com.ugcs.geohammer.util.Ticks;
-import com.ugcs.geohammer.view.Views;
+import com.ugcs.geohammer.view.Colors;
+import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
 import javafx.geometry.VPos;
@@ -49,15 +50,14 @@ public class PaletteView {
 	private static final double TICK_LENGTH = 3;
 
     // style
-	private static final Color BACKGROUND_COLOR = Color.web("#494949");
-	private static final Color CDF_COLOR = Color.web("#ccc");
     private static final double CDF_WIDTH = 1.25;
 
-	private static final Color AXIS_COLOR = Color.web("#aaa");
     private static final Font AXIS_FONT = Font.font("Arial", 10);
     private static final int NUM_Y_AXIS_TICKS = 4;
 
     private static final int NUM_HISTOGRAM_BARS = 128;
+
+    private final ThemeService themeService;
 
 	private final GridLayer gridLayer;
 
@@ -73,8 +73,9 @@ public class PaletteView {
 
     private volatile Histogram histogram;
 
-	public PaletteView(GridLayer gridLayer) {
-		this.gridLayer = gridLayer;
+	public PaletteView(ThemeService themeService, GridLayer gridLayer) {
+        this.themeService = themeService;
+        this.gridLayer = gridLayer;
 	}
 
 	private Stage createWindow() {
@@ -96,6 +97,7 @@ public class PaletteView {
 
 		Scene scene = new Scene(root, 500, 250);
 		window.setScene(scene);
+        AppContext.getInstance(ThemeService.class).registerScene(scene);
 
 		window.setOnCloseRequest(event -> {
 			event.consume();
@@ -163,6 +165,20 @@ public class PaletteView {
         }
     }
 
+    private Color getAxisColor() {
+        return themeService.getTheme().strokeColor();
+    }
+
+    private Color getCdfColor() {
+        Color strokeColor = themeService.getTheme().strokeColor();
+        return new Color(
+                strokeColor.getRed(),
+                strokeColor.getGreen(),
+                strokeColor.getBlue(),
+                0.62
+        );
+    }
+
 	private void draw() {
 		if (canvas == null) {
 			return;
@@ -220,12 +236,11 @@ public class PaletteView {
 	}
 
     private void clear(GraphicsContext g2, Rectangle2D rect) {
-        g2.setFill(BACKGROUND_COLOR);
-        g2.fillRect(rect.getMinX(), rect.getMinY(), rect.getWidth(), rect.getHeight());
+        g2.clearRect(rect.getMinX(), rect.getMinY(), rect.getWidth(), rect.getHeight());
     }
 
     private void drawNoData(GraphicsContext g2, Rectangle2D rect) {
-        g2.setFill(AXIS_COLOR);
+        g2.setFill(getAxisColor());
         g2.setFont(AXIS_FONT);
         g2.setTextAlign(TextAlignment.CENTER);
         g2.setTextBaseline(VPos.CENTER);
@@ -251,14 +266,14 @@ public class PaletteView {
             double barValue = range.getMin() + (i + 0.5) * dv;
             java.awt.Color barColor = palette.getColor(barValue);
 
-            g2.setFill(Views.fxColor(barColor));
+            g2.setFill(Colors.fxColor(barColor));
             // fill with a small overlap
 			g2.fillRect(rect.getMinX() + i * dx - 0.2, rect.getMaxY() - barHeight, dx + 0.4, barHeight);
 		}
 	}
 
 	private void drawGridLines(GraphicsContext g2, Rectangle2D rect) {
-		g2.setStroke(AXIS_COLOR);
+		g2.setStroke(getAxisColor());
 		g2.setLineWidth(0.5);
 		g2.setLineDashes(1, 4);
 
@@ -277,7 +292,7 @@ public class PaletteView {
             return;
         }
 
-		g2.setStroke(CDF_COLOR);
+		g2.setStroke(getCdfColor());
 		g2.setLineWidth(CDF_WIDTH);
 
         double dx = rect.getWidth() / n;
@@ -314,17 +329,17 @@ public class PaletteView {
             double value = range.getMin() + (i + 0.5) * dv;
             java.awt.Color color = palette.getColor(value);
 
-            g2.setFill(Views.fxColor(color));
+            g2.setFill(Colors.fxColor(color));
             // fill with a small overlap
 			g2.fillRect(rect.getMinX() + i * dx, rect.getMinY(), dx + 0.4, rect.getHeight());
 		}
 	}
 
 	private void drawXAxis(GraphicsContext g2, Rectangle2D rect, Range range) {
-		g2.setStroke(AXIS_COLOR);
+		g2.setStroke(getAxisColor());
 		g2.setLineWidth(0.5);
 
-		g2.setFill(AXIS_COLOR);
+		g2.setFill(getAxisColor());
 		g2.setFont(AXIS_FONT);
 		g2.setTextBaseline(VPos.TOP);
 
@@ -376,7 +391,7 @@ public class PaletteView {
     }
 
 	private void drawYAxis(GraphicsContext g2, Rectangle2D rect) {
-		g2.setFill(AXIS_COLOR);
+		g2.setFill(getAxisColor());
 		g2.setFont(AXIS_FONT);
 		g2.setTextAlign(TextAlignment.LEFT);
 		g2.setTextBaseline(VPos.CENTER);

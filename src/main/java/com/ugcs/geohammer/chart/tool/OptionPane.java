@@ -15,8 +15,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class OptionPane extends VBox {
 
-	private static final double WIDTH = 350;
-
     private final StackPane seriesControl;
 
     private final VBox toolContainer;
@@ -35,13 +33,10 @@ public class OptionPane extends VBox {
             GprElevationTool gprElevationTool
     ) {
         setPadding(Insets.EMPTY);
-        setMinWidth(0);
-        setMaxWidth(WIDTH);
-        setPrefWidth(WIDTH);
 
         seriesControl = new StackPane(seriesSelectorView);
+        seriesControl.getStyleClass().add("surface-accent");
         seriesControl.setPadding(new Insets(10, 16, 10, 16));
-        seriesControl.setStyle("-fx-background-color: #666666;");
         seriesControl.setVisible(false);
         seriesControl.setManaged(false);
 

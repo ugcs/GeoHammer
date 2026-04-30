@@ -146,7 +146,7 @@ public class SettingsView implements ToolProducer {
 		try {
 			pythonPath = pythonService.getPythonPath().toString();
 		} catch (Exception e) {
-			Dialogs.showError("Error", "Could not determine Python executable path: " + e.getMessage(), e);
+			Dialogs.showError("Could not determine Python executable path", e);
 		}
 
 		pythonPathField.setText(pythonPath);

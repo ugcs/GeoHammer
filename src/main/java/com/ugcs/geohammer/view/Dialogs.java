@@ -1,7 +1,10 @@
 package com.ugcs.geohammer.view;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.feedback.Attachment;
 import com.ugcs.geohammer.feedback.FeedbackView;
+import com.ugcs.geohammer.feedback.FileAttachment;
+import com.ugcs.geohammer.format.FileOpenException;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
@@ -22,6 +25,7 @@ import javafx.stage.Stage;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 
 public class Dialogs {
 
@@ -78,7 +82,16 @@ public class Dialogs {
 		showError(header, message, null);
 	}
 
+	public static void showError(String header, Throwable t) {
+		String message = t != null ? t.getMessage() : null;
+		showError(header, message, t);
+	}
+
 	public static void showError(String header, String message, Throwable t) {
+		// extra attachments
+		List<Attachment> attachments = t instanceof FileOpenException fileOpenException
+				? List.of(new FileAttachment(fileOpenException.getFile().toPath()))
+				: List.of();
 		Platform.runLater(() -> {
 			FeedbackView feedback = new FeedbackView(header, getFeedbackMessage(message, t));
 			feedback.setPrefSize(380, 300);
@@ -101,7 +114,7 @@ public class Dialogs {
 					event.consume();
 					return;
 				}
-				feedback.submit();
+				feedback.submit(attachments);
 			});
 
 			alert.show();

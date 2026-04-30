@@ -2,6 +2,7 @@ package com.ugcs.geohammer.feedback;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -12,6 +13,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class FeedbackView extends VBox {
 
@@ -104,16 +108,32 @@ public class FeedbackView extends VBox {
     }
 
     public void submit() {
+        submit(List.of());
+    }
+
+    public void submit(List<Attachment> attachments) {
         PrefSettings preferences = AppContext.getInstance(PrefSettings.class);
         savePreferences(preferences);
 
+        FeedbackService feedbackService = AppContext.getInstance(FeedbackService.class);
         Feedback feedback = new Feedback(
                 name.getText(),
                 email.getText(),
                 subject.getText(),
                 message.getText());
 
-        FeedbackService feedbackService = AppContext.getInstance(FeedbackService.class);
-        feedbackService.submitFeedback(feedback, attachScreenshot.isSelected(), attachFiles.isSelected());
+        // collect attachments
+        List<Attachment> allAttachments = new ArrayList<>();
+        if (attachScreenshot.isSelected()) {
+            allAttachments.addAll(feedbackService.createScreenshotAttachments());
+        }
+        if (attachFiles.isSelected()) {
+            // include extra attachments only when attach files is checked
+            if (!Nulls.isNullOrEmpty(attachments)) {
+                allAttachments.addAll(attachments);
+            }
+            allAttachments.addAll(feedbackService.createOpenFileAttachments());
+        }
+        feedbackService.submitFeedback(feedback, allAttachments);
     }
 }

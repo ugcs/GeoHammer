@@ -391,7 +391,7 @@ public class Saver implements ToolProducer, InitializingBean {
 						+ Strings.nullToEmpty(actionName));
 			} catch (Exception e) {
 				log.error("Error", e);
-				Dialogs.showError(e.getMessage(), "", e);
+				Dialogs.showError("Can't save file", e);
 			}
 		};
 		new TaskRunner(status, task).start();

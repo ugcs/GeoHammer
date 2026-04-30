@@ -210,8 +210,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			scriptsMetadata = filterScriptsByTemplate(file, loadedScriptsMetadata);
 		} catch (Exception e) {
 			scriptsMetadata = List.of();
-			Dialogs.showError("Scripts Directory Error",
-					"Failed to load scripts metadata: " + e.getMessage(), e);
+			Dialogs.showError("Failed to load scripts metadata", e);
 		}
 
 		restoreScriptSelection();

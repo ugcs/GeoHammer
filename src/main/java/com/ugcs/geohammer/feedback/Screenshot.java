@@ -16,22 +16,12 @@ public class Screenshot {
 
     private final byte[] bytes;
 
-    private final String fileName;
-
-    public Screenshot(byte[] bytes, String fileName) {
-        Check.notNull(bytes);
-        Check.notEmpty(fileName);
-
-        this.bytes = bytes;
-        this.fileName = fileName;
+    public Screenshot(byte[] bytes) {
+        this.bytes = Check.notNull(bytes);
     }
 
     public byte[] getBytes() {
         return bytes;
-    }
-
-    public String getFileName() {
-        return fileName;
     }
 
     public static Screenshot take(Scene scene, String fileName, String format) {
@@ -40,7 +30,7 @@ public class Screenshot {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             WritableImage image = scene.snapshot(null);
             ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, out);
-            return new Screenshot(out.toByteArray(), fileName);
+            return new Screenshot(out.toByteArray());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

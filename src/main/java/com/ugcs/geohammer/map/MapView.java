@@ -65,7 +65,7 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private static final String NO_GPS_TEXT = "There are no coordinates in files";
 
-	private static final Color BACKGROUND_COLOR = new Color(96, 96, 96);
+	private static final Color BACKGROUND_COLOR = new Color(78, 78, 78);
 
 	@Autowired
 	private TraceCutter traceCutter;

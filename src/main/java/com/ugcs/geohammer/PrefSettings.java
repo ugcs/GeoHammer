@@ -2,6 +2,7 @@ package com.ugcs.geohammer;
 
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.Strings;
 import jakarta.annotation.PreDestroy;
 import org.jspecify.annotations.Nullable;
@@ -27,8 +28,10 @@ public class PrefSettings {
 
     private final Properties properties;
 
-    public PrefSettings(FileTemplates templates) {
-        path = templates.getTemplatesPath().resolve("templates-settings.properties");
+    public PrefSettings() {
+        path = Resources.resolvePath(Path.of(
+                FileTemplates.TEMPLATES_FOLDER,
+                "templates-settings.properties"));
         properties = loadProperties(path);
     }
 

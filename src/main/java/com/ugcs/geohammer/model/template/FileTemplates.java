@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
@@ -18,6 +17,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.ugcs.geohammer.util.Resources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -42,7 +42,7 @@ public class FileTemplates implements InitializingBean {
 
     private static final Logger log = LoggerFactory.getLogger(FileTemplates.class);
 
-    private static final String TEMPLATES_FOLDER = "templates";
+    public static final String TEMPLATES_FOLDER = "templates";
 
     private final List<Template> templates = new ArrayList<>();
 
@@ -87,16 +87,8 @@ public class FileTemplates implements InitializingBean {
         c.getPropertyUtils().setSkipMissingProperties(true);
         yaml = new Yaml(c);
 
-        Path templatesPath = Path.of(TEMPLATES_FOLDER);
-        if (!Files.exists(templatesPath)) {
-            Path currentDir = Paths.get(FileTemplates.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
-            System.out.println("Current Directory: " + currentDir);
-
-            templatesPath = currentDir.resolve(TEMPLATES_FOLDER);
-            System.out.println("Data file path: " + templatesPath);
-        }
-
-        this.templatesPath = loadTemplates(yaml, templatesPath, templates);
+        this.templatesPath = Resources.resolvePath(TEMPLATES_FOLDER);
+        loadTemplates(yaml, templates);
 
         // Show status message with the number of loaded templates
         if (!templates.isEmpty()) {
@@ -104,14 +96,13 @@ public class FileTemplates implements InitializingBean {
         }
     }
 
-    private Path loadTemplates(Yaml yaml, Path templatesPath, List<Template> templates) {
+    private void loadTemplates(Yaml yaml, List<Template> templates) {
         try {
             // Get all resources ending with .yaml from path
             Resource[] resources = new PathMatchingResourcePatternResolver()
                     .getResources("file:" + templatesPath.toString() + "/*.yaml");
 
             for (Resource resource : resources) {
-                templatesPath = templatesPath == null ? resource.getFile().getParentFile().toPath() : templatesPath;
                 try (InputStream inputStream = resource.getInputStream()) {
                     try {
                         Template template = yaml.load(inputStream);
@@ -131,11 +122,9 @@ public class FileTemplates implements InitializingBean {
             if (templates.isEmpty()) {
                 log.error("No templates found in " + templatesPath);
             }
-            return templatesPath;
         } catch (IOException e) {
             log.error("Error reading template: " + e.getMessage());
         }
-        return null;
     }
 
     @Async
@@ -185,7 +174,7 @@ public class FileTemplates implements InitializingBean {
                         }
                     }
                     templates.clear();
-                    loadTemplates(yaml, templatesPath, templates);
+                    loadTemplates(yaml, templates);
 
                     // Show status message with the number of reloaded templates
                     if (!templates.isEmpty()) {

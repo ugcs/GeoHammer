@@ -14,7 +14,7 @@
     -color-warning: #ffa726;
     -color-error: #ef5350;
     -color-text-dim: derive(-color-text, 55%);
-    -color-icon: #6c6f70;
+    -color-icon: #626465;
     -color-accent: #03a9f4;
     -color-accent-neutral: #b2b6bb;
     -color-accent-text: #ffffff;
@@ -354,7 +354,7 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
 }
 
 .tool-bar-overflow-button .arrow {
-    -fx-shape: "M1 2 L5 6 L1 10";
+    -fx-shape: "M1.6 0 L0 1.6 L4.4 6 L0 10.4 L1.6 12 L7.6 6 Z";
     -fx-background-color: -color-icon;
     -fx-background-insets: 0;
     -fx-scale-x: 0.62;
@@ -373,6 +373,15 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
     -fx-padding: 5;
 }
 
+.tool-bar .menu-button .label {
+    -fx-text-fill: -color-icon;
+    -fx-padding: 0 5;
+}
+
+.tool-bar .menu-item .label {
+    -fx-text-fill: -color-text;
+}
+
 .tool-bar .button:hover,
 .tool-bar .toggle-button:hover,
 .tool-bar .menu-button:hover  {
@@ -381,6 +390,11 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
 
 .tool-bar .toggle-button:selected {
     -fx-background-color: -color-surface-accent;
+}
+
+.menu-button .arrow {
+    -fx-shape: "M0 1.6 L1.6 0 L6 4.4 L10.4 0 L12 1.6 L6 7.6 Z";
+    -fx-background-color: -color-icon;
 }
 
 .context-menu {

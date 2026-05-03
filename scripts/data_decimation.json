@@ -1,0 +1,29 @@
+{
+  "filename": "data_decimation.py",
+  "display_name": "Data Decimation",
+  "parameters": [
+    {
+      "name": "column",
+      "display_name": "Column name",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI",
+      "required": true
+    },
+    {
+      "name": "factor",
+      "display_name": "Decimation factor (measurements)",
+      "type": "INTEGER",
+      "default_value": 10,
+      "required": true
+    },
+    {
+      "name": "algorithm",
+      "display_name": "Algorithm",
+      "type": "ENUM",
+      "enum_values": ["MEDIAN", "MEAN", "INTERPOLATED"],
+      "default_value": "MEDIAN",
+      "required": true
+    }
+  ],
+  "templates": ["MagNIMBUS", "sgy", "MagDrone R1"]
+}

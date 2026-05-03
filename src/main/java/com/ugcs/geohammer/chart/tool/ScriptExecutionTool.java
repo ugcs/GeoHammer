@@ -38,6 +38,7 @@ import com.ugcs.geohammer.service.script.ScriptRunListener;
 import com.ugcs.geohammer.service.script.ScriptRunner;
 import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.FileNames;
+import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.view.Dialogs;
@@ -285,6 +286,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			case BOOLEAN -> createCheckBox(param, initialValue, labelText);
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
 			case FOLDER_PATH -> createFolderPathSelector(param, initialValue);
+			case ENUM -> createEnumSelector(param, initialValue);
 		};
 	}
 
@@ -326,6 +328,19 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			updateComboBoxIfChanged(columnSelector, getAvailableColumnsForFile(csvFile), initialValue);
 		}
 		return columnSelector;
+	}
+
+	private static ComboBox<String> createEnumSelector(ScriptParameter param, String initialValue) {
+		ComboBox<String> selector = new ComboBox<>();
+		selector.setMaxWidth(Double.MAX_VALUE);
+		selector.setUserData(param);
+		List<String> values = Nulls.toEmpty(param.enumValues());
+		selector.getItems().addAll(values);
+		String selected = (!initialValue.isEmpty() && values.contains(initialValue))
+				? initialValue
+				: (!values.isEmpty() ? values.getFirst() : null);
+		selector.setValue(selected);
+		return selector;
 	}
 
 	private HBox createFolderPathSelector(ScriptParameter param, String initialValue) {

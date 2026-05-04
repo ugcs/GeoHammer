@@ -3,7 +3,6 @@ package com.ugcs.geohammer.map.layer;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import com.ugcs.geohammer.model.SelectedTrace;
@@ -28,7 +27,6 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.RepaintListener;
 import com.ugcs.geohammer.model.Model;
 
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
@@ -118,12 +116,8 @@ public class TraceCutter implements Layer, InitializingBean {
 		this.listener = listener;
 	}
 
-	public List<Node> getToolNodes() {
-		return Arrays.asList();
-	}
-
-	public List<Node> getToolNodes2() {
-
+	@Override
+	public ToolNodes getToolNodes() {
 		initButtons();
 
 		buttonCutMode.setOnAction(e -> updateCutMode());
@@ -146,7 +140,7 @@ public class TraceCutter implements Layer, InitializingBean {
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
 
-		return Arrays.asList(buttonCutMode, buttonCrop, buttonSplit, buttonUndo);
+		return ToolNodes.fileDependent(buttonCutMode, buttonCrop, buttonSplit, buttonUndo);
 	}
 
 	@Override

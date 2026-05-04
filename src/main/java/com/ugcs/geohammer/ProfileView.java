@@ -167,13 +167,13 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void prepareToolbar() {
-		toolBar.getItems().addAll(saver.getToolNodes());
+		toolBar.getItems().addAll(saver.getToolNodes().nodes());
 		toolBar.getItems().add(getFixedWidthSpacer());
 
 		toolBar.getItems().addAll(model.getAuxEditHandler().getRightPanelTools());
 		toolBar.getItems().add(getFixedWidthSpacer());
 
-		toolBar.getItems().addAll(navigator.getToolNodes());
+		toolBar.getItems().addAll(navigator.getToolNodes().nodes());
 		toolBar.getItems().add(getFixedWidthSpacer());
 
 		toolBar.getItems().add(zoomInBtn);

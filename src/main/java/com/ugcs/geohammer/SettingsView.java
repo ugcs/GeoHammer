@@ -1,7 +1,6 @@
 package com.ugcs.geohammer;
 
 import java.io.File;
-import java.util.List;
 
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.ToolProducer;
@@ -88,8 +87,8 @@ public class SettingsView implements ToolProducer {
 	}
 
 	@Override
-	public List<Node> getToolNodes() {
-		return List.of(toggleButton);
+	public ToolNodes getToolNodes() {
+		return ToolNodes.of(toggleButton);
 	}
 
 	private void showSettingsWindow() {

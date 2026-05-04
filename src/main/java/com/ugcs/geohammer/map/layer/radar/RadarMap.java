@@ -290,10 +290,8 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	}
 	
 	@Override
-	public List<Node> getToolNodes() {
-		return List.of(
-			showMapButtonAmp
-		);
+	public ToolNodes getToolNodes() {
+		return ToolNodes.fileDependent(showMapButtonAmp);
 	}
 
 	private ArrayBuilder getArrayBuilder() {

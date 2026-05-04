@@ -44,7 +44,10 @@ import com.ugcs.geohammer.map.layer.FoundTracesLayer;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.ToolProducer;
+import com.ugcs.geohammer.model.ToolProducer.ToolNodes;
 
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -107,9 +110,13 @@ public class MapView implements InitializingBean, DisposableBean {
     private List<Layer> layers = new ArrayList<>();
 
 	private ImageView imageView = new ImageView();
+
 	private BufferedImage img;
 
-	private ToolBar toolBar = new ToolBar();
+	private final ToolBar toolBar = new ToolBar();
+
+	private final List<Node> fileToolNodes = new ArrayList<>();
+
 	private Dimension windowSize = new Dimension();
 
 	private final BorderPane root = new BorderPane();
@@ -239,13 +246,13 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
-		toolBar.setDisable(!model.isActive() || !isGpsPresent());
+		updateFileToolsState();
 		updateUI();
 	}
 
 	@EventListener
 	private void fileClosed(FileClosedEvent event) {
-		toolBar.setDisable(!model.isActive() || !isGpsPresent());
+		updateFileToolsState();
 		updateUI();
 	}
 
@@ -323,18 +330,37 @@ public class MapView implements InitializingBean, DisposableBean {
 	}
 
 	private void configureToolBar() {
-		toolBar.setDisable(true);
-
-		toolBar.getItems().addAll(settingsView.getToolNodes());
+		appendTools(settingsView);
 
 		toolBar.getItems().add(createFixedWidthSpacer());
 
-		toolBar.getItems().addAll(traceCutter.getToolNodes2());
-		toolBar.getItems().addAll(mapRuler.buildToolNodes());
+		appendTools(traceCutter);
+
+		appendTools(mapRuler);
 
 		toolBar.getItems().add(createFlexibleSpacer());
 
-		toolBar.getItems().addAll(getToolNodes());
+		appendTools(satelliteMap);
+
+		appendTools(radarMap);
+
+		appendTools(gpsTrackMap);
+	}
+
+	private void appendTools(ToolProducer producer) {
+		ToolNodes tools = producer.getToolNodes();
+		if (tools.fileDependent()) {
+			for (Node node : tools.nodes()) {
+				node.setDisable(true);
+				fileToolNodes.add(node);
+			}
+		}
+		toolBar.getItems().addAll(tools.nodes());
+	}
+
+	private void updateFileToolsState() {
+		boolean disabled = !model.isActive() || !isGpsPresent();
+		Platform.runLater(() -> fileToolNodes.forEach(n -> n.setDisable(disabled)));
 	}
 
 	private Pane createMainPane() {
@@ -368,19 +394,6 @@ public class MapView implements InitializingBean, DisposableBean {
 		} else {
 			root.setBottom(null);
 		}
-	}
-
-	public List<Node> getToolNodes() {
-		List<Node> lst = new ArrayList<>();
-
-		for (Layer layer : layers) {
-			List<Node> l = layer.getToolNodes();
-			if (!l.isEmpty()) {				
-				lst.addAll(l);
-			}
-		}
-		
-		return lst;
 	}
 
     private void repaint() {

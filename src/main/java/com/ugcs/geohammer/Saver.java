@@ -30,7 +30,6 @@ import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.event.ActionEvent;
 import javafx.geometry.Side;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
@@ -104,8 +103,8 @@ public class Saver implements ToolProducer, InitializingBean {
     }
 
 	@Override
-	public List<Node> getToolNodes() {		
-		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll, buttonCloseAll);
+	public ToolNodes getToolNodes() {
+		return ToolNodes.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll, buttonCloseAll);
 	}
 
 	private void onOpen(ActionEvent event) {

@@ -5,8 +5,6 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.map.provider.GoogleTileProvider;
@@ -33,7 +31,6 @@ import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.status.Status;
 import com.ugcs.geohammer.model.Model;
 
-import javafx.scene.Node;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.HBox;
 
@@ -243,9 +240,9 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	}
 
 	@Override
-	public List<Node> getToolNodes() {
-		HBox cnt = new HBox(/*showLayerCheckbox,*/ optionsMenuBtn);
-		return Arrays.asList(cnt);
+	public ToolNodes getToolNodes() {
+		HBox cnt = new HBox(optionsMenuBtn);
+		return ToolNodes.of(cnt);
 	}
 
 }

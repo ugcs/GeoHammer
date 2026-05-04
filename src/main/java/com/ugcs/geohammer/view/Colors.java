@@ -25,6 +25,10 @@ public final class Colors {
         return new java.awt.Color(rgba, true);
     }
 
+    public static Color opaque(Color color, float opacity) {
+        return color.deriveColor(0, 1, 1, opacity);
+    }
+
     public static Color fxColor(java.awt.Color color) {
         return Color.rgb(
                 color.getRed(),

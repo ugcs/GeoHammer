@@ -117,7 +117,7 @@ public class ProjectionView extends CanvasWindow {
         if (root != null) {
             Node toolBar = createToolBar(root);
             StackPane.setAlignment(toolBar, Pos.TOP_RIGHT);
-            StackPane.setMargin(toolBar, new Insets(16));
+            StackPane.setMargin(toolBar, new Insets(16, 16, 40, 16));
             root.getChildren().add(toolBar);
 
             initMouseHandlers(root);

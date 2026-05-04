@@ -56,7 +56,7 @@ class ProjectionRenderer {
 
     private static final double AXIS_X_MARGIN = 40;
 
-    private static final double AXIS_Y_MARGIN = 34;
+    private static final double AXIS_Y_MARGIN = 40;
 
     private static final double AXIS_TICK_LENGTH = 4;
 
@@ -224,13 +224,11 @@ class ProjectionRenderer {
     }
 
     private void drawXAxis(Rectangle2D plot) {
-        Point2D axisOrigin = projectionModel.getRenderOptions().getAxisOrigin();
+        Point2D axisOrigin = projectionModel.getAxis().getOrigin();
 
         Viewport viewport = projectionModel.getViewport();
-        Point2D worldMin = viewport.toWorld(new Point2D(plot.getMinX(), plot.getMaxY()));
-        Point2D worldMax = viewport.toWorld(new Point2D(plot.getMaxX(), plot.getMinY()));
-        double minX = worldMin.getX() - axisOrigin.getX();
-        double maxX = worldMax.getX() - axisOrigin.getX();
+        Point2D min = viewport.toWorld(new Point2D(plot.getMinX(), plot.getMaxY())).subtract(axisOrigin);
+        Point2D max = viewport.toWorld(new Point2D(plot.getMaxX(), plot.getMinY())).subtract(axisOrigin);
 
         g2.strokeLine(plot.getMinX(), plot.getMaxY(), plot.getMaxX(), plot.getMaxY());
         g2.strokeLine(plot.getMaxX(), plot.getMaxY() - AXIS_TICK_LENGTH, plot.getMaxX(), plot.getMaxY() + AXIS_TICK_LENGTH);
@@ -239,13 +237,13 @@ class ProjectionRenderer {
         g2.setTextAlign(TextAlignment.CENTER);
 
         int numXTicks = Math.max((int)(plot.getWidth() / AXIS_TICK_SPACING), 1);
-        double xTick = Ticks.getPrettyTick(minX, maxX, numXTicks);
+        double xTick = Ticks.getPrettyTick(min.getX(), max.getX(), numXTicks);
         if (xTick > 0) {
-            double x = Math.ceil(minX / xTick) * xTick;
-            while (x <= maxX) {
+            double x = Math.ceil(min.getX() / xTick) * xTick;
+            while (x <= max.getX()) {
                 double viewportX = viewport.fromWorld(new Point2D(x + axisOrigin.getX(), 0)).getX();
                 g2.strokeLine(viewportX, plot.getMaxY(), viewportX, plot.getMaxY() + AXIS_TICK_LENGTH);
-                String label = Formats.prettyForRange(x, minX, maxX);
+                String label = Formats.prettyForRange(x, min.getX(), max.getX());
                 g2.fillText(label, viewportX, plot.getMaxY() + AXIS_TICK_LENGTH + AXIS_LABEL_GAP);
                 x += xTick;
             }
@@ -253,13 +251,11 @@ class ProjectionRenderer {
     }
 
     private void drawYAxis(Rectangle2D plot) {
-        Point2D axisOrigin = projectionModel.getRenderOptions().getAxisOrigin();
+        Point2D axisOrigin = projectionModel.getAxis().getOrigin();
 
         Viewport viewport = projectionModel.getViewport();
-        Point2D worldMin = viewport.toWorld(new Point2D(plot.getMinX(), plot.getMaxY()));
-        Point2D worldMax = viewport.toWorld(new Point2D(plot.getMaxX(), plot.getMinY()));
-        double minY = worldMin.getY() - axisOrigin.getY();
-        double maxY = worldMax.getY() - axisOrigin.getY();
+        Point2D min = viewport.toWorld(new Point2D(plot.getMinX(), plot.getMaxY())).subtract(axisOrigin);
+        Point2D max = viewport.toWorld(new Point2D(plot.getMaxX(), plot.getMinY())).subtract(axisOrigin);
 
         g2.strokeLine(plot.getMinX(), plot.getMinY(), plot.getMinX(), plot.getMaxY());
         g2.strokeLine(plot.getMinX() - AXIS_TICK_LENGTH, plot.getMinY(), plot.getMinX() + AXIS_TICK_LENGTH, plot.getMinY());
@@ -268,13 +264,13 @@ class ProjectionRenderer {
         g2.setTextAlign(TextAlignment.RIGHT);
 
         int numYTicks = Math.max((int)(plot.getHeight() / AXIS_TICK_SPACING), 1);
-        double yTick = Ticks.getPrettyTick(minY, maxY, numYTicks);
+        double yTick = Ticks.getPrettyTick(min.getY(), max.getY(), numYTicks);
         if (yTick > 0) {
-            double y = Math.ceil(minY / yTick) * yTick;
-            while (y <= maxY) {
+            double y = Math.ceil(min.getY() / yTick) * yTick;
+            while (y <= max.getY()) {
                 double viewportY = viewport.fromWorld(new Point2D(0, y + axisOrigin.getY())).getY();
                 g2.strokeLine(plot.getMinX() - AXIS_TICK_LENGTH, viewportY, plot.getMinX(), viewportY);
-                String label = Formats.prettyForRange(y, minY, maxY);
+                String label = Formats.prettyForRange(y, min.getY(), max.getY());
                 g2.fillText(label, plot.getMinX() - AXIS_TICK_LENGTH - AXIS_LABEL_GAP, viewportY);
                 y += yTick;
             }

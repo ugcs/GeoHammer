@@ -4,6 +4,7 @@ import com.ugcs.geohammer.chart.tool.projection.control.FoldableGroup;
 import com.ugcs.geohammer.chart.tool.projection.control.InputWithLabel;
 import com.ugcs.geohammer.chart.tool.projection.control.SelectorWithLabel;
 import com.ugcs.geohammer.chart.tool.projection.control.SliderWithLabel;
+import com.ugcs.geohammer.chart.tool.projection.model.Axis;
 import com.ugcs.geohammer.chart.tool.projection.model.GridOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionOptions;
@@ -18,6 +19,7 @@ import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.palette.SpectrumType;
+import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.Bindings;
 import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Listeners;
@@ -88,6 +90,10 @@ public class ProjectionView extends CanvasWindow {
         Listeners.onChange(viewport.originProperty(), v -> draw());
         Listeners.onChange(viewport.scaleProperty(), v -> draw());
 
+        // draw on axis updates
+        Axis axis = projectionModel.getAxis();
+        Listeners.onChange(axis.originProperty(), v -> draw());
+
         // zoom on selection
         TraceSelection selection = projectionModel.getSelection();
         Listeners.onChange(selection.fileProperty(), v -> projectionController.requestZoomToProfile());
@@ -101,7 +107,6 @@ public class ProjectionView extends CanvasWindow {
         Listeners.onChange(renderOptions.maxGainProperty(), v -> draw());
         Listeners.onChange(renderOptions.contrastProperty(), v -> draw());
         Listeners.onChange(renderOptions.spectrumTypeProperty(), v -> draw());
-        Listeners.onChange(renderOptions.axisOriginProperty(), v -> draw());
 
         // drow on result updates
         ProjectionResult projectionResult = projectionModel.getResult();
@@ -121,10 +126,11 @@ public class ProjectionView extends CanvasWindow {
         }
 
         if (root != null) {
-            Node toolBar = createToolBar(root);
-            StackPane.setAlignment(toolBar, Pos.TOP_RIGHT);
-            StackPane.setMargin(toolBar, new Insets(16, 16, 40, 16));
-            root.getChildren().add(toolBar);
+            Node toolPane = createToolPane(root);
+            StackPane.setAlignment(toolPane, Pos.TOP_RIGHT);
+            StackPane.setMargin(toolPane, new Insets(16, 16, 48, 16));
+
+            root.getChildren().addAll(toolPane);
 
             initMouseHandlers(root);
             initContextMenu(root);
@@ -132,17 +138,17 @@ public class ProjectionView extends CanvasWindow {
         }
     }
 
-    private Node createToolBar(Node parent) {
-        VBox toolBar = new VBox(8,
+    private Node createToolPane(Node parent) {
+        VBox toolPane = new VBox(8,
                 createSelectGroup(),
                 createGridGroup(),
                 createRenderGroup(),
                 createProjectionGroup(),
                 createAdvancedGroup()
         );
-        toolBar.setAlignment(Pos.TOP_LEFT);
+        toolPane.setAlignment(Pos.TOP_LEFT);
 
-        ScrollPane scrollContainer = Views.createVerticalScrollContainer(toolBar, parent);
+        ScrollPane scrollContainer = Views.createVerticalScrollContainer(toolPane, parent);
         scrollContainer.getStyleClass().add("surface-translucent");
         scrollContainer.setPrefWidth(240);
         scrollContainer.setMaxWidth(240);
@@ -343,14 +349,19 @@ public class ProjectionView extends CanvasWindow {
                 contextMenu.hide();
             }
             Viewport viewport = projectionModel.getViewport();
-            RenderOptions renderOptions = projectionModel.getRenderOptions();
+            Axis axis = projectionModel.getAxis();
             Point2D world = viewport.toWorld(new Point2D(event.getX(), event.getY()));
+            Point2D display = world.subtract(axis.getOrigin());
 
-            MenuItem setAxisOrigin = new MenuItem("Set axis origin here");
-            setAxisOrigin.setOnAction(e -> renderOptions.axisOriginProperty().set(world));
+            MenuItem setAxisOrigin = new MenuItem("Set axis origin to (x: "
+                    + Text.formatNumber(display.getX(), 2)
+                    + ", y:"
+                    + Text.formatNumber(display.getY(), 2)
+                    + ")");
+            setAxisOrigin.setOnAction(e -> axis.originProperty().set(world));
 
             MenuItem resetAxisOrigin = new MenuItem("Reset axis origin");
-            resetAxisOrigin.setOnAction(e -> renderOptions.axisOriginProperty().set(Point2D.ZERO));
+            resetAxisOrigin.setOnAction(e -> axis.originProperty().set(Point2D.ZERO));
 
             contextMenu = new ContextMenu(
                     setAxisOrigin,

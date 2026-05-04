@@ -7,6 +7,8 @@ public class ProjectionModel {
 
     private final Viewport viewport;
 
+    private final Axis axis;
+
     private final TraceSelection selection;
 
     private final ProjectionOptions projectionOptions;
@@ -19,12 +21,14 @@ public class ProjectionModel {
 
     public ProjectionModel(
             Viewport viewport,
+            Axis axis,
             TraceSelection selection,
             ProjectionOptions projectionOptions,
             GridOptions gridOptions,
             RenderOptions renderOptions,
             ProjectionResult result) {
         this.viewport = viewport;
+        this.axis = axis;
         this.selection = selection;
         this.projectionOptions = projectionOptions;
         this.gridOptions = gridOptions;
@@ -34,6 +38,10 @@ public class ProjectionModel {
 
     public Viewport getViewport() {
         return viewport;
+    }
+
+    public Axis getAxis() {
+        return axis;
     }
 
     public TraceSelection getSelection() {

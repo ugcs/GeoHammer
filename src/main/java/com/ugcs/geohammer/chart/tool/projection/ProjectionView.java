@@ -29,8 +29,11 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -53,6 +56,8 @@ public class ProjectionView extends CanvasWindow {
     private final ProjectionController projectionController;
 
     private @Nullable ProjectionRenderer renderer;
+
+    private @Nullable ContextMenu contextMenu;
 
     // drag state
 
@@ -96,6 +101,7 @@ public class ProjectionView extends CanvasWindow {
         Listeners.onChange(renderOptions.maxGainProperty(), v -> draw());
         Listeners.onChange(renderOptions.contrastProperty(), v -> draw());
         Listeners.onChange(renderOptions.spectrumTypeProperty(), v -> draw());
+        Listeners.onChange(renderOptions.axisOriginProperty(), v -> draw());
 
         // drow on result updates
         ProjectionResult projectionResult = projectionModel.getResult();
@@ -121,6 +127,7 @@ public class ProjectionView extends CanvasWindow {
             root.getChildren().add(toolBar);
 
             initMouseHandlers(root);
+            initContextMenu(root);
             initListeners();
         }
     }
@@ -327,9 +334,37 @@ public class ProjectionView extends CanvasWindow {
         return group;
     }
 
+    private void initContextMenu(StackPane pane) {
+        pane.setOnMouseReleased(event -> {
+            if (event.getButton() != MouseButton.SECONDARY || !event.isStillSincePress()) {
+                return;
+            }
+            if (contextMenu != null) {
+                contextMenu.hide();
+            }
+            Viewport viewport = projectionModel.getViewport();
+            RenderOptions renderOptions = projectionModel.getRenderOptions();
+            Point2D world = viewport.toWorld(new Point2D(event.getX(), event.getY()));
+
+            MenuItem setAxisOrigin = new MenuItem("Set axis origin here");
+            setAxisOrigin.setOnAction(e -> renderOptions.axisOriginProperty().set(world));
+
+            MenuItem resetAxisOrigin = new MenuItem("Reset axis origin");
+            resetAxisOrigin.setOnAction(e -> renderOptions.axisOriginProperty().set(Point2D.ZERO));
+
+            contextMenu = new ContextMenu(
+                    setAxisOrigin,
+                    resetAxisOrigin);
+            contextMenu.show(pane, event.getScreenX(), event.getScreenY());
+        });
+    }
+
     private void initMouseHandlers(StackPane pane) {
         Viewport viewport = projectionModel.getViewport();
         pane.setOnMousePressed(event -> {
+            if (contextMenu != null) {
+                contextMenu.hide();
+            }
             dragAnchor = new Point2D(event.getX(), event.getY());
             originAnchor = viewport.getOrigin();
         });

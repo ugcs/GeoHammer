@@ -7,6 +7,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.geometry.Point2D;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -25,6 +26,8 @@ public class RenderOptions {
     private final DoubleProperty contrast = new SimpleDoubleProperty(0.5);
 
     private final ObjectProperty<SpectrumType> spectrumType = new SimpleObjectProperty<>(SpectrumType.GRAYSCALE);
+
+    private final ObjectProperty<Point2D> axisOrigin = new SimpleObjectProperty<>(Point2D.ZERO);
 
     public boolean isShowOrigins() {
         return showOrigins.get();
@@ -80,5 +83,13 @@ public class RenderOptions {
 
     public ObjectProperty<SpectrumType> spectrumTypeProperty() {
         return spectrumType;
+    }
+
+    public Point2D getAxisOrigin() {
+        return axisOrigin.get();
+    }
+
+    public ObjectProperty<Point2D> axisOriginProperty() {
+        return axisOrigin;
     }
 }

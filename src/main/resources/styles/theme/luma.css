@@ -506,6 +506,11 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
     -fx-text-fill: -color-selection-text;
 }
 
+.context-menu .menu-item:focused {
+    -fx-background-color: -color-selection;
+    -fx-text-fill: -color-selection-text;
+}
+
 /* components */
 
 .data-chart {

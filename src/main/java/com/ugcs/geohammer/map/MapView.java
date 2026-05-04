@@ -107,13 +107,9 @@ public class MapView implements InitializingBean, DisposableBean {
     private List<Layer> layers = new ArrayList<>();
 
 	private ImageView imageView = new ImageView();
-
 	private BufferedImage img;
 
-	private final ToolBar toolBar = new ToolBar();
-
-	private final HBox settingsContainer = new HBox();
-
+	private ToolBar toolBar = new ToolBar();
 	private Dimension windowSize = new Dimension();
 
 	private final BorderPane root = new BorderPane();
@@ -311,9 +307,6 @@ public class MapView implements InitializingBean, DisposableBean {
 	}
 
 	public Node getCenter() {
-		settingsContainer.getStyleClass().add("tool-bar");
-		settingsContainer.getChildren().addAll(settingsView.getToolNodes());
-
 		configureToolBar();
 
 		Pane mainPane = createMainPane();
@@ -323,7 +316,7 @@ public class MapView implements InitializingBean, DisposableBean {
 
 		initZoomControls(mainPane);
 
-		root.setTop(new HBox(settingsContainer, toolBar));
+		root.setTop(toolBar);
 		root.setCenter(mainPane);
 
 		return root;
@@ -331,6 +324,10 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private void configureToolBar() {
 		toolBar.setDisable(true);
+
+		toolBar.getItems().addAll(settingsView.getToolNodes());
+
+		toolBar.getItems().add(createFixedWidthSpacer());
 
 		toolBar.getItems().addAll(traceCutter.getToolNodes2());
 		toolBar.getItems().addAll(mapRuler.buildToolNodes());

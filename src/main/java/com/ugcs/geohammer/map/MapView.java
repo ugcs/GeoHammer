@@ -120,6 +120,7 @@ public class MapView implements InitializingBean, DisposableBean {
 	private Dimension windowSize = new Dimension();
 
 	private final BorderPane root = new BorderPane();
+
 	@Nullable private DistanceLabelPane distanceLabelPane;
 
 	private RepaintListener listener = this::updateUI;

@@ -4,6 +4,7 @@ import com.ugcs.geohammer.chart.tool.projection.control.FoldableGroup;
 import com.ugcs.geohammer.chart.tool.projection.control.InputWithLabel;
 import com.ugcs.geohammer.chart.tool.projection.control.SelectorWithLabel;
 import com.ugcs.geohammer.chart.tool.projection.control.SliderWithLabel;
+import com.ugcs.geohammer.chart.tool.projection.model.Axis;
 import com.ugcs.geohammer.chart.tool.projection.model.GridOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionOptions;
@@ -18,6 +19,7 @@ import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.palette.SpectrumType;
+import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.Bindings;
 import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Listeners;
@@ -29,8 +31,11 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -53,6 +58,8 @@ public class ProjectionView extends CanvasWindow {
     private final ProjectionController projectionController;
 
     private @Nullable ProjectionRenderer renderer;
+
+    private @Nullable ContextMenu contextMenu;
 
     // drag state
 
@@ -82,6 +89,10 @@ public class ProjectionView extends CanvasWindow {
         Viewport viewport = projectionModel.getViewport();
         Listeners.onChange(viewport.originProperty(), v -> draw());
         Listeners.onChange(viewport.scaleProperty(), v -> draw());
+
+        // draw on axis updates
+        Axis axis = projectionModel.getAxis();
+        Listeners.onChange(axis.originProperty(), v -> draw());
 
         // zoom on selection
         TraceSelection selection = projectionModel.getSelection();
@@ -115,27 +126,29 @@ public class ProjectionView extends CanvasWindow {
         }
 
         if (root != null) {
-            Node toolBar = createToolBar(root);
-            StackPane.setAlignment(toolBar, Pos.TOP_RIGHT);
-            StackPane.setMargin(toolBar, new Insets(16));
-            root.getChildren().add(toolBar);
+            Node toolPane = createToolPane(root);
+            StackPane.setAlignment(toolPane, Pos.TOP_RIGHT);
+            StackPane.setMargin(toolPane, new Insets(16, 16, 48, 16));
+
+            root.getChildren().addAll(toolPane);
 
             initMouseHandlers(root);
+            initContextMenu(root);
             initListeners();
         }
     }
 
-    private Node createToolBar(Node parent) {
-        VBox toolBar = new VBox(8,
+    private Node createToolPane(Node parent) {
+        VBox toolPane = new VBox(8,
                 createSelectGroup(),
                 createGridGroup(),
                 createRenderGroup(),
                 createProjectionGroup(),
                 createAdvancedGroup()
         );
-        toolBar.setAlignment(Pos.TOP_LEFT);
+        toolPane.setAlignment(Pos.TOP_LEFT);
 
-        ScrollPane scrollContainer = Views.createVerticalScrollContainer(toolBar, parent);
+        ScrollPane scrollContainer = Views.createVerticalScrollContainer(toolPane, parent);
         scrollContainer.getStyleClass().add("surface-translucent");
         scrollContainer.setPrefWidth(240);
         scrollContainer.setMaxWidth(240);
@@ -327,9 +340,42 @@ public class ProjectionView extends CanvasWindow {
         return group;
     }
 
+    private void initContextMenu(StackPane pane) {
+        pane.setOnMouseReleased(event -> {
+            if (event.getButton() != MouseButton.SECONDARY || !event.isStillSincePress()) {
+                return;
+            }
+            if (contextMenu != null) {
+                contextMenu.hide();
+            }
+            Viewport viewport = projectionModel.getViewport();
+            Axis axis = projectionModel.getAxis();
+            Point2D world = viewport.toWorld(new Point2D(event.getX(), event.getY()));
+            Point2D display = world.subtract(axis.getOrigin());
+
+            MenuItem setAxisOrigin = new MenuItem("Set axis origin to (x: "
+                    + Text.formatNumber(display.getX(), 2)
+                    + ", y:"
+                    + Text.formatNumber(display.getY(), 2)
+                    + ")");
+            setAxisOrigin.setOnAction(e -> axis.originProperty().set(world));
+
+            MenuItem resetAxisOrigin = new MenuItem("Reset axis origin");
+            resetAxisOrigin.setOnAction(e -> axis.originProperty().set(Point2D.ZERO));
+
+            contextMenu = new ContextMenu(
+                    setAxisOrigin,
+                    resetAxisOrigin);
+            contextMenu.show(pane, event.getScreenX(), event.getScreenY());
+        });
+    }
+
     private void initMouseHandlers(StackPane pane) {
         Viewport viewport = projectionModel.getViewport();
         pane.setOnMousePressed(event -> {
+            if (contextMenu != null) {
+                contextMenu.hide();
+            }
             dragAnchor = new Point2D(event.getX(), event.getY());
             originAnchor = viewport.getOrigin();
         });

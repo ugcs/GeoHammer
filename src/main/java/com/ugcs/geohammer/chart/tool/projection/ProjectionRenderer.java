@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
+import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.chart.tool.projection.math.ContrastCurve;
 import com.ugcs.geohammer.chart.tool.projection.math.DbGain;
 import com.ugcs.geohammer.chart.tool.projection.math.Polyline;
@@ -13,20 +14,29 @@ import com.ugcs.geohammer.chart.tool.projection.model.Viewport;
 import com.ugcs.geohammer.service.palette.Palettes;
 import com.ugcs.geohammer.service.palette.Spectrum;
 import com.ugcs.geohammer.service.palette.SpectrumType;
+import com.ugcs.geohammer.util.Formats;
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Ticks;
+import com.ugcs.geohammer.view.Colors;
+import com.ugcs.geohammer.view.style.Theme;
 import javafx.geometry.Point2D;
+import javafx.geometry.Rectangle2D;
+import javafx.geometry.VPos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.TextAlignment;
 
 import java.util.List;
 import java.util.function.Function;
 
 class ProjectionRenderer {
 
-    private static final Color NORMAL_COLOR = Color.POWDERBLUE;
+    private static final Color NORMAL_COLOR = Color.web("#8899AA");
 
     private static final double NORMAL_WIDTH = 0.5;
 
@@ -41,6 +51,18 @@ class ProjectionRenderer {
     private static final Color TERRAIN_COLOR = Color.web("#FB7185");
 
     private static final double TERRAIN_WIDTH = 1.8;
+
+    private static final Font AXIS_FONT = Font.font(10);
+
+    private static final double AXIS_X_MARGIN = 40;
+
+    private static final double AXIS_Y_MARGIN = 40;
+
+    private static final double AXIS_TICK_LENGTH = 4;
+
+    private static final double AXIS_LABEL_GAP = 4;
+
+    private static final double AXIS_TICK_SPACING = 50;
 
     private final ProjectionModel projectionModel;
 
@@ -76,6 +98,7 @@ class ProjectionRenderer {
             if (renderOptions.isShowOrigins()) {
                 drawOrigins(traceProfile);
             }
+            drawAxes();
         }
     }
 
@@ -155,6 +178,113 @@ class ProjectionRenderer {
                 drawLine(ray.origin(), ray.soilOrigin(), NORMAL_COLOR, NORMAL_WIDTH);
             }
         }
+    }
+
+    private Rectangle2D getPlotArea() {
+        double w = canvas.getWidth();
+        double h = canvas.getHeight();
+        if (w == 0 || h == 0) {
+            return Rectangle2D.EMPTY;
+        }
+
+        double marginX = Math.min(AXIS_X_MARGIN, w / 2);
+        double marginY = Math.min(AXIS_Y_MARGIN, h / 2);
+        return new Rectangle2D(
+                marginX,
+                marginY,
+                w - 2 * marginX,
+                h - 2 * marginY);
+    }
+
+    private void drawAxes() {
+        double w = canvas.getWidth();
+        double h = canvas.getHeight();
+        if (w == 0 || h == 0) {
+            return;
+        }
+
+        Theme theme = AppContext.getTheme();
+        Color strokeColor = theme.strokeColor();
+        Color outlineColor = Colors.opaque(strokeColor.invert(), 0.5f);
+
+        g2.save();
+        try {
+            g2.setEffect(createOutlineEffect(outlineColor, 4, 0.5));
+            g2.setStroke(strokeColor);
+            g2.setFill(strokeColor);
+            g2.setFont(AXIS_FONT);
+            g2.setLineWidth(0.5);
+
+            Rectangle2D plot = getPlotArea();
+            drawXAxis(plot);
+            drawYAxis(plot);
+        } finally {
+            g2.restore();
+        }
+    }
+
+    private void drawXAxis(Rectangle2D plot) {
+        Point2D axisOrigin = projectionModel.getAxis().getOrigin();
+
+        Viewport viewport = projectionModel.getViewport();
+        Point2D min = viewport.toWorld(new Point2D(plot.getMinX(), plot.getMaxY())).subtract(axisOrigin);
+        Point2D max = viewport.toWorld(new Point2D(plot.getMaxX(), plot.getMinY())).subtract(axisOrigin);
+
+        g2.strokeLine(plot.getMinX(), plot.getMaxY(), plot.getMaxX(), plot.getMaxY());
+        g2.strokeLine(plot.getMaxX(), plot.getMaxY() - AXIS_TICK_LENGTH, plot.getMaxX(), plot.getMaxY() + AXIS_TICK_LENGTH);
+
+        g2.setTextBaseline(VPos.TOP);
+        g2.setTextAlign(TextAlignment.CENTER);
+
+        int numXTicks = Math.max((int)(plot.getWidth() / AXIS_TICK_SPACING), 1);
+        double xTick = Ticks.getPrettyTick(min.getX(), max.getX(), numXTicks);
+        if (xTick > 0) {
+            double x = Math.ceil(min.getX() / xTick) * xTick;
+            while (x <= max.getX()) {
+                double viewportX = viewport.fromWorld(new Point2D(x + axisOrigin.getX(), 0)).getX();
+                g2.strokeLine(viewportX, plot.getMaxY(), viewportX, plot.getMaxY() + AXIS_TICK_LENGTH);
+                String label = Formats.prettyForRange(x, min.getX(), max.getX());
+                g2.fillText(label, viewportX, plot.getMaxY() + AXIS_TICK_LENGTH + AXIS_LABEL_GAP);
+                x += xTick;
+            }
+        }
+    }
+
+    private void drawYAxis(Rectangle2D plot) {
+        Point2D axisOrigin = projectionModel.getAxis().getOrigin();
+
+        Viewport viewport = projectionModel.getViewport();
+        Point2D min = viewport.toWorld(new Point2D(plot.getMinX(), plot.getMaxY())).subtract(axisOrigin);
+        Point2D max = viewport.toWorld(new Point2D(plot.getMaxX(), plot.getMinY())).subtract(axisOrigin);
+
+        g2.strokeLine(plot.getMinX(), plot.getMinY(), plot.getMinX(), plot.getMaxY());
+        g2.strokeLine(plot.getMinX() - AXIS_TICK_LENGTH, plot.getMinY(), plot.getMinX() + AXIS_TICK_LENGTH, plot.getMinY());
+
+        g2.setTextBaseline(VPos.CENTER);
+        g2.setTextAlign(TextAlignment.RIGHT);
+
+        int numYTicks = Math.max((int)(plot.getHeight() / AXIS_TICK_SPACING), 1);
+        double yTick = Ticks.getPrettyTick(min.getY(), max.getY(), numYTicks);
+        if (yTick > 0) {
+            double y = Math.ceil(min.getY() / yTick) * yTick;
+            while (y <= max.getY()) {
+                double viewportY = viewport.fromWorld(new Point2D(0, y + axisOrigin.getY())).getY();
+                g2.strokeLine(plot.getMinX() - AXIS_TICK_LENGTH, viewportY, plot.getMinX(), viewportY);
+                String label = Formats.prettyForRange(y, min.getY(), max.getY());
+                g2.fillText(label, plot.getMinX() - AXIS_TICK_LENGTH - AXIS_LABEL_GAP, viewportY);
+                y += yTick;
+            }
+        }
+    }
+
+    private DropShadow createOutlineEffect(Color color, double radius, double spread) {
+        DropShadow effect = new DropShadow();
+        effect.setRadius(radius);
+        effect.setOffsetX(0);
+        effect.setOffsetY(0);
+        effect.setSpread(spread);
+        effect.setColor(color);
+        return effect;
     }
 
     public void clear() {

@@ -5,12 +5,15 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 
 import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.map.provider.GoogleTileProvider;
 import com.ugcs.geohammer.map.provider.HereMapProvider;
 import com.ugcs.geohammer.map.provider.OsmTileProvider;
 import com.ugcs.geohammer.map.provider.XyzMapProvider;
+import com.ugcs.geohammer.model.ActivationPolicy;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.BuildInfo;
@@ -240,9 +243,11 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	}
 
 	@Override
-	public ToolNodes getToolNodes() {
+	public List<ToolNode> getToolNodes() {
 		HBox cnt = new HBox(optionsMenuBtn);
-		return ToolNodes.of(cnt);
+		return List.of(
+				new ToolNode(cnt, ActivationPolicy.always())
+		);
 	}
 
 }

@@ -6,8 +6,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.Model;
@@ -100,10 +102,12 @@ public class MapRuler implements Layer {
 	}
 
 	@Override
-	public ToolNodes getToolNodes() {
+	public List<ToolNode> getToolNodes() {
 		toggleButton.setSelected(false);
 		toggleButton.setOnAction(e -> handleToggle());
-		return ToolNodes.of(toggleButton);
+		return List.of(
+				new ToolNode(toggleButton, ActivationPolicy.always())
+		);
 	}
 
 	@Override

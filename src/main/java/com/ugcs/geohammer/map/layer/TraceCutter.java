@@ -5,16 +5,15 @@ import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.SelectedTrace;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
-import com.ugcs.geohammer.model.event.FileSelectedEvent;
-import com.ugcs.geohammer.model.event.UndoStackChanged;
 import com.ugcs.geohammer.model.event.WhatChanged;
-import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -86,26 +85,16 @@ public class TraceCutter implements Layer, InitializingBean {
 
 	public void initButtons() {
 		buttonCutMode.setSelected(false);
-		buttonCrop.setDisable(true);
-		buttonSplit.setDisable(true);
-		buttonUndo.setDisable(!undoModel.canUndo());
 	}
 
 	private void updateCutMode() {
 		if (buttonCutMode.isSelected()) {
 			init();
-			buttonCrop.setDisable(false);
 		} else {
 			clear();
-			buttonCrop.setDisable(true);
 		}
+		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 		getListener().repaint();
-	}
-
-	private void updateSplit() {
-		SelectedTrace selectedTrace = model.getSelectedTraceInCurrentChart();
-		TraceKey mark = selectedTrace != null ? selectedTrace.trace() : null;
-		buttonSplit.setDisable(mark == null);
 	}
 
 	public RepaintListener getListener() {
@@ -117,7 +106,7 @@ public class TraceCutter implements Layer, InitializingBean {
 	}
 
 	@Override
-	public ToolNodes getToolNodes() {
+	public List<ToolNode> getToolNodes() {
 		initButtons();
 
 		buttonCutMode.setOnAction(e -> updateCutMode());
@@ -140,7 +129,12 @@ public class TraceCutter implements Layer, InitializingBean {
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceCut));
 		});
 
-		return ToolNodes.fileDependent(buttonCutMode, buttonCrop, buttonSplit, buttonUndo);
+		return List.of(
+				new ToolNode(buttonCutMode, ActivationPolicy.fileSelected()),
+				new ToolNode(buttonCrop, (m, file) -> file != null && buttonCutMode.isSelected()),
+				new ToolNode(buttonSplit, ActivationPolicy.traceSelected()),
+				new ToolNode(buttonUndo, (m, file) -> undoModel.canUndo())
+		);
 	}
 
 	@Override
@@ -272,20 +266,4 @@ public class TraceCutter implements Layer, InitializingBean {
 		initButtons();
 	}
 
-	@EventListener
-	private void fileSelected(FileSelectedEvent event) {
-		Platform.runLater(this::updateSplit);
-	}
-
-	@EventListener
-	private void somethingChanged(WhatChanged changed) {
-		if (changed.isJustdraw() || changed.isTraceSelected()) {
-			Platform.runLater(this::updateSplit);
-		}
-	}
-
-	@EventListener
-	private void undoStackChanged(UndoStackChanged event) {
-		Platform.runLater(() -> buttonUndo.setDisable(!undoModel.canUndo()));
-	}
 }

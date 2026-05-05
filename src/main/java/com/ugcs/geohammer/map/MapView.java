@@ -9,9 +9,13 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.layer.MapRuler;
 import com.ugcs.geohammer.map.layer.TraceCutter;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.UndoStackChanged;
 import com.ugcs.geohammer.SettingsView;
 import com.ugcs.geohammer.map.layer.BaseLayer;
 import com.ugcs.geohammer.map.layer.GpsTrack;
@@ -45,7 +49,6 @@ import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.ToolProducer;
-import com.ugcs.geohammer.model.ToolProducer.ToolNodes;
 
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -115,7 +118,7 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private final ToolBar toolBar = new ToolBar();
 
-	private final List<Node> fileToolNodes = new ArrayList<>();
+	private final List<ToolNode> toolNodes = new ArrayList<>();
 
 	private Dimension windowSize = new Dimension();
 
@@ -236,25 +239,34 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (!isGpsPresent()) {
-			return;
-		}
-
 		if (changed.isJustdraw() || changed.isTraceSelected()) {
-			updateUI();
+			activateTools();
+			if (isGpsPresent()) {
+				updateUI();
+			}
 		}
 	}
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
-		updateFileToolsState();
+		activateTools();
 		updateUI();
 	}
 
 	@EventListener
 	private void fileClosed(FileClosedEvent event) {
-		updateFileToolsState();
+		activateTools();
 		updateUI();
+	}
+
+	@EventListener
+	private void fileSelected(FileSelectedEvent event) {
+		activateTools();
+	}
+
+	@EventListener
+	private void undoStackChanged(UndoStackChanged event) {
+		activateTools();
 	}
 
 	@Autowired
@@ -349,19 +361,21 @@ public class MapView implements InitializingBean, DisposableBean {
 	}
 
 	private void appendTools(ToolProducer producer) {
-		ToolNodes tools = producer.getToolNodes();
-		if (tools.fileDependent()) {
-			for (Node node : tools.nodes()) {
-				node.setDisable(true);
-				fileToolNodes.add(node);
-			}
+		List<ToolNode> nodes = producer.getToolNodes();
+		for (ToolNode toolNode : nodes) {
+			toolNode.activate(model, model.getCurrentFile());
+			toolNodes.add(toolNode);
+			toolBar.getItems().add(toolNode.getNode());
 		}
-		toolBar.getItems().addAll(tools.nodes());
 	}
 
-	private void updateFileToolsState() {
-		boolean disabled = !model.isActive() || !isGpsPresent();
-		Platform.runLater(() -> fileToolNodes.forEach(n -> n.setDisable(disabled)));
+	private void activateTools() {
+		SgyFile currentFile = model.getCurrentFile();
+		Platform.runLater(() -> {
+			for (ToolNode toolNode : toolNodes) {
+				toolNode.activate(model, currentFile);
+			}
+		});
 	}
 
 	private Pane createMainPane() {

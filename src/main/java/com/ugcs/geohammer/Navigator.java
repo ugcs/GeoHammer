@@ -1,6 +1,10 @@
 package com.ugcs.geohammer;
 
+import java.util.List;
+
 import com.ugcs.geohammer.chart.Chart;
+import com.ugcs.geohammer.model.ActivationPolicy;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -24,13 +28,10 @@ public class Navigator implements ToolProducer {
 	}
 
 	@Override
-	public ToolNodes getToolNodes() {
+	public List<ToolNode> getToolNodes() {
 		Button backBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ARROW_LEFT, new Button());
-		//new Button("", ResourceImageHolder.getImageView("arrow_left_20.png"));
 		Button fitBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.FIT, new Button());
-		//new Button("", ResourceImageHolder.getImageView("fit_20.png"));		
 		Button nextBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ARROW_RIGHT, new Button());
-		//new Button("", ResourceImageHolder.getImageView("arrow_right_20.png"));
 
 		backBtn.setTooltip(new Tooltip("Fit previous line to window"));
 		fitBtn.setTooltip(new Tooltip("Fit current line to window"));
@@ -40,7 +41,10 @@ public class Navigator implements ToolProducer {
 		backBtn.setOnAction(e -> fitBack());
 		nextBtn.setOnAction(e -> fitNext());
 
-		return ToolNodes.of(backBtn, fitBtn, nextBtn);
+		return List.of(
+				new ToolNode(backBtn, ActivationPolicy.fileSelected()),
+				new ToolNode(fitBtn, ActivationPolicy.fileSelected()),
+				new ToolNode(nextBtn, ActivationPolicy.fileSelected()));
 	}
 
 	public void fitNext() {

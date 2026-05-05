@@ -11,7 +11,9 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.ugcs.geohammer.map.RenderQueue;
+import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.MapField;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.chart.Chart;
@@ -185,7 +187,9 @@ public class GpsTrack extends BaseLayer {
 	}
 
 	@Override
-	public ToolNodes getToolNodes() {
-		return ToolNodes.fileDependent(showLayerCheckbox);
+	public List<ToolNode> getToolNodes() {
+		return List.of(
+				new ToolNode(showLayerCheckbox, ActivationPolicy.fileSelected())
+		);
 	}
 }

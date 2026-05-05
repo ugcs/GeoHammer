@@ -8,6 +8,8 @@ import java.util.List;
 import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.map.layer.BaseLayer;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.model.ActivationPolicy;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import javafx.geometry.Point2D;
@@ -290,8 +292,9 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	}
 	
 	@Override
-	public ToolNodes getToolNodes() {
-		return ToolNodes.fileDependent(showMapButtonAmp);
+	public List<ToolNode> getToolNodes() {
+		return List.of(
+				new ToolNode(showMapButtonAmp, ActivationPolicy.fileSelected()));
 	}
 
 	private ArrayBuilder getArrayBuilder() {

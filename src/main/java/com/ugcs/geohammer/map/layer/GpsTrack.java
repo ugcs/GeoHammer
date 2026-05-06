@@ -6,13 +6,14 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import com.ugcs.geohammer.map.RenderQueue;
+import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.MapField;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.chart.Chart;
@@ -31,7 +32,6 @@ import com.ugcs.geohammer.model.Model;
 
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.scene.Node;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 
@@ -187,7 +187,9 @@ public class GpsTrack extends BaseLayer {
 	}
 
 	@Override
-	public List<Node> getToolNodes() {
-		return Arrays.asList(showLayerCheckbox);
+	public List<ToolNode> getToolNodes() {
+		return List.of(
+				new ToolNode(showLayerCheckbox, ActivationPolicy.fileSelected())
+		);
 	}
 }

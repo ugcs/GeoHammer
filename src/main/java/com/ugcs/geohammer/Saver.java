@@ -13,9 +13,11 @@ import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
+import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.ProgressTask;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
@@ -30,7 +32,6 @@ import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.event.ActionEvent;
 import javafx.geometry.Side;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
@@ -104,8 +105,14 @@ public class Saver implements ToolProducer, InitializingBean {
     }
 
 	@Override
-	public List<Node> getToolNodes() {		
-		return List.of(buttonOpen, buttonSave, buttonSaveTo, buttonSaveAll, buttonCloseAll);
+	public List<ToolNode> getToolNodes() {
+		return List.of(
+				new ToolNode(buttonOpen, ActivationPolicy.always()),
+				new ToolNode(buttonSave, ActivationPolicy.fileSelected()),
+				new ToolNode(buttonSaveTo, ActivationPolicy.fileSelected()),
+				new ToolNode(buttonSaveAll, ActivationPolicy.fileSelected()),
+				new ToolNode(buttonCloseAll, ActivationPolicy.fileSelected())
+		);
 	}
 
 	private void onOpen(ActionEvent event) {

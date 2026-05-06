@@ -3,7 +3,9 @@ package com.ugcs.geohammer;
 import java.io.File;
 import java.util.List;
 
+import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.service.script.PythonService;
 import com.ugcs.geohammer.view.Dialogs;
@@ -88,8 +90,9 @@ public class SettingsView implements ToolProducer {
 	}
 
 	@Override
-	public List<Node> getToolNodes() {
-		return List.of(toggleButton);
+	public List<ToolNode> getToolNodes() {
+		return List.of(
+				new ToolNode(toggleButton, ActivationPolicy.always()));
 	}
 
 	private void showSettingsWindow() {

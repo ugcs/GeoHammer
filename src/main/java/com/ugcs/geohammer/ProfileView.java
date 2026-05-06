@@ -1,5 +1,6 @@
 package com.ugcs.geohammer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -11,7 +12,9 @@ import com.ugcs.geohammer.format.MultiChannelFile;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.geotagger.view.GeotaggerView;
+import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
@@ -51,6 +54,8 @@ public class ProfileView implements InitializingBean {
 	private final GeotaggerView geotaggerView;
 
 	private final ToolBar toolBar = new ToolBar();
+
+	private final List<ToolNode> toolNodes = new ArrayList<>();
 
 	private final Button zoomInBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ZOOM_IN, new Button());
 	private final Button zoomOutBtn = ResourceImageHolder.setButtonImage(ResourceImageHolder.ZOOM_OUT, new Button());
@@ -167,41 +172,50 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void prepareToolbar() {
-		toolBar.getItems().addAll(saver.getToolNodes());
+		for (ToolNode toolNode : saver.getToolNodes()) {
+			toolNodes.add(toolNode);
+			toolBar.getItems().add(toolNode.getNode());
+		}
 		toolBar.getItems().add(getFixedWidthSpacer());
 
-		toolBar.getItems().addAll(model.getAuxEditHandler().getRightPanelTools());
+		for (Node node : model.getAuxEditHandler().getRightPanelTools()) {
+			toolNodes.add(new ToolNode(node, ActivationPolicy.fileSelected()));
+			toolBar.getItems().add(node);
+		}
 		toolBar.getItems().add(getFixedWidthSpacer());
 
-		toolBar.getItems().addAll(navigator.getToolNodes());
+		for (ToolNode toolNode : navigator.getToolNodes()) {
+			toolNodes.add(toolNode);
+			toolBar.getItems().add(toolNode.getNode());
+		}
 		toolBar.getItems().add(getFixedWidthSpacer());
 
+		toolNodes.add(new ToolNode(zoomInBtn, ActivationPolicy.fileSelected()));
+		toolNodes.add(new ToolNode(zoomOutBtn, ActivationPolicy.fileSelected()));
+		toolNodes.add(new ToolNode(fitBtn, ActivationPolicy.fileSelected()));
 		toolBar.getItems().add(zoomInBtn);
 		toolBar.getItems().add(zoomOutBtn);
 		toolBar.getItems().add(fitBtn);
 		toolBar.getItems().add(getFixedWidthSpacer());
 
+		toolNodes.add(new ToolNode(cropSamples, (m, file) -> file != null && m.getChart(file) instanceof GPRChart));
 		toolBar.getItems().add(cropSamples);
 		toolBar.getItems().add(channelComboBox);
 		toolBar.getItems().add(getFlexibleSpacer());
 
+		toolNodes.add(new ToolNode(geotaggerBtn, ActivationPolicy.always()));
 		toolBar.getItems().add(geotaggerBtn);
 
-		enableToolbar();
+		activateTools();
 	}
 
-	private void enableToolbar() {
-		toolBar.getItems().forEach(toolBarItem -> toolBarItem.setDisable(!model.isActive()));
-
-		// open file
-		toolBar.getItems().getFirst().setDisable(false);
-
-		//geotagger
-		toolBar.getItems().getLast().setDisable(false);
-
-		// crop samples
-		Chart chart = model.getChart(currentFile);
-		cropSamples.setDisable(!(chart instanceof GPRChart));
+	private void activateTools() {
+		SgyFile file = model.getCurrentFile();
+		Platform.runLater(() -> {
+			for (ToolNode toolNode : toolNodes) {
+				toolNode.activate(model, file);
+			}
+		});
 	}
 
 	private VBox center;
@@ -267,6 +281,7 @@ public class ProfileView implements InitializingBean {
 		model.removeChart(closedFile);
 		model.updateAuxElements();
 
+		activateTools();
 		Platform.runLater(() -> updateChannelComboBox(currentFile));
 
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
@@ -275,7 +290,7 @@ public class ProfileView implements InitializingBean {
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
-		enableToolbar();
+		activateTools();
 	}
 
 	private void setProfileScroll(ProfileScroll profileScroll) {
@@ -326,10 +341,8 @@ public class ProfileView implements InitializingBean {
 			}
 		}
 
-		Platform.runLater(() -> {
-			enableToolbar();
-			updateChannelComboBox(event.getFile());
-		});
+		activateTools();
+		Platform.runLater(() -> updateChannelComboBox(event.getFile()));
 	}
 
 	private void resetChannelComboBox() {

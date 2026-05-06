@@ -2,11 +2,9 @@ package com.ugcs.geohammer.model;
 
 import java.util.List;
 
-import javafx.scene.Node;
-
 public interface ToolProducer {
 
-    default List<Node> getToolNodes() {
+    default List<ToolNode> getToolNodes() {
 		return List.of();
-	};
+	}
 }

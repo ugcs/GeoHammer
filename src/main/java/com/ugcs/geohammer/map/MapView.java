@@ -9,9 +9,13 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.layer.MapRuler;
 import com.ugcs.geohammer.map.layer.TraceCutter;
+import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
+import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.UndoStackChanged;
 import com.ugcs.geohammer.SettingsView;
 import com.ugcs.geohammer.map.layer.BaseLayer;
 import com.ugcs.geohammer.map.layer.GpsTrack;
@@ -44,7 +48,9 @@ import com.ugcs.geohammer.map.layer.FoundTracesLayer;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.ToolProducer;
 
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -112,11 +118,12 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private final ToolBar toolBar = new ToolBar();
 
-	private final HBox settingsContainer = new HBox();
+	private final List<ToolNode> toolNodes = new ArrayList<>();
 
 	private Dimension windowSize = new Dimension();
 
 	private final BorderPane root = new BorderPane();
+
 	@Nullable private DistanceLabelPane distanceLabelPane;
 
 	private RepaintListener listener = this::updateUI;
@@ -232,25 +239,34 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
-		if (!isGpsPresent()) {
-			return;
-		}
-
 		if (changed.isJustdraw() || changed.isTraceSelected()) {
-			updateUI();
+			activateTools();
+			if (isGpsPresent()) {
+				updateUI();
+			}
 		}
 	}
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
-		toolBar.setDisable(!model.isActive() || !isGpsPresent());
+		activateTools();
 		updateUI();
 	}
 
 	@EventListener
 	private void fileClosed(FileClosedEvent event) {
-		toolBar.setDisable(!model.isActive() || !isGpsPresent());
+		activateTools();
 		updateUI();
+	}
+
+	@EventListener
+	private void fileSelected(FileSelectedEvent event) {
+		activateTools();
+	}
+
+	@EventListener
+	private void undoStackChanged(UndoStackChanged event) {
+		activateTools();
 	}
 
 	@Autowired
@@ -311,9 +327,6 @@ public class MapView implements InitializingBean, DisposableBean {
 	}
 
 	public Node getCenter() {
-		settingsContainer.getStyleClass().add("tool-bar");
-		settingsContainer.getChildren().addAll(settingsView.getToolNodes());
-
 		configureToolBar();
 
 		Pane mainPane = createMainPane();
@@ -323,21 +336,46 @@ public class MapView implements InitializingBean, DisposableBean {
 
 		initZoomControls(mainPane);
 
-		root.setTop(new HBox(settingsContainer, toolBar));
+		root.setTop(toolBar);
 		root.setCenter(mainPane);
 
 		return root;
 	}
 
 	private void configureToolBar() {
-		toolBar.setDisable(true);
+		appendTools(settingsView);
 
-		toolBar.getItems().addAll(traceCutter.getToolNodes2());
-		toolBar.getItems().addAll(mapRuler.buildToolNodes());
+		toolBar.getItems().add(createFixedWidthSpacer());
+
+		appendTools(traceCutter);
+
+		appendTools(mapRuler);
 
 		toolBar.getItems().add(createFlexibleSpacer());
 
-		toolBar.getItems().addAll(getToolNodes());
+		appendTools(satelliteMap);
+
+		appendTools(radarMap);
+
+		appendTools(gpsTrackMap);
+	}
+
+	private void appendTools(ToolProducer producer) {
+		List<ToolNode> nodes = producer.getToolNodes();
+		for (ToolNode toolNode : nodes) {
+			toolNode.activate(model, model.getCurrentFile());
+			toolNodes.add(toolNode);
+			toolBar.getItems().add(toolNode.getNode());
+		}
+	}
+
+	private void activateTools() {
+		SgyFile currentFile = model.getCurrentFile();
+		Platform.runLater(() -> {
+			for (ToolNode toolNode : toolNodes) {
+				toolNode.activate(model, currentFile);
+			}
+		});
 	}
 
 	private Pane createMainPane() {
@@ -371,19 +409,6 @@ public class MapView implements InitializingBean, DisposableBean {
 		} else {
 			root.setBottom(null);
 		}
-	}
-
-	public List<Node> getToolNodes() {
-		List<Node> lst = new ArrayList<>();
-
-		for (Layer layer : layers) {
-			List<Node> l = layer.getToolNodes();
-			if (!l.isEmpty()) {				
-				lst.addAll(l);
-			}
-		}
-		
-		return lst;
 	}
 
     private void repaint() {

@@ -1,0 +1,24 @@
+{
+  "filename": "data_decimation.py",
+  "display_name": "Data Decimation",
+  "parameters": [
+    {
+      "name": "factor",
+      "display_name": "Decimation factor",
+      "type": "INTEGER",
+      "default_value": 10,
+      "min": 2,
+      "max": 500,
+      "required": true
+    },
+    {
+      "name": "algorithm",
+      "display_name": "Algorithm",
+      "type": "ENUM",
+      "enum_values": ["MEDIAN", "MEAN", "INTERPOLATED"],
+      "default_value": "MEDIAN",
+      "required": true
+    }
+  ],
+  "templates": ["csv"]
+}

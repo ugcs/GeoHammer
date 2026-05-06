@@ -3,6 +3,7 @@ package com.ugcs.geohammer.chart.tool;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -158,13 +159,20 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		parametersBox.getChildren().clear();
 
 		if (scriptMetadata != null) {
-			for (ScriptParameter param : scriptMetadata.parameters()) {
-				String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
-						param.defaultValue());
-				parametersBox.getChildren().add(createParameterInput(param, initialValue));
+			try {
+				for (ScriptParameter param : scriptMetadata.parameters()) {
+					param.validate();
+					String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
+							param.defaultValue());
+					parametersBox.getChildren().add(createParameterInput(param, initialValue));
+				}
+				showApply(true);
+				showApplyToAll(true);
+			} catch (IllegalArgumentException e) {
+				Dialogs.showError("Invalid script metadata", e.getMessage());
+				showApply(false);
+				showApplyToAll(false);
 			}
-			showApply(true);
-			showApplyToAll(true);
 		} else {
 			showApply(false);
 			showApplyToAll(false);
@@ -226,11 +234,15 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		String fileTemplate = Templates.getTemplateName(file);
 		if (fileTemplate == null) {
 			return scriptsMetadata;
-		} else {
-			return scriptsMetadata.stream()
-					.filter(metadata -> metadata.templates().contains(fileTemplate))
-					.toList();
 		}
+		List<ScriptMetadata> result = new ArrayList<>();
+		for (ScriptMetadata metadata : scriptsMetadata) {
+			List<String> templates = metadata.templates();
+			if (templates.contains(fileTemplate) || (file instanceof CsvFile && templates.contains("csv"))) {
+				result.add(metadata);
+			}
+		}
+		return result;
 	}
 
 	private void restoreScriptSelection() {
@@ -267,13 +279,28 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private VBox createParameterInput(ScriptParameter param, String initialValue) {
 		VBox paramBox = new VBox(5);
-		String labelText = param.displayName() + (param.required() ? " *" : "");
+		String labelText = param.displayName() + rangeHint(param) + (param.required() ? " *" : "");
 		Node inputNode = getInputNode(param, initialValue, labelText);
 		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
 			paramBox.getChildren().add(new Label(labelText));
 		}
 		paramBox.getChildren().add(inputNode);
 		return paramBox;
+	}
+
+	private static String rangeHint(ScriptParameter param) {
+		Double min = param.min();
+		Double max = param.max();
+		if (min == null && max == null) {
+			return "";
+		}
+		String minStr = min != null ? formatBound(min) : "…";
+		String maxStr = max != null ? formatBound(max) : "…";
+		return " (" + minStr + "–" + maxStr + ")";
+	}
+
+	private static String formatBound(double value) {
+		return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value);
 	}
 
 	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
@@ -284,6 +311,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			case BOOLEAN -> createCheckBox(param, initialValue, labelText);
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
 			case FOLDER_PATH -> createFolderPathSelector(param, initialValue);
+			case ENUM -> createEnumSelector(param, initialValue);
 		};
 	}
 
@@ -325,6 +353,19 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			updateComboBoxIfChanged(columnSelector, getAvailableColumnsForFile(csvFile), initialValue);
 		}
 		return columnSelector;
+	}
+
+	private static ComboBox<String> createEnumSelector(ScriptParameter param, String initialValue) {
+		ComboBox<String> selector = new ComboBox<>();
+		selector.setMaxWidth(Double.MAX_VALUE);
+		selector.setUserData(param);
+		List<String> values = param.enumValues() != null ? param.enumValues() : List.of();
+		selector.getItems().addAll(values);
+		String selected = (!initialValue.isEmpty() && values.contains(initialValue))
+				? initialValue
+				: (!values.isEmpty() ? values.getFirst() : null);
+		selector.setValue(selected);
+		return selector;
 	}
 
 	private HBox createFolderPathSelector(ScriptParameter param, String initialValue) {
@@ -552,14 +593,18 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private void refreshColumnSelectors(CsvFile csvFile) {
 		Set<String> availableColumns = getAvailableColumnsForFile(csvFile);
-		//noinspection unchecked
-		parametersBox.getChildren().stream()
-				.filter(VBox.class::isInstance)
-				.map(VBox.class::cast)
-				.flatMap(vbox -> vbox.getChildren().stream())
-				.filter(ComboBox.class::isInstance)
-				.map(node -> (ComboBox<String>) node)
-				.forEach(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns, null));
+		for (Node paramBox : parametersBox.getChildren()) {
+			if (!(paramBox instanceof VBox vbox)) {
+				continue;
+			}
+			for (Node inputNode : vbox.getChildren()) {
+				if (inputNode instanceof ComboBox<?> comboBox
+						&& comboBox.getUserData() instanceof ScriptParameter param
+						&& param.type() == ScriptParameter.ParameterType.COLUMN_NAME) {
+					updateComboBoxIfChanged((ComboBox<String>) comboBox, availableColumns, null);
+				}
+			}
+		}
 	}
 
 	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns,

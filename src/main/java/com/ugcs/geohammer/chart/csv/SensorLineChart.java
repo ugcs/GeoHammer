@@ -1075,7 +1075,7 @@ public class SensorLineChart extends Chart {
             file.setUnsaved(true);
             Platform.runLater(this::updateChartName);
             model.publishEvent(new FileUpdatedEvent(this, file));
-        };
+        }
         removeChart(header);
     }
 
@@ -1190,9 +1190,12 @@ public class SensorLineChart extends Chart {
 
         private void zoomTo(Viewport viewport) {
             int xWidth = !plot.getData().isEmpty() ? plot.getData().size() - 1 : 0;
-            ValueAxis<Number> xAxis = (ValueAxis<Number>)getXAxis();
+            ValueAxis<Number> xAxis = (ValueAxis<Number>) getXAxis();
             xAxis.setLowerBound(viewport.xMin() * xWidth);
             xAxis.setUpperBound(viewport.xMax() * xWidth);
+            if (xAxis instanceof NumberAxis numberAxis) {
+                numberAxis.setTickUnit(xWidth > 0 ? xWidth / 10.0 : 1.0);
+            }
 
             Range yRange = plot.getDisplayRange();
             ValueAxis<Number> yAxis = (ValueAxis<Number>) getYAxis();

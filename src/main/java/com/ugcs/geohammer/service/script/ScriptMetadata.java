@@ -22,6 +22,16 @@ public record ScriptMetadata(
 			throw new ScriptValidationException("Missing required parameters: "
 					+ String.join(", ", missing));
 		}
+		for (ScriptParameter param : parameters()) {
+			String value = parameters.get(param.name());
+			if (value != null && !value.isEmpty()) {
+				try {
+					param.validateValue(value);
+				} catch (IllegalArgumentException e) {
+					throw new ScriptValidationException(e.getMessage());
+				}
+			}
+		}
 	}
 
 }

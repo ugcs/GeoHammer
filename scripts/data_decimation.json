@@ -3,13 +3,6 @@
   "display_name": "Data Decimation",
   "parameters": [
     {
-      "name": "column",
-      "display_name": "Column name",
-      "type": "COLUMN_NAME",
-      "default_value": "TMI",
-      "required": true
-    },
-    {
       "name": "factor",
       "display_name": "Decimation factor (measurements)",
       "type": "INTEGER",

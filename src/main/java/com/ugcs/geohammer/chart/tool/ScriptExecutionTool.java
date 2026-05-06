@@ -39,7 +39,6 @@ import com.ugcs.geohammer.service.script.ScriptRunListener;
 import com.ugcs.geohammer.service.script.ScriptRunner;
 import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.view.Dialogs;
@@ -339,7 +338,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		ComboBox<String> selector = new ComboBox<>();
 		selector.setMaxWidth(Double.MAX_VALUE);
 		selector.setUserData(param);
-		List<String> values = Nulls.toEmpty(param.enumValues());
+		List<String> values = param.enumValues() != null ? param.enumValues() : List.of();
 		selector.getItems().addAll(values);
 		String selected = (!initialValue.isEmpty() && values.contains(initialValue))
 				? initialValue

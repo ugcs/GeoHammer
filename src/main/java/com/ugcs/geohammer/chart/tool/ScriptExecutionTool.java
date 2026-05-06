@@ -159,13 +159,20 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		parametersBox.getChildren().clear();
 
 		if (scriptMetadata != null) {
-			for (ScriptParameter param : scriptMetadata.parameters()) {
-				String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
-						param.defaultValue());
-				parametersBox.getChildren().add(createParameterInput(param, initialValue));
+			try {
+				for (ScriptParameter param : scriptMetadata.parameters()) {
+					param.validate();
+					String initialValue = loadStoredParamValue(scriptMetadata.filename(), param.name(),
+							param.defaultValue());
+					parametersBox.getChildren().add(createParameterInput(param, initialValue));
+				}
+				showApply(true);
+				showApplyToAll(true);
+			} catch (IllegalArgumentException e) {
+				Dialogs.showError("Invalid script metadata", e.getMessage());
+				showApply(false);
+				showApplyToAll(false);
 			}
-			showApply(true);
-			showApplyToAll(true);
 		} else {
 			showApply(false);
 			showApplyToAll(false);
@@ -273,13 +280,28 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private VBox createParameterInput(ScriptParameter param, String initialValue) {
 		VBox paramBox = new VBox(5);
-		String labelText = param.displayName() + (param.required() ? " *" : "");
+		String labelText = param.displayName() + rangeHint(param) + (param.required() ? " *" : "");
 		Node inputNode = getInputNode(param, initialValue, labelText);
 		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
 			paramBox.getChildren().add(new Label(labelText));
 		}
 		paramBox.getChildren().add(inputNode);
 		return paramBox;
+	}
+
+	private static String rangeHint(ScriptParameter param) {
+		Double min = param.min();
+		Double max = param.max();
+		if (min == null && max == null) {
+			return "";
+		}
+		String minStr = min != null ? formatBound(min) : "…";
+		String maxStr = max != null ? formatBound(max) : "…";
+		return " (" + minStr + "–" + maxStr + ")";
+	}
+
+	private static String formatBound(double value) {
+		return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value);
 	}
 
 	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {

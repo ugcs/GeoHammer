@@ -246,7 +246,7 @@ public class SatelliteMap extends BaseLayer implements InitializingBean {
 	public List<ToolNode> getToolNodes() {
 		HBox cnt = new HBox(optionsMenuBtn);
 		return List.of(
-				new ToolNode(cnt, ActivationPolicy.always())
+				new ToolNode(cnt, ActivationPolicy.fileSelected())
 		);
 	}
 

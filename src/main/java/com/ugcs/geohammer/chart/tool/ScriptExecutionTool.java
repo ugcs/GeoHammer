@@ -3,6 +3,7 @@ package com.ugcs.geohammer.chart.tool;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -228,11 +229,15 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		String fileTemplate = Templates.getTemplateName(file);
 		if (fileTemplate == null) {
 			return scriptsMetadata;
-		} else {
-			return scriptsMetadata.stream()
-					.filter(metadata -> metadata.templates().contains(fileTemplate))
-					.toList();
 		}
+		List<ScriptMetadata> result = new ArrayList<>();
+		for (ScriptMetadata metadata : scriptsMetadata) {
+			List<String> templates = metadata.templates();
+			if (templates.contains(fileTemplate) || (file instanceof CsvFile && templates.contains("csv"))) {
+				result.add(metadata);
+			}
+		}
+		return result;
 	}
 
 	private void restoreScriptSelection() {
@@ -568,14 +573,18 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private void refreshColumnSelectors(CsvFile csvFile) {
 		Set<String> availableColumns = getAvailableColumnsForFile(csvFile);
-		//noinspection unchecked
-		parametersBox.getChildren().stream()
-				.filter(VBox.class::isInstance)
-				.map(VBox.class::cast)
-				.flatMap(vbox -> vbox.getChildren().stream())
-				.filter(ComboBox.class::isInstance)
-				.map(node -> (ComboBox<String>) node)
-				.forEach(comboBox -> updateComboBoxIfChanged(comboBox, availableColumns, null));
+		for (Node paramBox : parametersBox.getChildren()) {
+			if (!(paramBox instanceof VBox vbox)) {
+				continue;
+			}
+			for (Node inputNode : vbox.getChildren()) {
+				if (inputNode instanceof ComboBox<?> comboBox
+						&& comboBox.getUserData() instanceof ScriptParameter param
+						&& param.type() == ScriptParameter.ParameterType.COLUMN_NAME) {
+					updateComboBoxIfChanged((ComboBox<String>) comboBox, availableColumns, null);
+				}
+			}
+		}
 	}
 
 	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns,

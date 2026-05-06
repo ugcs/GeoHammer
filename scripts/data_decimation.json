@@ -25,5 +25,5 @@
       "required": true
     }
   ],
-  "templates": ["MagNIMBUS", "sgy", "MagDrone R1"]
+  "templates": ["csv"]
 }

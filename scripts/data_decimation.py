@@ -135,10 +135,6 @@ def main():
     )
     args = parser.parse_args()
 
-    if not (2 <= args.factor <= 500):
-        print(f"Error: Decimation factor must be between 2 and 500, got {args.factor}")
-        sys.exit(1)
-
     if args.algorithm not in ALGORITHMS:
         print(f"Error: Unknown algorithm '{args.algorithm}'. Choose from: {', '.join(ALGORITHMS)}")
         sys.exit(1)

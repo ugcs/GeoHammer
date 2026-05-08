@@ -21,12 +21,12 @@ public final class Text {
 
     public static final String GPST_FORMAT = "GPST";
 
-    private static final ThreadLocal<DecimalFormat> numberFormat
+	private static final Pattern FRACTION_TAIL = Pattern.compile("\\.f+$");
+
+	private static final ThreadLocal<DecimalFormat> numberFormat
             = ThreadLocal.withInitial(Text::defaultNumberFormat);
 
-    private static final ConcurrentHashMap<String, DateTimeFormatter> formattersByPattern = new ConcurrentHashMap<>();
-
-	private static final Pattern FRACTION_TAIL = Pattern.compile("\\.f+$");
+	private static final ConcurrentHashMap<String, DateTimeFormatter> formattersByPattern = new ConcurrentHashMap<>();
 
 	private Text() {
     }

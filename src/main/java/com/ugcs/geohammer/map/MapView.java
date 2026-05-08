@@ -128,7 +128,7 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private RepaintListener listener = this::updateUI;
 
-	private SgyFile currentFile;
+	@Nullable private SgyFile currentFile;
 
 	private EventHandler<MouseEvent> mousePressHandler = event -> {
         if (!isGpsPresent()) {

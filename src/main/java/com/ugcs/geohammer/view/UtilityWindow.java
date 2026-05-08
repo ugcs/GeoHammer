@@ -3,13 +3,16 @@ package com.ugcs.geohammer.view;
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import org.jspecify.annotations.Nullable;
 
 public class UtilityWindow {
+
+    private static final double SCREEN_MARGIN = 100;
 
     private final WindowProperties properties;
 
@@ -32,19 +35,18 @@ public class UtilityWindow {
     }
 
     private Stage createWindow() {
+        Stage owner = AppContext.stage;
         Stage window = new Stage();
 
         window.setTitle(properties.title());
-        window.initOwner(AppContext.stage);
-        window.initStyle(StageStyle.UTILITY);
+        window.initOwner(owner);
+        window.initStyle(properties.style());
         window.setResizable(true);
-        window.setMinWidth(properties.minWidth());
-        window.setMinHeight(properties.minHeight());
 
         root = new StackPane();
         root.setMinSize(0, 0);
 
-        Scene scene = new Scene(root, properties.width(), properties.height());
+        Scene scene = new Scene(root);
         window.setScene(scene);
         AppContext.getInstance(ThemeService.class).registerScene(scene);
 
@@ -52,12 +54,33 @@ public class UtilityWindow {
             event.consume();
             hide();
         });
-        Listeners.onChange(AppContext.stage.focusedProperty(), window::setAlwaysOnTop);
+        Listeners.onChange(owner.focusedProperty(), window::setAlwaysOnTop);
         return window;
     }
 
     public boolean isShowing() {
         return window != null && window.isShowing();
+    }
+
+    private void fitScreen() {
+        if (window == null) {
+            return;
+        }
+
+        Window owner = window.getOwner();
+        Rectangle2D screenBounds = Views.getScreen(owner).getVisualBounds();
+
+        double width = Math.min(properties.width(), screenBounds.getWidth() - SCREEN_MARGIN);
+        double height = Math.min(properties.height(), screenBounds.getHeight() - SCREEN_MARGIN);
+
+        window.setWidth(width);
+        window.setHeight(height);
+        window.setMinWidth(Math.min(width, properties.minWidth()));
+        window.setMinHeight(Math.min(height, properties.minHeight()));
+
+        // center inside visual screen bounds
+        window.setX(screenBounds.getMinX() + (screenBounds.getWidth() - width) / 2);
+        window.setY(screenBounds.getMinY() + (screenBounds.getHeight() - height) / 2);
     }
 
     public void show() {
@@ -66,6 +89,7 @@ public class UtilityWindow {
                 window = createWindow();
                 onCreate();
             }
+            fitScreen();
             window.show();
             window.toFront();
             onShow();

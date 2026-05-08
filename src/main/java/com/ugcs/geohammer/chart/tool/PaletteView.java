@@ -1,6 +1,5 @@
 package com.ugcs.geohammer.chart.tool;
 
-import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.layer.GridLayer;
 import com.ugcs.geohammer.model.Range;
@@ -10,22 +9,18 @@ import com.ugcs.geohammer.service.palette.Palette;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Formats;
 import com.ugcs.geohammer.util.Ticks;
+import com.ugcs.geohammer.view.CanvasWindow;
 import com.ugcs.geohammer.view.Colors;
+import com.ugcs.geohammer.view.WindowProperties;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
 import javafx.geometry.VPos;
-import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -34,9 +29,8 @@ import java.util.List;
 import java.util.Objects;
 
 @Component
-public class PaletteView {
+public class PaletteView extends CanvasWindow {
 
-    private static final String WINDOW_TITLE = "Palette";
     private static final String NO_DATA = "No data";
 
     // layout
@@ -61,12 +55,6 @@ public class PaletteView {
 
 	private final GridLayer gridLayer;
 
-	@Nullable
-	private Stage window;
-
-	@Nullable
-	private Canvas canvas;
-
     private volatile SgyFile selectedFile;
 
     private volatile Palette palette;
@@ -74,69 +62,28 @@ public class PaletteView {
     private volatile Histogram histogram;
 
 	public PaletteView(ThemeService themeService, GridLayer gridLayer) {
+        super(getWindowProperties());
+
         this.themeService = themeService;
         this.gridLayer = gridLayer;
 	}
 
-	private Stage createWindow() {
-		Stage window = new Stage();
-		window.setTitle(WINDOW_TITLE);
-		window.initOwner(AppContext.stage);
-		window.initStyle(StageStyle.UTILITY);
-		window.setResizable(true);
-		window.setMinWidth(300);
-		window.setMinHeight(200);
+    private static WindowProperties getWindowProperties() {
+        return new WindowProperties("Palette")
+                .withSize(480, 320)
+                .withMinSize(300, 200);
+    }
+    @Override
+    protected void onShow() {
+        super.onShow();
+        draw();
+    }
 
-		canvas = new Canvas();
-        StackPane root = new StackPane(canvas);
-
-		canvas.widthProperty().bind(root.widthProperty());
-		canvas.heightProperty().bind(root.heightProperty());
-		canvas.widthProperty().addListener((observable, oldValue, newValue) -> updateView());
-		canvas.heightProperty().addListener((observable, oldValue, newValue) -> updateView());
-
-		Scene scene = new Scene(root, 500, 250);
-		window.setScene(scene);
-        AppContext.getInstance(ThemeService.class).registerScene(scene);
-
-		window.setOnCloseRequest(event -> {
-			event.consume();
-			hide();
-		});
-		AppContext.stage.focusedProperty().addListener((observable, wasFocused, isFocused)
-                -> window.setAlwaysOnTop(isFocused));
-
-		return window;
-	}
-
-	public void show() {
-		Platform.runLater(() -> {
-			if (window == null) {
-				window = createWindow();
-			}
-			window.show();
-			window.toFront();
-            updateView();
-		});
-	}
-
-	public void hide() {
-		if (window != null) {
-            Platform.runLater(() -> window.hide());
-		}
-	}
-
-	public void toggle() {
-		if (isShowing()) {
-			hide();
-		} else {
-			show();
-		}
-	}
-
-	public boolean isShowing() {
-		return window != null && window.isShowing();
-	}
+    @Override
+    protected void onDraw() {
+        super.onDraw();
+        draw();
+    }
 
     public void update(SgyFile file) {
         GridLayer.Grid grid = file != null
@@ -190,6 +137,9 @@ public class PaletteView {
         GraphicsContext g2 = canvas.getGraphicsContext2D();
 		double w = canvas.getWidth();
 		double h = canvas.getHeight();
+        if (w == 0 || h == 0) {
+            return;
+        }
 
         Rectangle2D canvasRect = new Rectangle2D(0, 0, w, h);
 

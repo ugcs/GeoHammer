@@ -1,8 +1,12 @@
 package com.ugcs.geohammer.view;
 
+import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
+import javafx.stage.StageStyle;
 
 public class WindowProperties {
+
+    private StageStyle style = StageStyle.UTILITY;
 
     private String title = Strings.empty();
 
@@ -14,8 +18,18 @@ public class WindowProperties {
 
     private double minHeight;
 
+
     public WindowProperties(String title) {
         this.title = title;
+    }
+
+    public StageStyle style() {
+        return style;
+    }
+
+    public WindowProperties withStyle(StageStyle style) {
+        this.style = Check.notNull(style);
+        return this;
     }
 
     public String title() {

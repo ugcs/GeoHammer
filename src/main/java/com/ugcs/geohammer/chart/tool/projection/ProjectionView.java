@@ -41,6 +41,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.StageStyle;
 import javafx.util.converter.NumberStringConverter;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
@@ -80,7 +81,8 @@ public class ProjectionView extends CanvasWindow {
 
     private static WindowProperties getWindowProperties() {
         return new WindowProperties("Reprojection (experimental)")
-                .withSize(1200, 840)
+                .withStyle(StageStyle.DECORATED)
+                .withSize(1140, 760)
                 .withMinSize(600, 400);
     }
 

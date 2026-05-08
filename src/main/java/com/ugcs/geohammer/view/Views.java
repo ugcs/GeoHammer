@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.view;
 
+import com.ugcs.geohammer.util.Nulls;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -17,10 +18,13 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.Screen;
+import javafx.stage.Window;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.List;
 
 public final class Views {
 
@@ -36,6 +40,20 @@ public final class Views {
         } else {
             Platform.runLater(runnable);
         }
+    }
+
+    public static Screen getScreen(Window window) {
+        if (window == null) {
+            return Screen.getPrimary();
+        }
+        List<Screen> screens = Screen.getScreensForRectangle(
+                window.getX(),
+                window.getY(),
+                window.getWidth(),
+                window.getHeight());
+        return !Nulls.isNullOrEmpty(screens)
+                ? screens.getFirst()
+                : Screen.getPrimary();
     }
 
     public static Button createGlyphButton(String text, int width, int height) {

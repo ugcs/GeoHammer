@@ -94,7 +94,6 @@ public class TraceCutter implements Layer, InitializingBean {
 			clear();
 		}
 		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		getListener().repaint();
 	}
 
 	public RepaintListener getListener() {

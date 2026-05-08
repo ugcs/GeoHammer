@@ -128,6 +128,8 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private RepaintListener listener = this::updateUI;
 
+	private SgyFile currentFile;
+
 	private EventHandler<MouseEvent> mousePressHandler = event -> {
         if (!isGpsPresent()) {
             return;
@@ -255,12 +257,25 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	@EventListener
 	private void fileClosed(FileClosedEvent event) {
+		SgyFile closedFile = event.getFile();
+		if (closedFile == null) {
+			return;
+		}
+
+		if (closedFile.equals(currentFile)) {
+			currentFile = null;
+		}
+
 		activateTools();
 		updateUI();
 	}
 
 	@EventListener
 	private void fileSelected(FileSelectedEvent event) {
+		SgyFile selectedFile = event.getFile();
+		if (selectedFile != null) {
+			currentFile = selectedFile;
+		}
 		activateTools();
 	}
 
@@ -363,14 +378,13 @@ public class MapView implements InitializingBean, DisposableBean {
 	private void appendTools(ToolProducer producer) {
 		List<ToolNode> nodes = producer.getToolNodes();
 		for (ToolNode toolNode : nodes) {
-			toolNode.activate(model, model.getCurrentFile());
+			toolNode.activate(model, currentFile);
 			toolNodes.add(toolNode);
 			toolBar.getItems().add(toolNode.getNode());
 		}
 	}
 
 	private void activateTools() {
-		SgyFile currentFile = model.getCurrentFile();
 		Platform.runLater(() -> {
 			for (ToolNode toolNode : toolNodes) {
 				toolNode.activate(model, currentFile);

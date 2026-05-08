@@ -210,10 +210,9 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void activateTools() {
-		SgyFile file = model.getCurrentFile();
 		Platform.runLater(() -> {
 			for (ToolNode toolNode : toolNodes) {
-				toolNode.activate(model, file);
+				toolNode.activate(model, currentFile);
 			}
 		});
 	}
@@ -314,7 +313,7 @@ public class ProfileView implements InitializingBean {
 		container.add(profileScroll);
 	}
 
-	private ProfileScroll getFileProfileScroll(SgyFile file) {
+	private @Nullable ProfileScroll getFileProfileScroll(@Nullable SgyFile file) {
         var chart = model.getChart(file);
         return chart != null
                 ? chart.getProfileScroll()
@@ -323,26 +322,24 @@ public class ProfileView implements InitializingBean {
 
 	@EventListener
 	private void fileSelected(FileSelectedEvent event) {
-		ProfileScroll profileScroll = getFileProfileScroll(event.getFile());
+		SgyFile selectedFile = event.getFile();
+		ProfileScroll profileScroll = getFileProfileScroll(selectedFile);
 		setProfileScroll(profileScroll);
 
-		if (event.getFile() != null) {
-			currentFile = event.getFile();
+		if (selectedFile!= null) {
+			currentFile = selectedFile;
 			if (currentFile instanceof TraceFile traceFile) {
 				var gprChart = model.getGprChart(traceFile);
 				if (gprChart != null) {
-					ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> {
-						updateGprChartSize(gprChart);
-					};
+					ChangeListener<Number> sp2SizeListener = (observable, oldValue, newValue) -> updateGprChartSize(gprChart);
 					center.widthProperty().addListener(sp2SizeListener);
-					//((VBox) gprChart.getRootNode()).widthProperty().addListener(sp2SizeListener);
 					((VBox) gprChart.getRootNode()).heightProperty().addListener(sp2SizeListener);
 				}
 			}
 		}
 
 		activateTools();
-		Platform.runLater(() -> updateChannelComboBox(event.getFile()));
+		Platform.runLater(() -> updateChannelComboBox(selectedFile));
 	}
 
 	private void resetChannelComboBox() {
@@ -351,7 +348,7 @@ public class ProfileView implements InitializingBean {
 		channelComboBox.setDisable(true);
 	}
 
-	private void updateChannelComboBox(SgyFile file) {
+	private void updateChannelComboBox(@Nullable SgyFile file) {
 		if (file instanceof MultiChannelFile multiChannelFile && multiChannelFile.numChannels() > 1) {
 			channelComboBox.getItems().clear();
 			for (int i = 0; i < multiChannelFile.numChannels(); i++) {

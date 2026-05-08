@@ -19,7 +19,9 @@ public class DepthHeight extends DepthStart {
 	@Override
 	protected IndexRange buildIndexRange(TraceSample ts, ProfileField profField) {
 		var settings = profField.getProfileSettings();
-		return new IndexRange(settings.getLayer(), ts.getSample());
+		int from = settings.getLayer();
+		int to = Math.max(from, ts.getSample()) + 1;
+		return new IndexRange(from, to);
 	}
 
 	@Override

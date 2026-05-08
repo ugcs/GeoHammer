@@ -884,8 +884,10 @@ public class GPRChart extends Chart {
     }
 
     public TraceSample screenToTraceSample(Point2D point) {
-        int trace = getMiddleTrace() + (int) (point.getX() / getHScale());
-        int sample = getStartSample() + (int) ((point.getY() - getField().getTopMargin()) / getVScale());
+        double x = point.getX();
+        double y = Math.max(0, point.getY() - getField().getTopMargin());
+        int trace = getMiddleTrace() + (int) (x / getHScale());
+        int sample = getStartSample() + (int) (y / getVScale());
 
         return new TraceSample(trace, sample);
     }

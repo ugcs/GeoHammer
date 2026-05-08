@@ -22,7 +22,7 @@
       header: 'Lon'
     time:
       header: 'Time[hhmmss.sss]'
-      format: 'HHmmss.fff'
+      format: 'HHmmss.f+'
     data-values:
       - header: "GPSalt"
         semantic: "Altitude"

@@ -22,8 +22,6 @@ public final class Text {
 
     public static final String GPST_FORMAT = "GPST";
 
-	private static final Pattern FRACTION_TAIL = Pattern.compile("\\.f+$");
-
 	private static final ThreadLocal<DecimalFormat> numberFormat
             = ThreadLocal.withInitial(Text::defaultNumberFormat);
 
@@ -156,19 +154,20 @@ public final class Text {
     }
 
     private static DateTimeFormatter formatterFor(String pattern) {
-        return formattersByPattern.computeIfAbsent(pattern, Text::buildDateTimeFormatter);
+        return formattersByPattern.computeIfAbsent(pattern, Text::toFormatter);
     }
 
-	private static DateTimeFormatter buildDateTimeFormatter(String pattern) {
-		Matcher matcher = FRACTION_TAIL.matcher(pattern);
-		if (!matcher.find()) {
-			return DateTimeFormatter.ofPattern(pattern, Locale.US);
+	private static DateTimeFormatter toFormatter(String pattern) {
+		pattern = Strings.nullToEmpty(pattern).replace("f", "S");
+		if (pattern.contains("S+")) {
+			pattern = pattern.replace("S+", "");
+			pattern = pattern.replace("S", "");
+			return new DateTimeFormatterBuilder()
+					.appendPattern(pattern)
+					.appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, false)
+					.toFormatter(Locale.US);
 		}
-		return new DateTimeFormatterBuilder()
-				.appendPattern(pattern.substring(0, matcher.start()))
-				.appendLiteral('.')
-				.appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, false)
-				.toFormatter(Locale.US);
+		return DateTimeFormatter.ofPattern(pattern, Locale.US);
 	}
 
     public static LocalDateTime parseGpsDateTime(String value) {

@@ -6,9 +6,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,10 +21,14 @@ public final class Text {
 
     public static final String GPST_FORMAT = "GPST";
 
-    private static final ThreadLocal<DecimalFormat> NUMBER_FORMAT
+    private static final ThreadLocal<DecimalFormat> numberFormat
             = ThreadLocal.withInitial(Text::defaultNumberFormat);
 
-    private Text() {
+    private static final ConcurrentHashMap<String, DateTimeFormatter> formattersByPattern = new ConcurrentHashMap<>();
+
+	private static final Pattern FRACTION_TAIL = Pattern.compile("\\.f+$");
+
+	private Text() {
     }
 
     public static DecimalFormat defaultNumberFormat() {
@@ -46,7 +53,7 @@ public final class Text {
         if (number == null) {
             return Strings.empty();
         }
-        return NUMBER_FORMAT.get().format(number);
+        return numberFormat.get().format(number);
     }
 
     public static String formatNumber(Number number, int numFractionDigits) {
@@ -114,7 +121,7 @@ public final class Text {
         }
         Check.notNull(format, "Date format is not specified");
         try {
-            return LocalDate.parse(value, DateTimeFormatter.ofPattern(format, Locale.US));
+            return LocalDate.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
             throw new IncorrectFormatException(value, format);
         }
@@ -125,9 +132,8 @@ public final class Text {
             return null;
         }
         Check.notNull(format, "Time format is not specified");
-        String normalizedFormat = format.replace("f", "S");
         try {
-            return LocalTime.parse(value, DateTimeFormatter.ofPattern(normalizedFormat, Locale.US));
+            return LocalTime.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
             throw new IncorrectFormatException(value, format);
         }
@@ -141,13 +147,28 @@ public final class Text {
         if (format.equals(GPST_FORMAT)) {
             return parseGpsDateTime(value);
         }
-        String normalizedFormat = format.replace("f", "S");
         try {
-            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern(normalizedFormat, Locale.US));
+            return LocalDateTime.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
             throw new IncorrectFormatException(value, format);
         }
     }
+
+    private static DateTimeFormatter formatterFor(String pattern) {
+        return formattersByPattern.computeIfAbsent(pattern, Text::buildDateTimeFormatter);
+    }
+
+	private static DateTimeFormatter buildDateTimeFormatter(String pattern) {
+		Matcher matcher = FRACTION_TAIL.matcher(pattern);
+		if (!matcher.find()) {
+			return DateTimeFormatter.ofPattern(pattern, Locale.US);
+		}
+		return new DateTimeFormatterBuilder()
+				.appendPattern(pattern.substring(0, matcher.start()))
+				.appendLiteral('.')
+				.appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, false)
+				.toFormatter(Locale.US);
+	}
 
     public static LocalDateTime parseGpsDateTime(String value) {
         if (Strings.isNullOrBlank(value)) {

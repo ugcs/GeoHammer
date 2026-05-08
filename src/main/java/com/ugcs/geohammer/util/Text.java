@@ -11,6 +11,7 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,7 +27,7 @@ public final class Text {
 	private static final ThreadLocal<DecimalFormat> numberFormat
             = ThreadLocal.withInitial(Text::defaultNumberFormat);
 
-	private static final ConcurrentHashMap<String, DateTimeFormatter> formattersByPattern = new ConcurrentHashMap<>();
+	private static final Map<String, DateTimeFormatter> formattersByPattern = new ConcurrentHashMap<>();
 
 	private Text() {
     }

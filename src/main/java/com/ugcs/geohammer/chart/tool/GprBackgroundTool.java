@@ -18,6 +18,9 @@ import javafx.scene.layout.Priority;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 @Component
@@ -79,6 +82,7 @@ public class GprBackgroundTool extends FilterToolView {
             commandRegistry.runForGprFiles(
                     model.getFileManager().getGprFiles(),
                     new BackgroundNoiseRemover(undoModel));
+            Platform.runLater(this::updateView);
             return null;
         });
     }
@@ -93,6 +97,7 @@ public class GprBackgroundTool extends FilterToolView {
         spreadCoordinates.setDisable(!model.isSpreadCoordinatesNecessary());
         inputContainer.getChildren().clear();
         if (selectedFile instanceof TraceFile traceFile) {
+            removeBackground.setDisable(traceFile.isBackgroundRemoved());
             inputContainer.getChildren().addAll(profileView.getRight(traceFile));
             HBox buttons = new HBox(Tools.DEFAULT_SPACING,
                     removeBackground,
@@ -109,6 +114,29 @@ public class GprBackgroundTool extends FilterToolView {
     @EventListener
     private void onFileOpened(FileOpenedEvent event) {
         Platform.runLater(this::updateView);
+        applyBackgroundRemoval(event);
+    }
+
+    private void applyBackgroundRemoval(FileOpenedEvent event) {
+        List<TraceFile> targets = new ArrayList<>();
+        for (File file : event.getFiles()) {
+            if (model.getFileManager().getFile(file) instanceof TraceFile traceFile) {
+                targets.add(traceFile);
+            }
+        }
+        if (targets.isEmpty()) {
+            return;
+        }
+        executor.submit(() -> {
+            boolean changed = false;
+            for (TraceFile file : targets) {
+                changed |= BackgroundNoiseRemover.applyFromMeta(file);
+            }
+            if (changed) {
+                model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+                Platform.runLater(this::updateView);
+            }
+        });
     }
 
     @EventListener

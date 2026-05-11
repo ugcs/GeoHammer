@@ -33,6 +33,8 @@ public class MetaFile {
 
 	private @Nullable Double contrast;
 
+	private @Nullable Boolean backgroundRemoved;
+
     @Deprecated
 	private @Nullable Range amplitudeRange;
 
@@ -67,9 +69,17 @@ public class MetaFile {
 
     public @Nullable Double getContrast() { return contrast; }
 
-    public void setContrast(Double contrast) { this.contrast = contrast; }
+    public void setContrast(@Nullable Double contrast) { this.contrast = contrast; }
 
-    @Nullable
+	public void setBackgroundRemoved(@Nullable Boolean backgroundRemoved) {
+		this.backgroundRemoved = backgroundRemoved;
+	}
+
+	public boolean isBackgroundRemoved() {
+		return Boolean.TRUE.equals(backgroundRemoved);
+	}
+
+	@Nullable
     public IndexRange getDepthRange() {
         if (depthRange != null) {
             return depthRange;
@@ -155,6 +165,7 @@ public class MetaFile {
 
         meta.setSampleRange(sampleRange);
         meta.setContrast(contrast);
+        meta.setBackgroundRemoved(backgroundRemoved);
         meta.setDepthRange(depthRange);
 
         // lines
@@ -184,6 +195,7 @@ public class MetaFile {
 
         sampleRange = meta.getSampleRange();
         contrast = meta.getContrast();
+        backgroundRemoved = meta.getBackgroundRemoved();
         depthRange = meta.getDepthRange();
 
         // lines

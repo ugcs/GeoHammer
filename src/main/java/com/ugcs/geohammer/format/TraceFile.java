@@ -56,6 +56,8 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     private boolean spreadCoordinatesNecessary = false;
 
+    private volatile boolean backgroundRemoved = false;
+
     @Nullable
     protected HorizontalProfile groundProfile;
 
@@ -192,6 +194,14 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public void setSpreadCoordinatesNecessary(boolean spreadCoordinatesNecessary) {
         this.spreadCoordinatesNecessary = spreadCoordinatesNecessary;
+    }
+
+    public boolean isBackgroundRemoved() {
+        return backgroundRemoved;
+    }
+
+    public void setBackgroundRemoved(boolean backgroundRemoved) {
+        this.backgroundRemoved = backgroundRemoved;
     }
 
     public void loadPositionFile(FileTemplates templates) throws IOException {
@@ -382,17 +392,21 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
         private HorizontalProfile profile;
 
+        private final boolean backgroundRemoved;
+
         public SnapshotWithTraces(TraceFile file) {
             super(file);
 
             traces = Traces.copy(file.traces);
             profile = file.getGroundProfile();
+            backgroundRemoved = file.isBackgroundRemoved();
         }
 
         @Override
         public void restoreFile(Model model) {
             file.setTraces(traces);
             file.setGroundProfile(profile);
+            file.setBackgroundRemoved(backgroundRemoved);
 
             super.restoreFile(model);
         }

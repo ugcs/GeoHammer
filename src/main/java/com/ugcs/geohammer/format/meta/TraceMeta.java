@@ -23,6 +23,9 @@ public class TraceMeta {
     private Double contrast;
 
     @Expose
+    private Boolean backgroundRemoved;
+
+    @Expose
     private IndexRange depthRange;
 
     @Deprecated
@@ -59,6 +62,14 @@ public class TraceMeta {
 
     public void setContrast(Double contrast) {
         this.contrast = contrast;
+    }
+
+    public Boolean getBackgroundRemoved() {
+        return backgroundRemoved;
+    }
+
+    public void setBackgroundRemoved(Boolean backgroundRemoved) {
+        this.backgroundRemoved = backgroundRemoved;
     }
 
     @Nullable

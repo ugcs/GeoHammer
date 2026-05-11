@@ -437,9 +437,11 @@ public abstract class Parser {
 			if (hasHeader(dateColumn)) {
 				String dateValue = getString(values, dateColumn);
 				LocalDate date = Text.parseDate(dateValue, dateColumn.getFormat());
-				dateTime = LocalDateTime.of(date, time);
+				if (date != null && time != null) {
+					dateTime = LocalDateTime.of(date, time);
+				}
 			}
-			if (dateTime == null && dateFromFilename != null) {
+			if (dateTime == null && dateFromFilename != null && time != null) {
 				dateTime = LocalDateTime.of(dateFromFilename, time);
 			}
         }

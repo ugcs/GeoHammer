@@ -33,7 +33,7 @@ public class MetaFile {
 
 	private @Nullable Double contrast;
 
-	private @Nullable Boolean backgroundRemoved;
+	private Boolean backgroundRemoved = false;
 
     @Deprecated
 	private @Nullable Range amplitudeRange;
@@ -71,7 +71,7 @@ public class MetaFile {
 
     public void setContrast(@Nullable Double contrast) { this.contrast = contrast; }
 
-	public void setBackgroundRemoved(@Nullable Boolean backgroundRemoved) {
+	public void setBackgroundRemoved(Boolean backgroundRemoved) {
 		this.backgroundRemoved = backgroundRemoved;
 	}
 

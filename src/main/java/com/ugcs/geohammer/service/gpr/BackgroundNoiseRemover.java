@@ -4,7 +4,6 @@ import java.util.List;
 
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.model.ProgressListener;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.model.undo.UndoFrame;
@@ -22,43 +21,24 @@ public class BackgroundNoiseRemover implements Command {
 
 	@Override
 	public void execute(TraceFile file, ProgressListener listener) {
-		if (file.isBackgroundRemoved() || file.getTraces().size() <= 1) {
+		if (file.getTraces().size() <= 1) {
 			return;
 		}
 
-		FileSnapshot<TraceFile> snapshot = file.createSnapshotWithTraces();
-		undoModel.push(new UndoFrame(snapshot));
-
-		applyFilter(file);
-		file.setBackgroundRemoved(true);
-
-		MetaFile meta = file.getMetaFile();
-		if (meta != null) {
-			meta.setBackgroundRemoved(true);
-		}
-		file.setUnsaved(true);
-	}
-
-	public static boolean applyFromMeta(TraceFile file) {
-		if (file.isBackgroundRemoved() || file.getTraces().size() <= 1) {
-			return false;
-		}
-		MetaFile meta = file.getMetaFile();
-		if (meta == null || !meta.isBackgroundRemoved()) {
-			return false;
+		if (undoModel != null) {
+			FileSnapshot<TraceFile> snapshot = file.createSnapshotWithTraces();
+			undoModel.push(new UndoFrame(snapshot));
 		}
 
-		applyFilter(file);
-		file.setBackgroundRemoved(true);
-		return true;
-	}
-
-	private static void applyFilter(TraceFile file) {
 		List<Trace> traces = file.getTraces();
 		BackgroundRemovalFilter brf = new BackgroundRemovalFilter();
 		int deep = file.getMaxSamples();
 		float[] noiseProfile = brf.prepareNoiseProfile(traces, deep);
 		brf.subtractProfile(traces, noiseProfile);
+
+		if (undoModel != null) {
+			file.setUnsaved(true);
+		}
 	}
 
 	@Override

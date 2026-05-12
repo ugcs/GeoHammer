@@ -11,6 +11,8 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.model.undo.UndoModel;
+import com.ugcs.geohammer.service.gpr.BackgroundNoiseRemover;
 import com.ugcs.geohammer.service.gpr.DistanceCalculator;
 import com.ugcs.geohammer.service.gpr.DistanceSmoother;
 import com.ugcs.geohammer.service.gpr.EdgeFinder;
@@ -55,8 +57,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
     private PositionFile positionFile;
 
     private boolean spreadCoordinatesNecessary = false;
-
-    private volatile boolean backgroundRemoved = false;
 
     @Nullable
     protected HorizontalProfile groundProfile;
@@ -194,14 +194,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public void setSpreadCoordinatesNecessary(boolean spreadCoordinatesNecessary) {
         this.spreadCoordinatesNecessary = spreadCoordinatesNecessary;
-    }
-
-    public boolean isBackgroundRemoved() {
-        return backgroundRemoved;
-    }
-
-    public void setBackgroundRemoved(boolean backgroundRemoved) {
-        this.backgroundRemoved = backgroundRemoved;
     }
 
     public void loadPositionFile(FileTemplates templates) throws IOException {
@@ -368,6 +360,24 @@ public abstract class TraceFile extends SgyFileWithMeta {
 		syncMeta();
 	}
 
+	public void removeBackground(@Nullable UndoModel undoModel) {
+		BackgroundNoiseRemover filter = new BackgroundNoiseRemover(undoModel);
+		filter.execute(this, null);
+		if (metaFile != null && getTraces().size() > 1) {
+			metaFile.setBackgroundRemoved(true);
+		}
+	}
+
+	public boolean isBackgroundRemoved() {
+		return metaFile != null && metaFile.isBackgroundRemoved();
+	}
+
+	public void setBackgroundRemoved(boolean backgroundRemoved) {
+		if (metaFile != null) {
+			metaFile.setBackgroundRemoved(backgroundRemoved);
+		}
+	}
+
     public class TraceList extends AbstractList<Trace> {
 
         @Override
@@ -392,7 +402,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
         private HorizontalProfile profile;
 
-        private final boolean backgroundRemoved;
+        private boolean backgroundRemoved;
 
         public SnapshotWithTraces(TraceFile file) {
             super(file);

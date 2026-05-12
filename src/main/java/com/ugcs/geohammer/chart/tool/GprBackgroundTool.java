@@ -8,7 +8,6 @@ import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.undo.UndoModel;
-import com.ugcs.geohammer.service.gpr.BackgroundNoiseRemover;
 import com.ugcs.geohammer.service.gpr.CommandRegistry;
 import com.ugcs.geohammer.service.gpr.SpreadCoordinates;
 import javafx.application.Platform;
@@ -18,8 +17,6 @@ import javafx.scene.layout.Priority;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -79,10 +76,12 @@ public class GprBackgroundTool extends FilterToolView {
 
     private void removeBackground() {
         submitAction(() -> {
-            commandRegistry.runForGprFiles(
-                    model.getFileManager().getGprFiles(),
-                    new BackgroundNoiseRemover(undoModel));
-            Platform.runLater(this::updateView);
+            List<TraceFile> traceFiles = model.getFileManager().getGprFiles();
+            for (TraceFile traceFile : traceFiles) {
+                if (!traceFile.isBackgroundRemoved()) {
+                    traceFile.removeBackground(undoModel);
+                }
+            }
             return null;
         });
     }
@@ -97,7 +96,6 @@ public class GprBackgroundTool extends FilterToolView {
         spreadCoordinates.setDisable(!model.isSpreadCoordinatesNecessary());
         inputContainer.getChildren().clear();
         if (selectedFile instanceof TraceFile traceFile) {
-            removeBackground.setDisable(traceFile.isBackgroundRemoved());
             inputContainer.getChildren().addAll(profileView.getRight(traceFile));
             HBox buttons = new HBox(Tools.DEFAULT_SPACING,
                     removeBackground,
@@ -114,29 +112,6 @@ public class GprBackgroundTool extends FilterToolView {
     @EventListener
     private void onFileOpened(FileOpenedEvent event) {
         Platform.runLater(this::updateView);
-        applyBackgroundRemoval(event);
-    }
-
-    private void applyBackgroundRemoval(FileOpenedEvent event) {
-        List<TraceFile> traceFiles = new ArrayList<>();
-        for (File file : event.getFiles()) {
-            if (model.getFileManager().getFile(file) instanceof TraceFile traceFile) {
-                traceFiles.add(traceFile);
-            }
-        }
-        if (traceFiles.isEmpty()) {
-            return;
-        }
-        executor.submit(() -> {
-            boolean changed = false;
-            for (TraceFile file : traceFiles) {
-                changed |= BackgroundNoiseRemover.applyFromMeta(file);
-            }
-            if (changed) {
-                model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
-                Platform.runLater(this::updateView);
-            }
-        });
     }
 
     @EventListener

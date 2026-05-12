@@ -130,6 +130,9 @@ public class GprFile extends TraceFile {
 		updateTraces();
 		copyMarkedTracesToAuxElements();
 		updateTraceDistances();
+		if (isBackgroundRemoved()) {
+			removeBackground(null);
+		}
 
 		setUnsaved(false);
 

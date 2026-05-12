@@ -8,7 +8,6 @@ import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.undo.UndoModel;
-import com.ugcs.geohammer.service.gpr.BackgroundNoiseRemover;
 import com.ugcs.geohammer.service.gpr.CommandRegistry;
 import com.ugcs.geohammer.service.gpr.SpreadCoordinates;
 import javafx.application.Platform;
@@ -18,6 +17,7 @@ import javafx.scene.layout.Priority;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 @Component
@@ -76,9 +76,12 @@ public class GprBackgroundTool extends FilterToolView {
 
     private void removeBackground() {
         submitAction(() -> {
-            commandRegistry.runForGprFiles(
-                    model.getFileManager().getGprFiles(),
-                    new BackgroundNoiseRemover(undoModel));
+            List<TraceFile> traceFiles = model.getFileManager().getGprFiles();
+            for (TraceFile traceFile : traceFiles) {
+                if (!traceFile.isBackgroundRemoved()) {
+                    traceFile.removeBackground(undoModel);
+                }
+            }
             return null;
         });
     }

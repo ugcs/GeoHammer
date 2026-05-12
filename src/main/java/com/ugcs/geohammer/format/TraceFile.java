@@ -11,6 +11,8 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.model.undo.UndoModel;
+import com.ugcs.geohammer.service.gpr.BackgroundNoiseRemover;
 import com.ugcs.geohammer.service.gpr.DistanceCalculator;
 import com.ugcs.geohammer.service.gpr.DistanceSmoother;
 import com.ugcs.geohammer.service.gpr.EdgeFinder;
@@ -358,6 +360,24 @@ public abstract class TraceFile extends SgyFileWithMeta {
 		syncMeta();
 	}
 
+	public void removeBackground(@Nullable UndoModel undoModel) {
+		BackgroundNoiseRemover filter = new BackgroundNoiseRemover(undoModel);
+		filter.execute(this, null);
+		if (metaFile != null && getTraces().size() > 1) {
+			metaFile.setBackgroundRemoved(true);
+		}
+	}
+
+	public boolean isBackgroundRemoved() {
+		return metaFile != null && metaFile.isBackgroundRemoved();
+	}
+
+	public void setBackgroundRemoved(boolean backgroundRemoved) {
+		if (metaFile != null) {
+			metaFile.setBackgroundRemoved(backgroundRemoved);
+		}
+	}
+
     public class TraceList extends AbstractList<Trace> {
 
         @Override
@@ -382,17 +402,21 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
         private HorizontalProfile profile;
 
+        private boolean backgroundRemoved;
+
         public SnapshotWithTraces(TraceFile file) {
             super(file);
 
             traces = Traces.copy(file.traces);
             profile = file.getGroundProfile();
+            backgroundRemoved = file.isBackgroundRemoved();
         }
 
         @Override
         public void restoreFile(Model model) {
             file.setTraces(traces);
             file.setGroundProfile(profile);
+            file.setBackgroundRemoved(backgroundRemoved);
 
             super.restoreFile(model);
         }

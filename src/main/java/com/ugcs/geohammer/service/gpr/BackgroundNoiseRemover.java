@@ -21,24 +21,24 @@ public class BackgroundNoiseRemover implements Command {
 
 	@Override
 	public void execute(TraceFile file, ProgressListener listener) {
-		// Creating snapshot for undo
-		FileSnapshot<TraceFile> snapshot = file.createSnapshotWithTraces();
-		undoModel.push(new UndoFrame(snapshot));
-
-		BackgroundRemovalFilter brf = new BackgroundRemovalFilter();
-		
-		List<Trace> lst = file.getTraces();
-	
-		float[] subteProfile = null; 
-				
-		if (lst.size() > 1) {
-			int deep = file.getMaxSamples();
-			
-			subteProfile = brf.prepareNoiseProfile(lst, deep);
-			brf.subtractProfile(lst, subteProfile);
+		if (file.getTraces().size() <= 1) {
+			return;
 		}
 
-		file.setUnsaved(true);
+		if (undoModel != null) {
+			FileSnapshot<TraceFile> snapshot = file.createSnapshotWithTraces();
+			undoModel.push(new UndoFrame(snapshot));
+		}
+
+		List<Trace> traces = file.getTraces();
+		BackgroundRemovalFilter brf = new BackgroundRemovalFilter();
+		int deep = file.getMaxSamples();
+		float[] noiseProfile = brf.prepareNoiseProfile(traces, deep);
+		brf.subtractProfile(traces, noiseProfile);
+
+		if (undoModel != null) {
+			file.setUnsaved(true);
+		}
 	}
 
 	@Override

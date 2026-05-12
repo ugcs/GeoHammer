@@ -118,18 +118,18 @@ public class GprBackgroundTool extends FilterToolView {
     }
 
     private void applyBackgroundRemoval(FileOpenedEvent event) {
-        List<TraceFile> targets = new ArrayList<>();
+        List<TraceFile> traceFiles = new ArrayList<>();
         for (File file : event.getFiles()) {
             if (model.getFileManager().getFile(file) instanceof TraceFile traceFile) {
-                targets.add(traceFile);
+                traceFiles.add(traceFile);
             }
         }
-        if (targets.isEmpty()) {
+        if (traceFiles.isEmpty()) {
             return;
         }
         executor.submit(() -> {
             boolean changed = false;
-            for (TraceFile file : targets) {
+            for (TraceFile file : traceFiles) {
                 changed |= BackgroundNoiseRemover.applyFromMeta(file);
             }
             if (changed) {

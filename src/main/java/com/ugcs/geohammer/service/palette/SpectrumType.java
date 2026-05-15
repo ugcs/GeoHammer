@@ -39,4 +39,9 @@ public enum SpectrumType {
         }
         return defaultSpectrumType();
     }
+
+    @Override
+    public String toString() {
+        return displayName;
+    }
 }

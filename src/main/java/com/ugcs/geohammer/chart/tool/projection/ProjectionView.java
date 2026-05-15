@@ -58,6 +58,8 @@ public class ProjectionView extends CanvasWindow {
 
     private final ProjectionController projectionController;
 
+    private final ExportView exportView;
+
     private @Nullable ProjectionRenderer renderer;
 
     private @Nullable ContextMenu contextMenu;
@@ -71,12 +73,14 @@ public class ProjectionView extends CanvasWindow {
 	public ProjectionView(
             Model model,
             ProjectionModel projectionModel,
-            ProjectionController projectionController) {
+            ProjectionController projectionController,
+            ExportView exportView) {
         super(getWindowProperties());
 
         this.model = model;
         this.projectionModel = projectionModel;
         this.projectionController = projectionController;
+        this.exportView = exportView;
 	}
 
     private static WindowProperties getWindowProperties() {
@@ -171,6 +175,7 @@ public class ProjectionView extends CanvasWindow {
         TraceSelection selection = projectionModel.getSelection();
 
         SelectorWithLabel<Integer> line = new SelectorWithLabel<>("Line", List.of());
+        line.getSelector().setPrefWidth(110);
         line.getSelector().setItems(selection.getFileLines());
         line.getSelector().valueProperty().bindBidirectional(selection.lineProperty());
         HBox.setHgrow(line, Priority.ALWAYS);
@@ -181,7 +186,7 @@ public class ProjectionView extends CanvasWindow {
             zoomToProfile();
             draw();
         });
-        fitButton.setMinWidth(40);
+        fitButton.setMinWidth(50);
 
         return new HBox(8, line, fitButton);
     }
@@ -197,9 +202,7 @@ public class ProjectionView extends CanvasWindow {
         autoUpdateGrid.selectedProperty().bindBidirectional(gridOptions.autoUpdateProperty());
 
         Button gridButton = new Button("Grid");
-        gridButton.setOnAction(e -> {
-            projectionController.buildGrid();
-        });
+        gridButton.setOnAction(e -> projectionController.buildGrid());
         gridButton.setMinWidth(50);
 
         HBox gridActionGroup = new HBox(8, autoUpdateGrid, Views.createSpacer(), gridButton);
@@ -213,11 +216,17 @@ public class ProjectionView extends CanvasWindow {
                 gridOptions.gridProgressProperty().greaterThan(0)
                         .and(gridOptions.gridProgressProperty().lessThan(1)));
 
+        Button exportButton = new Button("Export 3D Grid…");
+        exportButton.setDefaultButton(true);
+        exportButton.setMaxWidth(Double.MAX_VALUE);
+        exportButton.setOnAction(e -> exportView.show());
+
         VBox group = new VBox(
                 8,
                 resolution,
                 gridActionGroup,
-                gridProgress
+                gridProgress,
+                exportButton
         );
         group.getStyleClass().add("group");
         return group;

@@ -5,6 +5,8 @@ import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -50,10 +52,18 @@ public class UtilityWindow {
         window.setScene(scene);
         AppContext.getInstance(ThemeService.class).registerScene(scene);
 
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                event.consume();
+                hide();
+            }
+        });
+
         window.setOnCloseRequest(event -> {
             event.consume();
             hide();
         });
+
         Listeners.onChange(owner.focusedProperty(), window::setAlwaysOnTop);
         return window;
     }

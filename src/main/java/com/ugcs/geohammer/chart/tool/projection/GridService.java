@@ -2,12 +2,11 @@ package com.ugcs.geohammer.chart.tool.projection;
 
 import com.ugcs.geohammer.chart.tool.projection.math.Vectors;
 import com.ugcs.geohammer.chart.tool.projection.model.Grid;
-import com.ugcs.geohammer.chart.tool.projection.model.GridOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceRay;
 import com.ugcs.geohammer.util.Check;
-import javafx.application.Platform;
+import com.ugcs.geohammer.util.Progress;
 import javafx.geometry.Point2D;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +24,9 @@ public class GridService {
         this.projectionModel = projectionModel;
     }
 
-    public Grid buildGrid(TraceProfile traceProfile) {
+    public Grid buildGrid(TraceProfile traceProfile, Progress progress) {
+        Check.notNull(progress);
+
         if (traceProfile == null) {
             return null;
         }
@@ -36,16 +37,16 @@ public class GridService {
         Resolution resolution = Resolution.compute(traceProfile, projectionModel.getGridOptions().getResolution());
         Grid grid = new Grid(boundingPolyline, resolution.cellWidth(), resolution.cellHeight());
 
-        setGridProgress(0);
+        progress.reset();
         try {
-            sampleGrid(traceProfile, grid, resolution);
+            sampleGrid(traceProfile, grid, resolution, progress);
             boolean interpolate = projectionModel.getGridOptions().isInterpolateGrid();
             if (interpolate) {
                 interpolateGrid(grid);
             }
             grid.updateMaxDepth();
         } finally {
-            setGridProgress(1);
+            progress.complete();
         }
         return grid;
     }
@@ -90,11 +91,6 @@ public class GridService {
         grid.interpolate();
     }
 
-    private void setGridProgress(double progress) {
-        GridOptions gridOptions = projectionModel.getGridOptions();
-        Platform.runLater(() -> gridOptions.gridProgressProperty().set(progress));
-    }
-
     private List<TraceRay> getSectorRays(TraceProfile traceProfile, TraceRay axis, Resolution resolution) {
         // sector aperture
         double centerFrequency = projectionModel.getProjectionOptions().getCenterFrequency();
@@ -122,6 +118,7 @@ public class GridService {
             double angle = base + i * step;
             Point2D direction = Vectors.directionFromDown(angle);
             TraceRay ray = TraceRay.create(
+                    axis.world(),
                     axis.origin(),
                     direction,
                     traceProfile.getTerrain(),
@@ -147,7 +144,7 @@ public class GridService {
         return 2 * Math.atan(fresnelRadius / airGap);
     }
 
-    private void sampleGrid(TraceProfile traceProfile, Grid grid, Resolution resolution) {
+    private void sampleGrid(TraceProfile traceProfile, Grid grid, Resolution resolution, Progress progress) {
         int numTraces = traceProfile.numTraces();
         int numSamples = traceProfile.numSamples();
         if (numTraces == 0 || numSamples == 0) {
@@ -166,9 +163,10 @@ public class GridService {
         int[][] seen = new int[m][n];
         int generation = 0;
 
+        progress.setMaxTicks(numTraces);
         int traceStep = resolution.traceStep();
         for (int i = 0; i < numTraces; i += traceStep) {
-            setGridProgress((double)i / numTraces);
+            progress.setTicks(i);
             generation++;
 
             TraceRay axis = traceProfile.getRay(i);
@@ -228,7 +226,7 @@ public class GridService {
                 }
             }
         }
-
+        progress.setTicks(numTraces);
         grid.normalize();
     }
 

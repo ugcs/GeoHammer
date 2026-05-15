@@ -12,6 +12,7 @@ import com.ugcs.geohammer.chart.tool.projection.model.TraceSelection;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.util.Progress;
 import com.ugcs.geohammer.util.SinglePendingExecutor;
 import com.ugcs.geohammer.view.Listeners;
 import javafx.application.Platform;
@@ -193,10 +194,15 @@ public class ProjectionController {
         gridUpdater.submit(() -> {
             Grid grid = null;
             if (traceProfile != null) {
-                grid = gridService.buildGrid(traceProfile);
+                grid = gridService.buildGrid(traceProfile, new Progress(this::setGridProgress));
             }
             setGrid(grid);
         });
+    }
+
+    private void setGridProgress(double progress) {
+        GridOptions gridOptions = projectionModel.getGridOptions();
+        Platform.runLater(() -> gridOptions.gridProgressProperty().set(progress));
     }
 
     private void setGrid(Grid grid) {

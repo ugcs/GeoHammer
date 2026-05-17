@@ -34,6 +34,12 @@ public class PythonService {
 
 	private static final String REQUIREMENTS_FILE = "requirements.txt";
 
+	private static final PythonVersion MINIMAL_PYTHON_VERSION = PythonVersion.parse("3.8");
+
+	private static final String INSTALL_PYTHON_HINT =
+			"Please install Python v" + MINIMAL_PYTHON_VERSION
+					+ " or higher. Download: https://www.python.org/downloads/";
+
 	private final CommandExecutor commandExecutor;
 
 	private final PrefSettings prefSettings;
@@ -179,7 +185,7 @@ public class PythonService {
 			}
 		}
 		if (pythonPath == null || pythonPath.isEmpty()) {
-			throw new IllegalStateException("Python path is not found.");
+			pythonPath = OperatingSystemUtils.isWindows() ? "python" : "python3";
 		}
 		return Path.of(pythonPath);
 	}
@@ -203,17 +209,20 @@ public class PythonService {
 			return pipreqsPath;
 		}
 
-		throw new IllegalStateException("Requirements analyzer package (pipreqs) not found. Please install it manually");
+		throw new IllegalStateException(
+				"Requirements analyzer (pipreqs) not found. Install it manually by running: \""
+						+ pythonPath + "\" -m pip install pipreqs");
 	}
 
-	private Path findPipreqsInPythonDirectory(Path pythonPath) {
-		Path pipreqsPath;
-		if (OperatingSystemUtils.isWindows()) {
-			pipreqsPath = pythonPath.getParent().resolve(Paths.get("Scripts", "pipreqs.exe"));
-		} else {
-			pipreqsPath = pythonPath.getParent().resolve("pipreqs");
+	private @Nullable Path findPipreqsInPythonDirectory(Path pythonPath) {
+		Path parent = pythonPath.getParent();
+		if (parent == null) {
+			return null;
 		}
-		return pipreqsPath;
+		if (OperatingSystemUtils.isWindows()) {
+			return parent.resolve(Paths.get("Scripts", "pipreqs.exe"));
+		}
+		return parent.resolve("pipreqs");
 	}
 
 	private @Nullable Path findPipreqsFromPackageLocation() throws IOException, InterruptedException {
@@ -240,7 +249,11 @@ public class PythonService {
 
 		if (OperatingSystemUtils.isWindows()) {
 			Path scriptsDir = Paths.get("Scripts", "pipreqs.exe");
-			Path pipreqsPath = sitePackages.getParent().resolve(scriptsDir);
+			Path parent = sitePackages.getParent();
+			if (parent == null) {
+				return null;
+			}
+			Path pipreqsPath = parent.resolve(scriptsDir);
 			if (Files.exists(pipreqsPath)) {
 				return pipreqsPath;
 			}
@@ -256,9 +269,6 @@ public class PythonService {
 	private void generateRequirementsFile(Path directory, Consumer<String> onOutput) throws IOException,
 			InterruptedException {
 		Path pipreqsPath = getPipreqsPath();
-		if (pipreqsPath == null || !Files.exists(pipreqsPath)) {
-			throw new IllegalStateException("pipreqs not found in path: " + pipreqsPath);
-		}
 		List<String> command = List.of(
 				pipreqsPath.toString(),
 				directory.toString(),
@@ -301,5 +311,27 @@ public class PythonService {
 		} catch (IOException e) {
 			log.warn("Failed to cleanup temporary directory for script {}: {}", scriptFilename, e.getMessage());
 		}
+	}
+
+	public void checkVersion() throws InterruptedException {
+		try {
+			String version = getVersion();
+			PythonVersion pythonVersion = PythonVersion.parse(version);
+			if (pythonVersion.compareTo(MINIMAL_PYTHON_VERSION) < 0) {
+				throw new IllegalStateException(
+						"Python version " + pythonVersion + " is not supported. " + INSTALL_PYTHON_HINT);
+			}
+		} catch (CommandExecutionException | IOException e) {
+			throw new IllegalStateException(
+					"Python isn't installed on your PC. " + INSTALL_PYTHON_HINT, e);
+		}
+	}
+
+	private String getVersion() throws IOException, InterruptedException {
+		StringBuilder output = new StringBuilder();
+		commandExecutor.executeCommand(
+				List.of(getPythonPath().toString(), "--version"),
+				line -> output.append(line).append('\n'));
+		return output.toString().trim();
 	}
 }

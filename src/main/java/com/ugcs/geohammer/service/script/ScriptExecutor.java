@@ -80,6 +80,8 @@ public class ScriptExecutor {
 			throw new RuntimeException("Script is already running for this file");
 		}
 
+		pythonService.checkVersion();
+
 		executingScripts.put(sgyFile, scriptMetadata);
 		File tempFile = null;
 		try {

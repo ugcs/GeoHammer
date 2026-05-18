@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.ugcs.geohammer.format.csv.parser.IncorrectFormatException;
+import org.jspecify.annotations.Nullable;
 
 public final class Text {
 
@@ -81,6 +81,7 @@ public final class Text {
         return value;
     }
 
+	@Nullable
     public static Double parseDouble(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -92,6 +93,7 @@ public final class Text {
         }
     }
 
+	@Nullable
     public static Integer parseInt(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -103,6 +105,7 @@ public final class Text {
         }
     }
 
+	@Nullable
     public static Long parseLong(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -114,6 +117,7 @@ public final class Text {
         }
     }
 
+	@Nullable
     public static LocalDate parseDate(String value, String format) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -122,10 +126,11 @@ public final class Text {
         try {
             return LocalDate.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-            throw new IncorrectFormatException(value, format);
+           return null;
         }
     }
 
+	@Nullable
     public static LocalTime parseTime(String value, String format) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -134,10 +139,11 @@ public final class Text {
         try {
             return LocalTime.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-            throw new IncorrectFormatException(value, format);
+            return null;
         }
     }
 
+	@Nullable
     public static LocalDateTime parseDateTime(String value, String format) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -149,7 +155,7 @@ public final class Text {
         try {
             return LocalDateTime.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-            throw new IncorrectFormatException(value, format);
+            return null;
         }
     }
 
@@ -170,6 +176,7 @@ public final class Text {
 		return DateTimeFormatter.ofPattern(pattern, Locale.US);
 	}
 
+	@Nullable
     public static LocalDateTime parseGpsDateTime(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;

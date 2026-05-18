@@ -11,6 +11,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 
 import com.ugcs.geohammer.format.FileOpenException;
+import com.ugcs.geohammer.format.csv.parser.ParseWarnings;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
@@ -27,7 +28,6 @@ import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.Nulls;
-import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
@@ -280,6 +280,11 @@ public class Loader {
 		CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
 
 		csvFile.open(file);
+
+		ParseWarnings warnings = csvFile.getParseWarnings();
+		if (!warnings.isEmpty()) {
+			Dialogs.showWarning("Parsing completed with warnings: " + file.getName(), warnings.format());
+		}
 
 		Platform.runLater(() -> {
             model.initChart(csvFile);

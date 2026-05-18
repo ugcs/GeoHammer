@@ -47,6 +47,7 @@ public class Dialogs {
 		alert.setHeaderText(header);
 
 		Label content = new Label(message);
+		content.getStyleClass().add("alert-content");
 		content.setWrapText(true);
 		content.setPrefWidth(CONTENT_WIDTH);
 		content.setMaxWidth(CONTENT_WIDTH);
@@ -172,6 +173,13 @@ public class Dialogs {
 			AppContext.getInstance(ThemeService.class)
 					.registerScene(dialogPane.getScene(), false);
 			dialog.show();
+		});
+	}
+
+	public static void showWarning(String header, String message) {
+		Platform.runLater(() -> {
+			Alert alert = createAlert(AlertType.WARNING, header, message);
+			alert.show();
 		});
 	}
 }

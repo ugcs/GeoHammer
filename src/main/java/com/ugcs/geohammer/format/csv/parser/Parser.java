@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
 import com.ugcs.geohammer.format.GeoData;
@@ -51,6 +52,8 @@ public abstract class Parser {
     // date and time parsed from the filename
     protected LocalDate dateFromFilename;
 
+	private final ParseWarnings parseWarnings = new ParseWarnings();
+
     public Parser(Template template) {
         this.template = Check.notNull(template);
     }
@@ -81,7 +84,11 @@ public abstract class Parser {
         return column != null && headers.containsKey(column.getHeader());
     }
 
-    public List<GeoData> parse(File file) throws IOException {
+	public ParseWarnings getWarnings() {
+		return parseWarnings;
+	}
+
+	public List<GeoData> parse(File file) throws IOException {
         Check.notNull(file);
 
         // set date from filename
@@ -288,7 +295,7 @@ public abstract class Parser {
             String header = column.getHeader();
             // data column declared in template or having numeric values
             boolean display = !excludeHeaders.contains(header)
-                    && (mapping.getDataValueByHeader(header) != null || hasNumbers(values, header));
+                    && (mapping.isDataValueByHeader(header) || hasNumbers(values, header));
             column.setDisplay(display);
         }
     }
@@ -312,13 +319,9 @@ public abstract class Parser {
         geoData.setDateTime(time);
 
         for (Column column : columns) {
-            String header = column.getHeader();
-            if (hasHeader(header)) {
-                String str = Strings.emptyToNull(getString(tokens, header));
-                if (str != null) {
-                    Number number = parseNumber(str);
-                    geoData.setValue(header, Objects.requireNonNullElse(number, str));
-                }
+            Object value = parseDataValue(column, tokens);
+            if (value != null) {
+                geoData.setValue(column.getHeader(), value);
             }
         }
 
@@ -415,51 +418,74 @@ public abstract class Parser {
     public LocalDateTime parseDateTime(String[] values) {
         DataMapping mapping = template.getDataMapping();
 
-        LocalDateTime dateTime = null;
-
-        // dateTime column
-        DateTime dateTimeColumn = mapping.getDateTime();
-        if (hasHeader(dateTimeColumn)) {
-            String value = getString(values, dateTimeColumn);
-			dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
-        }
+        LocalDateTime dateTime = parseFormatted(mapping.getDateTime(), values, Text::parseDateTime);
         if (dateTime != null) {
             return dateTime;
         }
 
-        // date + time columns
-        // date from filename + time column
-        DateTime timeColumn = mapping.getTime();
-        if (hasHeader(timeColumn)) {
-            String timeValue = getString(values, timeColumn);
-			LocalTime time = Text.parseTime(timeValue, timeColumn.getFormat());
-			if (time != null) {
-				Date dateColumn = mapping.getDate();
-				if (hasHeader(dateColumn)) {
-					String dateValue = getString(values, dateColumn);
-					LocalDate date = Text.parseDate(dateValue, dateColumn.getFormat());
-					if (date != null && time != null) {
-						dateTime = LocalDateTime.of(date, time);
-					}
-				}
-				if (dateTime == null && dateFromFilename != null) {
-					dateTime = LocalDateTime.of(dateFromFilename, time);
-				}
-			}
-        }
-        if (dateTime != null) {
-            return dateTime;
-        }
-
-        // timestamp columns
-        BaseData timestampColumn = mapping.getTimestamp();
-        if (hasHeader(timestampColumn)) {
-            Long timestamp = Text.parseLong(getString(values, timestampColumn));
-            if (timestamp != null) {
-                dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"));
+        LocalTime time = parseFormatted(mapping.getTime(), values, Text::parseTime);
+        if (time != null) {
+            LocalDate date = parseFormatted(mapping.getDate(), values, Text::parseDate);
+            if (date != null) {
+                dateTime = LocalDateTime.of(date, time);
             }
+            if (dateTime == null && dateFromFilename != null) {
+                dateTime = LocalDateTime.of(dateFromFilename, time);
+            }
+        }
+        if (dateTime != null) {
+            return dateTime;
+        }
+
+        Long timestamp = parseTimestamp(mapping.getTimestamp(), values);
+        if (timestamp != null) {
+            dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"));
         }
 
         return dateTime;
+    }
+
+    private Object parseDataValue(Column column, String[] values) {
+        String header = column.getHeader();
+        if (!hasHeader(header)) {
+            return null;
+        }
+        String str = Strings.emptyToNull(getString(values, header));
+        if (str == null) {
+            return null;
+        }
+        Number number = parseNumber(str);
+        if (number != null) {
+            return number;
+        }
+        if (template.getDataMapping().isDataValueByHeader(header)) {
+            parseWarnings.addNumberError(header, str);
+        }
+        return str;
+    }
+
+    private <T> T parseFormatted(DateTime column, String[] values, BiFunction<String, String, T> parser) {
+        if (!hasHeader(column)) {
+            return null;
+        }
+        String value = getString(values, column);
+        String format = column.getFormat();
+        T result = parser.apply(value, format);
+        if (result == null) {
+            parseWarnings.addFormatError(column.getHeader(), value, format);
+        }
+        return result;
+    }
+
+    private Long parseTimestamp(BaseData column, String[] values) {
+        if (!hasHeader(column)) {
+            return null;
+        }
+        String value = getString(values, column);
+        Long result = Text.parseLong(value);
+        if (result == null) {
+            parseWarnings.addNumberError(column.getHeader(), value);
+        }
+        return result;
     }
 }

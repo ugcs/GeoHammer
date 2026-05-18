@@ -185,7 +185,7 @@ public class PythonService {
 			}
 		}
 		if (pythonPath == null || pythonPath.isEmpty()) {
-			pythonPath = OperatingSystemUtils.isWindows() ? "python" : "python3";
+			throw new IllegalStateException("Python executable not found. Please install Python or configure path in settings.");
 		}
 		return Path.of(pythonPath);
 	}

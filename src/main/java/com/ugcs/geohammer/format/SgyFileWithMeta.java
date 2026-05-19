@@ -53,7 +53,7 @@ public abstract class SgyFileWithMeta extends SgyFile {
         }
 
         @Override
-        public void restoreFile(Model model) {
+        public void restoreFile(Model model) throws IOException {
             if (meta == null) {
                 return; // no meta
             }

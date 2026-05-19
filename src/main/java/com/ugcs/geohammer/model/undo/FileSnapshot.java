@@ -8,10 +8,15 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.List;
 
 public abstract class FileSnapshot<T extends SgyFile> implements UndoSnapshot {
+
+    private static final Logger log = LoggerFactory.getLogger(FileSnapshot.class);
 
     protected final T file;
 
@@ -27,18 +32,20 @@ public abstract class FileSnapshot<T extends SgyFile> implements UndoSnapshot {
         return file;
     }
 
-    public abstract void restoreFile(Model model);
+    public abstract void restoreFile(Model model) throws IOException;
 
     @Override
     public void restore(Model model) {
         if (!isFileOpened(model)) {
             return; // file was closed
         }
-
-        restoreFile(model);
-
+        try {
+            restoreFile(model);
+        } catch (Exception e) {
+            log.error("Failed to restore snapshot", e);
+            return;
+        }
         file.setAuxElements(elements);
-
         onFileChanged(model);
     }
 

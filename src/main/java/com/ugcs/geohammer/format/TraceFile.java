@@ -11,6 +11,8 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.model.undo.TempStore;
+import com.ugcs.geohammer.model.undo.TraceCodec;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.gpr.BackgroundNoiseRemover;
 import com.ugcs.geohammer.service.gpr.DistanceCalculator;
@@ -45,9 +47,9 @@ import java.util.Set;
 
 public abstract class TraceFile extends SgyFileWithMeta {
 
-    protected static double SPEED_SM_NS_VACUUM = 30.0;
+    protected static final double SPEED_SM_NS_VACUUM = 30.0;
 
-    protected static double SPEED_SM_NS_SOIL = SPEED_SM_NS_VACUUM / 3.0;
+    protected static final double SPEED_SM_NS_SOIL = SPEED_SM_NS_VACUUM / 3.0;
 
     private static final Logger log = LoggerFactory.getLogger(TraceFile.class);
 
@@ -252,7 +254,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
     public abstract TraceFile copy();
 
     public FileSnapshot<TraceFile> createSnapshotWithTraces() {
-        return new SnapshotWithTraces(this);
+        try {
+            return new SnapshotWithTraces(this);
+        } catch (IOException e) {
+            log.error("Failed to create snapshot", e);
+            return null;
+        }
     }
 
     public abstract void normalize();
@@ -295,11 +302,8 @@ public abstract class TraceFile extends SgyFileWithMeta {
     }
 
     public void updateTraceDistances() {
-        //	calcDistances();
-        //	prolongDistances();
         new DistanceCalculator().execute(this, null);
         setSpreadCoordinatesNecessary(SpreadCoordinates.isSpreadingNecessary(this));
-        //smoothDistances();
         new DistanceSmoother().execute(this, null);
     }
 
@@ -398,27 +402,37 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public static class SnapshotWithTraces extends Snapshot<TraceFile> {
 
-        private List<Trace> traces;
+        private final TempStore.Entry tracesEntry;
 
-        private HorizontalProfile profile;
+        private final HorizontalProfile profile;
 
-        private boolean backgroundRemoved;
+        private final boolean backgroundRemoved;
 
-        public SnapshotWithTraces(TraceFile file) {
+        public SnapshotWithTraces(TraceFile file) throws IOException {
             super(file);
 
-            traces = Traces.copy(file.traces);
+            TempStore tempStore = AppContext.getInstance(TempStore.class);
+            tracesEntry = tempStore.newEntry();
+            tracesEntry.write(out -> TraceCodec.write(out, file.traces));
+
             profile = file.getGroundProfile();
             backgroundRemoved = file.isBackgroundRemoved();
         }
 
         @Override
-        public void restoreFile(Model model) {
+        public void restoreFile(Model model) throws IOException {
+            List<Trace> traces = tracesEntry.read(TraceCodec::read);
             file.setTraces(traces);
+
             file.setGroundProfile(profile);
             file.setBackgroundRemoved(backgroundRemoved);
 
             super.restoreFile(model);
+        }
+
+        @Override
+        public void discard() {
+            tracesEntry.close();
         }
     }
 }

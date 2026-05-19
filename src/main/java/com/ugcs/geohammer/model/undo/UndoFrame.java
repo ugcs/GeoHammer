@@ -6,6 +6,7 @@ import com.ugcs.geohammer.util.Check;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
@@ -59,14 +60,26 @@ public class UndoFrame {
     public void removeSnapshots(SgyFile file) {
         Check.notNull(file);
 
-        snapshots.removeIf(s ->
-                s instanceof FileSnapshot<?> fileSnapshot
-                        && Objects.equals(fileSnapshot.getFile(), file));
+        Iterator<UndoSnapshot> it = snapshots.iterator();
+        while (it.hasNext()) {
+            UndoSnapshot snapshot = it.next();
+            if (snapshot instanceof FileSnapshot<?> fileSnapshot
+                    && Objects.equals(fileSnapshot.getFile(), file)) {
+                snapshot.discard();
+                it.remove();
+            }
+        }
     }
 
     public void restore(Model model) {
         for (UndoSnapshot snapshot : snapshots) {
             snapshot.restore(model);
+        }
+    }
+
+    public void discard() {
+        for (UndoSnapshot snapshot : snapshots) {
+            snapshot.discard();
         }
     }
 }

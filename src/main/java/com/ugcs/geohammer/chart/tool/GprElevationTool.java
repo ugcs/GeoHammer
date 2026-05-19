@@ -312,7 +312,9 @@ public class GprElevationTool extends FilterToolView {
         }
 
         FileSnapshot<TraceFile> snapshot = traceFile.createSnapshotWithTraces();
-        undoModel.push(new UndoFrame(snapshot));
+        if (snapshot != null) {
+            undoModel.push(new UndoFrame(snapshot));
+        }
     }
 
     private void flattenSurface() {

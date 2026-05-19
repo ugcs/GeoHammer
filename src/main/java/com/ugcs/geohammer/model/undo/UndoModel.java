@@ -18,7 +18,7 @@ import java.util.List;
 @Component
 public class UndoModel {
 
-    @Value("${undo.depth:3}")
+    @Value("${undo.depth:30}")
     private int undoDepth;
 
     private final Deque<UndoFrame> frames = new ArrayDeque<>();
@@ -60,7 +60,8 @@ public class UndoModel {
         frames.addFirst(frame);
         // maintain undo depth
         if (frames.size() > undoDepth) {
-            frames.removeLast();
+            UndoFrame evicted = frames.removeLast();
+            evicted.discard();
         }
         model.publishEvent(new UndoStackChanged(this));
     }
@@ -78,6 +79,7 @@ public class UndoModel {
         UndoFrame frame = frames.removeFirst();
         // restore frame state
         frame.restore(model);
+        frame.discard();
 
         model.publishEvent(new UndoStackChanged(this));
     }

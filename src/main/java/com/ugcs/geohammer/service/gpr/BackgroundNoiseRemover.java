@@ -27,7 +27,9 @@ public class BackgroundNoiseRemover implements Command {
 
 		if (undoModel != null) {
 			FileSnapshot<TraceFile> snapshot = file.createSnapshotWithTraces();
-			undoModel.push(new UndoFrame(snapshot));
+			if (snapshot != null) {
+				undoModel.push(new UndoFrame(snapshot));
+			}
 		}
 
 		List<Trace> traces = file.getTraces();

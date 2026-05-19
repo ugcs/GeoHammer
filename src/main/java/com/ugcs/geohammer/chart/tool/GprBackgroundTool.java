@@ -17,6 +17,7 @@ import javafx.scene.layout.Priority;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -76,12 +77,19 @@ public class GprBackgroundTool extends FilterToolView {
 
     private void removeBackground() {
         submitAction(() -> {
+			List<TraceFile> processedFiles = new ArrayList<>();
             List<TraceFile> traceFiles = model.getFileManager().getGprFiles();
             for (TraceFile traceFile : traceFiles) {
                 if (!traceFile.isBackgroundRemoved()) {
                     traceFile.removeBackground(undoModel);
+					processedFiles.add(traceFile);
                 }
             }
+			Platform.runLater(() -> {
+				for (TraceFile traceFile : processedFiles) {
+					model.reload(traceFile);
+				}
+			});
             return null;
         });
     }

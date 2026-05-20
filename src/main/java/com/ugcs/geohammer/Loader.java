@@ -288,7 +288,7 @@ public class Loader {
 			Collection<WarningGroup> parserWarnings = parser.getWarnings();
 			if (!parserWarnings.isEmpty()) {
 				StringBuilder body = new StringBuilder();
-				body.append("The following values could not be parsed and are left empty.\n");
+				body.append("The following values could not be parsed and are left empty:");
 				for (WarningGroup group : parserWarnings) {
 					body.append("\n").append(group);
 				}

@@ -1,6 +1,6 @@
-package com.ugcs.geohammer.format.csv.parser;
+package com.ugcs.geohammer.util;
 
-public class IncorrectFormatException extends ParseException {
+public class IncorrectFormatException extends RuntimeException {
 
     public IncorrectFormatException(String value, String format) {
         super("Value '" + value + "' does not match format '" + format + "'");

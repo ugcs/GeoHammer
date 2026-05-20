@@ -1,7 +1,6 @@
 package com.ugcs.geohammer.format.csv;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.format.csv.parser.ParseWarnings;
 import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.format.csv.parser.Writer;
 import com.ugcs.geohammer.format.csv.parser.WriterFactory;
@@ -137,13 +136,6 @@ public class CsvFile extends SgyFile {
     public Parser getParser() {
         return parser;
     }
-
-	public ParseWarnings getParseWarnings() {
-		if (parser == null) {
-			return new ParseWarnings();
-		}
-		return parser.getWarnings();
-	}
 
     @Nullable
     public Template getTemplate() {

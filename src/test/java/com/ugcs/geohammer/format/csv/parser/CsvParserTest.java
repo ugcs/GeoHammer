@@ -74,7 +74,7 @@ class CsvParserTest extends BaseParsersTest {
         Template template = loadTemplate(file);
         CsvParser parser = new CsvParser(template);
 
-        assertThrows(IncorrectFormatException.class, () -> {
+        assertThrows(ParseException.class, () -> {
             parser.parse(Paths.get(CSVTestDataFolder + "Missed-date-position.csv").toFile());
         });
     }
@@ -155,5 +155,56 @@ class CsvParserTest extends BaseParsersTest {
         } catch (Exception e) {
             fail(e.getMessage());
         }
+    }
+
+    @Test
+    void warningsAggregateByColumn() throws IOException {
+        String path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplate.yaml";
+        String file = new String(Files.readAllBytes(Paths.get(path)));
+
+        Template template = loadTemplate(file);
+        CsvParser parser = new CsvParser(template);
+        parser.setHeaders(List.of("Elapsed", "Time", "Pitch", "Roll", "Yaw",
+                "Latitude", "Longitude", "Altitude", "RTK Status", "ALT:Altitude", "GPR:Trace"));
+
+        parser.parseDateTime(new String[]{"1", "badvalue1", "0", "0", "0",
+                "1.0", "2.0", "0", "", "0", "0"});
+        parser.parseDateTime(new String[]{"2", "badvalue2", "0", "0", "0",
+                "1.0", "2.0", "0", "", "0", "0"});
+        parser.parseDateTime(new String[]{"3", "badvalue3", "0", "0", "0",
+                "1.0", "2.0", "0", "", "0", "0"});
+
+        Collection<WarningGroup> warnings = parser.getWarnings();
+
+        assertEquals(1, warnings.size());
+        WarningGroup group = warnings.iterator().next();
+        assertEquals("Time", group.column());
+        assertEquals(3, group.count());
+        assertTrue(group.message().contains("badvalue1"),
+                "first message should be preserved as the example");
+        assertFalse(group.message().contains("badvalue2"));
+        assertFalse(group.message().contains("badvalue3"));
+    }
+
+    @Test
+    void warningsSeparateDifferentColumns() throws IOException {
+        String path = YamlTestDataFolder + YamlCsvFolder + "ValidCsvTemplate.yaml";
+        String file = new String(Files.readAllBytes(Paths.get(path)));
+
+        Template template = loadTemplate(file);
+        CsvParser parser = new CsvParser(template);
+        parser.setHeaders(List.of("Elapsed", "Time", "Pitch", "Roll", "Yaw",
+                "Latitude", "Longitude", "Altitude", "RTK Status", "ALT:Altitude", "GPR:Trace"));
+
+        // bad Time (format) on one row
+        parser.parseDateTime(new String[]{"1", "badtime", "0", "0", "0",
+                "1.0", "2.0", "0", "", "0", "0"});
+
+        Collection<WarningGroup> warnings = parser.getWarnings();
+
+        assertEquals(1, warnings.size());
+        WarningGroup group = warnings.iterator().next();
+        assertEquals("Time", group.column());
+        assertEquals(1, group.count());
     }
 }

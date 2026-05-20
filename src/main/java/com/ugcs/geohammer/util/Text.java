@@ -89,7 +89,7 @@ public final class Text {
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException e) {
-            return null;
+			throw new IncorrectFormatException("Value '" + value + "' does not match number format");
         }
     }
 
@@ -101,7 +101,7 @@ public final class Text {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
-            return null;
+			throw new IncorrectFormatException("Value '" + value + "' does not match number format");
         }
     }
 
@@ -113,7 +113,7 @@ public final class Text {
         try {
             return Long.parseLong(value);
         } catch (NumberFormatException e) {
-            return null;
+            throw new IncorrectFormatException("Value '" + value + "' does not match number format");
         }
     }
 
@@ -126,7 +126,7 @@ public final class Text {
         try {
             return LocalDate.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-           return null;
+           throw new IncorrectFormatException(value, format);
         }
     }
 
@@ -139,7 +139,7 @@ public final class Text {
         try {
             return LocalTime.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-            return null;
+			throw new IncorrectFormatException(value, format);
         }
     }
 
@@ -155,7 +155,7 @@ public final class Text {
         try {
             return LocalDateTime.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-            return null;
+            throw new IncorrectFormatException(value, format);
         }
     }
 

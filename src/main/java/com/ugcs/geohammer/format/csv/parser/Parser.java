@@ -11,6 +11,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -19,7 +20,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
 import com.ugcs.geohammer.format.GeoData;
@@ -35,6 +35,7 @@ import com.ugcs.geohammer.model.template.data.DateTime;
 import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.GpsTime;
+import com.ugcs.geohammer.util.IncorrectFormatException;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
@@ -52,7 +53,7 @@ public abstract class Parser {
     // date and time parsed from the filename
     protected LocalDate dateFromFilename;
 
-	private final ParseWarnings parseWarnings = new ParseWarnings();
+	private final Map<String, WarningGroup> warnings = new LinkedHashMap<>();
 
     public Parser(Template template) {
         this.template = Check.notNull(template);
@@ -84,8 +85,14 @@ public abstract class Parser {
         return column != null && headers.containsKey(column.getHeader());
     }
 
-	public ParseWarnings getWarnings() {
-		return parseWarnings;
+	public Collection<WarningGroup> getWarnings() {
+		return warnings.values();
+	}
+
+	private void addWarning(String key, String column, String message) {
+		warnings.compute(key, (k, existing) -> existing == null
+				? new WarningGroup(column, message, 1)
+				: new WarningGroup(column, existing.message(), existing.count() + 1));
 	}
 
 	public List<GeoData> parse(File file) throws IOException {
@@ -295,7 +302,7 @@ public abstract class Parser {
             String header = column.getHeader();
             // data column declared in template or having numeric values
             boolean display = !excludeHeaders.contains(header)
-                    && (mapping.isDataValueByHeader(header) || hasNumbers(values, header));
+                    && (mapping.getDataValueByHeader(header) != null || hasNumbers(values, header));
             column.setDisplay(display);
         }
     }
@@ -319,9 +326,20 @@ public abstract class Parser {
         geoData.setDateTime(time);
 
         for (Column column : columns) {
-            Object value = parseDataValue(column, tokens);
-            if (value != null) {
-                geoData.setValue(column.getHeader(), value);
+            String header = column.getHeader();
+            if (hasHeader(header)) {
+                String str = Strings.emptyToNull(getString(tokens, header));
+                if (str != null) {
+					Number number = null;
+					try {
+						number = parseNumber(str);
+					} catch (IncorrectFormatException e) {
+						if (template.getDataMapping().getDataValueByHeader(header) != null) {
+							addWarning(header, header, e.getMessage());
+						}
+					}
+                    geoData.setValue(header, Objects.requireNonNullElse(number, str));
+                }
             }
         }
 
@@ -383,20 +401,28 @@ public abstract class Parser {
     }
 
     public Double parseLatitude(String[] values) {
-        BaseData latitudeColumn = template.getDataMapping().getLatitude();
-        return Text.parseDouble(getString(values, latitudeColumn));
+		BaseData latitudeColumn = template.getDataMapping().getLatitude();
+		try {
+			return Text.parseDouble(getString(values, latitudeColumn));
+		} catch (IncorrectFormatException e) {
+			return null;
+		}
     }
 
     public Double parseLongitude(String[] values) {
-        BaseData longitudeColumn = template.getDataMapping().getLongitude();
-        return Text.parseDouble(getString(values, longitudeColumn));
+		BaseData longitudeColumn = template.getDataMapping().getLongitude();
+		try {
+			return Text.parseDouble(getString(values, longitudeColumn));
+		} catch (IncorrectFormatException e) {
+			return null;
+		}
     }
 
     public LocalDate parseDateFromFilename(String filename) {
         Date dateColumn = template.getDataMapping().getDate();
         String value = Text.matchPattern(filename, dateColumn.getRegex(), false);
         if (Strings.isNullOrEmpty(value)) {
-            throw new IncorrectFormatException("Incorrect file name. Cannot match date pattern");
+            throw new ParseException("Incorrect file name. Cannot match date pattern");
         }
 
         LocalDate date = null;
@@ -410,7 +436,7 @@ public abstract class Parser {
             }
         }
         if (date == null) {
-            throw new IncorrectFormatException("Incorrect date formats");
+            throw new ParseException("Incorrect date formats");
         }
         return date;
     }
@@ -418,74 +444,67 @@ public abstract class Parser {
     public LocalDateTime parseDateTime(String[] values) {
         DataMapping mapping = template.getDataMapping();
 
-        LocalDateTime dateTime = parseFormatted(mapping.getDateTime(), values, Text::parseDateTime);
-        if (dateTime != null) {
-            return dateTime;
-        }
-
-        LocalTime time = parseFormatted(mapping.getTime(), values, Text::parseTime);
-        if (time != null) {
-            LocalDate date = parseFormatted(mapping.getDate(), values, Text::parseDate);
-            if (date != null) {
-                dateTime = LocalDateTime.of(date, time);
+        // dateTime column
+        DateTime dateTimeColumn = mapping.getDateTime();
+        if (hasHeader(dateTimeColumn)) {
+            try {
+                LocalDateTime dateTime = Text.parseDateTime(
+                        getString(values, dateTimeColumn), dateTimeColumn.getFormat());
+                if (dateTime != null) {
+                    return dateTime;
+                }
+            } catch (IncorrectFormatException e) {
+				String key = buildDateTimeWarningKey(dateTimeColumn.getHeader(), dateTimeColumn.getFormat());
+                addWarning(key, dateTimeColumn.getHeader(), e.getMessage());
             }
-            if (dateTime == null && dateFromFilename != null) {
-                dateTime = LocalDateTime.of(dateFromFilename, time);
+        }
+
+        // date + time columns, or date from filename + time column
+        DateTime timeColumn = mapping.getTime();
+        if (hasHeader(timeColumn)) {
+            LocalTime time = null;
+            try {
+                time = Text.parseTime(getString(values, timeColumn), timeColumn.getFormat());
+            } catch (IncorrectFormatException e) {
+				String key = buildDateTimeWarningKey(timeColumn.getHeader(), timeColumn.getFormat());
+                addWarning(key, timeColumn.getHeader(), e.getMessage());
+            }
+            if (time != null) {
+                Date dateColumn = mapping.getDate();
+                if (hasHeader(dateColumn)) {
+                    try {
+                        LocalDate date = Text.parseDate(getString(values, dateColumn), dateColumn.getFormat());
+                        if (date != null) {
+                            return LocalDateTime.of(date, time);
+                        }
+                    } catch (IncorrectFormatException e) {
+						String key = buildDateTimeWarningKey(dateColumn.getHeader(), dateColumn.getFormat());
+                        addWarning(key, dateColumn.getHeader(), e.getMessage());
+                    }
+                }
+                if (dateFromFilename != null) {
+                    return LocalDateTime.of(dateFromFilename, time);
+                }
             }
         }
-        if (dateTime != null) {
-            return dateTime;
+
+        // timestamp column
+        BaseData timestampColumn = mapping.getTimestamp();
+        if (hasHeader(timestampColumn)) {
+            try {
+                Long timestamp = Text.parseLong(getString(values, timestampColumn));
+                if (timestamp != null) {
+                    return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"));
+                }
+            } catch (IncorrectFormatException e) {
+                addWarning(timestampColumn.getHeader(), timestampColumn.getHeader(), e.getMessage());
+            }
         }
 
-        Long timestamp = parseTimestamp(mapping.getTimestamp(), values);
-        if (timestamp != null) {
-            dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"));
-        }
-
-        return dateTime;
+        return null;
     }
 
-    private Object parseDataValue(Column column, String[] values) {
-        String header = column.getHeader();
-        if (!hasHeader(header)) {
-            return null;
-        }
-        String str = Strings.emptyToNull(getString(values, header));
-        if (str == null) {
-            return null;
-        }
-        Number number = parseNumber(str);
-        if (number != null) {
-            return number;
-        }
-        if (template.getDataMapping().isDataValueByHeader(header)) {
-            parseWarnings.addNumberError(header, str);
-        }
-        return str;
-    }
-
-    private <T> T parseFormatted(DateTime column, String[] values, BiFunction<String, String, T> parser) {
-        if (!hasHeader(column)) {
-            return null;
-        }
-        String value = getString(values, column);
-        String format = column.getFormat();
-        T result = parser.apply(value, format);
-        if (result == null) {
-            parseWarnings.addFormatError(column.getHeader(), value, format);
-        }
-        return result;
-    }
-
-    private Long parseTimestamp(BaseData column, String[] values) {
-        if (!hasHeader(column)) {
-            return null;
-        }
-        String value = getString(values, column);
-        Long result = Text.parseLong(value);
-        if (result == null) {
-            parseWarnings.addNumberError(column.getHeader(), value);
-        }
-        return result;
-    }
+	private String buildDateTimeWarningKey(String header, String format) {
+		return header + ":" + format;
+	}
 }

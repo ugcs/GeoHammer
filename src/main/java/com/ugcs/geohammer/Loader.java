@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -11,7 +12,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 
 import com.ugcs.geohammer.format.FileOpenException;
-import com.ugcs.geohammer.format.csv.parser.ParseWarnings;
+import com.ugcs.geohammer.format.csv.parser.Parser;
+import com.ugcs.geohammer.format.csv.parser.WarningGroup;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
@@ -281,9 +283,19 @@ public class Loader {
 
 		csvFile.open(file);
 
-		ParseWarnings warnings = csvFile.getParseWarnings();
-		if (!warnings.isEmpty()) {
-			Dialogs.showWarning("Parsing completed with warnings: " + file.getName(), warnings.format());
+		Parser parser = csvFile.getParser();
+		if (parser != null) {
+			Collection<WarningGroup> parserWarnings = parser.getWarnings();
+			if (!parserWarnings.isEmpty()) {
+				StringBuilder body = new StringBuilder();
+				body.append("The following values could not be parsed and are left empty.\n");
+				for (WarningGroup group : parserWarnings) {
+					body.append("\n").append(group);
+				}
+				Dialogs.showWarning(
+						"Format warnings in " + file.getName(),
+						body.toString());
+			}
 		}
 
 		Platform.runLater(() -> {

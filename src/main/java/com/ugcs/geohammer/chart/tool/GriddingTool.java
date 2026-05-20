@@ -740,7 +740,7 @@ public class GriddingTool extends FilterToolView {
 
     @EventListener
     private void onChange(WhatChanged changed) {
-        if (changed.isTraceCut()) {
+        if (changed.isTraceCut() || changed.isTraceValues()) {
             showParamsChangedWarning(true);
         }
     }

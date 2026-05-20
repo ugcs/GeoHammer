@@ -477,7 +477,7 @@ public class ProjectionView extends CanvasWindow {
         if (!isShowing()) {
             return;
         }
-        if (changed.isTraceCut()) {
+        if (changed.isTraceCut() || changed.isTraceValues()) {
             projectionController.updateLines();
             projectionController.updateTraceProfile();
         }

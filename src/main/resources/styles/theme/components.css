@@ -44,10 +44,6 @@
     -fx-font-weight: bold;
 }
 
-.alert-content.label {
-    -fx-font-weight: normal;
-}
-
 .icon {
     -fx-fill: -color-icon;
 }

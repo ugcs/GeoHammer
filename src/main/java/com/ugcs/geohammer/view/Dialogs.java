@@ -47,7 +47,6 @@ public class Dialogs {
 		alert.setHeaderText(header);
 
 		Label content = new Label(message);
-		content.getStyleClass().add("alert-content");
 		content.setWrapText(true);
 		content.setPrefWidth(CONTENT_WIDTH);
 		content.setMaxWidth(CONTENT_WIDTH);

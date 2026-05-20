@@ -113,6 +113,11 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
 .dialog-pane > .header-panel {
     -fx-background-color: -color-input;
     -fx-text-fill: -color-text;
+    -fx-font-weight: normal;
+}
+
+.dialog-pane > .label {
+    -fx-font-weight: normal;
 }
 
 .dialog-pane > .expandable-content {

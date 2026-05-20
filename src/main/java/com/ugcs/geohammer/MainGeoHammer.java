@@ -13,7 +13,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.awt.*;
@@ -25,7 +25,7 @@ public class MainGeoHammer extends Application {
 
 	private static final String TITLE_VERSION = "GeoHammer ";
 
-    private ApplicationContext context;
+    private ConfigurableApplicationContext context;
 
 	private Model model;
 
@@ -51,6 +51,7 @@ public class MainGeoHammer extends Application {
     public void init() {
 		//create all classes
 		context = new AnnotationConfigApplicationContext("com.ugcs");
+		context.registerShutdownHook();
 		
 		model = context.getBean(Model.class);
 		  
@@ -72,12 +73,9 @@ public class MainGeoHammer extends Application {
     }
 
 	@Override
-	public void start(Stage stage) throws Exception {
-
+	public void start(Stage stage) {
 		AppContext.stage = stage;
-
         stage.getIcons().add(ResourceImageHolder.IMG_LOGO24);
-	
         stage.setTitle(TITLE_VERSION + appBuildInfo.getBuildVersion());
 		
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -98,10 +96,7 @@ public class MainGeoHammer extends Application {
                 return;
             }
 
-            // close context
-            if (context instanceof AnnotationConfigApplicationContext appContext) {
-                appContext.close();
-            }
+			context.close();
 
             Platform.exit();
             System.exit(0);

@@ -4,7 +4,6 @@ import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.format.csv.parser.Writer;
 import com.ugcs.geohammer.format.csv.parser.WriterFactory;
-import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
@@ -15,9 +14,10 @@ import com.ugcs.geohammer.format.csv.parser.ParserFactory;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.template.Template;
+import com.ugcs.geohammer.model.undo.GeoDataCodec;
+import com.ugcs.geohammer.model.undo.TempStore;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
-import com.ugcs.geohammer.util.Nulls;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +38,7 @@ public class CsvFile extends SgyFile {
 	@Nullable
 	private Parser parser;
 
-	private FileTemplates fileTemplates;
+	private final FileTemplates fileTemplates;
 
 	public CsvFile(FileTemplates fileTemplates) {
 		this.fileTemplates = fileTemplates;
@@ -119,7 +119,7 @@ public class CsvFile extends SgyFile {
     }
 
     @Override
-    public void save(File file, IndexRange range) throws IOException {
+    public void save(File file, IndexRange range) {
         throw new UnsupportedOperationException();
     }
 
@@ -155,7 +155,12 @@ public class CsvFile extends SgyFile {
 
     @Override
     public FileSnapshot<CsvFile> createSnapshot() {
-        return new Snapshot(this);
+        try {
+            return new Snapshot(this);
+        } catch (IOException e) {
+            log.error("Failed to create snapshot", e);
+            return null;
+        }
     }
 
 	public void loadFrom(CsvFile other) {
@@ -167,30 +172,25 @@ public class CsvFile extends SgyFile {
 
     public static class Snapshot extends FileSnapshot<CsvFile> {
 
-        private final List<GeoData> values;
+        private final TempStore.Entry valuesEntry;
 
-        public Snapshot(CsvFile file) {
+        public Snapshot(CsvFile file) throws IOException {
             super(file);
 
-            this.values = copyValues(file);
-        }
-
-        private static List<GeoData> copyValues(CsvFile file) {
-            List<GeoData> values = Nulls.toEmpty(file.getGeoData());
-            List<GeoData> snapshot = new ArrayList<>(values.size());
-            ColumnSchema copySchema = ColumnSchema.copy(GeoData.getSchema(values));
-            for (GeoData value : values) {
-                GeoData copy = value != null
-                        ? new GeoData(copySchema, value)
-                        : null;
-                snapshot.add(copy);
-            }
-            return snapshot;
+            TempStore tempStore = AppContext.getInstance(TempStore.class);
+            valuesEntry = tempStore.newEntry();
+            valuesEntry.write(out -> GeoDataCodec.write(out, file.getGeoData()));
         }
 
         @Override
-        public void restoreFile(Model model) {
+        public void restoreFile(Model model) throws IOException {
+            List<GeoData> values = valuesEntry.read(GeoDataCodec::read);
             file.setGeoData(values);
+        }
+
+        @Override
+        public void discard() {
+            valuesEntry.close();
         }
     }
 }

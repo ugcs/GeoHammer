@@ -19,6 +19,8 @@ public class ProjectionModel {
 
     private final ProjectionResult result;
 
+    private final ExportOptions exportOptions;
+
     public ProjectionModel(
             Viewport viewport,
             Axis axis,
@@ -26,7 +28,8 @@ public class ProjectionModel {
             ProjectionOptions projectionOptions,
             GridOptions gridOptions,
             RenderOptions renderOptions,
-            ProjectionResult result) {
+            ProjectionResult result,
+            ExportOptions exportOptions) {
         this.viewport = viewport;
         this.axis = axis;
         this.selection = selection;
@@ -34,6 +37,7 @@ public class ProjectionModel {
         this.gridOptions = gridOptions;
         this.renderOptions = renderOptions;
         this.result = result;
+        this.exportOptions = exportOptions;
     }
 
     public Viewport getViewport() {
@@ -62,5 +66,9 @@ public class ProjectionModel {
 
     public ProjectionResult getResult() {
         return result;
+    }
+
+    public ExportOptions getExportOptions() {
+        return exportOptions;
     }
 }

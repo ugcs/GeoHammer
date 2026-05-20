@@ -12,6 +12,7 @@ import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceRay;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceSamples;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceSamplesView;
+import com.ugcs.geohammer.chart.tool.projection.model.TraceSelection;
 import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
@@ -37,14 +38,21 @@ public class TraceProfileService {
     }
 
     public TraceProfile buildTraceProfile() {
-        TraceFile file = projectionModel.getSelection().getFile();
+        TraceSelection selection = projectionModel.getSelection();
+        TraceFile file = selection.getFile();
         if (file == null) {
             return null;
         }
-
-        Integer line = projectionModel.getSelection().getLine();
+        Integer line = selection.getLine();
         if (line == null) {
             line = 0;
+        }
+        return buildTraceProfile(file, line);
+    }
+
+    public TraceProfile buildTraceProfile(TraceFile file, int line) {
+        if (file == null) {
+            return null;
         }
         IndexRange range = file.getLineRanges().get(line);
         if (range == null) {
@@ -63,7 +71,10 @@ public class TraceProfileService {
         double sampleIntervalNanos = 1e-3 * file.getSampleInterval();
         traceProfile.setSampleIntervalNanos(sampleIntervalNanos);
 
-        List<Point2D> origins = buildOrigins(file, range);
+        List<Point2D> projection = projectOrigins(file, range);
+        double[] x = offsetsAlongLine(projection);
+        double[] y = getAntennaY(file, range);
+        List<Point2D> origins = buildOrigins(x, y);
         List<Point2D> rawTerrain = buildTerrain(file, range, origins);
         List<Point2D> filteredTerrain = filterTerrain(rawTerrain);
         Polyline terrain = new Polyline(filteredTerrain);
@@ -71,7 +82,7 @@ public class TraceProfileService {
         traceProfile.setTerrain(terrain);
         traceProfile.setRawTerrain(rawTerrain);
 
-        List<TraceRay> rays = buildTraceRays(origins, terrain, Math.sqrt(relativePermittivity));
+        List<TraceRay> rays = buildTraceRays(projection, origins, terrain, Math.sqrt(relativePermittivity));
         traceProfile.setRays(rays);
 
         int sampleOffset = projectionModel.getProjectionOptions().getSampleOffset();
@@ -86,10 +97,7 @@ public class TraceProfileService {
         return traceProfile;
     }
 
-    private List<Point2D> buildOrigins(TraceFile file, IndexRange range) {
-        double[] x = getX(file, range);
-        double[] y = getAntennaY(file, range);
-
+    private List<Point2D> buildOrigins(double[] x, double[] y) {
         int n = x.length;
         Check.condition(y.length == n);
 
@@ -110,24 +118,33 @@ public class TraceProfileService {
         return origins;
     }
 
-    private double[] getX(TraceFile file, IndexRange range) {
+    private List<Point2D> projectOrigins(TraceFile file, IndexRange range) {
         List<Trace> traces = file.getTraces();
         int n = range.size();
 
-        double[] x = new double[n];
-        for (int i = 1; i < n; i++) {
+        List<Point2D> projected = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
             int traceIndex = range.from() + i;
-            LatLon latLon0 = traces.get(traceIndex - 1).getLatLon();
-            LatLon latLon1 = traces.get(traceIndex).getLatLon();
-            Point2D p0 = SphericalMercator.project(latLon0);
-            Point2D p1 = SphericalMercator.project(latLon1);
-            double d = p1.subtract(p0).magnitude();
-            // Lproj / L = k
-            double k = SphericalMercator.scaleFactorAt(latLon0.getLatDgr());
-            d /= k;
-            x[i] = x[i - 1] + d;
+            LatLon latLon = traces.get(traceIndex).getLatLon();
+            projected.add(SphericalMercator.project(latLon));
         }
-        return x;
+        return projected;
+    }
+
+    private double[] offsetsAlongLine(List<Point2D> points) {
+        int n = points.size();
+        if (n == 0) {
+            return new double[0];
+        }
+        // Lproj / L = k
+        LatLon first = SphericalMercator.restore(points.getFirst());
+        double k = SphericalMercator.scaleFactorAt(first.getLatDgr());
+        double[] offsets = new double[n];
+        for (int i = 1; i < n; i++) {
+            double offset = points.get(i).subtract(points.get(i - 1)).magnitude() / k;
+            offsets[i] = offsets[i - 1] + offset;
+        }
+        return offsets;
     }
 
     private double[] getAntennaY(TraceFile file, IndexRange range) {
@@ -204,7 +221,9 @@ public class TraceProfileService {
         return filtered;
     }
 
-    private List<TraceRay> buildTraceRays(List<Point2D> origins, Polyline terrain, double erSqrt) {
+    private List<TraceRay> buildTraceRays(List<Point2D> projection, List<Point2D> origins,
+            Polyline terrain, double erSqrt) {
+        Check.condition(projection.size() == origins.size());
 
         Point2D yDown = new Point2D(0, -1);
         double normalWeight = projectionModel.getProjectionOptions().getNormalWeight();
@@ -212,18 +231,17 @@ public class TraceProfileService {
 
         int n = origins.size();
         List<TraceRay> rays = new ArrayList<>(n);
-        for (Point2D origin : origins) {
-            Polyline.SegmentPoint projected = terrain.project(origin);
-            Point2D normal = projected != null
-                    ? projected.point().subtract(origin).normalize()
+        for (int i = 0; i < n; i++) {
+            Point2D origin = origins.get(i);
+            Polyline.SegmentPoint projectedToTerrain = terrain.project(origin);
+            Point2D normal = projectedToTerrain != null
+                    ? projectedToTerrain.point().subtract(origin).normalize()
                     : yDown;
 
             Point2D direction = Vectors.weightedBisector(yDown, normal, normalWeight);
-            TraceRay ray = TraceRay.create(origin, direction, terrain, erSqrt, refract);
+            TraceRay ray = TraceRay.create(projection.get(i), origin, direction, terrain, erSqrt, refract);
             rays.add(ray);
         }
         return rays;
     }
-
-
 }

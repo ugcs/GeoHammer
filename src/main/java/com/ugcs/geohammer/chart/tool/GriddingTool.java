@@ -36,7 +36,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -240,20 +239,6 @@ public class GriddingTool extends FilterToolView {
         paletteSelector.getItems().addAll(PaletteType.values());
         paletteSelector.setValue(PaletteType.defaultPaletteType());
 
-        paletteSelector.setCellFactory(list -> new ListCell<>() {
-            @Override
-            protected void updateItem(PaletteType item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getDisplayName());
-            }
-        });
-        paletteSelector.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(PaletteType item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getDisplayName());
-            }
-        });
         paletteSelector.setOnAction(e -> {
             if (!ignoreFilterEvents.get()) {
                 applyFilter();
@@ -268,20 +253,6 @@ public class GriddingTool extends FilterToolView {
         spectrumSelector.getItems().addAll(SpectrumType.values());
         spectrumSelector.setValue(SpectrumType.defaultSpectrumType());
 
-        spectrumSelector.setCellFactory(list -> new ListCell<>() {
-            @Override
-            protected void updateItem(SpectrumType item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getDisplayName());
-            }
-        });
-        spectrumSelector.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(SpectrumType item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getDisplayName());
-            }
-        });
         spectrumSelector.setOnAction(e -> {
             if (!ignoreFilterEvents.get()) {
                 applyFilter();

@@ -31,4 +31,9 @@ public enum PaletteType {
         }
         return defaultPaletteType();
     }
+
+    @Override
+    public String toString() {
+        return displayName;
+    }
 }

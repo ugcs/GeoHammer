@@ -5,4 +5,7 @@ import com.ugcs.geohammer.model.Model;
 public interface UndoSnapshot {
 
     void restore(Model model);
+
+    default void discard() {
+    }
 }

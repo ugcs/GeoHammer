@@ -5,6 +5,9 @@ import com.ugcs.geohammer.chart.tool.projection.math.SnellRefraction;
 import javafx.geometry.Point2D;
 
 public record TraceRay(
+        // mercator (x, y)
+        Point2D world,
+        // trajectory local (offset, altitude)
         Point2D origin,
         // unit direction in air
         Point2D direction,
@@ -18,12 +21,12 @@ public record TraceRay(
 
     public static final double C_M_NS = 0.299792458; // m/ns
 
-    public TraceRay(Point2D origin, Point2D direction, Point2D soilOrigin, Point2D soilDirection) {
-        this(origin, direction, soilOrigin, soilDirection,
+    public TraceRay(Point2D world, Point2D origin, Point2D direction, Point2D soilOrigin, Point2D soilDirection) {
+        this(world, origin, direction, soilOrigin, soilDirection,
                 soilOrigin != null ? origin.distance(soilOrigin) : Double.NaN);
     }
 
-    public static TraceRay create(Point2D origin, Point2D direction,
+    public static TraceRay create(Point2D world, Point2D origin, Point2D direction,
                 Polyline terrain, double erSqrt, boolean refract) {
         // terrain intersection
         Polyline.SegmentPoint soilHit = terrain.intersectRay(origin, direction);
@@ -34,6 +37,7 @@ public record TraceRay(
             refracted = SnellRefraction.refract(direction, soilNormal, erSqrt);
         }
         return new TraceRay(
+                world,
                 origin,
                 direction,
                 soilHit != null ? soilHit.point() : null,

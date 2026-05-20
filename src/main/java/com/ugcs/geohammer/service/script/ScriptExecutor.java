@@ -16,6 +16,8 @@ import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import org.jspecify.annotations.Nullable;
@@ -57,19 +59,19 @@ public class ScriptExecutor {
 		this.scriptPaths = scriptPaths;
 	}
 
-	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
+	public FileSnapshot<?> executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
 							  Consumer<String> onScriptOutput)
 			throws IOException, InterruptedException, DependencyImportException {
-		executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, false);
+		return executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, false);
 	}
 
-	public void executeScriptWithReinstall(SgyFile sgyFile, ScriptMetadata scriptMetadata,
+	public FileSnapshot<?> executeScriptWithReinstall(SgyFile sgyFile, ScriptMetadata scriptMetadata,
 							  Map<String, String> parameters, Consumer<String> onScriptOutput)
 			throws IOException, InterruptedException, DependencyImportException {
-		executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, true);
+		return executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, true);
 	}
 
-	private void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
+	private FileSnapshot<?> executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
 	                           Consumer<String> onScriptOutput, boolean forceReinstall)
 			throws IOException, InterruptedException, DependencyImportException {
 		Check.notNull(sgyFile);
@@ -110,7 +112,17 @@ public class ScriptExecutor {
 				throw new InterruptedException();
 			}
 
-			loader.loadFrom(sgyFile, tempFile);
+			FileSnapshot<?> snapshot = createFileSnapshot(sgyFile);
+			try {
+				loader.loadFrom(sgyFile, tempFile);
+			} catch (Exception e) {
+				if (snapshot != null) {
+					snapshot.discard();
+				}
+				throw e;
+			}
+
+			return snapshot;
 		} finally {
 			executingScripts.remove(sgyFile);
 			if (tempFile != null) {
@@ -165,6 +177,16 @@ public class ScriptExecutor {
 		}
 
 		return command;
+	}
+
+	private @Nullable FileSnapshot<?> createFileSnapshot(SgyFile sgyFile) {
+		if (sgyFile instanceof TraceFile traceFile) {
+			return traceFile.createSnapshotWithTraces();
+		}
+		if (sgyFile instanceof CsvFile csvFile) {
+			return csvFile.createSnapshot();
+		}
+		return null;
 	}
 
 	public boolean isExecuting(@Nullable SgyFile sgyFile) {

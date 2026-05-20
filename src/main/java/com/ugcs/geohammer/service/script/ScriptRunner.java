@@ -1,12 +1,17 @@
 package com.ugcs.geohammer.service.script;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.model.undo.FileSnapshot;
+import com.ugcs.geohammer.model.undo.UndoFrame;
+import com.ugcs.geohammer.model.undo.UndoModel;
+import com.ugcs.geohammer.model.undo.UndoSnapshot;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -17,8 +22,11 @@ public class ScriptRunner {
 
     private final ScriptExecutor scriptExecutor;
 
-    public ScriptRunner(ScriptExecutor scriptExecutor) {
+	private final UndoModel undoModel;
+
+    public ScriptRunner(ScriptExecutor scriptExecutor, UndoModel undoModel) {
         this.scriptExecutor = scriptExecutor;
+		this.undoModel = undoModel;
     }
 
     public boolean isExecuting(SgyFile sgyFile) {
@@ -41,53 +49,57 @@ public class ScriptRunner {
             onOutput.accept(line);
         };
 
+		List<UndoSnapshot> snapshots = new ArrayList<>(files.size());
         for (SgyFile sgyFile : files) {
             if (Thread.currentThread().isInterrupted()) {
                 return;
             }
             outputBuffer.clear();
-            if (!runOnFile(sgyFile, metadata, params, bufferedOutput, outputBuffer, listener)) {
+			FileSnapshot<?> snapshot = runOnFile(sgyFile, metadata, params, bufferedOutput, outputBuffer, listener);
+            if (snapshot == null) {
                 return;
             }
+			snapshots.add(snapshot);
         }
+		undoModel.push(new UndoFrame(snapshots));
     }
 
-    private boolean runOnFile(SgyFile sgyFile, ScriptMetadata metadata, Map<String, String> params,
+    private @Nullable FileSnapshot<?> runOnFile(SgyFile sgyFile, ScriptMetadata metadata, Map<String, String> params,
                               Consumer<String> output, Deque<String> outputBuffer,
                               ScriptRunListener listener) {
         try {
-            scriptExecutor.executeScript(sgyFile, metadata, params, output);
+			FileSnapshot<?> snapshot = scriptExecutor.executeScript(sgyFile, metadata, params, output);
             listener.onSuccess(metadata);
-            return true;
+            return snapshot;
         } catch (DependencyImportException e) {
             if (!listener.confirmReinstallDependencies(e.getModuleName())) {
                 listener.onError(metadata, e, drain(outputBuffer));
-                return false;
+                return null;
             }
             return retryWithReinstall(sgyFile, metadata, params, output, outputBuffer, listener);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return false;
+            return null;
         } catch (Exception e) {
             listener.onError(metadata, e, drain(outputBuffer));
-            return true;
+            return null;
         }
     }
 
     // Returns true if the retry succeeded (loop may continue), false if it failed (loop should stop).
-    private boolean retryWithReinstall(SgyFile sgyFile, ScriptMetadata metadata, Map<String, String> params,
+    private @Nullable FileSnapshot<?> retryWithReinstall(SgyFile sgyFile, ScriptMetadata metadata, Map<String, String> params,
                                        Consumer<String> output, Deque<String> outputBuffer,
                                        ScriptRunListener listener) {
         try {
-            scriptExecutor.executeScriptWithReinstall(sgyFile, metadata, params, output);
+			FileSnapshot<?> snapshot = scriptExecutor.executeScriptWithReinstall(sgyFile, metadata, params, output);
             listener.onSuccess(metadata);
-            return true;
+            return snapshot;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return false;
+            return null;
         } catch (Exception e) {
             listener.onError(metadata, e, drain(outputBuffer));
-            return false;
+            return null;
         }
     }
 

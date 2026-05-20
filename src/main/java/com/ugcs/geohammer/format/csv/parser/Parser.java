@@ -391,33 +391,6 @@ public abstract class Parser {
         }
     }
 
-    public Number parseNumber(String[] values, String header) {
-        String value = getString(values, header);
-        SensorData column = template.getDataMapping().getDataValueByHeader(header);
-        if (column != null) {
-            value = Text.matchPattern(value, column.getRegex());
-        }
-        return parseNumber(value);
-    }
-
-    public Double parseLatitude(String[] values) {
-		BaseData latitudeColumn = template.getDataMapping().getLatitude();
-		try {
-			return Text.parseDouble(getString(values, latitudeColumn));
-		} catch (IncorrectFormatException e) {
-			return null;
-		}
-    }
-
-    public Double parseLongitude(String[] values) {
-		BaseData longitudeColumn = template.getDataMapping().getLongitude();
-		try {
-			return Text.parseDouble(getString(values, longitudeColumn));
-		} catch (IncorrectFormatException e) {
-			return null;
-		}
-    }
-
     public LocalDate parseDateFromFilename(String filename) {
         Date dateColumn = template.getDataMapping().getDate();
         String value = Text.matchPattern(filename, dateColumn.getRegex(), false);

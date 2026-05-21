@@ -201,7 +201,7 @@ public class DataMapping {
         if (getDataValueBySemantic(semantic) != null) {
             return false;
         }
-        if (!Strings.isNullOrEmpty(header) && isDataValueByHeader(header)) {
+        if (!Strings.isNullOrEmpty(header) && getDataValueByHeader(header) != null) {
             return false;
         }
 
@@ -255,10 +255,6 @@ public class DataMapping {
     public SensorData getDataValueByHeader(String header) {
         return getDataValuesByHeader().get(header);
     }
-
-	public boolean isDataValueByHeader(String header) {
-		return getDataValuesByHeader().containsKey(header);
-	}
 
     public String getHeaderBySemantic(String semantic) {
         SensorData sensorData = getDataValueBySemantic(semantic);

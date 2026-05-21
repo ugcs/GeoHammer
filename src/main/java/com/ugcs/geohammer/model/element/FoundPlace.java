@@ -116,7 +116,7 @@ public class FoundPlace extends PositionalObject {
 			if (chart != null) {
 				TraceSample sample = profField.screenToTraceSample(point);
 				List<Trace> traces = traceFile.getTraces();
-				int traceIndex = Math.clamp(sample.getTrace(), 0, traces.size() - 1);
+				int traceIndex = Math.clamp(sample.trace(), 0, traces.size() - 1);
 				trace = new TraceKey(traceFile, traceIndex);
 				model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
 			}

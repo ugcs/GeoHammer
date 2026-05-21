@@ -8,19 +8,38 @@ import org.apache.commons.lang3.NotImplementedException;
 
 public abstract class ScrollableData {
 
-    protected int startSample = 0;
+    public static final double ZOOM_A = 1.05;
+
+    private int middleTrace;
+
+    private int startSample = 0;
 
     private double realAspect = 0.5;
-    private int middleTrace;
+
     private double vertScale = 1.0;
 
     private double zoom = 0.0;
-    public static final double ZOOM_A = 1.05;
 
     private final ProfileScroll profileScroll;
 
     public ScrollableData(Model model) {
         this.profileScroll = new ProfileScroll(model, this);
+    }
+
+    public int getMiddleTrace() {
+        return middleTrace;
+    }
+
+    public void setMiddleTrace(int middleTrace) {
+        this.middleTrace = middleTrace;
+    }
+
+    public int getStartSample() {
+        return startSample;
+    }
+
+    public void setStartSample(int startSample) {
+        this.startSample = startSample;
     }
 
     public double getZoom() {
@@ -30,14 +49,6 @@ public abstract class ScrollableData {
     public void setZoom(double zoom) {
         this.zoom = Math.clamp(zoom, -100.0, 100.0);
         vertScale = Math.pow(ZOOM_A, zoom);
-    }
-
-    public final int getMiddleTrace() {
-        return middleTrace;
-    }
-
-    public void setMiddleTrace(int selectedTrace) {
-        this.middleTrace = selectedTrace;
     }
 
     public abstract int numVisibleTraces();
@@ -62,10 +73,6 @@ public abstract class ScrollableData {
 
     public int traceToScreen(int trace) {
         return (int) ((trace - middleTrace) * getHScale());
-    }
-
-    public final int getStartSample() {
-        return startSample;
     }
 
     protected void clear() {

@@ -332,13 +332,10 @@ public class GPRChart extends Chart {
     }
 
     private void zoom(int ch, double ex, double ey, boolean justHorizont) {
-
         Point2D t = getLocalCoords(ex, ey);
-
         TraceSample ts = screenToTraceSample(t);
 
         if (justHorizont) {
-
             double realAspect = getRealAspect()
                     * (ch > 0 ? ASPECT_A :
                     1 / ASPECT_A);
@@ -349,15 +346,13 @@ public class GPRChart extends Chart {
             setZoom(zoom);
         }
 
-        ////
-
         Point2D t2 = getLocalCoords(ex, ey);
         TraceSample ts2 = screenToTraceSample(t2);
 
         setMiddleTrace(getMiddleTrace()
-                - (ts2.getTrace() - ts.getTrace()));
+                - (ts2.trace() - ts.trace()));
 
-        int starts = getStartSample() - (ts2.getSample() - ts.getSample());
+        int starts = getStartSample() - (ts2.sample() - ts.sample());
         setStartSample(starts);
 
         updateScroll();
@@ -378,15 +373,23 @@ public class GPRChart extends Chart {
     }
 
     @Override
-    public void setMiddleTrace(int selectedTrace) {
+    public void setMiddleTrace(int middleTrace) {
         int lineIndexBefore = getSelectedLineIndex();
 
-        super.setMiddleTrace(selectedTrace);
+        super.setMiddleTrace(middleTrace);
 
         int lineIndexAfter = getSelectedLineIndex();
         if (lineIndexBefore != lineIndexAfter) {
             model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
         }
+    }
+
+    @Override
+    public void setStartSample(int startSample) {
+        if(getScreenImageSize().height < getField().getViewDimension().height){
+            startSample = 0;
+        }
+        super.setStartSample(Math.max(0, startSample));
     }
 
     public void updateScroll() {
@@ -699,7 +702,7 @@ public class GPRChart extends Chart {
                 // add tmp flag
                 Point2D p = getLocalCoords(event);
 
-                int traceIndex = screenToTraceSample(p).getTrace();
+                int traceIndex = screenToTraceSample(p).trace();
                 TraceFile traceFile = profileField.getFile();
                 if (traceIndex >= 0 && traceIndex < traceFile.getTraces().size()) {
                     TraceKey trace = new TraceKey(traceFile, traceIndex);
@@ -845,27 +848,20 @@ public class GPRChart extends Chart {
 
     public int getFirstVisibleTrace() {
         double x = -getField().getMainRect().width / 2.0;
-        int trace = screenToTraceSample(new Point2D(x, 0)).getTrace();
+        int trace = screenToTraceSample(new Point2D(x, 0)).trace();
         return Math.clamp(trace, 0, numTraces() - 1);
     }
 
     public int getLastVisibleTrace() {
         double x = profileField.getMainRect().width / 2.0;
-        int trace = screenToTraceSample(new Point2D(x, 0)).getTrace();
+        int trace = screenToTraceSample(new Point2D(x, 0)).trace();
         return Math.clamp(trace, 0, numTraces() - 1);
     }
 
     public int getLastVisibleSample() {
         double y = profileField.getMainRect().height + profileField.getTopMargin();
-        int sample = screenToTraceSample(new Point2D( 0, y)).getSample();
+        int sample = screenToTraceSample(new Point2D( 0, y)).sample();
         return Math.clamp(sample, 0, profileField.getMaxHeightInSamples() - 1);
-    }
-
-    public void setStartSample(int startSample) {
-        if(getScreenImageSize().height < getField().getViewDimension().height){
-            startSample = 0;
-        }
-        this.startSample = Math.max(0, startSample);
     }
 
     public Dimension getScreenImageSize() {
@@ -879,8 +875,7 @@ public class GPRChart extends Chart {
         int x = traceToScreen(0);
         Point2D p2 = new Point2D(x + getField().getMainRect().width, 0);
         TraceSample t2 = screenToTraceSample(p2);
-
-        return t2.getTrace();
+        return t2.trace();
     }
 
     public TraceSample screenToTraceSample(Point2D point) {
@@ -955,7 +950,6 @@ public class GPRChart extends Chart {
     }
 
     // zoom
-
 
     @Override
     public int getSelectedLineIndex() {
@@ -1046,5 +1040,4 @@ public class GPRChart extends Chart {
 	public boolean isDragCtrlDown() {
 		return dragCtrlDown;
 	}
-
 }

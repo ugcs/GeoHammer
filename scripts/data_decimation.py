@@ -153,10 +153,10 @@ def main():
 
     decimated = ALGORITHMS[args.algorithm](data, args.factor, numeric_cols, text_cols, angular_cols)
 
-    print(f"Rows: {original_count} → {len(decimated)}")
+    print(f"Rows: {original_count} -> {len(decimated)}")
     print(f"Writing result to {args.file_path}")
     decimated.to_csv(args.file_path, index=False)
-    print("Done")
+    print("Decimation finished successfully")
 
 
 if __name__ == "__main__":

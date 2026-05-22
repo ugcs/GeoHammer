@@ -289,7 +289,7 @@ public class Loader {
 			if (!parserWarnings.isEmpty()) {
 				Dialogs.showWarning(
 						"Format warnings in " + file.getName(),
-						getWarningDialogText(parserWarnings));
+						formatWarningsBody(parserWarnings));
 			}
 		}
 
@@ -298,7 +298,7 @@ public class Loader {
 		});
 	}
 
-	private static String getWarningDialogText(Collection<Warnings.Group> parserWarnings) {
+	private static String formatWarningsBody(Collection<Warnings.Group> parserWarnings) {
 		StringBuilder body = new StringBuilder();
 		body.append("The following values could not be parsed and are left empty:");
 		for (Warnings.Group group : parserWarnings) {

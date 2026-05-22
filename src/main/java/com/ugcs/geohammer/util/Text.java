@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.jspecify.annotations.Nullable;
 
 public final class Text {
 
@@ -81,7 +80,6 @@ public final class Text {
         return value;
     }
 
-	@Nullable
     public static Double parseDouble(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -89,11 +87,10 @@ public final class Text {
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException e) {
-			throw new IncorrectFormatException("Value '" + value + "' does not match number format");
+			throw new IncorrectFormatException(value, "number");
         }
     }
 
-	@Nullable
     public static Integer parseInt(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -101,11 +98,10 @@ public final class Text {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
-			throw new IncorrectFormatException("Value '" + value + "' does not match number format");
+			throw new IncorrectFormatException(value, "number");
         }
     }
 
-	@Nullable
     public static Long parseLong(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -113,11 +109,10 @@ public final class Text {
         try {
             return Long.parseLong(value);
         } catch (NumberFormatException e) {
-            throw new IncorrectFormatException("Value '" + value + "' does not match number format");
+			throw new IncorrectFormatException(value, "number");
         }
     }
 
-	@Nullable
     public static LocalDate parseDate(String value, String format) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -130,7 +125,6 @@ public final class Text {
         }
     }
 
-	@Nullable
     public static LocalTime parseTime(String value, String format) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -143,7 +137,6 @@ public final class Text {
         }
     }
 
-	@Nullable
     public static LocalDateTime parseDateTime(String value, String format) {
         if (Strings.isNullOrBlank(value)) {
             return null;
@@ -176,7 +169,6 @@ public final class Text {
 		return DateTimeFormatter.ofPattern(pattern, Locale.US);
 	}
 
-	@Nullable
     public static LocalDateTime parseGpsDateTime(String value) {
         if (Strings.isNullOrBlank(value)) {
             return null;

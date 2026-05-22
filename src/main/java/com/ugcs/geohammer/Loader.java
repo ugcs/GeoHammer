@@ -13,7 +13,7 @@ import java.util.concurrent.ExecutorService;
 
 import com.ugcs.geohammer.format.FileOpenException;
 import com.ugcs.geohammer.format.csv.parser.Parser;
-import com.ugcs.geohammer.format.csv.parser.WarningGroup;
+import com.ugcs.geohammer.format.csv.parser.Warnings;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
@@ -285,16 +285,11 @@ public class Loader {
 
 		Parser parser = csvFile.getParser();
 		if (parser != null) {
-			Collection<WarningGroup> parserWarnings = parser.getWarnings();
+			Collection<Warnings.Group> parserWarnings = parser.getWarnings();
 			if (!parserWarnings.isEmpty()) {
-				StringBuilder body = new StringBuilder();
-				body.append("The following values could not be parsed and are left empty:");
-				for (WarningGroup group : parserWarnings) {
-					body.append("\n").append(group);
-				}
 				Dialogs.showWarning(
 						"Format warnings in " + file.getName(),
-						body.toString());
+						getWarningDialogText(parserWarnings));
 			}
 		}
 
@@ -303,7 +298,16 @@ public class Loader {
 		});
 	}
 
-    private void openSvlogFile(File file) throws IOException {
+	private static String getWarningDialogText(Collection<Warnings.Group> parserWarnings) {
+		StringBuilder body = new StringBuilder();
+		body.append("The following values could not be parsed and are left empty:");
+		for (Warnings.Group group : parserWarnings) {
+			body.append("\n").append(group);
+		}
+		return body.toString();
+	}
+
+	private void openSvlogFile(File file) throws IOException {
         Check.notNull(file);
 
         SonarFile sonarFile = new SonarFile();

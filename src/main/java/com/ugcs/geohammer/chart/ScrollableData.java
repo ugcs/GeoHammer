@@ -4,94 +4,117 @@ import com.ugcs.geohammer.model.TraceSample;
 import com.ugcs.geohammer.model.Model;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
-import org.apache.commons.lang3.NotImplementedException;
 
 public abstract class ScrollableData {
 
-    protected int startSample = 0;
+    public static final double ZOOM_IN = 1.05;
 
-    private double realAspect = 0.5;
-    private int middleTrace;
-    private double vertScale = 1.0;
-
-    private double zoom = 0.0;
-    public static final double ZOOM_A = 1.05;
+    public static final double ZOOM_OUT = 1.0 / ZOOM_IN;
 
     private final ProfileScroll profileScroll;
 
+    // pixels per trace
+    private double horizontalScale = 1;
+
+    // pixels per sample
+    private double verticalScale = 1;
+
+    private int startTrace = 0;
+
+    private int startSample = 0;
+
     public ScrollableData(Model model) {
-        this.profileScroll = new ProfileScroll(model, this);
-    }
-
-    public double getZoom() {
-        return zoom;
-    }
-
-    public void setZoom(double zoom) {
-        this.zoom = Math.clamp(zoom, -100.0, 100.0);
-        vertScale = Math.pow(ZOOM_A, zoom);
-    }
-
-    public final int getMiddleTrace() {
-        return middleTrace;
-    }
-
-    public void setMiddleTrace(int selectedTrace) {
-        this.middleTrace = selectedTrace;
-    }
-
-    public abstract int numVisibleTraces();
-
-    public abstract int numTraces();
-
-    public void setRealAspect(double realAspect) {
-        this.realAspect = realAspect;
-    }
-
-    public double getRealAspect() {
-        return realAspect;
-    }
-
-    public double getVScale() {
-        return vertScale;
-    }
-
-    public double getHScale() {
-        return vertScale * realAspect;
-    }
-
-    public int traceToScreen(int trace) {
-        return (int) ((trace - middleTrace) * getHScale());
-    }
-
-    public final int getStartSample() {
-        return startSample;
-    }
-
-    protected void clear() {
-        setZoom(0.0);
+        this.profileScroll = new ProfileScroll(this);
     }
 
     public ProfileScroll getProfileScroll() {
         return profileScroll;
     }
 
-    public void setCursor(Cursor aDefault) {
-        // for GPRChart
-        throw new NotImplementedException("setCursor");
+    public double getHorizontalScale() {
+        return horizontalScale;
+    }
+
+    public void setHorizontalScale(double horizontalScale) {
+        // limit min horizontal scale
+        int numTraces = numTraces();
+        double minHorizontalScale = numTraces != 0
+                ? getViewWidth() / numTraces
+                : 1.0;
+        this.horizontalScale = Math.max(horizontalScale, minHorizontalScale);
+    }
+
+    public double getVerticalScale() {
+        return verticalScale;
+    }
+
+    public void setVerticalScale(double verticalScale) {
+        // limit min vertical scale
+        int numSamples = numSamples();
+        double minVerticalScale = numSamples != 0
+                ? getViewHeight() / numSamples
+                : 1.0;
+        this.verticalScale = Math.max(verticalScale, minVerticalScale);
+    }
+
+    public int getStartTrace() {
+        return startTrace;
+    }
+
+    public void setStartTrace(int startTrace) {
+        double numVisibleTraces = getViewWidth() / horizontalScale;
+        startTrace = Math.min(startTrace, numTraces() - (int)numVisibleTraces);
+        startTrace = Math.max(startTrace, 0);
+        this.startTrace = startTrace;
+    }
+
+    public int getMiddleTrace() {
+        double numVisibleTraces = getViewWidth() / horizontalScale;
+        return startTrace + (int)(0.5 * numVisibleTraces);
+    }
+
+    public void scrollToTrace(int trace) {
+        double numVisibleTraces = getViewWidth() / horizontalScale;
+        setStartTrace(trace - (int)(0.5 * numVisibleTraces));
+    }
+
+    public int getStartSample() {
+        return startSample;
+    }
+
+    public void setStartSample(int startSample) {
+        double numVisibleSamples = getViewHeight() / verticalScale;
+        startSample = Math.min(startSample, numSamples() - (int)numVisibleSamples);
+        startSample = Math.max(startSample, 0);
+        this.startSample = startSample;
+    }
+
+    public abstract double getViewWidth();
+
+    public abstract double getViewHeight();
+
+    public abstract int numTraces();
+
+    public abstract int numSamples();
+
+    public int traceToScreen(int trace) {
+        double x = (trace - startTrace) * horizontalScale;
+        return (int)(x - 0.5 * getViewWidth());
     }
 
     public TraceSample screenToTraceSample(Point2D point) {
-        // for GPRChart
-        throw new NotImplementedException("screenToTraceSample");
+        throw new UnsupportedOperationException();
     }
 
     public Point2D traceSampleToScreen(int trace, int sample) {
-        // for GPRChart
-        throw new NotImplementedException("traceSampleToScreen");
+        throw new UnsupportedOperationException();
     }
 
     public Point2D traceSampleToScreenCenter(int trace, int sample) {
-        throw new NotImplementedException("traceSampleToScreenCenter");
+        throw new UnsupportedOperationException();
+    }
+
+    public void setCursor(Cursor cursor) {
+        throw new UnsupportedOperationException();
     }
 }

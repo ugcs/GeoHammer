@@ -441,13 +441,25 @@ public class SensorLineChart extends Chart {
     }
 
     @Override
+    public double getViewWidth() {
+        Node plot = interactiveChart.lookup(".chart-plot-background");
+        return plot.getLayoutBounds().getWidth();
+    }
+
+    @Override
+    public double getViewHeight() {
+        Node plot = interactiveChart.lookup(".chart-plot-background");
+        return plot.getLayoutBounds().getHeight();
+    }
+
+    @Override
     public int numTraces() {
         return file.getGeoData().size();
     }
 
     @Override
-    public int numVisibleTraces() {
-        return getVisibleRange().size();
+    public int numSamples() {
+        throw new UnsupportedOperationException();
     }
 
     public IndexRange getVisibleRange() {
@@ -678,33 +690,29 @@ public class SensorLineChart extends Chart {
 
         // num visible traces
         int numVisibleTraces = range.size();
-        setMiddleTrace(range.from() + numVisibleTraces / 2);
 
-        // hScale = scroll width / num visible traces
-        // aspect ratio = hScale / vScale
-        double hScale = getProfileScroll().getWidth()
+        // horizontal scale = view width / num visible traces
+        double horizontalScale = getViewWidth()
                 / (numVisibleTraces != 0 ? numVisibleTraces : 1);
-        double aspectRatio = hScale / getVScale();
-        setRealAspect(aspectRatio);
+        setHorizontalScale(horizontalScale);
+        setStartTrace(range.from());
 
         // update scroll view
-        getProfileScroll().recalc();
+        getProfileScroll().syncFromScrollable();
     }
 
     private void zoomToProfileScroll() {
-        // num visible traces = scroll width / hscale
-        int numVisibleTraces = (int)(getProfileScroll().getWidth() / getHScale());
+        // num visible traces = view width / horizontal scale
         int numTraces = numTraces();
-
-        int middle = getMiddleTrace();
-        int w = numVisibleTraces / 2;
+        double numVisibleTraces = getViewWidth() / getHorizontalScale();
+        double startTrace = getStartTrace();
 
         // adjust visible range to the full range bounds
-        middle = Math.max(middle, w);
-        middle = Math.min(middle, numTraces - w - 1);
+        startTrace = Math.min(startTrace, numTraces - numVisibleTraces); // ? - 1
+        startTrace = Math.max(startTrace, 0);
         Viewport scrolled = new Viewport(
-                Viewport.normalizeIndex(middle - w, numTraces),
-                Viewport.normalizeIndex(middle + w, numTraces),
+                Viewport.normalizeIndex(startTrace, numTraces),
+                Viewport.normalizeIndex(startTrace + numVisibleTraces, numTraces),
                 viewport.yMin(),
                 viewport.yMax()
         );

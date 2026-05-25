@@ -60,7 +60,7 @@ public class DepthStart extends HoverHandle {
 
 	protected IndexRange buildIndexRange(TraceSample ts, ProfileField profField) {
 		var settings = profField.getProfileSettings();
-		return new IndexRange(ts.getSample(), ts.getSample() + settings.hpage);
+		return new IndexRange(ts.sample(), ts.sample() + settings.hpage);
 	}
 
 	@Override

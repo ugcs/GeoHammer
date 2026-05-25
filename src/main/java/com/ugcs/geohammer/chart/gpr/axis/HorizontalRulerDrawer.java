@@ -38,7 +38,6 @@ public class HorizontalRulerDrawer {
 
         int firstTrace = field.getFirstVisibleTrace();
         int lastTrace = field.getLastVisibleTrace();
-        int totalTraces = field.numVisibleTraces();
 
         Pair<Integer, Integer> pair;
         if (firstTrace <= lastTrace) {
@@ -55,7 +54,7 @@ public class HorizontalRulerDrawer {
         int labelWidth = fontMetrics.stringWidth(sampleLabel);
         int minPixelSpacing = labelWidth + 20;
 
-        double minTraceSpacing = minPixelSpacing / field.getHScale();
+        double minTraceSpacing = minPixelSpacing / field.getHorizontalScale();
         int minTick = Math.max(1, (int) Math.ceil(minTraceSpacing));
 
         int baseTick = Math.max(1, (int) Ticks.getPrettyTick(first, last, 10));
@@ -84,13 +83,7 @@ public class HorizontalRulerDrawer {
                 if (rendered.contains(i)) {
                     continue;
                 }
-                int x;
-                if (firstTrace == 0 && totalTraces - lastTrace > 0) {
-                    x = rect.x + (int) Math.round((i - firstTrace + totalTraces - lastTrace) * field.getHScale());
-                } else {
-                    x = rect.x + (int) Math.round((i - firstTrace) * field.getHScale());
-                }
-
+                int x = rect.x + (int) ((i - firstTrace) * field.getHorizontalScale());
                 if (x >= rect.x && x <= rect.x + rect.width) {
                     g2.setColor(axisColor);
                     g2.drawLine(x, rect.y, x, rect.y + sz);

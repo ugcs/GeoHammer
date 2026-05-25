@@ -41,15 +41,18 @@ public class CleverViewScrollHandler extends BaseObjectImpl {
 		
 		try {
     		TraceSample newCenter = profField.screenToTraceSample(point);
-    		
-    		int t = profField.getMiddleTrace()
-    				+ oldCenter.trace() - newCenter.trace();
 
-			profField.setMiddleTrace(t);
+			int startTrace = profField.getStartTrace()
+					+ oldCenter.trace() - newCenter.trace();
+			profField.setStartTrace(startTrace);
+
+			int startSample = profField.getStartSample()
+					+ oldCenter.sample() - newCenter.sample();
+			profField.setStartSample(startSample);
+
+			profField.getProfileScroll().syncFromScrollable();
+
 			if (profField instanceof GPRChart gprChart) {
-				gprChart.getProfileScroll().recalc();
-				gprChart.setStartSample(profField.getStartSample()
-						+ oldCenter.sample() - newCenter.sample());
                 gprChart.updateScroll();
                 gprChart.repaintEvent();
 			}

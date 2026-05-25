@@ -1,13 +1,10 @@
 package com.ugcs.geohammer.chart;
 
-import java.util.Set;
+import java.util.List;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.chart.csv.SensorLineChart;
-import com.ugcs.geohammer.model.Model;
 
 import javafx.beans.value.ChangeListener;
-import javafx.event.EventHandler;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.canvas.Canvas;
@@ -20,120 +17,155 @@ import org.jspecify.annotations.Nullable;
 
 public final class ProfileScroll extends Canvas {
 
+	// height of the bar
 	public static final int HEIGHT = 22;
-	private static final int SIDE_WIDTH = 22;
-	private static final int CENTER_MARGIN = 5;
-	private static final int V_MARGIN = 4;
-	private static final int V_GRAY_MARGIN = 7;
-	private static final int ARC_WIDTH = 11;
-	private static final int ARC_HEIGHT = 11;
+
+	// width of the sidebars
+	private static final int SIDE_WIDTH = 14;
+
+	// gap between the center bar and sidebars
+	private static final int CENTER_MARGIN = 4;
+
+	// vertical gap between the bar and control edges
+	private static final int VERTICAL_MARGIN = 4;
+
+	// vertical gap between the baseline and control edges
+	private static final int VERTICAL_BASELINE_MARGIN = 7;
+
+	private static final int ARC_WIDTH = 12;
+
+	private static final int ARC_HEIGHT = 12;
 
 	private double start = 0;
+
 	private double finish = Double.MAX_VALUE;
 	
-	double pressX;
-	double pressXInBar;
+	private double pressXInBar;
 
-	private final Model model;
 	private ChangeListener<Number> changeListener;
+
 	private final ScrollableData scrollable;
 
 	public void setChangeListener(ChangeListener<Number> changeListener) {
 		this.changeListener = changeListener;
 	}
 	
-	interface MouseSInput {
-		Rectangle getRect();
-		void move(Point2D localPoint);
-	}
-	
-	MouseSInput leftInput = new MouseSInput() {
+	private final Bar left = new Bar() {
 
 		@Override
-		public Rectangle getRect() {
-			return getLeftBar();
-		}
-
-		@Override
-		public void move(Point2D localPoint) {
-			
-			double barStart = localPoint.getX() - pressXInBar;
-			start = barStart + SIDE_WIDTH + CENTER_MARGIN;
-			
-			recalcField();
-			
-			draw();			
-			changeListener.changed(null, null, null);
-			//recalc back
-		}
-	};
-
-	MouseSInput rightInput = new MouseSInput() {
-
-		@Override
-		public Rectangle getRect() {
-			return getRightBar();
+		public Rectangle getBounds() {
+			return new Rectangle(start - SIDE_WIDTH - CENTER_MARGIN, 0, SIDE_WIDTH, HEIGHT);
 		}
 
 		@Override
 		public void move(Point2D localPoint) {
 			double barStart = localPoint.getX() - pressXInBar;
-			finish = barStart - CENTER_MARGIN;
-			//recalc back			
-			recalcField();
+			double newStart = barStart + SIDE_WIDTH + CENTER_MARGIN;
+			newStart = Math.min(newStart, finish - 1);
+			newStart = Math.max(newStart, 0);
+			start = newStart;
+			
+			syncToScrollable();
 			draw();
+
 			changeListener.changed(null, null, null);
 		}
 	};
 
-	private MouseSInput centerInput = new MouseSInput() {
+	private final Bar right = new Bar() {
 
 		@Override
-		public Rectangle getRect() {
-			return getCenterBar();
+		public Rectangle getBounds() {
+			return new Rectangle(finish + CENTER_MARGIN, 0, SIDE_WIDTH, HEIGHT);
 		}
 
 		@Override
 		public void move(Point2D localPoint) {
-			
 			double barStart = localPoint.getX() - pressXInBar;
-			double centerPos = barStart + CENTER_MARGIN + (finish - start) / 2;
-			
-			centerPos = Math.min(Math.max(centerPos, 0), getWidth());
-			
-			//finish = barStart;
-			double tracesFull = scrollable.numTraces();
-			
-			double trCenter = centerPos * tracesFull / getWidth();
-			
-			
-			scrollable.setMiddleTrace((int) trCenter);
-			
-			double rectWidth = finish - start;
-			start = centerPos - rectWidth / 2;
-			finish = centerPos + rectWidth / 2;
-			
+			double newFinish = barStart - CENTER_MARGIN;
+			newFinish = Math.max(newFinish, start + 1);
+			newFinish = Math.min(newFinish, getWidth());
+			finish = newFinish;
 
+			syncToScrollable();
 			draw();
-			
-			changeListener.changed(null, null, trCenter);
+
+			changeListener.changed(null, null, null);
 		}
-	};	
+	};
+
+	private final Bar center = new Bar() {
+
+		@Override
+		public Rectangle getBounds() {
+			return new Rectangle(start, 0, finish - start, HEIGHT);
+		}
+
+		@Override
+		public void move(Point2D localPoint) {
+			double width = finish - start;
+
+			double barStart = localPoint.getX() - pressXInBar;
+			if (barStart <= start) {
+				start = Math.max(barStart, 0);
+				finish = start + width;
+			} else {
+				finish = Math.min(barStart + width, getWidth());
+				start = finish - width;
+			}
+
+			syncToScrollable();
+			draw();
+
+			changeListener.changed(null, null, null);
+		}
+	};
+
+	private final List<Bar> bars = List.of(center, left, right);
 
 	@Nullable
-	private MouseSInput selected;
+	private Bar dragBar;
 
-	private Set<MouseSInput> bars = Set.of(centerInput, leftInput, rightInput);
-
-	public ProfileScroll(Model model, ScrollableData scrollable) {
-		this.model = model;
+	public ProfileScroll(ScrollableData scrollable) {
 		this.scrollable = scrollable;
-        
-		this.addEventFilter(MouseEvent.DRAG_DETECTED, dragDetectedHandler);
-		this.addEventFilter(MouseEvent.MOUSE_DRAGGED, mouseMoveHandler);
-		this.addEventFilter(MouseDragEvent.MOUSE_DRAG_RELEASED, 
-				dragReleaseHandler);		
-		this.setOnMouseReleased(mouseReleaseHandler);  
+
+		addEventFilter(MouseEvent.DRAG_DETECTED, this::onMouseDragDetected);
+		addEventFilter(MouseEvent.MOUSE_DRAGGED, this::onMouseDragged);
+		addEventFilter(MouseDragEvent.MOUSE_DRAG_RELEASED, this::onMouseDragReleased);
+		setOnMouseReleased(this::onMouseReleased);
+	}
+
+	private void onMouseDragDetected(MouseEvent event) {
+		dragBar = null;
+
+		Point2D localPoint = getLocal(event);
+		for (Bar bar : bars) {
+			Rectangle barBounds = bar.getBounds();
+			if (barBounds.contains(localPoint)) {
+				dragBar = bar;
+				pressXInBar = localPoint.getX() - barBounds.getX();
+			}
+		}
+
+		startFullDrag();
+		setCursor(Cursor.CLOSED_HAND);
+	}
+
+	private void onMouseDragged(MouseEvent event) {
+		if (dragBar != null) {
+			Point2D localPoint = getLocal(event);
+			dragBar.move(localPoint);
+		}
+	}
+
+	private void onMouseDragReleased(MouseEvent event) {
+		dragBar = null;
+		setCursor(Cursor.DEFAULT);
+		event.consume();
+	}
+
+	private void onMouseReleased(MouseEvent event) {
+		dragBar = null;
 	}
 
 	@Override
@@ -141,7 +173,7 @@ public final class ProfileScroll extends Canvas {
 		if (width >= 0 && Math.abs(getWidth() - width) > 1) {
 			setWidth(width);
 			setHeight(height);
-			recalc();
+			syncFromScrollable();
 		}
 	}
 
@@ -152,7 +184,7 @@ public final class ProfileScroll extends Canvas {
 
 	@Override
 	public double minWidth(double height) {
-		return 50; // Minimum reasonable width
+		return 50; // minimum reasonable width
 	}
 
 	@Override
@@ -170,126 +202,57 @@ public final class ProfileScroll extends Canvas {
 		return HEIGHT;
 	}
 
-	EventHandler<MouseEvent> mouseReleaseHandler =
-			new EventHandler<MouseEvent>() {
-        @Override
-        public void handle(MouseEvent event) {        	
-        	selected = null;
-        	
-        }
-	};
-	
-	EventHandler<MouseEvent> dragDetectedHandler = new EventHandler<MouseEvent>() {
-	    @Override
-	    public void handle(MouseEvent mouseEvent) {
-	    	
-	    	selected = null;
-	    	
-			var imgCoord = getLocal(mouseEvent);
-	    	
-	    	for (MouseSInput msi : bars) {
-	    		Rectangle r = msi.getRect();
-	    		if (r.contains(imgCoord)) {
-	    			
-	    			selected = msi;
-	    			pressX = imgCoord.getX();
-	    			pressXInBar = imgCoord.getX() - r.getX();
-	    		}
-	    	}
-	    	
-	    	ProfileScroll.this.startFullDrag();
-	    	ProfileScroll.this.setCursor(Cursor.CLOSED_HAND);	    	
-	    	
-	    }
-
-	};
-
-	public javafx.geometry.Point2D getLocal(MouseEvent mouseEvent) {
-		javafx.geometry.Point2D sceneCoords = 
-				new javafx.geometry.Point2D(
-						mouseEvent.getSceneX(), mouseEvent.getSceneY());
-		
-    	javafx.geometry.Point2D imgCoord = sceneToLocal(sceneCoords);
-		return imgCoord;
+	public Point2D getLocal(MouseEvent event) {
+		Point2D scenePoint = new Point2D(event.getSceneX(), event.getSceneY());
+    	return sceneToLocal(scenePoint);
 	}
 	
-	EventHandler<MouseDragEvent> dragReleaseHandler =
-			new EventHandler<MouseDragEvent>() {
-        @Override
-        public void handle(MouseDragEvent event) {
-
-        	selected = null;
-        	
-        	ProfileScroll.this.setCursor(Cursor.DEFAULT);
-        	
-        	event.consume();
-        }
-	};
-	
-	EventHandler<MouseEvent> mouseMoveHandler =
-			new EventHandler<MouseEvent>() {
-        
-		@Override
-        public void handle(MouseEvent event) {
-			if (selected != null) {
-				var imgCoord = getLocal(event);
-				selected.move(imgCoord);
-			}
-        }
-	};
-	
-	Rectangle getCenterBar() {
-		return new Rectangle(start - CENTER_MARGIN, 0, 
-				finish - start + 2 * CENTER_MARGIN, HEIGHT);
-	}
-	
-	Rectangle getLeftBar() {
-		return new Rectangle(start - SIDE_WIDTH - CENTER_MARGIN, 
-				0, SIDE_WIDTH, HEIGHT);
-	}
-	
-	Rectangle getRightBar() {
-		return new Rectangle(finish + CENTER_MARGIN, 0, 
-				SIDE_WIDTH, HEIGHT);
-	}
-	
-	public void recalc() {
-		
-		if (!model.isActive() || scrollable.numTraces() == 0) {
-		//	GraphicsContext gc = this.getGraphicsContext2D();
-		//	gc.clearRect(0, 0, getWidth(), getHeight());
-		//	return;
-		}
-		
-		int width = (int) getWidth();
-		int height = (int) getHeight();
-
-		double tracesFull = 1;
-		double center;
-		double tracesVisible;
-
-		//TODO: fix scroll
-		if (scrollable.numTraces() != 0) {
-			tracesFull = scrollable.numTraces();
-			center = scrollable.getMiddleTrace();
-			tracesVisible = scrollable.numVisibleTraces();
-		} else {
-			if (scrollable instanceof SensorLineChart) {
-				tracesFull = scrollable.numTraces();
-			}
-			center = tracesFull / 2;
-			tracesVisible = tracesFull;
+	public void syncFromScrollable() {
+		if (dragBar != null) {
+			return; // skip updates when dragging
 		}
 
-		double centerPos =  center / tracesFull * (double) width;
-		double rectWidth = tracesVisible / tracesFull * (double) width;
-		
-		start = centerPos - rectWidth / 2;
-		finish = centerPos + rectWidth / 2;
-		
+		int numTraces = scrollable.numTraces();
+		int startTrace = scrollable.getStartTrace();
+		double viewWidth = scrollable.getViewWidth();
+		double horizontalScale = scrollable.getHorizontalScale();
+
+		double width = getWidth();
+		double numVisibleTraces = viewWidth != 0
+				? viewWidth / horizontalScale
+				: numTraces;
+		double scrollWidth = numTraces != 0
+				? numVisibleTraces / numTraces * width
+				: width;
+
+		start = numTraces != 0
+				? startTrace * width / numTraces
+				: 0;
+		finish = start + scrollWidth;
+
 		draw();
 	}
-	
+
+	private void syncToScrollable() {
+		double width = getWidth();
+		if (width == 0) {
+			return; // update is meaningless
+		}
+
+		int numTraces = scrollable.numTraces();
+		double viewWidth = scrollable.getViewWidth();
+
+		double scrollWidth = finish - start;
+		double numVisibleTraces = scrollWidth / width * numTraces;
+		double horizontalScale = viewWidth != 0
+				? viewWidth / (numVisibleTraces != 0 ? numVisibleTraces : 1)
+				: 1;
+		scrollable.setHorizontalScale(horizontalScale);
+
+		int startTrace = (int)(start / width * numTraces);
+		scrollable.setStartTrace(startTrace);
+	}
+
 	private void draw() {
 		GraphicsContext gc = this.getGraphicsContext2D();
 		gc.clearRect(0, 0, getWidth(), getHeight());
@@ -305,39 +268,47 @@ public final class ProfileScroll extends Canvas {
 		);
 		gc.setFill(fill);
 
-		gc.fillRect(0, V_GRAY_MARGIN, 
-				getWidth(), getHeight() - 2 * V_GRAY_MARGIN);
+		gc.fillRect(0, VERTICAL_BASELINE_MARGIN,
+				getWidth(), getHeight() - 2 * VERTICAL_BASELINE_MARGIN);
 		
-		Rectangle c = getCenterBar();
-		gc.strokeRoundRect(c.getX() + CENTER_MARGIN,
-				c.getY() + V_MARGIN, 
-				c.getWidth() - 2 * CENTER_MARGIN, 
-				c.getHeight() - 2 * V_MARGIN, 
-				ARC_WIDTH, ARC_HEIGHT);
+		Rectangle centerBounds = center.getBounds();
+		gc.strokeRoundRect(
+				centerBounds.getX(),
+				centerBounds.getY() + VERTICAL_MARGIN,
+				centerBounds.getWidth(),
+				centerBounds.getHeight() - 2 * VERTICAL_MARGIN,
+				ARC_WIDTH,
+				ARC_HEIGHT
+		);
 		
-		double centerX = c.getX() + c.getWidth() / 2;
+		double centerX = centerBounds.getX() + centerBounds.getWidth() / 2;
 		gc.strokeLine(centerX, 0, centerX, HEIGHT);
 		
-		Rectangle l = getLeftBar();
-		gc.strokeRoundRect(l.getX() + V_MARGIN, l.getY() + V_MARGIN,
-				l.getWidth() - 2 * V_MARGIN, l.getHeight() - 2 * V_MARGIN, ARC_WIDTH, ARC_HEIGHT);
+		Rectangle leftBounds = left.getBounds();
+		gc.strokeRoundRect(
+				leftBounds.getX(),
+				leftBounds.getY() + VERTICAL_MARGIN,
+				leftBounds.getWidth(),
+				leftBounds.getHeight() - 2 * VERTICAL_MARGIN,
+				ARC_WIDTH,
+				ARC_HEIGHT
+		);
 
-		Rectangle r = getRightBar();
-		gc.strokeRoundRect(r.getX() + V_MARGIN, r.getY() + V_MARGIN,
-				r.getWidth() - 2 * V_MARGIN, r.getHeight() - 2 * V_MARGIN, ARC_WIDTH, ARC_HEIGHT);
+		Rectangle rightBounds = right.getBounds();
+		gc.strokeRoundRect(
+				rightBounds.getX(),
+				rightBounds.getY() + VERTICAL_MARGIN,
+				rightBounds.getWidth(),
+				rightBounds.getHeight() - 2 * VERTICAL_MARGIN,
+				ARC_WIDTH,
+				ARC_HEIGHT
+		);
 	}
 
-	private void recalcField() {
-		double scrCenter = (finish + start) / 2;			
-		double scrWidth = (finish - start);
-		
-		double visibletracesCount = scrWidth / (double) getWidth() 
-				* (double) scrollable.numTraces();
-		double hsc = getWidth() / visibletracesCount;
-		double aspect = hsc / scrollable.getVScale();
-		
-		double trCenter = scrCenter / (double) getWidth() * (double) scrollable.numTraces();
-		scrollable.setMiddleTrace((int) trCenter);
-		scrollable.setRealAspect(aspect);
+	interface Bar {
+
+		Rectangle getBounds();
+
+		void move(Point2D localPoint);
 	}
 }

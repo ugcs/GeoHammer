@@ -25,19 +25,19 @@ import com.ugcs.geohammer.model.Model;
 
 public class FoundPlace extends PositionalObject {
 
-	//static int R_HOR = ResourceImageHolder.IMG_SHOVEL.getWidth(null) / 2;
-	//static int R_VER = ResourceImageHolder.IMG_SHOVEL.getHeight(null) / 2;
-	static int R_HOR_M = ShapeHolder.flag.getBounds().width / 2;
-	static int R_VER_M = ShapeHolder.flag.getBounds().height / 2;
+	private static final int R_HOR_M = ShapeHolder.flag.getBounds().width / 2;
 
-	public static Stroke SELECTED_STROKE = new BasicStroke(2.0f);
+	private static final int R_VER_M = ShapeHolder.flag.getBounds().height / 2;
+
+	public static final Stroke SELECTED_STROKE = new BasicStroke(2.0f);
 	
-	private static final float[] dash1 = {7.0f, 2.0f};
-	private static final Stroke VERTICAL_STROKE = 	
+	private static final float[] DASH = {7.0f, 2.0f};
+
+	private static final Stroke VERTICAL_STROKE =
 			new BasicStroke(1.0f,
                 BasicStroke.CAP_BUTT,
                 BasicStroke.JOIN_MITER,
-                10.0f, dash1, 0.0f);
+                10.0f, DASH, 0.0f);
 
 	private Color flagColor = Color.getHSBColor((float) Math.random(), 0.9f, 0.97f);
 
@@ -77,7 +77,7 @@ public class FoundPlace extends PositionalObject {
 			ScrollableData scrollable = model.getChart(trace.getFile());
 			int traceIndex = getTraceIndex();
 			if (scrollable != null) {
-				scrollable.setMiddleTrace(traceIndex);
+				scrollable.scrollToTrace(traceIndex);
 			}
 
 			model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));

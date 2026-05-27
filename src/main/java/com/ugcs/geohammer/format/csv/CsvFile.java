@@ -67,6 +67,8 @@ public class CsvFile extends SgyFile {
         parser = ParserFactory.createParser(template);
         geoData = parser.parse(csvFile);
 
+        GeoData.fillMissingLatLon(geoData);
+
         if (getFile() == null) {
             setFile(csvFile);
         }

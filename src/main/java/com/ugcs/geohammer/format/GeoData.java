@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.format;
 
+import com.ugcs.geohammer.math.LinearInterpolator;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
@@ -283,5 +284,40 @@ public class GeoData {
 
     public static Column removeColumn(List<GeoData> values, Column column) {
         return removeColumn(values, column.getHeader());
+    }
+
+    public static void fillMissingLatLon(List<GeoData> values) {
+        if (Nulls.isNullOrEmpty(values)) {
+            return;
+        }
+        int n = values.size();
+        double[] latitudes = new double[n];
+        double[] longitudes = new double[n];
+        boolean anyValid = false;
+        for (int i = 0; i < n; i++) {
+            GeoData value = values.get(i);
+            Double latitude = value.getLatitude();
+            Double longitude = value.getLongitude();
+            if (latitude == null || longitude == null) {
+                latitudes[i] = Double.NaN;
+                longitudes[i] = Double.NaN;
+            } else {
+                latitudes[i] = latitude;
+                longitudes[i] = longitude;
+                anyValid = true;
+            }
+        }
+        if (!anyValid) {
+            return;
+        }
+        LinearInterpolator.interpolateNans(latitudes);
+        LinearInterpolator.interpolateNans(longitudes);
+        for (int i = 0; i < n; i++) {
+            GeoData value = values.get(i);
+            if (value.getLatitude() == null || value.getLongitude() == null) {
+                value.setLatitude(latitudes[i]);
+                value.setLongitude(longitudes[i]);
+            }
+        }
     }
 }

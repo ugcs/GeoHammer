@@ -152,21 +152,23 @@ public abstract class Parser {
                 GeoData value = parseValues(valueTokens, columns);
                 if (value != null) {
                     values.add(value);
-                } else {
-                    rowsMissingCoordinates++;
+					if (value.getLatitude() == null || value.getLongitude() == null) {
+						rowsMissingCoordinates++;
+					}
                 }
             }
 
-            if (rowsMissingCoordinates > 0 && values.isEmpty()) {
+			if (values.isEmpty()) {
+				throw new ParseException("File has no data.");
+			}
+
+            if (rowsMissingCoordinates == values.size()) {
                 throw new ParseException(
                     "File contains data rows, but none have valid coordinates. "
                     + "Check that the '" + mapping.getLatitude().getHeader()
                     + "' and '" + mapping.getLongitude().getHeader()
                     + "' columns contain non-empty latitude/longitude values.");
             }
-			if (values.isEmpty()) {
-				throw new ParseException("File has no data.");
-			}
         }
 
         // decide which columns to display
@@ -344,14 +346,12 @@ public abstract class Parser {
             }
         }
 
-        // position check
+        // treat (0, 0) as a missing fix so it gets interpolated later
         Double latitude = geoData.getLatitude();
         Double longitude = geoData.getLongitude();
-        if (latitude == null || longitude == null) {
-            return null;
-        }
-        if (latitude == 0.0 && longitude == 0.0) {
-            return null;
+        if (latitude != null && longitude != null && latitude == 0.0 && longitude == 0.0) {
+            geoData.setLatitude(null);
+            geoData.setLongitude(null);
         }
         return geoData;
     }

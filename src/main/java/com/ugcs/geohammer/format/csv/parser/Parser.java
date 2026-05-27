@@ -42,8 +42,6 @@ import com.ugcs.geohammer.util.Text;
 
 public abstract class Parser {
 
-	private static final String DATE_TIME_HEADER = "DateTime";
-
     protected final Template template;
 
     // contains lines that were skipped during parsing
@@ -404,7 +402,7 @@ public abstract class Parser {
 			try {
 				date = Text.parseDate(value, format);
 			} catch (IncorrectFormatException e) {
-				warnings.add(DATE_TIME_HEADER, e);
+				warnings.add("DateTime", e);
 			}
 
             if (date != null) {

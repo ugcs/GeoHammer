@@ -51,8 +51,6 @@ import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.jfree.fx.FXGraphics2D;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -66,25 +64,24 @@ import java.util.Objects;
 
 public class GPRChart extends Chart {
 
-    private static final Color BACK_GROUD_COLOR = new Color(244, 244, 244);
     private static final Stroke AMP_STROKE = new BasicStroke(1.0f);
+
     private static final Stroke LEVEL_STROKE = new BasicStroke(1.0f);
 
-    private static final double ASPECT_A = 1.14;
+    private static final Font PLAIN_FONT = new Font("Verdana", Font.PLAIN, 8);
 
-    private static final Font fontB = new Font("Verdana", Font.BOLD, 8);
-    private static final Font fontP = new Font("Verdana", Font.PLAIN, 8);
+    private static final Font BOLD_FONT = new Font("Verdana", Font.BOLD, 8);
 
-    private static final float[] dash1 = {5.0f};
-    private static final BasicStroke dashed =
+    private static final BasicStroke DASHED_STROKE =
             new BasicStroke(1.0f,
                     BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-                    10.0f, dash1, 0.0f);
-	private static final Logger log = LoggerFactory.getLogger(GPRChart.class);
+                    10.0f, new float[] {5.0f}, 0.0f);
 
 	private static final int MIN_CONTRAST = 0;
-	private static final int MAX_CONTRAST = 100;
-	private static final String DEPTH_SLIDER_TOOLTIP = "Hold Ctrl to move independently";
+
+    private static final int MAX_CONTRAST = 100;
+
+    private static final String DEPTH_SLIDER_TOOLTIP = "Hold Ctrl to move independently";
 
 	private BaseObject selectedMouseHandler;
 
@@ -93,10 +90,13 @@ public class GPRChart extends Chart {
     private final BaseObject scrollHandler;
 
     private final Model model;
+
     private final AuxElementEditHandler auxEditHandler;
 
     private BufferedImage drawImage;
+
     private int width = 800;
+
     private int height = 600;
 
     private final PaintLimiter repaintLimiter = new PaintLimiter(60, () -> draw(width, height));
@@ -104,11 +104,15 @@ public class GPRChart extends Chart {
     private double contrast = 50;
 
     private final VBox vbox = new VBox();
+
     private final Canvas canvas = new Canvas(width, height);
+
     private final GraphicsContext gc = canvas.getGraphicsContext2D();
+
     private final FXGraphics2D g2 = new FXGraphics2D(gc);
 
     private final PrismDrawer prismDrawer;
+
     private final ContrastSlider contrastSlider;
 
     private final MutableInt shiftGround = new MutableInt(0);
@@ -117,19 +121,13 @@ public class GPRChart extends Chart {
 
     private final HorizontalRulerController horizontalRulerController;
 
-    private final ChangeListener<Number> sliderListener
-            = (observable, oldValue, newValue) -> {
-                //if (Math.abs(newValue.intValue() - oldValue.intValue()) > 3) {
-                    repaintEvent();
-					setContrastToMeta();
-		//}
-            };
-
     private final ProfileField profileField;
+
     private final List<BaseObject> auxElements = new ArrayList<>();
 
-    VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
-    HorizontalRulerDrawer horizontalRulerDrawer = new HorizontalRulerDrawer(this);
+    private final VerticalRulerDrawer verticalRulerDrawer = new VerticalRulerDrawer(this);
+
+    private final HorizontalRulerDrawer horizontalRulerDrawer = new HorizontalRulerDrawer(this);
 
     public GPRChart(Model model, TraceFile traceFile) {
         super(model);
@@ -146,22 +144,18 @@ public class GPRChart extends Chart {
         prismDrawer = new PrismDrawer(model);
         initCanvas();
 
-        contrastSlider = new ContrastSlider(profileField.getProfileSettings(), sliderListener);
+        ChangeListener<Number> contrastListener = (observable, oldValue, newValue) -> {
+            repaintEvent();
+            setContrastToMeta();
+        };
+        contrastSlider = new ContrastSlider(profileField.getProfileSettings(), contrastListener);
 
 		setContrastFromMeta(contrastSlider, traceFile);
 		setDepthRangeFromMeta(traceFile);
 
         getProfileScroll().setChangeListener(new ChangeListener<Number>() {
-            //TODO: fix with change listener
-            Number currentValue;
-
-            public void changed(ObservableValue<? extends Number> ov,
-                                Number oldVal, Number newVal) {
-                //if (currentValue == null) { currentValue = newVal;}
-                //if (currentValue != null && newVal != null && Math.abs(newVal.intValue() - currentValue.intValue()) > 3) {
-                //    currentValue = newVal;
+            public void changed(ObservableValue<? extends Number> ov, Number oldVal, Number newVal) {
                     repaintEvent();
-                //}
             }
         });
 
@@ -195,8 +189,7 @@ public class GPRChart extends Chart {
     }
 
     public void repaintEvent() {
-        if (!model.isLoading() && getField().getGprTracesCount() > 0) {
-            //controller.render();
+        if (!model.isLoading() && profileField.getGprTracesCount() > 0) {
             Platform.runLater(this::repaint);
         }
     }
@@ -218,7 +211,7 @@ public class GPRChart extends Chart {
         this.width = width;
         this.height = height;
 
-        getField().setViewDimension(new Dimension(this.width, this.height));
+        profileField.setViewDimension(new Dimension(this.width, this.height));
         rescaleZoom(viewWidthBefore, viewHeightBefore);
         repaintEvent();
     }
@@ -236,11 +229,11 @@ public class GPRChart extends Chart {
 	}
 
 	public void applyDepthRange(IndexRange depthRange) {
-		int max = getField().getMaxHeightInSamples();
+		int max = profileField.getMaxHeightInSamples();
 		if (max <= 0) {
 			return;
 		}
-		var settings = getField().getProfileSettings();
+		var settings = profileField.getProfileSettings();
 		int clampedLayer = Math.min(Math.max(0, depthRange.from()), max - 1);
 		int clampedHpage = Math.min(Math.max(0, depthRange.to() - depthRange.from()), max - clampedLayer);
 		settings.setLayer(clampedLayer);
@@ -305,12 +298,10 @@ public class GPRChart extends Chart {
 
     private void initCanvas() {
         canvas.setOnScroll(event -> {
-            int ch = (event.getDeltaY() > 0 ? 1 : -1);
-
-            double ex = event.getSceneX();
-            double ey = event.getSceneY();
-
-            zoom(ch, ex, ey, event.isControlDown());
+            double x = event.getSceneX();
+            double y = event.getSceneY();
+            double factor = (event.getDeltaY() > 0 ? ZOOM_IN : ZOOM_OUT);
+            zoom(x, y, factor, event.isControlDown());
 
             event.consume(); // don't scroll the page
         });
@@ -325,63 +316,33 @@ public class GPRChart extends Chart {
         canvas.addEventFilter(MouseDragEvent.MOUSE_DRAG_RELEASED, dragReleaseHandler);
     }
 
-    void zoom(int ch, boolean justHorizont) {
-        var ex = width / 2;
-        var ey = height / 2;
-        zoom(ch, ex, ey, justHorizont);
+    void zoom(double factor) {
+        double x = 0.5 * width;
+        double y = 0.5 * height;
+        zoom(x, y, factor, false);
     }
 
-    private void zoom(int ch, double ex, double ey, boolean justHorizont) {
+    private void zoom(double x, double y, double factor, boolean horizontalOnly) {
+        TraceSample before = screenToTraceSample(toLocalPoint(x, y));
 
-        Point2D t = getLocalCoords(ex, ey);
-
-        TraceSample ts = screenToTraceSample(t);
-
-        if (justHorizont) {
-
-            double realAspect = getRealAspect()
-                    * (ch > 0 ? ASPECT_A :
-                    1 / ASPECT_A);
-
-            setRealAspect(realAspect);
-        } else {
-            double zoom = clampZoom(getZoom() + ch);
-            setZoom(zoom);
+        setHorizontalScale(factor * getHorizontalScale());
+        if (!horizontalOnly) {
+            setVerticalScale(factor * getVerticalScale());
         }
 
-        ////
-
-        Point2D t2 = getLocalCoords(ex, ey);
-        TraceSample ts2 = screenToTraceSample(t2);
-
-        setMiddleTrace(getMiddleTrace()
-                - (ts2.getTrace() - ts.getTrace()));
-
-        int starts = getStartSample() - (ts2.getSample() - ts.getSample());
-        setStartSample(starts);
+        TraceSample after = screenToTraceSample(toLocalPoint(x, y));
+        setStartTrace(getStartTrace() - (after.trace() - before.trace()));
+        setStartSample(getStartSample() - (after.sample() - before.sample()));
 
         updateScroll();
         repaintEvent();
     }
 
-    private double clampZoom(double zoom) {
-        Rectangle mainRect = profileField.getMainRect();
-        double viewHeight = mainRect.getHeight();
-
-        int numSamples = profileField.getMaxHeightInSamples();
-        double vScale = numSamples != 0
-                ? viewHeight / numSamples
-                : 0.0;
-
-        double minZoom = Math.log(vScale) / Math.log(ZOOM_A);
-        return Math.max(minZoom, zoom);
-    }
-
     @Override
-    public void setMiddleTrace(int selectedTrace) {
+    public void setStartTrace(int startTrace) {
         int lineIndexBefore = getSelectedLineIndex();
 
-        super.setMiddleTrace(selectedTrace);
+        super.setStartTrace(startTrace);
 
         int lineIndexAfter = getSelectedLineIndex();
         if (lineIndexBefore != lineIndexAfter) {
@@ -390,10 +351,10 @@ public class GPRChart extends Chart {
     }
 
     public void updateScroll() {
-        if (!model.isActive() || getField().getGprTracesCount() == 0) {
+        if (!model.isActive() || profileField.getGprTracesCount() == 0) {
             return;
         }
-        getProfileScroll().recalc();
+        getProfileScroll().syncFromScrollable();
     }
 
     private void select() {
@@ -410,7 +371,7 @@ public class GPRChart extends Chart {
     }
 
     public Point2D localToCanvas(Point2D localPoint) {
-        var mainRect = getField().getMainRect();
+        var mainRect = profileField.getMainRect();
         return new Point2D(
                 localPoint.getX() + mainRect.x + mainRect.width / 2.0,
                 localPoint.getY());
@@ -499,7 +460,7 @@ public class GPRChart extends Chart {
 
     private void drawAmplitudeMapLevels(Graphics2D g2) {
         g2.setColor(Color.MAGENTA);
-        g2.setStroke(dashed);
+        g2.setStroke(DASHED_STROKE);
 
         var profileSettings = profileField.getProfileSettings();
 
@@ -514,10 +475,8 @@ public class GPRChart extends Chart {
     }
 
     private void drawAuxElements(Graphics2D g2) {
-
         boolean full = true; //!controller.isEnquiued();
 
-        //for (BaseObject bo : model.getAuxElements()) {
         for (BaseObject bo : auxElements) {
             if (full || bo.isSelected()) {
                 bo.drawOnCut(g2, this);
@@ -572,11 +531,9 @@ public class GPRChart extends Chart {
     }
 
     private void drawAxis(Graphics2D g2, Color strokeColor) {
-        var field = getField();
-
-        Rectangle topRuleRect = field.getTopRuleRect();
-        Rectangle leftRuleRect = field.getLeftRuleRect();
-        Rectangle bottomRuleRect = field.getBottomRuleRect();
+        Rectangle topRuleRect = profileField.getTopRuleRect();
+        Rectangle leftRuleRect = profileField.getLeftRuleRect();
+        Rectangle bottomRuleRect = profileField.getBottomRuleRect();
 
         g2.setPaint(Colors.opaque(strokeColor, 0.25f));
         g2.setStroke(new BasicStroke(0.8f));
@@ -626,7 +583,7 @@ public class GPRChart extends Chart {
         int rectStart = -mainRect.width / 2;
 
         g2.setColor(strokeColor);
-        g2.setFont(fontB);
+        g2.setFont(BOLD_FONT);
 
         int iconImageWidth = ResourceImageHolder.IMG_CLOSE_FILE.getWidth(null);
         TraceFile file = getFile();
@@ -656,11 +613,11 @@ public class GPRChart extends Chart {
             if (lineIndex == selectedLineIndex) {
                 g2.setStroke(LEVEL_STROKE);
                 g2.setColor(new Color(0, 120, 215));
-                g2.setFont(fontB);
+                g2.setFont(BOLD_FONT);
             } else {
                 g2.setStroke(AMP_STROKE);
                 g2.setColor(new Color(234, 51, 35));
-                g2.setFont(fontP);
+                g2.setFont(PLAIN_FONT);
             }
 
             int lineX = traceToScreen(lineRange.from());
@@ -678,17 +635,17 @@ public class GPRChart extends Chart {
         canvas.setCursor(cursor);
     }
 
-    private Point2D getLocalCoords(MouseEvent event) {
-        return getLocalCoords(event.getSceneX(), event.getSceneY());
+    private Point2D toLocalPoint(MouseEvent event) {
+        return toLocalPoint(event.getSceneX(), event.getSceneY());
     }
 
-    private Point2D getLocalCoords(double x, double y) {
-        Point2D sceneCoords = new Point2D(x, y);
-        Point2D imgCoord = canvas.sceneToLocal(sceneCoords);
-        Point2D p = new Point2D(imgCoord.getX() - getField().getMainRect().x
-                - getField().getMainRect().width / 2,
-                imgCoord.getY());
-        return p;
+    private Point2D toLocalPoint(double x, double y) {
+        Point2D scenePoint = new Point2D(x, y);
+        Point2D localPoint = canvas.sceneToLocal(scenePoint);
+        return new Point2D(
+                localPoint.getX() - profileField.getMainRect().x - 0.5 * getViewWidth(),
+                localPoint.getY()
+        );
     }
 
     protected EventHandler<MouseEvent> mouseClickHandler = new EventHandler<>() {
@@ -697,9 +654,9 @@ public class GPRChart extends Chart {
 
             if (event.getClickCount() == 2) {
                 // add tmp flag
-                Point2D p = getLocalCoords(event);
+                Point2D p = toLocalPoint(event);
 
-                int traceIndex = screenToTraceSample(p).getTrace();
+                int traceIndex = screenToTraceSample(p).trace();
                 TraceFile traceFile = profileField.getFile();
                 if (traceIndex >= 0 && traceIndex < traceFile.getTraces().size()) {
                     TraceKey trace = new TraceKey(traceFile, traceIndex);
@@ -715,7 +672,7 @@ public class GPRChart extends Chart {
                 @Override
                 public void handle(MouseEvent event) {
 
-                    Point2D p = getLocalCoords(event);
+                    Point2D p = toLocalPoint(event);
                     if (auxEditHandler.mousePressHandle(p, GPRChart.this)) {
                         selectedMouseHandler = auxEditHandler;
                     } else if (scrollHandler.mousePressHandle(p, GPRChart.this)) {
@@ -731,7 +688,7 @@ public class GPRChart extends Chart {
             new EventHandler<>() {
                 @Override
                 public void handle(MouseEvent event) {
-                    Point2D p = getLocalCoords(event);
+                    Point2D p = toLocalPoint(event);
                     if (selectedMouseHandler != null) {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
                         selectedMouseHandler = null;
@@ -754,7 +711,7 @@ public class GPRChart extends Chart {
                 @Override
                 public void handle(MouseDragEvent event) {
 
-                    Point2D p = getLocalCoords(event);
+                    Point2D p = toLocalPoint(event);
 
                     if (selectedMouseHandler != null) {
                         selectedMouseHandler.mouseReleaseHandle(p, GPRChart.this);
@@ -773,7 +730,7 @@ public class GPRChart extends Chart {
                 @Override
                 public void handle(MouseEvent event) {
 
-                    Point2D p = getLocalCoords(event);
+                    Point2D p = toLocalPoint(event);
                     if (selectedMouseHandler != null) {
                         dragCtrlDown = event.isControlDown();
                         selectedMouseHandler.mouseMoveHandle(p, GPRChart.this);
@@ -783,117 +740,95 @@ public class GPRChart extends Chart {
                 }
             };
 
+
     @Override
-    public int numTraces() {
-        return getField().getGprTracesCount();
+    public double getViewWidth() {
+        return profileField.getMainRect().getWidth();
     }
 
     @Override
-    public void clear() {
-        super.clear();
-        //aspect = -15;
-        //startSample = 0;
-        if (model.isActive() && getField().getGprTracesCount() > 0) {
-            fitFull();
-        }
+    public double getViewHeight() {
+        return profileField.getMainRect().getHeight();
+    }
+
+    @Override
+    public int numTraces() {
+        return profileField.getGprTracesCount();
+    }
+
+    @Override
+    public int numSamples() {
+        return profileField.getMaxHeightInSamples();
     }
 
     public void fitFull() {
-        int middle = getField().getGprTracesCount() / 2;
-
-        setMiddleTrace(middle);
-        fit(getField().getMaxHeightInSamples(), 2 * middle);
+        fit(numTraces(), numSamples());
+        setStartTrace(0);
+        setStartSample(0);
     }
 
-    public void fit(int numSamples, int numTraces) {
-        Rectangle mainRect = profileField.getMainRect();
-        double viewWidth = mainRect.getWidth();
-        double viewHeight = mainRect.getHeight();
+    public void fit(int numTraces, int numSamples) {
+        Rectangle viewBounds = profileField.getMainRect();
 
-        double vScale = numSamples != 0
-                ? viewHeight / numSamples
-                : 0.0;
-        double zoom = Math.log(vScale) / Math.log(ZOOM_A);
-        setZoom(zoom);
-        setStartSample(0);
-
-        double hScale = numTraces != 0
-                ? viewWidth / numTraces
+        double horizontalScale = numTraces != 0
+                ? viewBounds.getWidth() / numTraces
+                : 1.0;
+        double verticalScale = numSamples != 0
+                ? viewBounds.getHeight() / numSamples
                 : 1.0;
 
-        double realAspect = hScale / getVScale();
-        setRealAspect(realAspect);
+        setHorizontalScale(horizontalScale);
+        setVerticalScale(verticalScale);
     }
 
     private void rescaleZoom(double widthBefore, double heightBefore) {
         // update zoom scales according to changes of the viewport
 
-        double vScale = getVScale();
-        if (vScale == 0.0) {
-            vScale = 1.0;
+        double horizontalScale = getHorizontalScale();
+        if (horizontalScale == 0.0) {
+            horizontalScale = 1.0;
         }
-        int numSamples = (int) (heightBefore / vScale);
+        int numTraces = (int) (widthBefore / horizontalScale);
 
-        double hScale = getHScale();
-        if (hScale == 0.0) {
-            hScale = 1.0;
+        double verticalScale = getVerticalScale();
+        if (verticalScale == 0.0) {
+            verticalScale = 1.0;
         }
-        int numTraces = (int) (widthBefore / hScale);
+        int numSamples = (int) (heightBefore / verticalScale);
 
-        fit(numSamples, numTraces);
+        fit(numTraces, numSamples);
     }
 
     public int getFirstVisibleTrace() {
-        double x = -getField().getMainRect().width / 2.0;
-        int trace = screenToTraceSample(new Point2D(x, 0)).getTrace();
+        double x = -profileField.getMainRect().width / 2.0;
+        int trace = screenToTraceSample(new Point2D(x, 0)).trace();
         return Math.clamp(trace, 0, numTraces() - 1);
     }
 
     public int getLastVisibleTrace() {
         double x = profileField.getMainRect().width / 2.0;
-        int trace = screenToTraceSample(new Point2D(x, 0)).getTrace();
+        int trace = screenToTraceSample(new Point2D(x, 0)).trace();
         return Math.clamp(trace, 0, numTraces() - 1);
     }
 
     public int getLastVisibleSample() {
         double y = profileField.getMainRect().height + profileField.getTopMargin();
-        int sample = screenToTraceSample(new Point2D( 0, y)).getSample();
+        int sample = screenToTraceSample(new Point2D( 0, y)).sample();
         return Math.clamp(sample, 0, profileField.getMaxHeightInSamples() - 1);
     }
 
-    public void setStartSample(int startSample) {
-        if(getScreenImageSize().height < getField().getViewDimension().height){
-            startSample = 0;
-        }
-        this.startSample = Math.max(0, startSample);
-    }
-
-    public Dimension getScreenImageSize() {
-        return new Dimension(
-                (int) (getField().getGprTracesCount() * getHScale()),
-                (int) (getField().getMaxHeightInSamples() * getVScale()));
-    }
-
-    @Override
-    public int numVisibleTraces() {
-        int x = traceToScreen(0);
-        Point2D p2 = new Point2D(x + getField().getMainRect().width, 0);
-        TraceSample t2 = screenToTraceSample(p2);
-
-        return t2.getTrace();
-    }
-
     public TraceSample screenToTraceSample(Point2D point) {
-        double x = point.getX();
-        double y = Math.max(0, point.getY() - getField().getTopMargin());
-        int trace = getMiddleTrace() + (int) (x / getHScale());
-        int sample = getStartSample() + (int) (y / getVScale());
+        double x = point.getX() + 0.5 * getViewWidth();
+        double y = Math.max(0, point.getY() - profileField.getTopMargin());
+
+        int trace = getStartTrace() + (int) (x / getHorizontalScale());
+        int sample = getStartSample() + (int) (y / getVerticalScale());
 
         return new TraceSample(trace, sample);
     }
 
     public int sampleToScreen(int sample) {
-        return (int) ((sample - getStartSample()) * getVScale() + getField().getTopMargin());
+        return (int) ((sample - getStartSample()) * getVerticalScale() + profileField.getTopMargin());
     }
 
     @Override
@@ -904,8 +839,8 @@ public class GPRChart extends Chart {
     @Override
     public Point2D traceSampleToScreenCenter(int trace, int sample) {
         return new Point2D(
-                traceToScreen(trace) + (int) (getHScale() / 2),
-                sampleToScreen(sample) + (int) (getVScale() / 2));
+                traceToScreen(trace) + (int) (getHorizontalScale() / 2),
+                sampleToScreen(sample) + (int) (getVerticalScale() / 2));
     }
 
     @Override
@@ -917,7 +852,7 @@ public class GPRChart extends Chart {
     public void selectTrace(@Nullable SelectedTrace selectedTrace, boolean focus) {
 		TraceKey trace = selectedTrace != null ? selectedTrace.trace() : null;
         if (trace != null && focus) {
-            setMiddleTrace(trace.getIndex());
+            scrollToTrace(trace.getIndex());
         }
         // no data stored in a chart,
         // and is taken from model on repaint
@@ -956,7 +891,6 @@ public class GPRChart extends Chart {
 
     // zoom
 
-
     @Override
     public int getSelectedLineIndex() {
         SelectedTrace selectedTrace = model.getSelectedTrace(this);
@@ -993,14 +927,9 @@ public class GPRChart extends Chart {
 
         IndexRange range = lineRanges.get(lineIndex);
 
-        int maxSamples = profileField.getMaxHeightInSamples();
-        int numTraces = range.size();
-        // as middle trace is an exact half of the viewport
-        // num traces should be even to properly calculate horizontal scale factor
-        numTraces &= ~1;
-
-        setMiddleTrace(range.from() + numTraces / 2);
-        fit(maxSamples, numTraces);
+        fit(range.size(), numSamples());
+        setStartTrace(range.from());
+        setStartSample(0);
 
         model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
     }
@@ -1035,16 +964,15 @@ public class GPRChart extends Chart {
 
     @Override
     public void zoomIn() {
-        zoom(1, false);
+        zoom(ZOOM_IN);
     }
 
     @Override
     public void zoomOut() {
-        zoom(-1, false);
+        zoom(ZOOM_OUT);
     }
 
 	public boolean isDragCtrlDown() {
 		return dragCtrlDown;
 	}
-
 }

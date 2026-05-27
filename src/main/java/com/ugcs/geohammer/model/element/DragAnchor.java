@@ -112,8 +112,8 @@ public class DragAnchor extends BaseObjectImpl {
 		}
 
 		TraceSample ts = profField.screenToTraceSample(point); // , offset);
-		setTrace(ts.getTrace());
-		setSample(ts.getSample());
+		setTrace(ts.trace());
+		setSample(ts.sample());
 		
 		signal(null);
 		return true;

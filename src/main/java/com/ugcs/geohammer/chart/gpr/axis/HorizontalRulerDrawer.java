@@ -14,11 +14,8 @@ import java.util.Set;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.model.TraceUnit;
-import com.ugcs.geohammer.view.Colors;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.ugcs.geohammer.util.Ticks;
+import com.ugcs.geohammer.view.Colors;
 
 public class HorizontalRulerDrawer {
     private final GPRChart field;
@@ -38,27 +35,17 @@ public class HorizontalRulerDrawer {
 
         int firstTrace = field.getFirstVisibleTrace();
         int lastTrace = field.getLastVisibleTrace();
-        int totalTraces = field.numVisibleTraces();
-
-        Pair<Integer, Integer> pair;
-        if (firstTrace <= lastTrace) {
-            pair = new ImmutablePair<>(firstTrace, lastTrace);
-        } else {
-            pair = new ImmutablePair<>(lastTrace, firstTrace);
-        }
-        int first = pair.getLeft();
-        int last = pair.getRight();
 
         FontMetrics fontMetrics = g2.getFontMetrics();
         TraceUnit traceUnit = getController().getUnit();
-        String sampleLabel = getLabelByUnit(first, traceUnit);
+        String sampleLabel = getLabelByUnit(firstTrace, traceUnit);
         int labelWidth = fontMetrics.stringWidth(sampleLabel);
         int minPixelSpacing = labelWidth + 20;
 
-        double minTraceSpacing = minPixelSpacing / field.getHScale();
+        double minTraceSpacing = minPixelSpacing / field.getHorizontalScale();
         int minTick = Math.max(1, (int) Math.ceil(minTraceSpacing));
 
-        int baseTick = Math.max(1, (int) Ticks.getPrettyTick(first, last, 10));
+        int baseTick = Math.max(1, (int) Ticks.getPrettyTick(firstTrace, lastTrace, 10));
         int tick = Math.max(minTick, baseTick);
 
         List<Integer> steps = new ArrayList<>();
@@ -77,20 +64,14 @@ public class HorizontalRulerDrawer {
 
         int sz = 21;
         for (int step : steps) {
-            int startIndex = (int) Math.ceil((double) first / step) * step;
-            int endIndex = last / step * step;
+            int startIndex = (int) Math.ceil((double) firstTrace / step) * step;
+            int endIndex = lastTrace / step * step;
 
             for (int i = startIndex; i <= endIndex; i += step) {
                 if (rendered.contains(i)) {
                     continue;
                 }
-                int x;
-                if (firstTrace == 0 && totalTraces - lastTrace > 0) {
-                    x = rect.x + (int) Math.round((i - firstTrace + totalTraces - lastTrace) * field.getHScale());
-                } else {
-                    x = rect.x + (int) Math.round((i - firstTrace) * field.getHScale());
-                }
-
+                int x = rect.x + (int) ((i - firstTrace) * field.getHorizontalScale());
                 if (x >= rect.x && x <= rect.x + rect.width) {
                     g2.setColor(axisColor);
                     g2.drawLine(x, rect.y, x, rect.y + sz);

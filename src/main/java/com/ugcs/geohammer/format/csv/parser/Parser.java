@@ -311,7 +311,12 @@ public abstract class Parser {
     }
 
     private GeoData parseValues(String[] tokens, ColumnSchema columns) {
-        LocalDateTime dateTime = parseDateTime(tokens);
+		LocalDateTime dateTime = null;
+		try {
+			 dateTime = parseDateTime(tokens);
+		} catch (IncorrectFormatException e) {
+			warnings.add("Date-Time", e);
+		}
         if (dateTime != null && template.isGpsTime()) {
             dateTime = GpsTime.gpsToUtc(dateTime);
         }
@@ -402,7 +407,7 @@ public abstract class Parser {
 			try {
 				date = Text.parseDate(value, format);
 			} catch (IncorrectFormatException e) {
-				warnings.add("DateTime", e);
+				warnings.add("Date", e);
 			}
 
             if (date != null) {
@@ -420,38 +425,25 @@ public abstract class Parser {
 		// dateTime column
 		DateTime dateTimeColumn = mapping.getDateTime();
 		if (hasHeader(dateTimeColumn)) {
-			try {
-				String value = getString(values, dateTimeColumn);
-				dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
-			} catch (IncorrectFormatException e) {
-				warnings.add(dateTimeColumn.getHeader(), e);
-			}
+			String value = getString(values, dateTimeColumn);
+			dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
 		}
 		if (dateTime != null) {
 			return dateTime;
 		}
 
-        // date + time columns, or date from filename + time column
+		// date + time columns, or date from filename + time column
 		DateTime timeColumn = mapping.getTime();
 		if (hasHeader(timeColumn)) {
-			LocalTime time = null;
-			try {
-				String timeValue = getString(values, timeColumn);
-				time = Text.parseTime(timeValue, timeColumn.getFormat());
-			} catch (IncorrectFormatException e) {
-				warnings.add(timeColumn.getHeader(), e);
-			}
+			String timeValue = getString(values, timeColumn);
+			LocalTime time = Text.parseTime(timeValue, timeColumn.getFormat());
 			if (time != null) {
 				Date dateColumn = mapping.getDate();
 				if (hasHeader(dateColumn)) {
-					try {
-						String dateValue = getString(values, dateColumn);
-						LocalDate date = Text.parseDate(dateValue, dateColumn.getFormat());
-						if (date != null) {
-							dateTime = LocalDateTime.of(date, time);
-						}
-					} catch (IncorrectFormatException e) {
-						warnings.add(dateColumn.getHeader(), e);
+					String dateValue = getString(values, dateColumn);
+					LocalDate date = Text.parseDate(dateValue, dateColumn.getFormat());
+					if (date != null) {
+						dateTime = LocalDateTime.of(date, time);
 					}
 				}
 				if (dateTime == null && dateFromFilename != null) {
@@ -466,13 +458,9 @@ public abstract class Parser {
 		// timestamp columns
 		BaseData timestampColumn = mapping.getTimestamp();
 		if (hasHeader(timestampColumn)) {
-			try {
-				Long timestamp = Text.parseLong(getString(values, timestampColumn));
-				if (timestamp != null) {
-					dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"));
-				}
-			} catch (IncorrectFormatException e) {
-				warnings.add(timestampColumn.getHeader(), e);
+			Long timestamp = Text.parseLong(getString(values, timestampColumn));
+			if (timestamp != null) {
+				dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC"));
 			}
 		}
 

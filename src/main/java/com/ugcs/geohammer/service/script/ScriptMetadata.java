@@ -12,6 +12,30 @@ public record ScriptMetadata(
         List<ScriptParameter> parameters,
         List<String> templates
 ) {
+	public void appendArgs(List<String> command, Map<String, String> values) {
+		for (Map.Entry<String, String> entry : values.entrySet()) {
+			String name = entry.getKey();
+			String value = entry.getValue();
+			if (isBooleanParameter(name)) {
+				if (Boolean.parseBoolean(value)) {
+					command.add("--" + name);
+				}
+			} else {
+				command.add("--" + name);
+				command.add(value);
+			}
+		}
+	}
+
+	private boolean isBooleanParameter(String name) {
+		for (ScriptParameter param : parameters()) {
+			if (param.name().equals(name)) {
+				return param.type() == ScriptParameter.ParameterType.BOOLEAN;
+			}
+		}
+		return false;
+	}
+
 	public void validateRequiredParameters(Map<String, String> parameters) throws ScriptValidationException {
 		List<String> missing = parameters().stream()
 				.filter(ScriptParameter::required)

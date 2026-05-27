@@ -1,5 +1,6 @@
 package com.ugcs.geohammer;
 
+import com.ugcs.geohammer.release.Version;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
@@ -76,7 +77,7 @@ public class MainGeoHammer extends Application {
 	public void start(Stage stage) {
 		AppContext.stage = stage;
         stage.getIcons().add(ResourceImageHolder.IMG_LOGO24);
-        stage.setTitle(TITLE_VERSION + appBuildInfo.getBuildVersion());
+        stage.setTitle(TITLE_VERSION + Version.toString(appBuildInfo.getBuildVersion()));
 		
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         

@@ -3,6 +3,7 @@ package com.ugcs.geohammer.release;
 import com.ugcs.geohammer.BuildInfo;
 import com.ugcs.geohammer.service.github.GitHubApi;
 import com.ugcs.geohammer.service.github.Release;
+import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.RetrofitCalls;
 import org.springframework.stereotype.Service;
 import retrofit2.Call;
@@ -48,6 +49,15 @@ public class ReleaseService {
 
     // whether release version matches current build version
     public boolean isCurrent(Release release) {
-        return release != null && Objects.equals(release.getBuildVersion(), buildInfo.getBuildVersion());
+        return release != null && Objects.equals(release.getVersion(), buildInfo.getBuildVersion());
+    }
+
+    public Release latestRelease(List<Release> releases) {
+        for (Release release : Nulls.toEmpty(releases)) {
+            if (!release.isPreRelease()) {
+                return release;
+            }
+        }
+        return null;
     }
 }

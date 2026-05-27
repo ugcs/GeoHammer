@@ -18,6 +18,8 @@ public class ExportOptions {
 
     private final ObjectProperty<ExportScope> scope = new SimpleObjectProperty<>(ExportScope.SELECTED_LINE);
 
+    private final BooleanProperty applyContrast = new SimpleBooleanProperty(true);
+
     private final DoubleProperty progress = new SimpleDoubleProperty(0);
 
     private final BooleanProperty exporting = new SimpleBooleanProperty(false);
@@ -36,6 +38,14 @@ public class ExportOptions {
 
     public ObjectProperty<ExportScope> scopeProperty() {
         return scope;
+    }
+
+    public boolean isApplyContrast() {
+        return applyContrast.get();
+    }
+
+    public BooleanProperty applyContrastProperty() {
+        return applyContrast;
     }
 
     public double getProgress() {

@@ -8,6 +8,7 @@ import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.Dialogs;
+import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
@@ -19,6 +20,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
@@ -91,9 +93,14 @@ public class ExportView extends VBox {
         scopeSelector.valueProperty().bindBidirectional(exportOptions.scopeProperty());
         scopeSelector.setPrefWidth(140);
 
-        HBox scopeRow = new HBox(SPACING, scopeLabel, scopeSelector);
+        // contrast
+        CheckBox applyContrast = new CheckBox("Apply contrast curve");
+        applyContrast.selectedProperty().bindBidirectional(exportOptions.applyContrastProperty());
+
+        HBox scopeRow = new HBox(SPACING, scopeLabel, scopeSelector, Views.createSpacer(), applyContrast);
         scopeRow.setAlignment(Pos.BASELINE_LEFT);
         bindCollapsible(scopeRow, exportOptions.exportingProperty().not());
+
 
         // progress
         Label progressLabel = new Label("Exporting");

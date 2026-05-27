@@ -1,8 +1,10 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
+import com.ugcs.geohammer.chart.tool.projection.math.ContrastCurve;
 import com.ugcs.geohammer.chart.tool.projection.math.DbGain;
 import com.ugcs.geohammer.chart.tool.projection.math.GainFunction;
 import com.ugcs.geohammer.chart.tool.projection.model.ExportFormat;
+import com.ugcs.geohammer.chart.tool.projection.model.ExportOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ExportScope;
 import com.ugcs.geohammer.chart.tool.projection.model.Grid;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
@@ -135,7 +137,13 @@ public class ExportService {
         GainFunction gainFunction = new DbGain(0, renderOptions.getMaxGain());
         float gainMaxDepth = grid.getMaxDepth();
 
-        return new ExportContext(gainFunction, gainMaxDepth);
+        ContrastCurve contrastCurve = null;
+        ExportOptions exportOptions = projectionModel.getExportOptions();
+        if (exportOptions.isApplyContrast()) {
+            contrastCurve = new ContrastCurve(100 * renderOptions.getContrast());
+        }
+
+        return new ExportContext(gainFunction, gainMaxDepth, contrastCurve);
     }
 
     private void writePoints(ScalarPointWriter writer,
@@ -194,6 +202,9 @@ public class ExportService {
 
                 float gain = gainFunction.getGain(gainMaxDepth > 0 ? cell.getDepth() / gainMaxDepth : 0);
                 float value = gain * cell.getValue();
+                if (context.contrastCurve() != null) {
+                    value = context.contrastCurve().map(value);
+                }
                 writer.write(new ScalarPoint(
                         columnWorldPoint.getX(),
                         columnWorldPoint.getY(),
@@ -249,6 +260,6 @@ public class ExportService {
     private record ExportRange(TraceFile traceFile, int line) {
     }
 
-    private record ExportContext(GainFunction gainFunction, float gainMaxDepth) {
+    private record ExportContext(GainFunction gainFunction, float gainMaxDepth, ContrastCurve contrastCurve) {
     }
 }

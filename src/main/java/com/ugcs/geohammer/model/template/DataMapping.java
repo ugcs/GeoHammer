@@ -1,6 +1,5 @@
 package com.ugcs.geohammer.model.template;
 
-import com.ugcs.geohammer.model.template.data.Altitude;
 import com.ugcs.geohammer.model.template.data.BaseData;
 import com.ugcs.geohammer.model.template.data.Date;
 import com.ugcs.geohammer.model.template.data.DateTime;

@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.ugcs.geohammer.format.csv.parser.IncorrectFormatException;
 
 public final class Text {
 
@@ -88,7 +87,7 @@ public final class Text {
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException e) {
-            return null;
+			throw new IncorrectFormatException(value, "number");
         }
     }
 
@@ -99,7 +98,7 @@ public final class Text {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
-            return null;
+			throw new IncorrectFormatException(value, "number");
         }
     }
 
@@ -110,7 +109,7 @@ public final class Text {
         try {
             return Long.parseLong(value);
         } catch (NumberFormatException e) {
-            return null;
+			throw new IncorrectFormatException(value, "number");
         }
     }
 
@@ -122,7 +121,7 @@ public final class Text {
         try {
             return LocalDate.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-            throw new IncorrectFormatException(value, format);
+           throw new IncorrectFormatException(value, format);
         }
     }
 
@@ -134,7 +133,7 @@ public final class Text {
         try {
             return LocalTime.parse(value, formatterFor(format));
         } catch (DateTimeParseException e) {
-            throw new IncorrectFormatException(value, format);
+			throw new IncorrectFormatException(value, format);
         }
     }
 

@@ -59,3 +59,11 @@
 .series-selector .combo-box-popup .list-cell:selected {
     -fx-background-color: -color-surface-accent;
 }
+
+.dialog-pane > .header-panel {
+    -fx-font-weight: normal;
+}
+
+.dialog-pane > .label {
+    -fx-font-weight: normal;
+}

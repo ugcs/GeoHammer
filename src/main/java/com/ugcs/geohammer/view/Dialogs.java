@@ -174,4 +174,11 @@ public class Dialogs {
 			dialog.show();
 		});
 	}
+
+	public static void showWarning(String header, String message) {
+		Platform.runLater(() -> {
+			Alert alert = createAlert(AlertType.WARNING, header, message);
+			alert.show();
+		});
+	}
 }

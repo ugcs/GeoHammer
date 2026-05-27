@@ -8,6 +8,7 @@ import java.net.URISyntaxException;
 
 import javax.imageio.ImageIO;
 
+import com.ugcs.geohammer.release.Version;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +27,8 @@ public class OsmTileProvider implements XyzTileProvider {
 
 	private final String userAgent;
 
-	public OsmTileProvider(String appVersion) {
-		this.userAgent = "GeoHammer/" + appVersion + " (https://github.com/ugcs/geohammer)";
+	public OsmTileProvider(Version appVersion) {
+		this.userAgent = "GeoHammer/" + Version.toString(appVersion) + " (https://github.com/ugcs/geohammer)";
 	}
 
 	// OSM tile usage policy allows max 2 parallel connections per client

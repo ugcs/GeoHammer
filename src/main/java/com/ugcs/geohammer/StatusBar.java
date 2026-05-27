@@ -2,9 +2,13 @@ package com.ugcs.geohammer;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.stream.Collectors;
 
+import com.ugcs.geohammer.release.ReleaseService;
 import com.ugcs.geohammer.release.ReleaseView;
+import com.ugcs.geohammer.release.Version;
+import com.ugcs.geohammer.service.github.Release;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.Toast;
 import com.ugcs.geohammer.view.Views;
@@ -37,10 +41,13 @@ public class StatusBar extends HBox implements Status, InitializingBean {
     private final Label versionStatus = new Label();
 
     @Autowired
-    public BuildInfo buildInfo;
+    private BuildInfo buildInfo;
+
+	@Autowired
+	private ReleaseService releaseService;
 
     @Autowired
-    public ReleaseView releaseView;
+    private ReleaseView releaseView;
 
 	private final Deque<StatusMessage> messageHistory = new ArrayDeque<>(MAX_MESSAGES);
 
@@ -83,8 +90,34 @@ public class StatusBar extends HBox implements Status, InitializingBean {
 
     @Override
     public void afterPropertiesSet() {
-        versionStatus.setText(buildInfo.getBuildVersion());
+		versionStatus.setText(Version.toString(buildInfo.getBuildVersion()));
+		releaseService.getReleases().whenComplete((releases, t) -> {
+			Platform.runLater(() -> {
+				if (t == null) {
+					updateVersionStatus(releases);
+				} else {
+					updateVersionStatus(List.of());
+				}
+			});
+		});
     }
+
+	private void updateVersionStatus(List<Release> releases) {
+		Version buildVersion = buildInfo.getBuildVersion();
+		Release latestRelease = releaseService.latestRelease(releases);
+		if (latestRelease != null) {
+			Version latestVersion = latestRelease.getVersion();
+			if (buildVersion.compareTo(latestVersion) >= 0) {
+				versionStatus.setText("Version is latest");
+				versionStatus.getStyleClass().add("ok");
+			} else {
+				versionStatus.setText("New version available");
+				versionStatus.getStyleClass().add("attention");
+			}
+		} else {
+			versionStatus.setText(Version.toString(buildVersion));
+		}
+	}
 
 	/**
 	 * Shows a message in the status bar.

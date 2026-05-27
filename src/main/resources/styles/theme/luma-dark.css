@@ -11,8 +11,9 @@
     -color-outline: derive(-color-input, 20%);
     -color-prompt: derive(-color-input, 45%);
     -color-text: #c7c7c7;
+    -color-ok: #66bb6a;
     -color-warning: #ffa726;
-    -color-error: #ef5350;
+    -color-error: #e57373;
     -color-text-dim: derive(-color-text, -25%);
     -color-icon: #9ea3a8;
     -color-accent: #1976d2;

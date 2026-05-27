@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.service.github;
 
 import com.google.gson.annotations.SerializedName;
+import com.ugcs.geohammer.release.Version;
 import com.ugcs.geohammer.util.Strings;
 
 public class Release {
@@ -15,7 +16,7 @@ public class Release {
     private String htmlUrl;
 
     @SerializedName("prerelease")
-    private Boolean preRelease;
+    private boolean preRelease;
 
     public String getName() {
         return name;
@@ -41,23 +42,23 @@ public class Release {
         this.htmlUrl = htmlUrl;
     }
 
-    public Boolean isPreRelease() {
+    public boolean isPreRelease() {
         return preRelease;
     }
 
-    public void setPreRelease(Boolean preRelease) {
+    public void setPreRelease(boolean preRelease) {
         this.preRelease = preRelease;
     }
 
-    public String getBuildVersion() {
-        String version = Strings.nullToEmpty(tagName);
+    public Version getVersion() {
+        String versionString = Strings.nullToEmpty(tagName);
         // strip leading v. or v
-        if (version.startsWith("v.")) {
-            version = version.substring(2);
+        if (versionString.startsWith("v.")) {
+            versionString = versionString.substring(2);
         }
-        if (version.startsWith("v")) {
-            version = version.substring(1);
+        if (versionString.startsWith("v")) {
+            versionString = versionString.substring(1);
         }
-        return !Strings.isNullOrEmpty(version) ? version : "Undefined";
+        return Version.parse(versionString);
     }
 }

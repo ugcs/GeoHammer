@@ -108,10 +108,10 @@ public class ReleaseView extends Popup {
         row.getStyleClass().add("release-row");
 
         // version
-        String releaseVersion = release.getBuildVersion();
+        Version releaseVersion = release.getVersion();
         Label version = new Label(release.isPreRelease()
-                ? releaseVersion + " (pre-release)"
-                : releaseVersion);
+                ? Version.toString(releaseVersion) + " (pre-release)"
+                : Version.toString(releaseVersion));
         if (releaseService.isCurrent(release)) {
             version.getStyleClass().add("current-version");
         }

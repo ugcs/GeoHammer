@@ -11,6 +11,7 @@
     -color-outline: -fx-box-border;
     -color-prompt: derive(-color-input, -45%);
     -color-text: -fx-text-base-color;
+    -color-ok: #43a047;
     -color-warning: #ffa726;
     -color-error: #ef5350;
     -color-text-dim: derive(-color-text, 50%);

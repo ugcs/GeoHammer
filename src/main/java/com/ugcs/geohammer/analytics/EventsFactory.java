@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.analytics;
 
 import com.ugcs.geohammer.analytics.amplitude.PublicIpAddressProvider;
+import com.ugcs.geohammer.release.Version;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -11,11 +12,11 @@ public class EventsFactory {
         this.publicIpAddressProvider = publicIpAddressProvider;
     }
 
-    public Event createAppStartedEvent(String appVersion) {
+    public Event createAppStartedEvent(Version appVersion) {
         Event.ClientProperties clientProperties = new Event.ClientProperties(
                 System.getProperty("os.name"),
                 System.getProperty("os.version"),
-                appVersion,
+                Version.toString(appVersion),
                 publicIpAddressProvider.getPublicIpAddress()
         );
         return new Event(EventType.APP_STARTED, clientProperties, null, null);

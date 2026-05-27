@@ -186,6 +186,14 @@
     -fx-background-color: -color-accent;
 }
 
+.status-action.ok {
+    -fx-text-fill: -color-ok;
+}
+
+.status-action.attention {
+    -fx-text-fill: -color-error;
+}
+
 /* releases */
 
 .release-scroll {

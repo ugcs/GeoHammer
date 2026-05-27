@@ -4,6 +4,7 @@ import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.BuildInfo;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.FileManager;
+import com.ugcs.geohammer.release.Version;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.service.jira.JiraCollector;
 import com.ugcs.geohammer.service.jira.JiraTempFile;
@@ -126,7 +127,7 @@ public class FeedbackService {
         Check.notNull(feedback);
         Check.notEmpty(feedback.subject());
 
-        String product = "GeoHammer " + buildInfo.getBuildVersion();
+        String product = "GeoHammer " + Version.toString(buildInfo.getBuildVersion());
         RetrofitCalls.call(
                 jiraCollector.submitFeedback(
                         jiraCollectorId,

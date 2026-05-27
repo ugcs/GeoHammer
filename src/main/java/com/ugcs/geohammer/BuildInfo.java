@@ -1,6 +1,7 @@
 package com.ugcs.geohammer;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.ugcs.geohammer.release.Version;
 import com.ugcs.geohammer.util.Strings;
 import jakarta.annotation.PostConstruct;
 import org.springframework.core.env.Environment;
@@ -12,7 +13,7 @@ public class BuildInfo {
 
     private final Environment environment;
 
-    private final AtomicReference<String> buildVersion = new AtomicReference<>();
+    private final AtomicReference<Version> buildVersion = new AtomicReference<>();
 
     public BuildInfo(Environment environment) {
         this.environment = environment;
@@ -24,20 +25,24 @@ public class BuildInfo {
         buildVersion.set(computeBuildVersion());
     }
 
-    public String getBuildVersion() {
-        String version = buildVersion.get();
-        return version != null ? version : computeBuildVersion();
+    public Version getBuildVersion() {
+        Version version = buildVersion.get();
+        if (version == null) {
+            version = computeBuildVersion();
+            buildVersion.set(version);
+        }
+        return version;
     }
 
-    private String computeBuildVersion() {
-        String buildVersion = environment.getProperty("build.version");
-        if (Strings.isNullOrEmpty(buildVersion)) {
-            return "Undefined";
+    private Version computeBuildVersion() {
+        String versionString = environment.getProperty("build.version");
+        if (Strings.isNullOrEmpty(versionString)) {
+            return Version.UNDEFINED;
         }
         String buildTimestamp = environment.getProperty("build.timestamp");
         if (!Strings.isNullOrEmpty(buildTimestamp)) {
-            buildVersion = buildVersion.replace("SNAPSHOT", buildTimestamp);
+            versionString = versionString.replace("SNAPSHOT", buildTimestamp);
         }
-        return buildVersion;
+        return Version.parse(versionString);
     }
 }

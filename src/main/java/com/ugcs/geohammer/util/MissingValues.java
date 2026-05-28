@@ -6,6 +6,10 @@ import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.math.LinearInterpolator;
 
 public final class MissingValues {
+
+	private MissingValues() {
+	}
+
     public static void fillLatLon(List<GeoData> values) {
         if (Nulls.isNullOrEmpty(values)) {
             return;

@@ -15,7 +15,6 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -29,14 +28,13 @@ import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
-import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.service.script.CommandExecutionException;
+import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptParameter;
 import com.ugcs.geohammer.service.script.ScriptPaths;
 import com.ugcs.geohammer.service.script.ScriptRunListener;
-import com.ugcs.geohammer.service.script.ScriptRunner;
 import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
@@ -75,17 +73,13 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private final Model model;
 
-	private final ScriptRunner scriptRunner;
+	private final ScriptCoordinator scriptCoordinator;
 
 	private final ScriptPaths scriptPaths;
 
 	private final ScriptMetadataLoader scriptMetadataLoader;
 
-	private final TaskService taskService;
-
 	private final Status status;
-
-	private final ExecutorService executor;
 
 	private final PrefSettings preferences;
 
@@ -99,18 +93,16 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 
 	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, PrefSettings preferences,
-			ScriptRunner scriptRunner, ScriptPaths scriptPaths,
-			ScriptMetadataLoader scriptMetadataLoader, TaskService taskService) {
+	                           ScriptCoordinator scriptCoordinator, ScriptPaths scriptPaths,
+	                           ScriptMetadataLoader scriptMetadataLoader) {
 		super(executor);
 
         this.model = model;
-        this.executor = executor;
 		this.status = status;
 		this.preferences = preferences;
-		this.scriptRunner = scriptRunner;
+		this.scriptCoordinator = scriptCoordinator;
 		this.scriptPaths = scriptPaths;
 		this.scriptMetadataLoader = scriptMetadataLoader;
-		this.taskService = taskService;
 
 		scriptsMetadataSelector = new ComboBox<>();
 		scriptsMetadataSelector.setPromptText("Select script");
@@ -263,9 +255,9 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	}
 
 	private void refreshExecutionStatus(@Nullable SgyFile file) {
-		if (scriptRunner.isExecuting(file)) {
+		if (scriptCoordinator.isExecuting(file)) {
             disableAndShowProgress();
-			ScriptMetadata executingScriptMetadata = scriptRunner.getExecutingScriptMetadata(file);
+			ScriptMetadata executingScriptMetadata = scriptCoordinator.getExecutingScriptMetadata(file);
 			if (executingScriptMetadata != null) {
 				scriptsMetadataSelector.getSelectionModel().select(executingScriptMetadata);
 			} else {
@@ -448,28 +440,17 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			}
 		};
 
-		Platform.runLater(this::disableAndShowProgress);
-
-		Future<Void> future = executor.submit(() -> {
-			scriptRunner.run(files, scriptMetadata, parameters, onScriptOutput, this);
-			Platform.runLater(this::enableAndHideProgress);
-			return null;
-		});
-
-		taskService.registerTask(future, buildTaskName(scriptMetadata, files));
+		scriptCoordinator.submit(files, scriptMetadata, parameters, onScriptOutput, this);
 	}
 
-	private String buildTaskName(ScriptMetadata scriptMetadata, List<SgyFile> files) {
-		String taskName = "Running script " + scriptMetadata.displayName();
-		if (files.size() == 1) {
-			SgyFile sgyFile = files.getFirst();
-			if (sgyFile.getFile() != null) {
-				taskName += ": " + sgyFile.getFile().getName();
-			}
-		} else if (files.size() > 1) {
-			taskName += " on " + files.size() + " files";
-		}
-		return taskName;
+	@Override
+	public void onRunStarted() {
+		Platform.runLater(this::disableAndShowProgress);
+	}
+
+	@Override
+	public void onRunFinished() {
+		Platform.runLater(this::enableAndHideProgress);
 	}
 
 	@Override

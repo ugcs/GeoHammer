@@ -1,6 +1,5 @@
 package com.ugcs.geohammer.format;
 
-import com.ugcs.geohammer.math.LinearInterpolator;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
@@ -12,8 +11,11 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 public class GeoData {
 
@@ -237,6 +239,29 @@ public class GeoData {
         return values.getFirst().getSchema();
     }
 
+	public static <T> List<T> getColumnValues(List<GeoData> values, Function<GeoData, T> get, BiConsumer<GeoData, T> set) {
+		return new AbstractList<T>() {
+
+			@Override
+			public int size() {
+				return values.size();
+			}
+
+			@Override
+			public T get(int index) {
+				return get.apply(values.get(index));
+			}
+
+			@Override
+			public T set(int index, T element) {
+				GeoData geodata = values.get(index);
+				T old = get.apply(geodata);
+				set.accept(geodata, element);
+				return old;
+			}
+		};
+	}
+
     public static Column getColumn(List<GeoData> values, String header) {
         ColumnSchema schema = getSchema(values);
         if (schema == null) {
@@ -284,40 +309,5 @@ public class GeoData {
 
     public static Column removeColumn(List<GeoData> values, Column column) {
         return removeColumn(values, column.getHeader());
-    }
-
-    public static void fillMissingLatLon(List<GeoData> values) {
-        if (Nulls.isNullOrEmpty(values)) {
-            return;
-        }
-        int n = values.size();
-        double[] latitudes = new double[n];
-        double[] longitudes = new double[n];
-        boolean anyValid = false;
-        for (int i = 0; i < n; i++) {
-            GeoData value = values.get(i);
-            Double latitude = value.getLatitude();
-            Double longitude = value.getLongitude();
-            if (latitude == null || longitude == null) {
-                latitudes[i] = Double.NaN;
-                longitudes[i] = Double.NaN;
-            } else {
-                latitudes[i] = latitude;
-                longitudes[i] = longitude;
-                anyValid = true;
-            }
-        }
-        if (!anyValid) {
-            return;
-        }
-        LinearInterpolator.interpolateNans(latitudes);
-        LinearInterpolator.interpolateNans(longitudes);
-        for (int i = 0; i < n; i++) {
-            GeoData value = values.get(i);
-            if (value.getLatitude() == null || value.getLongitude() == null) {
-                value.setLatitude(latitudes[i]);
-                value.setLongitude(longitudes[i]);
-            }
-        }
     }
 }

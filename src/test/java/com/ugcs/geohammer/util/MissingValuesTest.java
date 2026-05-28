@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.format;
+package com.ugcs.geohammer.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -9,11 +9,12 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.Semantic;
 
-class GeoDataTest {
+class MissingValuesTest {
 
     private static final double EPS = 1e-9;
 
@@ -38,14 +39,14 @@ class GeoDataTest {
     }
 
     @Test
-    void fillMissingLatLonFillsMiddleGap() {
+    void fillLatLonFillsMiddleGap() {
         List<GeoData> values = List.of(
                 row(0.0, 10.0),
                 row(null, null),
                 row(null, null),
                 row(3.0, 13.0));
 
-        GeoData.fillMissingLatLon(values);
+        MissingValues.fillLatLon(values);
 
         assertEquals(1.0, values.get(1).getLatitude(), EPS);
         assertEquals(11.0, values.get(1).getLongitude(), EPS);
@@ -54,14 +55,14 @@ class GeoDataTest {
     }
 
     @Test
-    void fillMissingLatLonReplicatesLeadingAndTrailingGaps() {
+    void fillLatLonReplicatesLeadingAndTrailingGaps() {
         List<GeoData> values = List.of(
                 row(null, null),
                 row(5.0, 50.0),
                 row(6.0, 60.0),
                 row(null, null));
 
-        GeoData.fillMissingLatLon(values);
+        MissingValues.fillLatLon(values);
 
         assertEquals(5.0, values.get(0).getLatitude(), EPS);
         assertEquals(50.0, values.get(0).getLongitude(), EPS);
@@ -70,12 +71,12 @@ class GeoDataTest {
     }
 
     @Test
-    void fillMissingLatLonLeavesAllMissingRowsUnchanged() {
+    void fillLatLonLeavesAllRowsUnchanged() {
         List<GeoData> values = List.of(
                 row(null, null),
                 row(null, null));
 
-        GeoData.fillMissingLatLon(values);
+        MissingValues.fillLatLon(values);
 
         assertNull(values.get(0).getLatitude());
         assertNull(values.get(0).getLongitude());
@@ -84,12 +85,12 @@ class GeoDataTest {
     }
 
     @Test
-    void fillMissingLatLonLeavesFullyValidRowsUnchanged() {
+    void fillLatLonLeavesFullyValidRowsUnchanged() {
         List<GeoData> values = List.of(
                 row(1.0, 11.0),
                 row(2.0, 12.0));
 
-        GeoData.fillMissingLatLon(values);
+        MissingValues.fillLatLon(values);
 
         assertEquals(1.0, values.get(0).getLatitude(), EPS);
         assertEquals(11.0, values.get(0).getLongitude(), EPS);
@@ -98,21 +99,21 @@ class GeoDataTest {
     }
 
     @Test
-    void fillMissingLatLonTreatsHalfMissingRowAsGap() {
+    void fillLatLonTreatsHalfRowAsGap() {
         List<GeoData> values = List.of(
                 row(1.0, 11.0),
                 row(null, 12.0),
                 row(3.0, 13.0));
 
-        GeoData.fillMissingLatLon(values);
+        MissingValues.fillLatLon(values);
 
         assertEquals(2.0, values.get(1).getLatitude(), EPS);
         assertEquals(12.0, values.get(1).getLongitude(), EPS);
     }
 
     @Test
-    void fillMissingLatLonHandlesEmptyAndNullInput() {
-        GeoData.fillMissingLatLon(null);
-        GeoData.fillMissingLatLon(new ArrayList<>());
+    void fillLatLonHandlesEmptyAndNullInput() {
+        MissingValues.fillLatLon(null);
+        MissingValues.fillLatLon(new ArrayList<>());
     }
 }

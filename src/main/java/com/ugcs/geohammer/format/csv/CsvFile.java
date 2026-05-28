@@ -18,6 +18,7 @@ import com.ugcs.geohammer.model.undo.GeoDataCodec;
 import com.ugcs.geohammer.model.undo.TempStore;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
+import com.ugcs.geohammer.util.MissingValues;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +68,7 @@ public class CsvFile extends SgyFile {
         parser = ParserFactory.createParser(template);
         geoData = parser.parse(csvFile);
 
-        GeoData.fillMissingLatLon(geoData);
+        MissingValues.fillLatLon(geoData);
 
         if (getFile() == null) {
             setFile(csvFile);

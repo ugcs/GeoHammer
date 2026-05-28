@@ -1,11 +1,11 @@
 package com.ugcs.geohammer.math;
 
+import java.util.AbstractList;
+import java.util.List;
+
 import javafx.geometry.Point2D;
 
 public final class LinearInterpolator {
-
-	private LinearInterpolator() {
-	}
 
     public static Point2D interpolate(Point2D a, Point2D b, double t) {
         if (a == null) {
@@ -28,47 +28,86 @@ public final class LinearInterpolator {
 		return yMin + (yMax - yMin) / (xMax - xMin) * (x - xMin);
 	}
 
-    public static void interpolateNans(double[] values) {
-        if (values == null || values.length == 0) {
+	public static void interpolateNans(double[] values) {
+		DoubleListView listView = new DoubleListView(values);
+		interpolateNans(listView);
+	}
+
+    public static void interpolateNans(List<Double> values) {
+        if (values == null || values.isEmpty()) {
             return;
         }
 
-        int first = -1;
-        for (int i = 0; i < values.length; i++) {
-            if (!Double.isNaN(values[i])) {
-                first = i;
+        int firstIndex = -1;
+        for (int i = 0; i < values.size(); i++) {
+            if (isPresent(values.get(i))) {
+                firstIndex = i;
                 break;
             }
         }
-        if (first == -1) {
+        if (firstIndex == -1) {
             return;
         }
-        int last = -1;
-        for (int i = values.length - 1; i >= 0; i--) {
-            if (!Double.isNaN(values[i])) {
-                last = i;
+        int lastIndex = -1;
+        for (int i = values.size() - 1; i >= 0; i--) {
+            if (isPresent(values.get(i))) {
+                lastIndex = i;
                 break;
             }
         }
 
         // head replicates first
-        for (int i = 0; i < first; i++) {
-            values[i] = values[first];
+		Double firstValue = values.get(firstIndex);
+        for (int i = 0; i < firstIndex; i++) {
+			values.set(i, firstValue);
         }
         // tail replicates last
-        for (int i = last + 1; i < values.length; i++) {
-            values[i] = values[last];
+		Double lastValue = values.get(lastIndex);
+        for (int i = lastIndex + 1; i < values.size(); i++) {
+			values.set(i, lastValue);
         }
         // gaps filled linearly
-        int prev = first;
-        for (int i = first + 1; i <= last; i++) {
-            if (!Double.isNaN(values[i])) {
+        int prev = firstIndex;
+        for (int i = firstIndex + 1; i <= lastIndex; i++) {
+			Double value = values.get(i);
+            if (value != null && !Double.isNaN(value)) {
                 for (int j = prev + 1; j < i; j++) {
                     // interpolate
-                    values[j] = interpolate(j, prev, i, values[prev], values[i]);
+					double interpolatedValue = interpolate(j, prev, i, values.get(prev), value);
+					values.set(j, interpolatedValue);
                 }
                 prev = i;
             }
         }
     }
+
+    private static boolean isPresent(Double value) {
+        return value != null && !Double.isNaN(value);
+    }
+
+	private static class DoubleListView extends AbstractList<Double> {
+
+		private final double[] data;
+
+		public DoubleListView(double[] data) {
+			this.data = data;
+		}
+
+		@Override
+		public Double get(int index) {
+			return data[index];
+		}
+
+		@Override
+		public Double set(int index, Double element) {
+			double old = data[index];
+			data[index] = element;
+			return old;
+		}
+
+		@Override
+		public int size() {
+			return data.length;
+		}
+	}
 }

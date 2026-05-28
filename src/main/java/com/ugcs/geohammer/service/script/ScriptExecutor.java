@@ -101,8 +101,23 @@ public class ScriptExecutor {
 		command.add(pythonService.getPythonPath().toString());
 		command.add(scriptFile.toPath().toString());
 		command.add(tempFile.toPath().toAbsolutePath().toString());
-		metadata.appendArgs(command, params);
+		appendArgs(command, metadata, params);
 		return command;
+	}
+
+	public void appendArgs(List<String> command, ScriptMetadata metadata, Map<String, String> values) {
+		for (Map.Entry<String, String> entry : values.entrySet()) {
+			String name = entry.getKey();
+			String value = entry.getValue();
+			if (metadata.isBooleanParameter(name)) {
+				if (Boolean.parseBoolean(value)) {
+					command.add("--" + name);
+				}
+			} else {
+				command.add("--" + name);
+				command.add(value);
+			}
+		}
 	}
 
 	private void applyResult(SgyFile sgyFile, File tempFile,

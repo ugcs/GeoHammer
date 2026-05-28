@@ -3,12 +3,10 @@ package com.ugcs.geohammer.service.script;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import com.ugcs.geohammer.Loader;
@@ -16,6 +14,8 @@ import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import org.jspecify.annotations.Nullable;
@@ -38,146 +38,113 @@ public class ScriptExecutor {
 
 	private final PythonService pythonService;
 
-	private final ScriptPaths scriptPaths;
-
-	// sgyFile -> scriptMetadata
-	private final Map<SgyFile, ScriptMetadata> executingScripts = new ConcurrentHashMap<>();
-
 	public ScriptExecutor(Loader loader,
-						  EventSender eventSender,
-						  EventsFactory eventsFactory,
-						  CommandExecutor commandExecutor,
-						  PythonService pythonService,
-						  ScriptPaths scriptPaths) {
+	                      EventSender eventSender,
+	                      EventsFactory eventsFactory,
+	                      CommandExecutor commandExecutor,
+	                      PythonService pythonService) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
 		this.commandExecutor = commandExecutor;
 		this.pythonService = pythonService;
-		this.scriptPaths = scriptPaths;
 	}
 
-	public void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
-							  Consumer<String> onScriptOutput)
-			throws IOException, InterruptedException, DependencyImportException {
-		executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, false);
-	}
-
-	public void executeScriptWithReinstall(SgyFile sgyFile, ScriptMetadata scriptMetadata,
-							  Map<String, String> parameters, Consumer<String> onScriptOutput)
-			throws IOException, InterruptedException, DependencyImportException {
-		executeScript(sgyFile, scriptMetadata, parameters, onScriptOutput, true);
-	}
-
-	private void executeScript(SgyFile sgyFile, ScriptMetadata scriptMetadata, Map<String, String> parameters,
-	                           Consumer<String> onScriptOutput, boolean forceReinstall)
-			throws IOException, InterruptedException, DependencyImportException {
+	public void execute(SgyFile sgyFile, File scriptFile, ScriptMetadata metadata, Map<String, String> params,
+	                    Consumer<String> output, Consumer<FileSnapshot<?>> onSnapshotCreated)
+			throws IOException, InterruptedException {
 		Check.notNull(sgyFile);
-		Check.notNull(scriptMetadata);
+		Check.notNull(scriptFile);
+		Check.notNull(metadata);
 
-		// Check if script is already running for this file
-		if (isExecuting(sgyFile)) {
-			throw new RuntimeException("Script is already running for this file");
-		}
-
-		pythonService.checkVersion();
-
-		executingScripts.put(sgyFile, scriptMetadata);
-		File tempFile = null;
+		File tempFile = createTempFile(sgyFile);
 		try {
-			File scriptFile = new File(scriptPaths.getScriptsPath().toFile(), scriptMetadata.filename());
-			if (!scriptFile.exists()) {
-				throw new IOException("Script file not found: " + scriptFile.getAbsolutePath());
-			}
+			copy(sgyFile, tempFile);
 
-			if (forceReinstall) {
-				pythonService.reinstallDependencies(scriptFile, onScriptOutput);
-			} else {
-				pythonService.installDependencies(scriptFile, onScriptOutput);
-			}
-
-			tempFile = copyToTempFile(sgyFile);
-
-			List<String> command = buildCommand(
-					scriptFile.toPath(),
-					scriptMetadata,
-					parameters,
-					tempFile.toPath());
-
-			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(scriptMetadata.filename()));
-			commandExecutor.executeCommand(command, onScriptOutput);
+			List<String> command = buildCommand(scriptFile, metadata, params, tempFile);
+			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(metadata.filename()));
+			commandExecutor.executeCommand(command, output);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}
 
-			loader.loadFrom(sgyFile, tempFile);
+			applyResult(sgyFile, tempFile, onSnapshotCreated);
 		} finally {
-			executingScripts.remove(sgyFile);
-			if (tempFile != null) {
-				if (!tempFile.delete()) {
-					log.warn("Failed to delete temporary file: {}", tempFile);
-				}
+			if (!tempFile.delete()) {
+				log.warn("Failed to delete temporary file: {}", tempFile);
 			}
 		}
 	}
 
-	private File copyToTempFile(SgyFile sgyFile) throws IOException {
-		Check.notNull(sgyFile);
-
-		File file = Check.notNull(sgyFile.getFile());
-		String fileName = file.getName();
+	private File createTempFile(SgyFile sgyFile) throws IOException {
+		File source = Check.notNull(sgyFile.getFile());
+		String fileName = source.getName();
 		String prefix = FileNames.removeExtension(fileName);
 		String suffix = "." + FileNames.getExtension(fileName);
-
-		File tempFile = Files.createTempFile(prefix, suffix).toFile();
-		if (sgyFile instanceof TraceFile) {
-			Files.copy(file.toPath(), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-			return tempFile;
-		}
-		sgyFile.save(tempFile);
-		return tempFile;
+		return Files.createTempFile(prefix, suffix).toFile();
 	}
 
-	private List<String> buildCommand(Path scriptPath,
-									  ScriptMetadata scriptMetadata,
-									  Map<String, String> parameters,
-									  Path tempFilePath) throws IOException {
-		List<String> command = new ArrayList<>();
-
-		String pythonPath = pythonService.getPythonPath().toString();
-		command.add(pythonPath);
-
-		command.add(scriptPath.toString());
-
-		command.add(tempFilePath.toAbsolutePath().toString());
-
-		for (Map.Entry<String, String> entry : parameters.entrySet()) {
-			String key = entry.getKey();
-			String value = entry.getValue();
-			if (isBooleanParameter(scriptMetadata, key)) {
-				if (Boolean.parseBoolean(value)) {
-					command.add("--" + key);
-				}
-			} else {
-				command.add("--" + key);
-				command.add(value);
+	private void copy(SgyFile from, File to) throws IOException {
+		if (from instanceof TraceFile) {
+			File file = from.getFile();
+			if (file != null) {
+				Files.copy(file.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			}
+			return;
 		}
+		from.save(to);
+	}
 
+	private List<String> buildCommand(File scriptFile, ScriptMetadata metadata,
+	                                  Map<String, String> params, File tempFile) throws IOException {
+		List<String> command = new ArrayList<>();
+		command.add(pythonService.getPythonPath().toString());
+		command.add(scriptFile.toPath().toString());
+		command.add(tempFile.toPath().toAbsolutePath().toString());
+		appendArgs(command, metadata, params);
 		return command;
 	}
 
-	public boolean isExecuting(@Nullable SgyFile sgyFile) {
-		return sgyFile != null && executingScripts.containsKey(sgyFile);
+	public void appendArgs(List<String> command, ScriptMetadata metadata, Map<String, String> values) {
+		for (Map.Entry<String, String> entry : values.entrySet()) {
+			String name = entry.getKey();
+			String value = entry.getValue();
+			if (metadata.isBooleanParameter(name)) {
+				if (Boolean.parseBoolean(value)) {
+					command.add("--" + name);
+				}
+			} else {
+				command.add("--" + name);
+				command.add(value);
+			}
+		}
 	}
 
-	@Nullable
-	public ScriptMetadata getExecutingScriptMetadata(SgyFile sgyFile) {
-		return executingScripts.get(sgyFile);
+	private void applyResult(SgyFile sgyFile, File tempFile,
+	                         Consumer<FileSnapshot<?>> onSnapshotCreated) throws IOException {
+		FileSnapshot<?> snapshot = createFileSnapshot(sgyFile);
+		try {
+			loader.loadFrom(sgyFile, tempFile);
+		} catch (Exception e) {
+			if (snapshot != null) {
+				snapshot.discard();
+			}
+			throw e;
+		}
+		if (snapshot == null) {
+			log.warn("Undo snapshot unavailable for {}", sgyFile.getFile());
+			return;
+		}
+		onSnapshotCreated.accept(snapshot);
 	}
 
-	private boolean isBooleanParameter(ScriptMetadata metadata, String paramName) {
-		return metadata.parameters().stream()
-				.anyMatch(param -> param.name().equals(paramName) && param.type() == ScriptParameter.ParameterType.BOOLEAN);
+	private @Nullable FileSnapshot<?> createFileSnapshot(SgyFile sgyFile) {
+		if (sgyFile instanceof TraceFile traceFile) {
+			return traceFile.createSnapshotWithTraces();
+		}
+		if (sgyFile instanceof CsvFile csvFile) {
+			return csvFile.createSnapshot();
+		}
+		return null;
 	}
 }

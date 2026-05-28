@@ -57,9 +57,9 @@ public class PythonService {
 		applyDependencies(scriptFile, onOutput, false);
 	}
 
-	public void reinstallDependencies(File scriptFile, Consumer<String> onOutput)
+	public void reinstallDependencies(File scriptFilePath, Consumer<String> onOutput)
 			throws IOException, InterruptedException, DependencyImportException {
-		applyDependencies(scriptFile, onOutput, true);
+		applyDependencies(scriptFilePath, onOutput, true);
 	}
 
 	private void applyDependencies(File scriptFile,

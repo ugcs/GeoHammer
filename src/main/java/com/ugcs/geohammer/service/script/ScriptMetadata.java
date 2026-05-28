@@ -12,6 +12,15 @@ public record ScriptMetadata(
         List<ScriptParameter> parameters,
         List<String> templates
 ) {
+	public boolean isBooleanParameter(String name) {
+		for (ScriptParameter param : parameters()) {
+			if (param.name().equals(name)) {
+				return param.type() == ScriptParameter.ParameterType.BOOLEAN;
+			}
+		}
+		return false;
+	}
+
 	public void validateRequiredParameters(Map<String, String> parameters) throws ScriptValidationException {
 		List<String> missing = parameters().stream()
 				.filter(ScriptParameter::required)

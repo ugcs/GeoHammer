@@ -27,7 +27,7 @@ public class ScriptCoordinator {
 
 	private static final Logger log = LoggerFactory.getLogger(ScriptCoordinator.class);
 
-	private static final int MAX_RECENT_OUTPUT_LINES = 10;
+	private static final int MAX_RECENT_OUTPUT_LINES = 50;
 
 	private final ScriptExecutor scriptExecutor;
 
@@ -56,20 +56,31 @@ public class ScriptCoordinator {
 
 	public void submit(List<SgyFile> sgyFiles, ScriptMetadata metadata, Map<String, String> params,
 	                   Consumer<String> onOutput, ScriptRunListener listener) {
+		RecentOutput recent = new RecentOutput(onOutput, MAX_RECENT_OUTPUT_LINES);
 		Future<Void> future = executor.submit(() -> {
 			listener.onRunStarted();
 			try {
-				runScriptOnFiles(sgyFiles, metadata, params, onOutput, listener);
+				runScriptOnFiles(sgyFiles, metadata, params, recent, listener);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			} catch (Exception e) {
-				listener.onError(metadata, e, "");
+				log.error(formatErrorOutput(recent, e));
+				listener.onError(metadata, e, formatErrorOutput(recent, e));
 			} finally {
 				listener.onRunFinished();
 			}
 			return null;
 		});
 		taskService.registerTask(future, buildTaskName(metadata, sgyFiles));
+	}
+
+	private static String formatErrorOutput(RecentOutput recent, Throwable t) {
+		String captured = recent.drain();
+		if (!captured.isEmpty()) {
+			return captured;
+		}
+		String message = t.getMessage();
+		return message != null ? message : "";
 	}
 
 	public boolean isExecuting(@Nullable SgyFile sgyFile) {
@@ -82,13 +93,12 @@ public class ScriptCoordinator {
 	}
 
 	private void runScriptOnFiles(List<SgyFile> sgyFiles, ScriptMetadata metadata, Map<String, String> params,
-	                              Consumer<String> onOutput, ScriptRunListener listener)
+	                              RecentOutput recent, ScriptRunListener listener)
 			throws InterruptedException, IOException {
 		pythonService.checkVersion();
 
 		File scriptFile = resolveScriptFile(metadata);
 
-		RecentOutput recent = new RecentOutput(onOutput, MAX_RECENT_OUTPUT_LINES);
 		List<UndoSnapshot> snapshots = new ArrayList<>(sgyFiles.size());
 		try {
 			for (SgyFile sgyFile : sgyFiles) {
@@ -108,8 +118,8 @@ public class ScriptCoordinator {
 					try {
 						scriptExecutor.execute(sgyFile, scriptFile, metadata, params, recent.capture(), snapshots::add);
 						listener.onSuccess(metadata);
-					} catch (IOException e) {
-						listener.onError(metadata, e, recent.drain());
+					} catch (Exception e) {
+						listener.onError(metadata, e, formatErrorOutput(recent, e));
 					}
 				} finally {
 					executingScripts.remove(sgyFile);

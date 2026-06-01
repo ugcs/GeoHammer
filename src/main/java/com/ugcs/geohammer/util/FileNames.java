@@ -7,6 +7,8 @@ public final class FileNames {
 
     private static final Pattern GPR_PART_SUFFIX = Pattern.compile("_\\d{3}(_\\d)*$");
 
+    private static final Pattern INVALID_CHARS = Pattern.compile("[<>:\"/\\\\|?*\\x00-\\x1F]");
+
     private FileNames() {
     }
 
@@ -55,4 +57,11 @@ public final class FileNames {
             return fileName + separator + suffix;
         }
     }
+
+	public static String replaceInvalidChars(String name) {
+		if (name == null) {
+			return null;
+		}
+		return INVALID_CHARS.matcher(name).replaceAll("_");
+	}
 }

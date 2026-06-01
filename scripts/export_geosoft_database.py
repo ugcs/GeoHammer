@@ -130,7 +130,6 @@ def main():
 
             if x_col and y_col:
                 gdb.coordinate_system = "WGS 84"
-                gdb.xyz_channels = ("X", "Y", "")
 
             for original, channel in zip(columns, channel_names):
                 unit = unit_for(original)

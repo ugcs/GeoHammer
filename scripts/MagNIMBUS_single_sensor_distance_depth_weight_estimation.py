@@ -19,27 +19,27 @@ TREND_DEGREE              = 1
 MIN_TREND_SAMPLES         = 10
 WINDOW_PADDING_M          = 20.0
 MIN_WINDOW_SAMPLES        = 20
-K_FACTOR                  = 1.03       # FWHM → sensor-to-target distance (3D dipole)
-CB_FACTOR                 = 3.0        # AS_max = 3·TMI/D  (vertical dipole)
+K_FACTOR                  = 1.03       # FWHM -> sensor-to-target distance (3D dipole)
+CB_FACTOR                 = 3.0        # AS_max = 3*TMI/D  (vertical dipole)
 AS_PEAK_SEARCH_RADIUS_M   = 5.0
 ANOMALY_CENTER_RADIUS_M   = 15.0
 DIPOLE_CHECK_RADIUS_M     = 15.0
 METHOD_DISAGREE_THRESHOLD = 0.35
 MIN_FWHM_M                = 0.5
-MAX_FWHM_M                = 100.0       # m — full FWHM ceiling (K_FACTOR × FWHM ≤ MAX_DISTANCE_M)
+MAX_FWHM_M                = 100.0       # m - full FWHM ceiling (K_FACTOR x FWHM <= MAX_DISTANCE_M)
 SPATIAL_BIN_M             = 0.5
-MIN_AS_THRESHOLD          = 1.0        # nT/m — below this, Method B is skipped
-MAX_DISTANCE_M            = 20.0       # m    — implausible distance ceiling
+MIN_AS_THRESHOLD          = 1.0        # nT/m - below this, Method B is skipped
+MAX_DISTANCE_M            = 20.0       # m    - implausible distance ceiling
 BACKGROUND_METHOD         = "lowpass"
-LOWPASS_WAVELENGTH_M      = 15.0       # m — spatial Butterworth cut-off wavelength
-K_DIPOLE                  = 5e-3       # A·m²·nT⁻¹·m⁻³  (physical dipole constant)
-DENSITY_STEEL             = 7800.0     # kg/m³
+LOWPASS_WAVELENGTH_M      = 15.0       # m -- spatial Butterworth cut-off wavelength
+K_DIPOLE                  = 5e-3       # A*m^2*nT^-1*m^-3  (physical dipole constant)
+DENSITY_STEEL             = 7800.0     # kg/m^3
 # Calibrated J_eff for sphere (geometric-mean fit to 5 steel objects, Brandenburg 2024).
-# Accounts for remanent magnetisation (≈17.7× theoretical induced-only value of 119 A/m).
+# Accounts for remanent magnetisation (~17.7x theoretical induced-only value of 119 A/m).
 J_EFF_SPHERE_AM           = 2112.0     # A/m
-# ±4.4 % in D  →  ((1+f)/(1−f))³ ≈ 1.30  →  ≈30 % weight range
+# +/-4.4 % in D  ->  ((1+f)/(1-f))^3 ~ 1.30  ->  ~30 % weight range
 WEIGHT_SPREAD_D_FRAC      = 0.044
-# When dist_A > LARGE_FWHM_RATIO × dist_B, the FWHM search latched onto padding artefacts.
+# When dist_A > LARGE_FWHM_RATIO x dist_B, the FWHM search latched onto padding artefacts.
 LARGE_FWHM_RATIO          = 2.5
 # Asymmetry cap: trim the longer AS half-width when it exceeds the shorter by this ratio.
 # Corrects geological gradients (observed raw ratio up to ~2.3, Brandenburg 2024 dataset).
@@ -128,8 +128,8 @@ def remove_background(tmi, x_pos, wavelength_m=LOWPASS_WAVELENGTH_M,
     """
     Remove slowly-varying background from TMI along one flight line.
 
-    method='linear'  — polynomial fit to unmarked points (legacy).
-    method='lowpass' — spatial 4th-order zero-phase Butterworth LP filter
+    method='linear'  -- polynomial fit to unmarked points (legacy).
+    method='lowpass' -- spatial 4th-order zero-phase Butterworth LP filter
                        resampled to a uniform grid, then a rolling spatial
                        median, interpolated back to original positions.
 
@@ -231,12 +231,12 @@ def build_2d_grid(x_m, y_m, values, cell_size, blanking_distance=None):
     Build a regular 2D grid from scattered data, matching Java GriddingService:
       1. Grid dimensions from extent / cellSize (integer truncation).
       2. Median per bin.
-      3. Fill missing visible cells: global median → thin-plate spline (RBFInterpolator)
+      3. Fill missing visible cells: global median -> thin-plate spline (RBFInterpolator)
          with linear griddata fallback.
-      4. Clip interpolated cells to ±100 % of measured range.
-      5. Blank cells outside blanking_distance (default: 10 × cell_size).
+      4. Clip interpolated cells to +/-100 % of measured range.
+      5. Blank cells outside blanking_distance (default: 10 x cell_size).
 
-    Returns (grid [H×W], xi [W], yi [H]).
+    Returns (grid [HxW], xi [W], yi [H]).
     """
     if cell_size <= 0:
         raise ValueError(f"cell_size must be positive, got {cell_size}")
@@ -385,11 +385,11 @@ def sample_grid_at_points(grid, xi, yi, x_m, y_m):
 
 
 # ---------------------------------------------------------------------------
-# 2D Analytic Signal — matching Java AnalyticSignalFilter exactly
+# 2D Analytic Signal -- matching Java AnalyticSignalFilter exactly
 # ---------------------------------------------------------------------------
 
 def _grid_x_derivative(grid, cell_width):
-    """5-point stencil → 3-point central → forward/backward at edges."""
+    """5-point stencil -> 3-point central -> forward/backward at edges."""
     m, n = grid.shape
     dx = np.full((m, n), np.nan)
 
@@ -417,7 +417,7 @@ def _grid_x_derivative(grid, cell_width):
 
 
 def _grid_y_derivative(grid, cell_height):
-    """5-point stencil → 3-point central → forward/backward at edges."""
+    """5-point stencil -> 3-point central -> forward/backward at edges."""
     m, n = grid.shape
     dy = np.full((m, n), np.nan)
 
@@ -446,8 +446,8 @@ def _grid_y_derivative(grid, cell_height):
 
 def _grid_z_derivative(grid, cell_width, cell_height):
     """
-    Vertical derivative via 2D FFT — matches Java AnalyticSignalFilter.getZDerivativeMatrix():
-    NaN→0, FFT, multiply by |k|=sqrt(kx²+ky²), IFFT, real part.
+    Vertical derivative via 2D FFT -- matches Java AnalyticSignalFilter.getZDerivativeMatrix():
+    NaN->0, FFT, multiply by |k|=sqrt(kx^2+ky^2), IFFT, real part.
     """
     m, n = grid.shape
     g = np.where(np.isfinite(grid), grid, 0.0)
@@ -464,10 +464,10 @@ def _grid_z_derivative(grid, cell_width, cell_height):
 
 def compute_as_2d(grid, cell_width, cell_height):
     """
-    2D Analytic Signal magnitude — matches Java AnalyticSignalFilter:
+    2D Analytic Signal magnitude -- matches Java AnalyticSignalFilter:
       1. Fill NaN gaps (priority-queue IDW, Java GridInterpolator.interpolate).
       2. dz via 2D FFT; dx, dy via 5-point stencil.
-      3. AS = sqrt(dx²+dy²+dz²); original NaN cells stay NaN.
+      3. AS = sqrt(dx^2+dy^2+dz^2); original NaN cells stay NaN.
     """
     orig_nan_mask = ~np.isfinite(grid)
     grid_filled = _fill_nan_priority_queue(grid, cell_width, cell_height)
@@ -512,7 +512,7 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window, mark_center_x
     AS_max      = float(AS_valid[as_peak_local])
     as_peak_idx = edge + as_peak_local
 
-    # Method A: FWHM → d_A = K_FACTOR × FWHM
+    # Method A: FWHM -> d_A = K_FACTOR x FWHM
     left_x, right_x = find_local_halfwidth(x_valid, AS_valid, as_peak_local)
     distance_A = None
 
@@ -539,7 +539,7 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window, mark_center_x
             flags.add("wide_anomaly")
             distance_A = None
 
-    # Method B: AS ratio  d_B = C_B · |B(x_AS_peak)| / AS(x_AS_peak)
+    # Method B: AS ratio  d_B = C_B * |B(x_AS_peak)| / AS(x_AS_peak)
     b_at_as_peak = float(window_b[as_peak_idx])
     b_max_nT     = b_at_as_peak
     distance_B   = None
@@ -588,7 +588,7 @@ def resolve_timestamp(data):
         parsed = pd.to_datetime(combined, errors="coerce")
         if parsed.notna().any():
             return parsed
-    print("Warning: No recognisable timestamp column — treating file as one flight line.")
+    print("Warning: No recognisable timestamp column -- treating file as one flight line.")
     return pd.Series(pd.date_range("2000-01-01", periods=len(data), freq="s"), index=data.index)
 
 
@@ -661,10 +661,10 @@ def _process_anomaly_group(
     depth_min_out = _depth(dist_min_out)
     depth_max_out = _depth(dist_max_out)
 
-    # Best-estimate distance — rule-based with harmonic-mean fallback:
-    #   Rule 1: dist_B < AGL  → target sub-sensor, trust FWHM (dist_A)
-    #   Rule 2: dist_A > 2.5×dist_B  → FWHM inflated by window artefact, trust dist_B
-    #   Rule 3: dist_B < dist_A  → AS inflated by geology, trust dist_A
+    # Best-estimate distance -- rule-based with harmonic-mean fallback:
+    #   Rule 1: dist_B < AGL  -> target sub-sensor, trust FWHM (dist_A)
+    #   Rule 2: dist_A > 2.5xdist_B  -> FWHM inflated by window artefact, trust dist_B
+    #   Rule 3: dist_B < dist_A  -> AS inflated by geology, trust dist_A
     #   Fallback: harmonic mean (pulled toward the smaller, more reliable value)
     if dist_a is not None and dist_b is not None:
         if not math.isnan(mean_agl) and dist_b < mean_agl:
@@ -803,7 +803,7 @@ def main():
                   if has_agl else np.full(len(data), np.nan))
 
     if (not has_agl) or np.all(np.isnan(agl_values[marks == 1])):
-        print("Warning: Altitude AGL not available — Estimated Depth = sensor-to-target distance.")
+        print("Warning: Altitude AGL not available -- Estimated Depth = sensor-to-target distance.")
 
     lats    = pd.to_numeric(data["Latitude"],  errors="coerce").values
     lons    = pd.to_numeric(data["Longitude"], errors="coerce").values

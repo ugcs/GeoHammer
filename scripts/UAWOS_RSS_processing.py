@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import os
 import struct
 import argparse
@@ -79,7 +77,6 @@ def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_toleranc
             fmt_code = fmt_le
 
         bytes_per_sample = valid_codes.get(fmt_code, 2)
-        # ------------------------------------------------------
 
         f.seek(3600)
         trchdr = f.read(240)
@@ -117,7 +114,7 @@ def detect_marks_and_layout(filename, scan_bytes=240, start_mark=1, pos_toleranc
         mark_vals = [mark_vals[k] for k in keep_idx]
         mark_pos = [mark_pos[k] for k in keep_idx]
 
-    # Start skipper
+    # Skip everything before the first mark equal to start_mark
     if mark_vals and start_mark is not None:
         try:
             first_ok = mark_vals.index(start_mark)

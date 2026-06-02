@@ -45,7 +45,7 @@ def _decimate_windowed(data, factor, numeric_cols, text_cols, angular_cols, agg_
     n = len(data)
     groups = np.arange(n) // factor
 
-    # Center index of each window — used for text columns
+    # Center index of each window - used for text columns
     starts = np.arange(0, n, factor)
     centers = starts + (np.minimum(starts + factor, n) - starts) // 2
 

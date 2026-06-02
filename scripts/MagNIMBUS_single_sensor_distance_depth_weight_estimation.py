@@ -31,7 +31,7 @@ SPATIAL_BIN_M             = 0.5
 MIN_AS_THRESHOLD          = 1.0        # nT/m - below this, Method B is skipped
 MAX_DISTANCE_M            = 20.0       # m    - implausible distance ceiling
 BACKGROUND_METHOD         = "lowpass"
-LOWPASS_WAVELENGTH_M      = 15.0       # m -- spatial Butterworth cut-off wavelength
+LOWPASS_WAVELENGTH_M      = 15.0       # m - spatial Butterworth cut-off wavelength
 K_DIPOLE                  = 5e-3       # A*m^2*nT^-1*m^-3  (physical dipole constant)
 DENSITY_STEEL             = 7800.0     # kg/m^3
 # Calibrated J_eff for sphere (geometric-mean fit to 5 steel objects, Brandenburg 2024).
@@ -128,8 +128,8 @@ def remove_background(tmi, x_pos, wavelength_m=LOWPASS_WAVELENGTH_M,
     """
     Remove slowly-varying background from TMI along one flight line.
 
-    method='linear'  -- polynomial fit to unmarked points (legacy).
-    method='lowpass' -- spatial 4th-order zero-phase Butterworth LP filter
+    method='linear'  - polynomial fit to unmarked points (legacy).
+    method='lowpass' - spatial 4th-order zero-phase Butterworth LP filter
                        resampled to a uniform grid, then a rolling spatial
                        median, interpolated back to original positions.
 
@@ -385,7 +385,7 @@ def sample_grid_at_points(grid, xi, yi, x_m, y_m):
 
 
 # ---------------------------------------------------------------------------
-# 2D Analytic Signal -- matching Java AnalyticSignalFilter exactly
+# 2D Analytic Signal - matching Java AnalyticSignalFilter exactly
 # ---------------------------------------------------------------------------
 
 def _grid_x_derivative(grid, cell_width):
@@ -446,7 +446,7 @@ def _grid_y_derivative(grid, cell_height):
 
 def _grid_z_derivative(grid, cell_width, cell_height):
     """
-    Vertical derivative via 2D FFT -- matches Java AnalyticSignalFilter.getZDerivativeMatrix():
+    Vertical derivative via 2D FFT - matches Java AnalyticSignalFilter.getZDerivativeMatrix():
     NaN->0, FFT, multiply by |k|=sqrt(kx^2+ky^2), IFFT, real part.
     """
     m, n = grid.shape
@@ -464,7 +464,7 @@ def _grid_z_derivative(grid, cell_width, cell_height):
 
 def compute_as_2d(grid, cell_width, cell_height):
     """
-    2D Analytic Signal magnitude -- matches Java AnalyticSignalFilter:
+    2D Analytic Signal magnitude - matches Java AnalyticSignalFilter:
       1. Fill NaN gaps (priority-queue IDW, Java GridInterpolator.interpolate).
       2. dz via 2D FFT; dx, dy via 5-point stencil.
       3. AS = sqrt(dx^2+dy^2+dz^2); original NaN cells stay NaN.
@@ -588,7 +588,7 @@ def resolve_timestamp(data):
         parsed = pd.to_datetime(combined, errors="coerce")
         if parsed.notna().any():
             return parsed
-    print("Warning: No recognisable timestamp column -- treating file as one flight line.")
+    print("Warning: No recognisable timestamp column - treating file as one flight line.")
     return pd.Series(pd.date_range("2000-01-01", periods=len(data), freq="s"), index=data.index)
 
 
@@ -661,7 +661,7 @@ def _process_anomaly_group(
     depth_min_out = _depth(dist_min_out)
     depth_max_out = _depth(dist_max_out)
 
-    # Best-estimate distance -- rule-based with harmonic-mean fallback:
+    # Best-estimate distance - rule-based with harmonic-mean fallback:
     #   Rule 1: dist_B < AGL  -> target sub-sensor, trust FWHM (dist_A)
     #   Rule 2: dist_A > 2.5xdist_B  -> FWHM inflated by window artefact, trust dist_B
     #   Rule 3: dist_B < dist_A  -> AS inflated by geology, trust dist_A
@@ -803,7 +803,7 @@ def main():
                   if has_agl else np.full(len(data), np.nan))
 
     if (not has_agl) or np.all(np.isnan(agl_values[marks == 1])):
-        print("Warning: Altitude AGL not available -- Estimated Depth = sensor-to-target distance.")
+        print("Warning: Altitude AGL not available - Estimated Depth = sensor-to-target distance.")
 
     lats    = pd.to_numeric(data["Latitude"],  errors="coerce").values
     lons    = pd.to_numeric(data["Longitude"], errors="coerce").values

@@ -4,9 +4,11 @@ import argparse
 import os
 import re
 import sys
+import warnings
 
 import numpy as np
 import pandas as pd
+from pyproj import Transformer
 
 import geosoft.gxpy as gxpy
 import geosoft.gxpy.gdb as gxdb
@@ -18,7 +20,7 @@ from script_utils import normalize_input_stem
 _CHANNEL_NAME_RE = re.compile(r"[^A-Za-z0-9_]")
 
 _UNIT_HINTS = (
-    (re.compile(r"^longitude$|^latitude$|^heading$", re.I), "deg"),
+    (re.compile(r"^heading$", re.I), "deg"),
     (re.compile(r"altitude", re.I), "m"),
     (re.compile(r"^tmi|^b[xyz]", re.I), "nT"),
 )
@@ -31,6 +33,50 @@ def sanitize_channel_name(name):
     if not s[0].isalpha():
         s = "C_" + s
     return s
+
+
+def utm_zone(latitude, longitude):
+    """
+    UTM zone for a given lat/lon, accounting for Norway (band V, 56°-64°N)
+    and Svalbard (band X, 72°-84°N) exceptions where standard 6° zone
+    boundaries are modified. Port of UtmProjector.calculateZone() (Java).
+    """
+    zone = int((longitude + 180.0) / 6.0) + 1
+
+    # Norway: zone band V (56°N-64°N), lon 3°-6°E belongs to zone 32, not 31
+    if 56.0 <= latitude < 64.0 and 3.0 <= longitude < 6.0:
+        return 32
+
+    # Svalbard: zone band X (72°N-84°N), even zones 32/34/36 don't exist
+    if 72.0 <= latitude < 84.0:
+        if 0.0 <= longitude < 9.0:
+            return 31
+        if 9.0 <= longitude < 21.0:
+            return 33
+        if 21.0 <= longitude < 33.0:
+            return 35
+        if 33.0 <= longitude < 42.0:
+            return 37
+
+    return zone
+
+
+def utm_epsg(latitude, longitude):
+    zone = utm_zone(latitude, longitude)
+    return (32600 if latitude >= 0 else 32700) + zone
+
+
+def project_to_utm(data, x_col, y_col, epsg):
+    """
+    Replace lon/lat columns in `data` with UTM easting/northing for the given
+    target EPSG.
+    """
+    lon = data[x_col].to_numpy(dtype=np.float64)
+    lat = data[y_col].to_numpy(dtype=np.float64)
+    transformer = Transformer.from_crs(4326, epsg, always_xy=True)
+    easting, northing = transformer.transform(lon, lat)
+    data[x_col] = easting
+    data[y_col] = northing
 
 
 def build_output_gdb_path(input_path, output_dir):
@@ -91,27 +137,50 @@ def main():
     data = pd.read_csv(args.file_path)
     print(f"Rows: {len(data)}, columns: {len(data.columns)}")
 
-    x_col = "Longitude" if "Longitude" in data.columns else None
-    y_col = "Latitude" if "Latitude" in data.columns else None
-    if x_col and y_col:
-        print(f"Using X = '{x_col}', Y = '{y_col}'")
+    if len(data) == 0:
+        print("Error: input CSV has no rows")
+        sys.exit(1)
 
-    columns = []
+    numeric_columns = []
     skipped = []
     for col in data.columns:
         if pd.api.types.is_numeric_dtype(data[col]):
-            columns.append(col)
+            numeric_columns.append(col)
         else:
             skipped.append(col)
     if skipped:
         print(f"Skipping non-numeric columns: {skipped}")
-    if not columns:
+    if not numeric_columns:
         print("Error: no numeric columns to export")
         sys.exit(1)
 
+    x_col = "Longitude" if "Longitude" in numeric_columns else None
+    y_col = "Latitude" if "Latitude" in numeric_columns else None
+    if x_col and y_col:
+        print(f"Using X = '{x_col}', Y = '{y_col}'")
+
+    cs_label = None
+    if x_col and y_col:
+        # nanmean of all-NaN slice emits a RuntimeWarning and returns NaN;
+        # we handle NaN explicitly below, so silence the noisy warning.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            center_lat = float(np.nanmean(data[y_col].to_numpy(dtype=np.float64)))
+            center_lon = float(np.nanmean(data[x_col].to_numpy(dtype=np.float64)))
+        if not (np.isfinite(center_lat) and np.isfinite(center_lon)):
+            print("Error: Latitude/Longitude columns contain no valid values")
+            sys.exit(1)
+        target_epsg = utm_epsg(center_lat, center_lon)
+        zone = utm_zone(center_lat, center_lon)
+        hemi = "N" if center_lat >= 0 else "S"
+        print(f"Projecting X/Y to UTM zone {zone}{hemi} (EPSG:{target_epsg}) "
+              f"from center ({center_lat:.5f}, {center_lon:.5f})")
+        project_to_utm(data, x_col, y_col, target_epsg)
+        cs_label = f"EPSG:{target_epsg}"
+
     # Geosoft convention: X, Y first.
     head = [c for c in (x_col, y_col) if c]
-    columns = head + [c for c in columns if c not in head]
+    columns = head + [c for c in numeric_columns if c not in head]
     channel_names = build_channel_names(columns, x_col, y_col)
     print(f"Channels: {channel_names}")
 
@@ -128,11 +197,15 @@ def main():
             print(f"Writing line '{line_name}' with {len(values)} rows")
             gdb.write_line(line_name, values, channel_names)
 
-            if x_col and y_col:
-                gdb.coordinate_system = "WGS 84"
+            if cs_label:
+                gdb.coordinate_system = cs_label
 
+            xy_originals = {c for c in (x_col, y_col) if c}
             for original, channel in zip(columns, channel_names):
-                unit = unit_for(original)
+                if cs_label and original in xy_originals:
+                    unit = "m"
+                else:
+                    unit = unit_for(original)
                 if unit:
                     gxdb.Channel(gdb, channel).unit_of_measure = unit
         finally:

@@ -83,6 +83,10 @@ public class GeoData {
         }
     }
 
+    public void clearValues() {
+        Arrays.fill(values, null);
+    }
+
     // access by index
 
     public Object getValue(int index) {
@@ -232,7 +236,7 @@ public class GeoData {
 
     // columns modification
 
-    public static ColumnSchema getSchema(List<GeoData> values) {
+    public static ColumnSchema getSchema(List<? extends GeoData> values) {
         if (Nulls.isNullOrEmpty(values)) {
             return null;
         }

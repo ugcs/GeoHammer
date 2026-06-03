@@ -3,12 +3,12 @@ package com.ugcs.geohammer.util;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.format.dzt.DztFile;
 import org.jspecify.annotations.Nullable;
 
-import java.io.File;
 import java.util.Objects;
 
 public final class Templates {
@@ -43,9 +43,10 @@ public final class Templates {
         }
         return switch (file) {
             case CsvFile csvFile -> getCsvTemplateName(csvFile);
+            case SonarFile sonarFile -> "sonar";
+            case NmeaFile nmeaFile -> "nmea";
             case GprFile gprFile -> "sgy";
             case DztFile dztFile -> "dzt";
-            case SonarFile dztFile -> "sonar";
             default -> null;
         };
     }

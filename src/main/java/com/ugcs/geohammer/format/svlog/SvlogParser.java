@@ -2,15 +2,9 @@ package com.ugcs.geohammer.format.svlog;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.ugcs.geohammer.format.nmea.NmeaParser;
 import com.ugcs.geohammer.model.LatLon;
-import com.ugcs.geohammer.util.Strings;
-import net.sf.marineapi.nmea.parser.SentenceFactory;
-import net.sf.marineapi.nmea.sentence.HeadingSentence;
-import net.sf.marineapi.nmea.sentence.PositionSentence;
 import net.sf.marineapi.nmea.sentence.Sentence;
-import net.sf.marineapi.nmea.sentence.TimeSentence;
-import net.sf.marineapi.nmea.util.Position;
-import net.sf.marineapi.nmea.util.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,11 +14,12 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Date;
 
 public class SvlogParser {
 
     private static final Logger log = LoggerFactory.getLogger(SvlogParser.class);
+
+    private final NmeaParser nmeaParser = new NmeaParser();
 
     private final OmniscanParser omniscanParser = new OmniscanParser();
 
@@ -71,60 +66,35 @@ public class SvlogParser {
         }
     }
 
-    public static String stripNmeaChecksum(String s) {
-        if (Strings.isNullOrEmpty(s)) {
-            return s;
-        }
-        int k = s.indexOf("*");
-        return k != -1 ? s.substring(0, k) : s;
-    }
-
     private Sentence parseNmeaSentence(SvlogPacket packet) {
         if (packet == null) {
             return null;
         }
-        SentenceFactory sf = SentenceFactory.getInstance();
         if (packet.getPacketId() == SvlogPacketId.NMEA_WRAPPER) {
             String nmea = new String(packet.getPayload(), StandardCharsets.US_ASCII);
-            nmea = stripNmeaChecksum(nmea);
-            return sf.createParser(nmea);
+            return nmeaParser.parseSentence(nmea);
         }
         return null;
     }
 
     public LatLon parseLocation(SvlogPacket packet) {
         Sentence sentence = parseNmeaSentence(packet);
-        if (sentence instanceof PositionSentence positionSentence) {
-            Position position = positionSentence.getPosition();
-            return new LatLon(position.getLatitude(), position.getLongitude());
-        }
-        return null;
+        return nmeaParser.parseLocation(sentence);
     }
 
     public Double parseAltitude(SvlogPacket packet) {
         Sentence sentence = parseNmeaSentence(packet);
-        if (sentence instanceof PositionSentence positionSentence) {
-            Position position = positionSentence.getPosition();
-            return position.getAltitude();
-        }
-        return null;
+        return nmeaParser.parseAltitude(sentence);
     }
 
     public Double parseHeading(SvlogPacket packet) {
         Sentence sentence = parseNmeaSentence(packet);
-        if (sentence instanceof HeadingSentence headingSentence) {
-            return headingSentence.getHeading();
-        }
-        return null;
+        return nmeaParser.parseHeading(sentence);
     }
 
     public Instant parseTime(SvlogPacket packet) {
         Sentence sentence = parseNmeaSentence(packet);
-        if (sentence instanceof TimeSentence timeSentence) {
-            Time time = timeSentence.getTime();
-            return time != null ? time.toDate(new Date()).toInstant() : null;
-        }
-        return null;
+        return nmeaParser.parseTime(sentence);
     }
 
     public Double parseDepth(SvlogPacket packet) {

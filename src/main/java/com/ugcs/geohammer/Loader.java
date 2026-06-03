@@ -15,6 +15,7 @@ import com.ugcs.geohammer.format.FileOpenException;
 import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.format.csv.parser.Warnings;
 import com.ugcs.geohammer.format.gpr.GprFile;
+import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.SgyFile;
@@ -199,8 +200,7 @@ public class Loader {
 		if (directory == null || !directory.isDirectory()) {
 			return List.of();
 		}
-		FilenameFilter filter = (dir, name)
-				-> FileTypes.isGprFile(name) || FileTypes.isDztFile(name);
+		FilenameFilter filter = (dir, name) -> FileTypes.isTraceFile(new File(dir, name));
 		File[] files = directory.listFiles(filter);
 		if (files == null) {
 			return List.of();
@@ -220,6 +220,10 @@ public class Loader {
 	private boolean openFile(File file) throws IOException {
 		if (file == null) {
 			return false;
+		}
+		if (FileTypes.isCsvFile(file)) {
+			openCsvFile(file);
+			return true;
 		}
 		if (FileTypes.isGprFile(file)) {
 			openGprFile(file);
@@ -241,6 +245,11 @@ public class Loader {
 			openConstPointFile(file);
 			return true;
 		}
+		if (FileTypes.isNmeaFile(file)) {
+			openNmeaFile(file);
+			return true;
+		}
+		// try csv as a fallback
 		openCsvFile(file);
 		return true;
 	}
@@ -318,6 +327,18 @@ public class Loader {
             model.initChart(sonarFile);
         });
     }
+
+	private void openNmeaFile(File file) throws IOException {
+		Check.notNull(file);
+
+		NmeaFile nmeaFile = new NmeaFile();
+
+		nmeaFile.open(file);
+
+		Platform.runLater(() -> {
+			model.initChart(nmeaFile);
+		});
+	}
 
 	private void openKmlFile(File file) {
 		Check.notNull(file);

@@ -12,6 +12,7 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.IndexRange;
@@ -167,7 +168,9 @@ public class Saver implements ToolProducer, InitializingBean {
 			return;
 		}
 
-		if (selectedFile instanceof TraceFile || selectedFile instanceof SonarFile) {
+		if (selectedFile instanceof TraceFile
+				|| selectedFile instanceof SonarFile
+				|| selectedFile instanceof NmeaFile) {
 			Tooltip tooltip = buttonSaveTo.getTooltip();
 			buttonSaveTo.setTooltip(null);
 			saveToMenu.setOnHidden(e -> buttonSaveTo.setTooltip(tooltip));
@@ -265,6 +268,10 @@ public class Saver implements ToolProducer, InitializingBean {
 
         if (sgyFile instanceof SonarFile sonarFile) {
 			sonarFile.save(toFile);
+		}
+
+		if (sgyFile instanceof NmeaFile nmeaFile) {
+			nmeaFile.save(toFile);
 		}
 	}
 

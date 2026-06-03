@@ -392,7 +392,7 @@ public abstract class Parser {
         if (value.indexOf(decimalSeparator) > 0) {
             return Text.parseDouble(value);
         } else {
-            return Text.parseInt(value);
+            return Text.parseLong(value);
         }
     }
 

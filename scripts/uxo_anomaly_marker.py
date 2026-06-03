@@ -193,7 +193,6 @@ def main():
     #5 Write Mark = new-mark
     df["Mark"] = pd.Series(new_marks, index=df.index, dtype="Int8")
 
-    # Save to same file
     df.to_csv(args.file_path, index=False)
     print(f"Wrote output with markers to: {args.file_path}")
 

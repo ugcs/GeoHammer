@@ -50,7 +50,6 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             weights.append(np.nan)
             continue
 
-        # Calculate anomaly values (subtract background field)
         anomaly_lower = tmi_lower - background
         anomaly_upper = tmi_upper - background
 
@@ -61,7 +60,6 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             weights.append(np.nan)
             continue
 
-        # Calculate anomaly ratio
         ratio = anomaly_lower / anomaly_upper
 
         if ratio < 0:
@@ -71,10 +69,8 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             weights.append(np.nan)
             continue
 
-        # Cube root of anomaly ratio
         cube_root = ratio ** (1/3)
 
-        # Check for invalid denominator
         denominator = cube_root - 1
         if denominator == 0:
             print(f"Warning: Invalid denominator (ratio^(1/3) = 1) at index {idx}, skipping")
@@ -83,7 +79,6 @@ def process_gradiometer(data, mark_indices, tmi_lower_col, tmi_upper_col, altitu
             weights.append(np.nan)
             continue
 
-        # Distance to lower sensor
         distance_lower = sensor_separation / denominator
         if distance_lower < 0:
             distance_lower = abs(distance_lower)
@@ -171,7 +166,6 @@ def main():
         print("Error: Column 'Mark' not found in input data")
         sys.exit(1)
 
-    # Check for marked points
     marks = pd.to_numeric(data["Mark"], errors="coerce").fillna(0)
     mark_indices = marks[marks == 1].index.tolist()
 
@@ -181,7 +175,6 @@ def main():
 
     print(f"Found {len(mark_indices)} marked points")
 
-    # Process gradiometer data
     distances, depths, weights = process_gradiometer(
         data, mark_indices, lower_column, upper_column, altitude_column,
         args.sensor_separation, args.altimeter_lower_offset
@@ -200,7 +193,6 @@ def main():
         if not np.isnan(weights[i]):
             data.at[idx, "Estimated_Weight"] = weights[i]
 
-    # Overwrite CSV
     output_path = input_path
     print(f"Writing result to {output_path}")
     data.to_csv(output_path, index=False, sep=',')

@@ -1,0 +1,14 @@
+{
+  "filename": "export_geosoft_database.py",
+  "display_name": "Export as Geosoft (Oasis montaj) database",
+  "parameters": [
+    {
+      "name": "output-dir",
+      "display_name": "Output folder",
+      "type": "FOLDER_PATH",
+      "default_value": "",
+      "required": true
+    }
+  ],
+  "templates": ["csv"]
+}

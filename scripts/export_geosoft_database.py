@@ -176,7 +176,7 @@ def main():
         print(f"Projecting X/Y to UTM zone {zone}{hemi} (EPSG:{target_epsg}) "
               f"from center ({center_lat:.5f}, {center_lon:.5f})")
         project_to_utm(data, x_col, y_col, target_epsg)
-        cs_label = f"EPSG:{target_epsg}"
+        cs_label = f"WGS 84 / UTM zone {zone}{hemi}"
 
     # Geosoft convention: X, Y first.
     head = [c for c in (x_col, y_col) if c]

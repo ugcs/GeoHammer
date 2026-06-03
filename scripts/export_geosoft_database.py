@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import argparse
 import os
 import re
@@ -16,7 +14,6 @@ import geosoft.gxpy.gdb as gxdb
 from script_utils import normalize_input_stem
 
 
-# Geosoft channel name: ASCII letters/digits/underscore, must start with a letter.
 _CHANNEL_NAME_RE = re.compile(r"[^A-Za-z0-9_]")
 
 _UNIT_HINTS = (
@@ -36,18 +33,13 @@ def sanitize_channel_name(name):
 
 
 def utm_zone(latitude, longitude):
-    """
-    UTM zone for a given lat/lon, accounting for Norway (band V, 56°-64°N)
-    and Svalbard (band X, 72°-84°N) exceptions where standard 6° zone
-    boundaries are modified. Port of UtmProjector.calculateZone() (Java).
-    """
     zone = int((longitude + 180.0) / 6.0) + 1
 
-    # Norway: zone band V (56°N-64°N), lon 3°-6°E belongs to zone 32, not 31
+    # Norway exception: band V (56-64°N), lon 3-6°E uses zone 32, not 31
     if 56.0 <= latitude < 64.0 and 3.0 <= longitude < 6.0:
         return 32
 
-    # Svalbard: zone band X (72°N-84°N), even zones 32/34/36 don't exist
+    # Svalbard exception: band X (72-84°N), even zones 32/34/36 are skipped
     if 72.0 <= latitude < 84.0:
         if 0.0 <= longitude < 9.0:
             return 31
@@ -67,10 +59,6 @@ def utm_epsg(latitude, longitude):
 
 
 def project_to_utm(data, x_col, y_col, epsg):
-    """
-    Replace lon/lat columns in `data` with UTM easting/northing for the given
-    target EPSG.
-    """
     lon = data[x_col].to_numpy(dtype=np.float64)
     lat = data[y_col].to_numpy(dtype=np.float64)
     transformer = Transformer.from_crs(4326, epsg, always_xy=True)
@@ -161,8 +149,7 @@ def main():
 
     cs_label = None
     if x_col and y_col:
-        # nanmean of all-NaN slice emits a RuntimeWarning and returns NaN;
-        # we handle NaN explicitly below, so silence the noisy warning.
+        # all-NaN slice raises RuntimeWarning; NaN is handled by isfinite below
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             center_lat = float(np.nanmean(data[y_col].to_numpy(dtype=np.float64)))
@@ -176,6 +163,7 @@ def main():
         print(f"Projecting X/Y to UTM zone {zone}{hemi} (EPSG:{target_epsg}) "
               f"from center ({center_lat:.5f}, {center_lon:.5f})")
         project_to_utm(data, x_col, y_col, target_epsg)
+        # Geosoft requires a catalog name here; "EPSG:NNNNN" raises CSException
         cs_label = f"WGS 84 / UTM zone {zone}{hemi}"
 
     # Geosoft convention: X, Y first.

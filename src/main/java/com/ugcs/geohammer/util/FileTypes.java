@@ -1,80 +1,63 @@
 package com.ugcs.geohammer.util;
 
+import com.ugcs.geohammer.format.nmea.NmeaContentProbe;
+
 import java.io.File;
 import java.util.Objects;
-import java.util.Set;
 
 public final class FileTypes {
 
-    private static final Set<String> CSV_EXTENSIONS = Set.of("csv", "asc", "txt", "pos");
+    private static final FileProbe CSV_PROBE = new ExtensionProbe("csv", "asc", "pos");
 
-    private static final Set<String> GPR_EXTENSIONS = Set.of("sgy");
+    private static final FileProbe GPR_PROBE = new ExtensionProbe("sgy");
 
-    private static final Set<String> DZT_EXTENSIONS = Set.of("dzt");
+    private static final FileProbe DZT_PROBE = new ExtensionProbe("dzt");
 
-    private static final Set<String> SVLOG_EXTENSIONS = Set.of("svlog");
+    private static final FileProbe SVLOG_PROBE = new ExtensionProbe("svlog");
 
-    private static final Set<String> KML_EXTENSIONS = Set.of("kml");
+    private static final FileProbe NMEA_PROBE = new ExtensionProbe("nmea", "nme", "log", "txt");
 
-    private static final Set<String> CONST_POINTS_EXTENSIONS = Set.of("constpoints");
+    private static final FileProbe NMEA_CONTENT_PROBE = new NmeaContentProbe();
 
-    private static String POSITIONS_NAME_SUFFIX = "-position.csv";
+    private static final FileProbe KML_PROBE = new ExtensionProbe("kml");
+
+    private static final FileProbe CONSTPOINTS_PROBE = new ExtensionProbe("constpoints");
+
+    private static final String POSITIONS_NAME_SUFFIX = "-position.csv";
 
     private FileTypes() {
     }
 
-    public static boolean extensionMatches(String fileName, Set<String> extensions) {
-        String extension = Strings.nullToEmpty(FileNames.getExtension(fileName))
-                .toLowerCase();
-        return Nulls.toEmpty(extensions).contains(extension);
-    }
-
     public static boolean isCsvFile(File file) {
-        return file != null && isCsvFile(file.getName());
-    }
-
-    public static boolean isCsvFile(String fileName) {
-        return extensionMatches(fileName, CSV_EXTENSIONS);
+        return CSV_PROBE.matches(file);
     }
 
     public static boolean isGprFile(File file) {
-        return file != null && isGprFile(file.getName());
-    }
-
-    public static boolean isGprFile(String filename) {
-        return extensionMatches(filename, GPR_EXTENSIONS);
+        return GPR_PROBE.matches(file);
     }
 
     public static boolean isDztFile(File file) {
-        return file != null && isDztFile(file.getName());
+        return DZT_PROBE.matches(file);
     }
 
-    public static boolean isDztFile(String fileName) {
-        return extensionMatches(fileName, DZT_EXTENSIONS);
+    public static boolean isTraceFile(File file) {
+        return isGprFile(file) || isDztFile(file);
     }
 
     public static boolean isSvlogFile(File file) {
-        return file != null && isSvlogFile(file.getName());
+        return SVLOG_PROBE.matches(file);
     }
 
-    public static boolean isSvlogFile(String fileName) {
-        return extensionMatches(fileName, SVLOG_EXTENSIONS);
+    public static boolean isNmeaFile(File file) {
+        return NMEA_PROBE.matches(file) && NMEA_CONTENT_PROBE.matches(file);
     }
 
     public static boolean isKmlFile(File file) {
-        return file != null && isKmlFile(file.getName());
-    }
-
-    public static boolean isKmlFile(String fileName) {
-        return extensionMatches(fileName, KML_EXTENSIONS);
+        return KML_PROBE.matches(file);
     }
 
     public static boolean isConstPointFile(File file) {
-        return file != null && isConstPointFile(file.getName());
-    }
-
-    public static boolean isConstPointFile(String fileName) {
-        return extensionMatches(fileName, CONST_POINTS_EXTENSIONS);
+        return CONSTPOINTS_PROBE.matches(file);
     }
 
     public static boolean isPositionFile(File file) {

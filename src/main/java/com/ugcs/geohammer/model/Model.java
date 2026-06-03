@@ -18,6 +18,7 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
+import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.element.AuxElementEditHandler;
 import com.ugcs.geohammer.model.element.BaseObject;
@@ -292,9 +293,12 @@ public class Model implements InitializingBean {
         if (file instanceof CsvFile csvFile) {
             return new SensorLineChart(this, csvFile);
         }
-        if (file instanceof SonarFile sonarFile) {
-            return new SensorLineChart(this, sonarFile);
-        }
+		if (file instanceof SonarFile sonarFile) {
+			return new SensorLineChart(this, sonarFile);
+		}
+		if (file instanceof NmeaFile nmeaFile) {
+			return new SensorLineChart(this, nmeaFile);
+		}
         return null;
     }
 

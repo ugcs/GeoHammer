@@ -4,6 +4,7 @@ import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceKey;
@@ -110,7 +111,7 @@ public class StatisticsTool extends ToolView {
 
     @Override
     public boolean isVisibleFor(SgyFile file) {
-        return file instanceof CsvFile || file instanceof SonarFile;
+        return file instanceof CsvFile || file instanceof SonarFile || file instanceof NmeaFile;
     }
 
     private int getDecimals(SgyFile file, String header) {

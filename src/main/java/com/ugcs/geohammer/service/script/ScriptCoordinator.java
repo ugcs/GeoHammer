@@ -27,7 +27,7 @@ public class ScriptCoordinator {
 
 	private static final Logger log = LoggerFactory.getLogger(ScriptCoordinator.class);
 
-	private static final int MAX_RECENT_OUTPUT_LINES = 50;
+	private static final int MAX_RECENT_OUTPUT_LINES = 15;
 
 	private final ScriptExecutor scriptExecutor;
 

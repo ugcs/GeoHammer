@@ -40,6 +40,8 @@ public class PythonService {
 			"Please install Python v" + MINIMAL_PYTHON_VERSION
 					+ " or higher. Download: https://www.python.org/downloads/";
 
+	private static final String MISSING_IMPORTS_PREFIX = "MISSING:";
+
 	private final CommandExecutor commandExecutor;
 
 	private final PrefSettings prefSettings;
@@ -69,10 +71,12 @@ public class PythonService {
 
 		File checkImportsScript = scriptPaths.getCheckImportsScript().toFile();
 		if (!forceReinstall) {
-			String failingModule = checkImports(scriptFile, checkImportsScript);
-			if (failingModule == null) {
+			try {
+				checkImports(scriptFile, checkImportsScript);
 				onOutput.accept("Dependencies already satisfied for script " + filename);
 				return;
+			} catch (DependencyImportException e) {
+				log.debug("Initial import check failed: {}", e.getMessage());
 			}
 		}
 
@@ -102,10 +106,7 @@ public class PythonService {
 				installDependenciesFromRequirements(tempDirectory, onOutput);
 			}
 
-			String failingModule = checkImports(scriptFile, checkImportsScript);
-			if (failingModule != null) {
-				throw new DependencyImportException(failingModule);
-			}
+			checkImports(scriptFile, checkImportsScript);
 			if (hasRequirements) {
 				onOutput.accept(forceReinstall
 						? "Dependencies reinstalled for script " + filename
@@ -116,26 +117,40 @@ public class PythonService {
 		}
 	}
 
-	@Nullable
-	private String checkImports(File scriptFile, File checkImportsScript) throws IOException, InterruptedException {
+	private void checkImports(File scriptFile, File checkImportsScript) throws IOException, InterruptedException, DependencyImportException {
 		if (!checkImportsScript.exists()) {
-			throw new IOException("Import check script not found: " + checkImportsScript.getAbsolutePath());
+			throw new IllegalStateException("Import check script not found: " + checkImportsScript.getAbsolutePath());
 		}
 		List<String> command = List.of(
 				getPythonPath().toString(),
 				checkImportsScript.getAbsolutePath(),
 				scriptFile.getAbsolutePath()
 		);
-		AtomicReference<String> failingModule = new AtomicReference<>();
+		AtomicReference<String> missingModule = new AtomicReference<>();
+		StringBuilder outputBuffer = new StringBuilder();
 		try {
 			commandExecutor.executeCommand(command, line -> {
-				if (!line.isBlank()) {
-					failingModule.compareAndSet(null, line.trim());
+				if (!outputBuffer.isEmpty()) {
+					outputBuffer.append(System.lineSeparator());
+				}
+				outputBuffer.append(line);
+				if (line.startsWith(MISSING_IMPORTS_PREFIX)) {
+					String name = line.substring(MISSING_IMPORTS_PREFIX.length()).trim();
+					if (!name.isEmpty()) {
+						missingModule.compareAndSet(null, name);
+					}
 				}
 			});
-			return null;
 		} catch (CommandExecutionException e) {
-			return failingModule.get();
+			String missing = missingModule.get();
+			if (missing != null) {
+				throw new DependencyImportException(missing);
+			}
+			String output = outputBuffer.toString().trim();
+			String message = output.isEmpty()
+					? "Import check script failed (exit code " + e.getExitCode() + ")"
+					: "Import check script failed:" + System.lineSeparator() + output;
+			throw new IllegalStateException(message);
 		}
 	}
 

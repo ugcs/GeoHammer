@@ -95,6 +95,11 @@ public class ScriptCoordinator {
 	private void runScriptOnFiles(List<SgyFile> sgyFiles, ScriptMetadata metadata, Map<String, String> params,
 	                              RecentOutput recent, ScriptRunListener listener)
 			throws InterruptedException, IOException {
+		if (!metadata.supportsCurrentOs()) {
+			throw new IllegalStateException("Script '" + metadata.displayName()
+					+ "' is not supported on this operating system.");
+		}
+
 		pythonService.checkVersion();
 
 		File scriptFile = resolveScriptFile(metadata);

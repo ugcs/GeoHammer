@@ -13,6 +13,8 @@ if sys.platform != "win32":
 import numpy as np
 import pandas as pd
 from pyproj import Transformer
+import geosoft.gxpy as gxpy
+import geosoft.gxpy.gdb as gxdb
 
 from script_utils import normalize_input_stem
 
@@ -112,11 +114,6 @@ def unit_for(column):
 
 
 def main():
-    # Resolve geosoft dynamically so static analyzers (pipreqs, check_imports)
-    # don't try to install it on non-Windows platforms.
-    gxpy = importlib.import_module("geosoft.gxpy")
-    gxdb = importlib.import_module("geosoft.gxpy.gdb")
-
     parser = argparse.ArgumentParser(
         description="Export CSV measurements as a Geosoft Oasis Montaj database (.gdb)."
     )

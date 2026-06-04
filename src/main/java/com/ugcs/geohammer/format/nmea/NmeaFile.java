@@ -130,10 +130,11 @@ public class NmeaFile extends SgyFileWithMeta {
         geoData.setLatLon(position);
     }
 
-    private void setValue(GeoData geoData, Column column, Object value) {
+    private void setValue(GeoData geoData, String header, String unit, Object value) {
         if (value == null) {
             return;
         }
+        Column column = NmeaSchema.createColumn(header, unit);
         GeoData.addColumn(getGeoData(), column);
         geoData.setValue(column.getHeader(), value);
     }
@@ -143,35 +144,57 @@ public class NmeaFile extends SgyFileWithMeta {
             case RMCSentence rmc -> {
                 setTime(geoData, nmeaParser.parseTime(rmc.getDate(), rmc.getTime()));
                 setPosition(geoData, nmeaParser.parseLocation(rmc.getPosition()));
-                setValue(geoData, NmeaSchema.SPEED_COLUMN, SpeedUnit.KNOTS.toMetersPerSecond(rmc.getSpeed()));
-                setValue(geoData, NmeaSchema.COURSE_COLUMN, rmc.getCourse());
+                setValue(geoData,
+                        NmeaSchema.composeHeader(rmc, "Speed"),
+                        "M",
+                        SpeedUnit.KNOTS.toMetersPerSecond(rmc.getSpeed()));
+                setValue(geoData,
+                        NmeaSchema.composeHeader(rmc, "Course"),
+                        "D",
+                        rmc.getCourse());
             }
             case GGASentence gga -> {
                 setPosition(geoData, nmeaParser.parseLocation(gga.getPosition()));
-                setValue(geoData, NmeaSchema.ALTITUDE_COLUMN, gga.getAltitude());
+                setValue(geoData,
+                        NmeaSchema.composeHeader(gga, "Altitude"),
+                        String.valueOf(gga.getAltitudeUnits().toChar()),
+                        gga.getAltitude());
             }
             case ZDASentence zda -> {
                 setTime(geoData, nmeaParser.parseTime(zda.getDate(), zda.getTime()));
             }
             case DBTSentence dbt -> {
-                setValue(geoData, NmeaSchema.DEPTH_COLUMN, dbt.getDepth());
+                setValue(geoData,
+                        NmeaSchema.composeHeader(dbt, "Depth"),
+                        "M",
+                        dbt.getDepth());
             }
             case DPTSentence dpt -> {
-                setValue(geoData, NmeaSchema.DEPTH_COLUMN, dpt.getDepth());
-                setValue(geoData, NmeaSchema.TRANSDUCER_OFFSET_COLUMN, dpt.getOffset());
+                setValue(geoData,
+                        NmeaSchema.composeHeader(dpt, "Depth"),
+                        "M",
+                        dpt.getDepth());
+                setValue(geoData,
+                        NmeaSchema.composeHeader(dpt, "Offset"),
+                        "M",
+                        dpt.getOffset());
             }
             case MTWSentence mtw -> {
-                setValue(geoData, NmeaSchema.TEMPERATURE_COLUMN, mtw.getTemperature());
+                setValue(geoData,
+                        NmeaSchema.composeHeader(mtw, "Temperature"),
+                        "C",
+                        mtw.getTemperature());
             }
             case XDRSentence xdr -> {
                 for (Measurement measurement : Nulls.toEmpty(xdr.getMeasurements())) {
-                    switch (measurement.getName()) {
-                        case "PTCH" -> setValue(geoData, NmeaSchema.PITCH_COLUMN, nmeaParser.parseValue(measurement));
-                        case "ROLL" -> setValue(geoData, NmeaSchema.ROLL_COLUMN, nmeaParser.parseValue(measurement));
-                        case "XDHI" -> setValue(geoData, NmeaSchema.DEPTH_HIGH_FREQUENCY_COLUMN, nmeaParser.parseValue(measurement));
-                        case "XDLO" -> setValue(geoData, NmeaSchema.DEPTH_LOW_FREQUENCY_COLUMN, nmeaParser.parseValue(measurement));
-                        case null, default -> {}
+                    Double value = nmeaParser.parseValue(measurement);
+                    if (value == null || Double.isNaN(value)) {
+                        continue;
                     }
+                    setValue(geoData,
+                            NmeaSchema.composeHeader(xdr, measurement.getName()),
+                            measurement.getUnits(),
+                            value);
                 }
             }
             case null, default -> {}

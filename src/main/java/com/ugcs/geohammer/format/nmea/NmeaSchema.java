@@ -3,64 +3,36 @@ package com.ugcs.geohammer.format.nmea;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
+import com.ugcs.geohammer.util.Strings;
+import net.sf.marineapi.nmea.sentence.Sentence;
+import net.sf.marineapi.nmea.sentence.TalkerId;
 
 public final class NmeaSchema {
 
-    public static final Column ALTITUDE_COLUMN = new Column("Ellipsoidal Height")
-            .withUnit("m")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column COURSE_COLUMN = new Column("Course")
-            .withUnit("deg")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column PITCH_COLUMN = new Column("Pitch")
-            .withUnit("deg")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column ROLL_COLUMN = new Column("Roll")
-            .withUnit("deg")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column SPEED_COLUMN = new Column("Speed")
-            .withUnit("m/s")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column DEPTH_COLUMN = new Column("Depth")
-            .withUnit("m")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column TRANSDUCER_OFFSET_COLUMN = new Column("Transducer Offset")
-            .withUnit("m")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column DEPTH_HIGH_FREQUENCY_COLUMN = new Column("Depth High Frequency")
-            .withUnit("m")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column DEPTH_LOW_FREQUENCY_COLUMN = new Column("Depth Low Frequency")
-            .withUnit("m")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static final Column TEMPERATURE_COLUMN = new Column("Temperature")
-            .withUnit("deg C")
-            .withDisplay(true)
-            .withReadOnly(true);
-
-    public static ColumnSchema createSchema() {
-        ColumnSchema schema = ColumnSchema.copy(TraceGeoData.SCHEMA);
-        return schema;
+    private NmeaSchema() {
     }
 
-    private NmeaSchema() {
+    public static ColumnSchema createSchema() {
+        return ColumnSchema.copy(TraceGeoData.SCHEMA);
+    }
+
+    public static Column createColumn(String header, String unit) {
+        return new Column(header)
+                .withUnit(unit)
+                .withDisplay(true)
+                .withReadOnly(true);
+    }
+
+    public static String composeHeader(Sentence sentence, String name) {
+        if (Strings.isNullOrEmpty(name)) {
+            return Strings.empty();
+        }
+        if (sentence == null) {
+            return name;
+        }
+        TalkerId talker = sentence.getTalkerId();
+        String prefix = talker != null ? talker.toString() : Strings.empty();
+        prefix += Strings.emptyToNull(sentence.getSentenceId());
+        return !prefix.isEmpty() ? prefix + ":" + name : name;
     }
 }

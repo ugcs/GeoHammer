@@ -19,10 +19,6 @@ public final class FileTypes {
 
     private static final FileProbe NMEA_CONTENT_PROBE = new NmeaContentProbe();
 
-    private static final FileProbe KML_PROBE = new ExtensionProbe("kml");
-
-    private static final FileProbe CONSTPOINTS_PROBE = new ExtensionProbe("constpoints");
-
     private static final String POSITIONS_NAME_SUFFIX = "-position.csv";
 
     private FileTypes() {
@@ -50,14 +46,6 @@ public final class FileTypes {
 
     public static boolean isNmeaFile(File file) {
         return NMEA_PROBE.matches(file) && NMEA_CONTENT_PROBE.matches(file);
-    }
-
-    public static boolean isKmlFile(File file) {
-        return KML_PROBE.matches(file);
-    }
-
-    public static boolean isConstPointFile(File file) {
-        return CONSTPOINTS_PROBE.matches(file);
     }
 
     public static boolean isPositionFile(File file) {

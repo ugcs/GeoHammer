@@ -75,8 +75,6 @@ public class Model implements InitializingBean {
 
 	private final List<SelectedTrace> selectedTraces = new ArrayList<>();
 
-	private boolean kmlToFlagAvailable = false;
-
 	private final AuxElementEditHandler auxEditHandler;
 
 	private final VBox chartsContainer = new VBox();
@@ -229,14 +227,6 @@ public class Model implements InitializingBean {
 			}
 		}
 		return false;
-	}
-
-	public boolean isKmlToFlagAvailable() {
-		return kmlToFlagAvailable;
-	}
-
-	public void setKmlToFlagAvailable(boolean kmlToFlagAvailable) {
-		this.kmlToFlagAvailable = kmlToFlagAvailable;
 	}
 
 	@Override

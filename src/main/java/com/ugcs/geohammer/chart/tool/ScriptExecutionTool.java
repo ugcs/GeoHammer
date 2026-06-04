@@ -207,7 +207,13 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
         SgyFile file = selectedFile;
 		try {
 			List<ScriptMetadata> loadedScriptsMetadata = getLoadedScriptsMetadata();
-			scriptsMetadata = filterScriptsByTemplate(file, loadedScriptsMetadata);
+			List<ScriptMetadata> osCompatibleScripts = new ArrayList<>();
+			for (ScriptMetadata metadata : loadedScriptsMetadata) {
+				if (metadata.supportsCurrentOs()) {
+					osCompatibleScripts.add(metadata);
+				}
+			}
+			scriptsMetadata = filterScriptsByTemplate(file, osCompatibleScripts);
 		} catch (Exception e) {
 			scriptsMetadata = List.of();
 			Dialogs.showError("Failed to load scripts metadata", e);
@@ -501,8 +507,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
             message = "Script '" + scriptMetadata.filename()
                     + "' failed with exit code " + commandExecutionException.getExitCode() + ".";
             if (!Strings.isNullOrEmpty(scriptOutput)) {
-                message += System.lineSeparator() + "Output:"
-                        + System.lineSeparator() + scriptOutput;
+                message += System.lineSeparator() + scriptOutput;
             }
         } else {
             message = "Failed to execute script: " + e.getMessage();

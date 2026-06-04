@@ -1,7 +1,6 @@
 package com.ugcs.geohammer.chart.csv.axis;
 
 import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.TemplateSettings;
@@ -16,14 +15,13 @@ import javafx.scene.Cursor;
 import javafx.scene.chart.ValueAxis;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import org.jspecify.annotations.Nullable;
 
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.annotation.Nullable;
 
 public class SensorLineChartXAxis extends ValueAxis<Number> {
 

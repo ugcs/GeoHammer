@@ -35,6 +35,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -61,8 +62,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
-
-import javax.annotation.Nullable;
 
 @Component
 public class MapView implements InitializingBean, DisposableBean {

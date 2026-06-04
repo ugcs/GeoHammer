@@ -32,9 +32,8 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
-
-import javax.annotation.Nullable;
 
 @Component
 public class SettingsView implements ToolProducer {

@@ -16,10 +16,9 @@ import com.ugcs.geohammer.model.Model;
 import javafx.geometry.Point2D;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 @Component
 public class MapRuler implements Layer {
@@ -323,7 +322,7 @@ public class MapRuler implements Layer {
 		private final LatLon location;
 		private boolean midpoint;
 
-		Point(@Nonnull LatLon location, boolean midpoint) {
+		Point(@NonNull LatLon location, boolean midpoint) {
 			this.location = location;
 			this.midpoint = midpoint;
 		}

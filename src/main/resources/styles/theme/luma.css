@@ -134,6 +134,10 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
     -fx-font-size: 0.9em;
 }
 
+.dialog-pane .details-button {
+    -fx-text-fill: -color-text;
+}
+
 .dialog-pane .details-button .arrow {
     -fx-shape: "M0 1.6 L1.6 0 L6 4.4 L10.4 0 L12 1.6 L6 7.6 Z";
     -fx-background-color: -color-icon;

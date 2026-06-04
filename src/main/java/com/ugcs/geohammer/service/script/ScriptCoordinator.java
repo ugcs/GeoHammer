@@ -115,6 +115,7 @@ public class ScriptCoordinator {
 					if (!ensureDependencies(scriptFile, recent, metadata, listener)) {
 						return;
 					}
+					recent.clear();
 					try {
 						scriptExecutor.execute(sgyFile, scriptFile, metadata, params, recent.capture(), snapshots::add);
 						listener.onSuccess(metadata);

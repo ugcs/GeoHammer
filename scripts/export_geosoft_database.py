@@ -1,15 +1,18 @@
 import argparse
+import importlib
 import os
 import re
 import sys
 import warnings
 
+if sys.platform != "win32":
+    print("Error: this script can only be run on Windows "
+          "(requires a Windows-only Geosoft Oasis Montaj installation).")
+    sys.exit(1)
+
 import numpy as np
 import pandas as pd
 from pyproj import Transformer
-
-import geosoft.gxpy as gxpy
-import geosoft.gxpy.gdb as gxdb
 
 from script_utils import normalize_input_stem
 
@@ -109,6 +112,11 @@ def unit_for(column):
 
 
 def main():
+    # Resolve geosoft dynamically so static analyzers (pipreqs, check_imports)
+    # don't try to install it on non-Windows platforms.
+    gxpy = importlib.import_module("geosoft.gxpy")
+    gxdb = importlib.import_module("geosoft.gxpy.gdb")
+
     parser = argparse.ArgumentParser(
         description="Export CSV measurements as a Geosoft Oasis Montaj database (.gdb)."
     )
@@ -119,6 +127,14 @@ def main():
 
     if not os.path.isfile(args.file_path):
         print(f"Error: input file not found: {args.file_path}")
+        sys.exit(1)
+
+    try:
+        gxpy.gx.GXpy()
+    except Exception as e:
+        print("Error: Geosoft Oasis Montaj is not installed or not configured "
+              "on this machine. Install Oasis Montaj (or Geosoft Desktop "
+              f"Applications) and try again. Details: {e}")
         sys.exit(1)
 
     print(f"Reading {args.file_path}")
@@ -176,30 +192,26 @@ def main():
     base, _ = os.path.splitext(output_path)
     print(f"Creating database {base}.gdb")
 
-    gxc = gxpy.gx.GXpy()
+    gdb = gxdb.Geosoft_gdb.new(base, overwrite=True)
     try:
-        gdb = gxdb.Geosoft_gdb.new(base, overwrite=True)
-        try:
-            line_name = gxdb.create_line_name()
-            values = data[columns].to_numpy(dtype=np.float64)
-            print(f"Writing line '{line_name}' with {len(values)} rows")
-            gdb.write_line(line_name, values, channel_names)
+        line_name = gxdb.create_line_name()
+        values = data[columns].to_numpy(dtype=np.float64)
+        print(f"Writing line '{line_name}' with {len(values)} rows")
+        gdb.write_line(line_name, values, channel_names)
 
-            if cs_label:
-                gdb.coordinate_system = cs_label
+        if cs_label:
+            gdb.coordinate_system = cs_label
 
-            xy_originals = {c for c in (x_col, y_col) if c}
-            for original, channel in zip(columns, channel_names):
-                if cs_label and original in xy_originals:
-                    unit = "m"
-                else:
-                    unit = unit_for(original)
-                if unit:
-                    gxdb.Channel(gdb, channel).unit_of_measure = unit
-        finally:
-            gdb.close()
+        xy_originals = {c for c in (x_col, y_col) if c}
+        for original, channel in zip(columns, channel_names):
+            if cs_label and original in xy_originals:
+                unit = "m"
+            else:
+                unit = unit_for(original)
+            if unit:
+                gxdb.Channel(gdb, channel).unit_of_measure = unit
     finally:
-        del gxc
+        gdb.close()
 
     print(f"Geosoft database saved to {output_path}")
 

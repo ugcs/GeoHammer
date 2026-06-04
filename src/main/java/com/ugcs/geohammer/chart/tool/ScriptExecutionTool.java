@@ -501,8 +501,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
             message = "Script '" + scriptMetadata.filename()
                     + "' failed with exit code " + commandExecutionException.getExitCode() + ".";
             if (!Strings.isNullOrEmpty(scriptOutput)) {
-                message += System.lineSeparator() + "Output:"
-                        + System.lineSeparator() + scriptOutput;
+                message += System.lineSeparator() + scriptOutput;
             }
         } else {
             message = "Failed to execute script: " + e.getMessage();

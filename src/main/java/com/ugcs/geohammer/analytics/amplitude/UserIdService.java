@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.analytics.amplitude;
 
-import com.google.common.base.Preconditions;
+import com.ugcs.geohammer.util.Check;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -104,8 +104,8 @@ public class UserIdService {
     }
 
     private int compareByteArray(byte[] one, byte[] two) {
-        Preconditions.checkNotNull(one);
-        Preconditions.checkNotNull(two);
+        Check.notNull(one);
+        Check.notNull(two);
         if (one.length != two.length)
             return Integer.compare(one.length, two.length);
         for (int i = 0; i < one.length; i++) {

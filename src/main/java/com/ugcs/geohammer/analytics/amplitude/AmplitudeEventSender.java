@@ -2,9 +2,9 @@ package com.ugcs.geohammer.analytics.amplitude;
 
 import com.amplitude.Amplitude;
 import com.amplitude.AmplitudeCallbacks;
-import com.google.common.base.Strings;
 import com.ugcs.geohammer.analytics.Event;
 import com.ugcs.geohammer.analytics.EventSender;
+import com.ugcs.geohammer.util.Strings;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

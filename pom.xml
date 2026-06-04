@@ -360,35 +360,17 @@
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-geotiff</artifactId>
 			<version>${gt.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.media</groupId>
-                    <artifactId>jai_imageio</artifactId>
-                </exclusion>
-            </exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-epsg-hsql</artifactId>
 			<scope>test</scope>
 			<version>${gt.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.media</groupId>
-                    <artifactId>jai_imageio</artifactId>
-                </exclusion>
-            </exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-coverage</artifactId>
 			<version>${gt.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.media</groupId>
-                    <artifactId>jai_imageio</artifactId>
-                </exclusion>
-            </exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.json</groupId>

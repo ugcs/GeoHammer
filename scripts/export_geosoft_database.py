@@ -4,12 +4,6 @@ import os
 import re
 import sys
 import warnings
-
-if sys.platform != "win32":
-    print("Error: this script can only be run on Windows "
-          "(requires a Windows-only Geosoft Oasis Montaj installation).")
-    sys.exit(1)
-
 import numpy as np
 import pandas as pd
 from pyproj import Transformer

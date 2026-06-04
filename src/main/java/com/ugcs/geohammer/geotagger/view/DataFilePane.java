@@ -90,9 +90,7 @@ public class DataFilePane extends FilePane {
     @Override
     protected boolean canAdd(File file) {
 		if (FileTypes.isDztFile(file)
-				|| FileTypes.isSvlogFile(file)
-				|| FileTypes.isKmlFile(file)
-				|| FileTypes.isConstPointFile(file)) {
+				|| FileTypes.isSvlogFile(file)) {
 			return false;
 		}
 

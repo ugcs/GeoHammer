@@ -20,7 +20,6 @@ import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.kml.KmlReader;
 
 import com.ugcs.geohammer.format.dzt.DztFile;
 import com.ugcs.geohammer.model.event.FileOpenErrorEvent;
@@ -40,7 +39,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-import com.ugcs.geohammer.format.ConstPointsFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 
 import com.ugcs.geohammer.model.Model;
@@ -233,16 +231,8 @@ public class Loader {
 			openDztFile(file);
 			return true;
 		}
-		if (FileTypes.isKmlFile(file)) {
-			openKmlFile(file);
-			return true;
-		}
 		if (FileTypes.isSvlogFile(file)) {
 			openSvlogFile(file);
-			return true;
-		}
-		if (FileTypes.isConstPointFile(file)) {
-			openConstPointFile(file);
 			return true;
 		}
 		if (FileTypes.isNmeaFile(file)) {
@@ -337,31 +327,6 @@ public class Loader {
 
 		Platform.runLater(() -> {
 			model.initChart(nmeaFile);
-		});
-	}
-
-	private void openKmlFile(File file) {
-		Check.notNull(file);
-
-		if (model.getFileManager().getGprFiles().isEmpty()) {
-			throw new IllegalStateException("Open GPR file first");
-		}
-
-		new KmlReader().read(file, model);
-	}
-
-	private void openConstPointFile(File file) {
-		Check.notNull(file);
-
-		ConstPointsFile constPointFile = new ConstPointsFile();
-		constPointFile.load(file);
-
-		for (TraceFile traceFile : model.getFileManager().getGprFiles()) {
-			constPointFile.calcVerticalCutNearestPoints(traceFile);
-		}
-
-		Platform.runLater(() -> {
-			model.updateAuxElements();
 		});
 	}
 

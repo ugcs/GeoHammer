@@ -580,6 +580,7 @@
 										<argument>--main-class</argument> <argument>com.ugcs.geohammer.MainGeoHammer</argument>
 										<argument>--main-jar</argument> <argument>${project.artifactId}-jar-with-dependencies.jar</argument>
 										<argument>--java-options</argument> <argument>-Xmx16384m</argument>
+										<argument>--java-options</argument> <argument>-Djava.library.path=$ROOTDIR/runtime/bin</argument>
 										<argument>--runtime-image</argument> <argument>${project.build.directory}\jre21</argument>
 										<argument>--app-version</argument> <argument>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
 										<argument>--vendor</argument> <argument>SPH Engeneering</argument>

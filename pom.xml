@@ -33,7 +33,6 @@
 
 		<maven-assembly-plugin.version>3.6.0</maven-assembly-plugin.version>
 		<build-helper-maven-plugin.version>3.5.0</build-helper-maven-plugin.version>
-		<launch4j-maven-plugin.version>2.4.1</launch4j-maven-plugin.version>
 		<exec-maven-plugin.version>3.1.1</exec-maven-plugin.version>
 
 		<javafx.version>21.0.4</javafx.version>
@@ -46,6 +45,8 @@
 		<build.timestamp>${maven.build.timestamp}</build.timestamp>
 		<maven.build.timestamp.format>yyyyMMddHHmmss</maven.build.timestamp.format>
         <assembly.timestamp>${build.timestamp}</assembly.timestamp>
+		<app.version>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.${build.timestamp}</app.version>
+		<dist.basename>${project.name}-${app.version}-${platform.suffix}</dist.basename>
 	</properties>
 	<repositories>
 		<repository>
@@ -222,7 +223,7 @@
 							<goal>single</goal>
 						</goals>
 						<configuration>
-							<finalName>${project.artifactId}_${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}-${assembly.timestamp}_${platform.suffix}</finalName>
+							<finalName>${dist.basename}</finalName>
 							<appendAssemblyId>false</appendAssemblyId>
 							<descriptors>
 								<descriptor>${zip.content}</descriptor>
@@ -513,55 +514,99 @@
             </activation>
 			<properties>
         		<platform.suffix>windows-x86_64</platform.suffix>
-        		<zip.content>assembly/windows-zip.xml</zip.content>
+        		<installer.dir>${project.build.directory}\installer</installer.dir>
+        		<installer.input>${installer.dir}\input</installer.input>
+        		<iscc.executable>C:\Program Files (x86)\Inno Setup 6\ISCC.exe</iscc.executable>
       		</properties>
-       		<!-- exe -->
        		<build>
 	       		<plugins>
 					<plugin>
-					  <groupId>com.akathist.maven.plugins.launch4j</groupId>
-					  <artifactId>launch4j-maven-plugin</artifactId>
-					  <version>${launch4j-maven-plugin.version}</version>
-					  <executions>
-						<execution>
-							<id>l4j-gui</id>
-							<phase>package</phase>
-							<goals><goal>launch4j</goal></goals>
-							<configuration>
-							<dontWrapJar>false</dontWrapJar>
-							<headerType>gui</headerType>
-							<jar>${project.build.directory}/${project.artifactId}-jar-with-dependencies.jar</jar>
-							<outfile>${project.build.directory}/${project.artifactId}.exe</outfile>
-							<errTitle>${project.artifactId}</errTitle>
-							<classPath>
-							<mainClass>com.ugcs.geohammer.MainGeoHammer</mainClass>
-							<addDependencies>false</addDependencies>
-							</classPath>
-							<jre>
-								<minVersion>21.0.1</minVersion>
-								<path>jre21</path>
-								<maxHeapSize>16384</maxHeapSize>
-							</jre>
-							<versionInfo>
-								<fileVersion>1.0.0.0</fileVersion>
-								<txtFileVersion>${project.version}</txtFileVersion>
-								<fileDescription>GeoHammer</fileDescription>
-								<copyright>SPH Engeneering 2024</copyright>
-								<productVersion>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.0</productVersion>
-								<txtProductVersion>${project.version}</txtProductVersion>
-								<productName>GeoHammer</productName>
-								<internalName>geohammer</internalName>
-								<originalFilename>geohammer.exe</originalFilename>
-							</versionInfo>
-							<splash>
-								<file>${project.basedir}/assembly/splash_screen.bmp</file>
-								<waitForWindow>true</waitForWindow>
-								<timeout>60</timeout>
-								<timeoutErr>true</timeoutErr>
-							</splash>
-						  </configuration>
-						</execution>
-					  </executions>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>default</id>
+								<phase>none</phase>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-resources-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>stage-installer-input</id>
+								<phase>verify</phase>
+								<goals><goal>copy-resources</goal></goals>
+								<configuration>
+									<outputDirectory>${installer.input}</outputDirectory>
+									<resources>
+										<resource>
+											<directory>${project.build.directory}</directory>
+											<includes>
+												<include>${project.artifactId}-jar-with-dependencies.jar</include>
+											</includes>
+										</resource>
+										<resource>
+											<directory>${project.basedir}/templates</directory>
+											<targetPath>templates</targetPath>
+										</resource>
+										<resource>
+											<directory>${project.basedir}/scripts</directory>
+											<targetPath>scripts</targetPath>
+										</resource>
+									</resources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>${exec-maven-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>jpackage-app-image</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>${java.home}/bin/jpackage</executable>
+									<arguments>
+										<argument>--verbose</argument>
+										<argument>--type</argument> <argument>app-image</argument>
+										<argument>--dest</argument> <argument>${installer.dir}</argument>
+										<argument>--input</argument> <argument>${installer.input}</argument>
+										<argument>--name</argument> <argument>${project.name}</argument>
+										<argument>--main-class</argument> <argument>com.ugcs.geohammer.MainGeoHammer</argument>
+										<argument>--main-jar</argument> <argument>${project.artifactId}-jar-with-dependencies.jar</argument>
+										<argument>--java-options</argument> <argument>-Xmx16384m</argument>
+										<argument>--java-options</argument> <argument>-Djava.library.path=$ROOTDIR/runtime/bin</argument>
+										<argument>--runtime-image</argument> <argument>${project.build.directory}\jre21</argument>
+										<argument>--app-version</argument> <argument>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
+										<argument>--vendor</argument> <argument>SPH Engeneering</argument>
+										<argument>--copyright</argument> <argument>© SPH Engeneering, 2024</argument>
+										<argument>--icon</argument> <argument>assembly\logo.ico</argument>
+									</arguments>
+									<workingDirectory>${project.basedir}</workingDirectory>
+								</configuration>
+							</execution>
+							<execution>
+								<id>inno-setup-installer</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>${iscc.executable}</executable>
+									<arguments>
+										<argument>/DAppVersion=${app.version}</argument>
+										<argument>/DAppDir=${installer.dir}\${project.name}</argument>
+										<argument>/DOutputDir=${project.build.directory}</argument>
+										<argument>/DOutputBaseName=${dist.basename}</argument>
+										<argument>assembly\geohammer-windows.iss</argument>
+									</arguments>
+									<workingDirectory>${project.basedir}</workingDirectory>
+								</configuration>
+							</execution>
+						</executions>
 						<configuration>
 							<skip>${maven.main.skip}</skip>
 						</configuration>

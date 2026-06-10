@@ -139,9 +139,8 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
 			Instant dateTime = trace.getDateTime();
 			if (dateTime != null) {
-				value.setDateTime(LocalDateTime.ofInstant(dateTime, ZoneOffset.UTC));
+                value.setTimestamp(dateTime.toEpochMilli());
 			}
-
         }
 
         // init sample ranges

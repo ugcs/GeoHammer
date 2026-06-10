@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.chart.tool.projection.math;
 
-import com.ugcs.geohammer.math.LinearInterpolator;
+import com.ugcs.geohammer.math.interpolation.LinearInterpolator;
 import javafx.geometry.Point2D;
 
 import java.util.ArrayList;

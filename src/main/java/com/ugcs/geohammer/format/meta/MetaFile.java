@@ -4,6 +4,7 @@ import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
+import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.GsonConfig;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
@@ -25,9 +26,6 @@ import java.util.Map;
 import java.util.Set;
 
 public class MetaFile {
-
-    private static final String META_FILE_EXTENSION = ".geohammer";
-
     private @Nullable IndexRange sampleRange;
 
 	private @Nullable Double contrast;
@@ -119,9 +117,28 @@ public class MetaFile {
         Check.notNull(source);
 
         String sourceBase = FileNames.removeExtension(source.getName());
-        String metaFileName = Strings.nullToEmpty(sourceBase) + META_FILE_EXTENSION;
+        String metaFileName = Strings.nullToEmpty(sourceBase) + "." + FileTypes.GEOHAMMER_EXTENSION;
 
         return new File(source.getParentFile(), metaFileName).toPath();
+    }
+
+    public static @Nullable File getSourceFile(File metaFile) {
+        Check.notNull(metaFile);
+
+        File parent = metaFile.getParentFile();
+        String base = FileNames.removeExtension(metaFile.getName());
+        File[] files = parent != null ? parent.listFiles() : null;
+        if (base == null || files == null) {
+            return null;
+        }
+        for (File file : files) {
+            if (file.isFile()
+                    && !FileTypes.isGeohammerFile(file)
+                    && base.equals(FileNames.removeExtension(file.getName()))) {
+                return file;
+            }
+        }
+        return null;
     }
 
     public void load(Path path) throws IOException {

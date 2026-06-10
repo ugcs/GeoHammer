@@ -27,8 +27,11 @@ class MissingValuesTest {
         schema.addColumn(new Column("lon").withSemantic(Semantic.LONGITUDE.getName()));
     }
 
-    private GeoData row(Double lat, Double lon) {
+    private GeoData row(Long timestamp, Double lat, Double lon) {
         GeoData value = new GeoData(schema);
+        if (timestamp != null) {
+            value.setTimestamp(timestamp);
+        }
         if (lat != null) {
             value.setLatitude(lat);
         }
@@ -41,12 +44,12 @@ class MissingValuesTest {
     @Test
     void fillLatLonFillsMiddleGap() {
         List<GeoData> values = List.of(
-                row(0.0, 10.0),
-                row(null, null),
-                row(null, null),
-                row(3.0, 13.0));
+                row(1L, 0.0, 10.0),
+                row(2L, null, null),
+                row(3L, null, null),
+                row(4L, 3.0, 13.0));
 
-        MissingValues.fillLatLon(values);
+        MissingValues.fillGeoDataPositions(values);
 
         assertEquals(1.0, values.get(1).getLatitude(), EPS);
         assertEquals(11.0, values.get(1).getLongitude(), EPS);
@@ -57,12 +60,12 @@ class MissingValuesTest {
     @Test
     void fillLatLonReplicatesLeadingAndTrailingGaps() {
         List<GeoData> values = List.of(
-                row(null, null),
-                row(5.0, 50.0),
-                row(6.0, 60.0),
-                row(null, null));
+                row(1L, null, null),
+                row(2L, 5.0, 50.0),
+                row(3L, 6.0, 60.0),
+                row(4L, null, null));
 
-        MissingValues.fillLatLon(values);
+        MissingValues.fillGeoDataPositions(values);
 
         assertEquals(5.0, values.get(0).getLatitude(), EPS);
         assertEquals(50.0, values.get(0).getLongitude(), EPS);
@@ -73,10 +76,10 @@ class MissingValuesTest {
     @Test
     void fillLatLonLeavesAllRowsUnchanged() {
         List<GeoData> values = List.of(
-                row(null, null),
-                row(null, null));
+                row(1L, null, null),
+                row(2L, null, null));
 
-        MissingValues.fillLatLon(values);
+        MissingValues.fillGeoDataPositions(values);
 
         assertNull(values.get(0).getLatitude());
         assertNull(values.get(0).getLongitude());
@@ -87,10 +90,10 @@ class MissingValuesTest {
     @Test
     void fillLatLonLeavesFullyValidRowsUnchanged() {
         List<GeoData> values = List.of(
-                row(1.0, 11.0),
-                row(2.0, 12.0));
+                row(1L, 1.0, 11.0),
+                row(2L, 2.0, 12.0));
 
-        MissingValues.fillLatLon(values);
+        MissingValues.fillGeoDataPositions(values);
 
         assertEquals(1.0, values.get(0).getLatitude(), EPS);
         assertEquals(11.0, values.get(0).getLongitude(), EPS);
@@ -101,11 +104,11 @@ class MissingValuesTest {
     @Test
     void fillLatLonTreatsHalfRowAsGap() {
         List<GeoData> values = List.of(
-                row(1.0, 11.0),
-                row(null, 12.0),
-                row(3.0, 13.0));
+                row(1L, 1.0, 11.0),
+                row(2L, null, 12.0),
+                row(3L, 3.0, 13.0));
 
-        MissingValues.fillLatLon(values);
+        MissingValues.fillGeoDataPositions(values);
 
         assertEquals(2.0, values.get(1).getLatitude(), EPS);
         assertEquals(12.0, values.get(1).getLongitude(), EPS);
@@ -113,7 +116,7 @@ class MissingValuesTest {
 
     @Test
     void fillLatLonHandlesEmptyAndNullInput() {
-        MissingValues.fillLatLon(null);
-        MissingValues.fillLatLon(new ArrayList<>());
+        MissingValues.fillGeoDataPositions(null);
+        MissingValues.fillGeoDataPositions(new ArrayList<>());
     }
 }

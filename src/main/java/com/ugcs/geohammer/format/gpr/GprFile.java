@@ -33,6 +33,7 @@ import com.ugcs.geohammer.model.element.BaseObject;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.LengthUnit;
+import com.ugcs.geohammer.util.MissingValues;
 import com.ugcs.geohammer.util.Traces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +117,7 @@ public class GprFile extends TraceFile {
 
 		List<Trace> traces = readTraces(binFile);
 		// fill latlon where null
-		Traces.fillMissingLatLon(traces);
+		MissingValues.fillTracePositions(traces);
 
 		if (!traces.isEmpty() && traces.stream().allMatch(t -> t.getLatLon() == null)) {
 			throw new IOException("File '" + file.getName() + "' has no valid GPS coordinates in any trace header.");
@@ -151,9 +152,6 @@ public class GprFile extends TraceFile {
 			}
 
 			Trace trace = readTrace(binTrace, converter);
-			if (trace == null) {
-				continue;
-			}
 			traces.add(trace);
 		}
 		return traces;

@@ -6,22 +6,22 @@ import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.geotagger.domain.Position;
-import com.ugcs.geohammer.geotagger.domain.Segment;
-import com.ugcs.geohammer.model.LatLon;
+import com.ugcs.geohammer.geotagger.domain.SplineStencil;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.Semantic;
+import com.ugcs.geohammer.util.Nulls;
 import javafx.application.Platform;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
 @Service
@@ -38,8 +38,13 @@ public class Geotagger {
     }
 
 	public List<Position> getPositions(SgyFile file) {
-		return file.getGeoData().stream()
-				.map(Position::of).toList();
+		if (file == null) {
+			return List.of();
+		}
+		return Nulls.toEmpty(file.getGeoData()).stream()
+				.map(Position::of)
+				.filter(Objects::nonNull)
+				.toList();
 	}
 
 	public List<Position> getPositions(List<SgyFile> files) {
@@ -77,12 +82,12 @@ public class Geotagger {
 	}
 
     private void interpolateAndUpdatePositions(CsvFile csvFile, List<Position> positions, Progress progress) {
-		List<GeoData> geoData = csvFile.getGeoData();
-		boolean hasAltitude = !geoData.isEmpty()
-				&& geoData.getFirst().getSchema().getHeaderBySemantic(Semantic.ALTITUDE.getName()) != null;
+		List<GeoData> values = csvFile.getGeoData();
+		boolean hasAltitude = !values.isEmpty()
+				&& values.getFirst().getSchema().getHeaderBySemantic(Semantic.ALTITUDE.getName()) != null;
 
-        for (GeoData value : geoData) {
-            Position interpolated = interpolate(value, positions);
+        for (GeoData value : values) {
+            Position interpolated = interpolate(positions, value.getTimestamp());
             if (interpolated != null) {
                 value.setLatitude(interpolated.latitude());
                 value.setLongitude(interpolated.longitude());
@@ -97,53 +102,50 @@ public class Geotagger {
     private void interpolateAndUpdatePositions(TraceFile traceFile, List<Position> positions, Progress progress) {
         for (int i = 0; i < traceFile.getTraces().size(); i++) {
             Trace trace = traceFile.getTraces().get(i);
-            GeoData value = traceFile.getGeoData().get(i);
+			Instant time = trace.getDateTime();
 
-            Position interpolated = interpolate(value, positions);
+			Position interpolated = interpolate(positions, time != null ? time.toEpochMilli() : null);
             if (interpolated != null) {
-                trace.setLatLon(
-                        new LatLon(
-                                interpolated.latitude(),
-                                interpolated.longitude()
-                        )
-                );
+                trace.setLatLon(interpolated.getLatLon());
             }
             progress.increment();
         }
         traceFile.syncMeta();
     }
 
-    private @Nullable Position interpolate(GeoData value, List<Position> positions) {
-        LocalDateTime dateTime = value.getDateTime();
-        if (dateTime == null) {
+    private @Nullable Position interpolate(List<Position> positions, Long time) {
+        if (time == null) {
             return null;
         }
-        long time = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
-        Segment segment = findSegment(positions, time);
-        if (segment == null) {
+		SplineStencil stencil = findStencil(positions, time);
+        if (stencil == null) {
             return null;
         }
-        return segment.interpolatePosition(time);
+        return stencil.interpolate(time);
     }
 
 	@Nullable
-	private Segment findSegment(List<Position> positions, long time) {
+	private SplineStencil findStencil(List<Position> positions, long time) {
 		if (positions.isEmpty()) {
 			return null;
 		}
 		if (time < positions.getFirst().time() || time > positions.getLast().time()) {
 			return null;
 		}
-		int index = Collections.binarySearch(positions,
+		// first index >= time
+		int i = Collections.binarySearch(positions,
 				new Position(time, 0.0, 0.0, 0.0),
 				Comparator.comparingLong(Position::time));
-		if (index < 0) {
-			index = -index - 1;
+		if (i < 0) {
+			i = -i - 1;
 		}
-		return new Segment(
-				positions.get(Math.max(index - 1, 0)),
-				positions.get(Math.min(index, positions.size() - 1))
-		);
+
+		Position p2 = positions.get(Math.max(i - 2, 0));
+		Position p1 = positions.get(Math.max(i - 1, 0));
+		Position n1 = positions.get(Math.min(i, positions.size() - 1));
+		Position n2 = positions.get(Math.min(i + 1, positions.size() - 1));
+
+		return new SplineStencil(p2, p1, n1, n2);
 	}
 
 	private void save(SgyFile sgyFile) throws IOException {

@@ -58,37 +58,6 @@ public final class Traces {
         return copy(traces, null);
     }
 
-    public static void fillMissingLatLon(List<Trace> traces) {
-        if (traces == null) {
-            return;
-        }
-
-        Integer firstMissingIndex = null;
-        LatLon latlon = null;
-        for (int i = 0; i < traces.size(); i++) {
-            Trace trace = traces.get(i) ;
-
-            if (trace.getLatLon() == null) {
-                if (latlon != null) {
-                    trace.setLatLon(latlon);
-                } else if (firstMissingIndex == null) {
-                    firstMissingIndex = i;
-                }
-            }
-
-            if (trace.getLatLon() != null) {
-                latlon = trace.getLatLon();
-
-                if (firstMissingIndex != null) {
-                    for (int j = firstMissingIndex; j < i; j++) {
-                        traces.get(j).setLatLon(latlon);
-                    }
-                    firstMissingIndex = null;
-                }
-            }
-        }
-    }
-
     public static int findNearestTraceIndex(SgyFile file, LatLon latlon) {
         return findNearestTrace(file, latlon)
                 .map(TraceKey::getIndex)

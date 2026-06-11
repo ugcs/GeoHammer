@@ -4,6 +4,7 @@ import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
+import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.GsonConfig;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
@@ -122,6 +123,32 @@ public class MetaFile {
         String metaFileName = Strings.nullToEmpty(sourceBase) + META_FILE_EXTENSION;
 
         return new File(source.getParentFile(), metaFileName).toPath();
+    }
+
+	public static boolean isMeta(File file) {
+		return file.getName().endsWith(META_FILE_EXTENSION);
+	}
+
+    public static @Nullable File getSource(File metaFile) {
+        Check.notNull(metaFile);
+
+        File parent = metaFile.getParentFile();
+		if (parent == null) {
+			return null;
+		}
+        String base = FileNames.removeExtension(metaFile.getName());
+        File[] files = parent.listFiles();
+        if (files == null) {
+            return null;
+        }
+        for (File file : files) {
+            if (file.isFile()
+					&& !isMeta(file)
+                    && base.equals(FileNames.removeExtension(file.getName()))) {
+                return file;
+            }
+        }
+        return null;
     }
 
     public void load(Path path) throws IOException {

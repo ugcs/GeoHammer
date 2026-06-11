@@ -93,6 +93,8 @@ public class SensorLineChart extends Chart {
 
     private static final Color LINE_COLOR = Color.web("0xdf818eff");
 
+    private static final double RANGE_MERGE_SIMILARITY_THRESHOLD = 0.5;
+
     private final SgyFile file;
 
     private @Nullable final String lineSeriesName;
@@ -188,10 +190,8 @@ public class SensorLineChart extends Chart {
             Plot plot = createPlot(seriesName, file.getGeoData());
             createChart(plot);
         }
-        // sync display ranges of the filtered and source columns
-        for (String seriesName : charts.keySet()) {
-            syncDisplayRange(seriesName);
-        }
+        // sync display ranges of the series
+        mergeDisplayRanges();
 
         // create interactive chart
         interactiveChart = createInteractiveChart();
@@ -613,10 +613,8 @@ public class SensorLineChart extends Chart {
         seriesToRemove.removeAll(displayHeaders);
         seriesToRemove.forEach(this::removeFileColumn);
 
-        // sync display ranges of the filtered and source columns
-        for (String seriesName : charts.keySet()) {
-            syncDisplayRange(seriesName);
-        }
+        // sync display ranges of the series
+        mergeDisplayRanges();
 
         // update interactive chart
         interactiveChart.setPlot(createEmptyPlot(Strings.empty(), numTraces()));
@@ -985,16 +983,78 @@ public class SensorLineChart extends Chart {
 
     // filters
 
-    private void syncDisplayRange(String seriesName) {
-        String sourceSeriesName = getSourceSeriesName(seriesName);
-        if (Objects.equals(seriesName, sourceSeriesName)) {
-            return;
+    private @Nullable Range getRangeUnion(List<LineChartWithMarkers> group) {
+        if (Nulls.isNullOrEmpty(group)) {
+            return null;
         }
-        LineChartWithMarkers chart = charts.get(seriesName);
-        LineChartWithMarkers sourceChart = charts.get(sourceSeriesName);
-        if (chart != null && sourceChart != null) {
-            chart.plot.setDisplayRange(sourceChart.plot.getDisplayRange());
-            chart.zoomTo(viewport);
+        Range union = null;
+        for (LineChartWithMarkers chart : group) {
+            Range range = chart.plot.getDataRange();
+            if (range == null) {
+                continue;
+            }
+            union = union == null ? range : union.union(range);
+        }
+        return union;
+    }
+
+    private void mergeDisplayRanges() {
+        // nodes: chart instances
+        List<LineChartWithMarkers> nodes = new ArrayList<>(charts.values());
+        int n = nodes.size();
+        // incidence map of the vertices:
+        // two charts are connected if their
+        // ranges pass the similarity threshold
+        Map<Integer, List<Integer>> graph = new HashMap<>();
+        for (int i = 0; i < n; i++) {
+            Plot left = nodes.get(i).plot;
+            Range leftRange = left.getDataRange();
+            if (leftRange == null) {
+                continue;
+            }
+            String leftSourceSeriesName = getSourceSeriesName(left.getSeriesName());
+            for (int j = i + 1; j < n; j++) {
+                Plot right = nodes.get(j).plot;
+                Range rightRange = right.getDataRange();
+                if (rightRange == null) {
+                    continue;
+                }
+                String rightSourceSeriesName = getSourceSeriesName(right.getSeriesName());
+                if (Objects.equals(leftSourceSeriesName, rightSourceSeriesName)
+                        || leftRange.intersectionOverUnion(rightRange) >= RANGE_MERGE_SIMILARITY_THRESHOLD) {
+                    graph.computeIfAbsent(i, k -> new ArrayList<>()).add(j);
+                    graph.computeIfAbsent(j, k -> new ArrayList<>()).add(i);
+                }
+            }
+        }
+
+        boolean[] seen = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            if (seen[i]) {
+                continue;
+            }
+            List<LineChartWithMarkers> group = new ArrayList<>();
+            Queue<Integer> q = new ArrayDeque<>();
+            q.offer(i);
+            seen[i] = true;
+            while (!q.isEmpty()) {
+                int u = q.poll();
+                group.add(nodes.get(u));
+                for (int v : Nulls.toEmpty(graph.get(u))) {
+                    if (!seen[v]) {
+                        q.offer(v);
+                        seen[v] = true;
+                    }
+                }
+            }
+            if (group.size() > 1) {
+                Range dataRange = getRangeUnion(group);
+                Range displayRange = Plot.buildDisplayRange(dataRange);
+                for (LineChartWithMarkers chart : group) {
+                    chart.plot.setDisplayRange(displayRange);
+                    chart.zoomTo(viewport);
+                }
+            }
         }
     }
 
@@ -1051,8 +1111,8 @@ public class SensorLineChart extends Chart {
             } else {
                 filteredChart.setPlot(plot);
             }
-            // keep display range of the source series
-            syncDisplayRange(filteredSeriesName);
+            // sync display ranges of the series
+            mergeDisplayRanges();
             filteredChart.updateData();
             model.publishEvent(new SeriesUpdatedEvent(this, file,
                     filteredSeriesName, true, true));

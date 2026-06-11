@@ -11,11 +11,8 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 public class GeoData {
 
@@ -53,6 +50,14 @@ public class GeoData {
 
     public ColumnSchema getSchema() {
         return schema;
+    }
+
+    public Long getTimestamp() {
+        return timestamp != -1 ? timestamp : null;
+    }
+
+    public void setTimestamp(Long timestamp) {
+        this.timestamp = timestamp != null ? timestamp : -1;
     }
 
     public LocalDateTime getDateTime() {
@@ -242,29 +247,6 @@ public class GeoData {
         }
         return values.getFirst().getSchema();
     }
-
-	public static <T> List<T> getColumnValues(List<GeoData> values, Function<GeoData, T> get, BiConsumer<GeoData, T> set) {
-		return new AbstractList<T>() {
-
-			@Override
-			public int size() {
-				return values.size();
-			}
-
-			@Override
-			public T get(int index) {
-				return get.apply(values.get(index));
-			}
-
-			@Override
-			public T set(int index, T element) {
-				GeoData geodata = values.get(index);
-				T old = get.apply(geodata);
-				set.accept(geodata, element);
-				return old;
-			}
-		};
-	}
 
     public static Column getColumn(List<GeoData> values, String header) {
         ColumnSchema schema = getSchema(values);

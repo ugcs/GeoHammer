@@ -2,6 +2,7 @@ package com.ugcs.geohammer.format;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -9,7 +10,8 @@ import java.util.List;
 import java.util.Optional;
 
 import com.ugcs.geohammer.format.csv.parser.Parser;
-import com.ugcs.geohammer.math.LinearInterpolator;
+import com.ugcs.geohammer.format.gpr.Trace;
+import com.ugcs.geohammer.math.interpolation.Interpolator;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.template.DataMapping;
@@ -231,21 +233,33 @@ public class PositionFile {
         }
 
         int numTraces = traceFile.traces.size();
+        double[] times = new double[numTraces];
+        Arrays.fill(times, Double.NaN);
         double[] values = new double[numTraces];
         Arrays.fill(values, Double.NaN);
 
         for (GeoData value : Nulls.toEmpty(geoData)) {
             Number traceIndex = value.getNumber(traceHeader);
-            if (traceIndex == null || traceIndex.intValue() < 0 || traceIndex.intValue() >= numTraces) {
+            if (traceIndex == null) {
                 continue;
+            }
+            int i = traceIndex.intValue(); // unboxed trace index
+            if (i < 0 || i >= numTraces) {
+                continue;
+            }
+
+            Trace trace = traceFile.traces.get(i);
+            Instant time = trace.getDateTime();
+            if (time != null) {
+                times[i] = time.toEpochMilli();
             }
             Number number = value.getNumber(header);
             if (number != null) {
-                values[traceIndex.intValue()] = number.doubleValue();
+                values[i] = number.doubleValue();
             }
         }
         // interpolate missing values
-        LinearInterpolator.interpolateNans(values);
+        Interpolator.linear().interpolate(times, values);
         // set remaining nans to zeros
         for (int i = 0; i < values.length; i++) {
             if (Double.isNaN(values[i])) {

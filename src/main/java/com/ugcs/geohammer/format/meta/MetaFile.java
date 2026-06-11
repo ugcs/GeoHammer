@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class MetaFile {
+
+    private static final String META_FILE_EXTENSION = ".geohammer";
+
     private @Nullable IndexRange sampleRange;
 
 	private @Nullable Double contrast;
@@ -117,23 +120,30 @@ public class MetaFile {
         Check.notNull(source);
 
         String sourceBase = FileNames.removeExtension(source.getName());
-        String metaFileName = Strings.nullToEmpty(sourceBase) + "." + FileTypes.GEOHAMMER_EXTENSION;
+        String metaFileName = Strings.nullToEmpty(sourceBase) + META_FILE_EXTENSION;
 
         return new File(source.getParentFile(), metaFileName).toPath();
     }
 
-    public static @Nullable File getSourceFile(File metaFile) {
+	public static boolean isMeta(File file) {
+		return file.getName().endsWith(META_FILE_EXTENSION);
+	}
+
+    public static @Nullable File getSource(File metaFile) {
         Check.notNull(metaFile);
 
         File parent = metaFile.getParentFile();
+		if (parent == null) {
+			return null;
+		}
         String base = FileNames.removeExtension(metaFile.getName());
-        File[] files = parent != null ? parent.listFiles() : null;
-        if (base == null || files == null) {
+        File[] files = parent.listFiles();
+        if (files == null) {
             return null;
         }
         for (File file : files) {
             if (file.isFile()
-                    && !FileTypes.isGeohammerFile(file)
+					&& !isMeta(file)
                     && base.equals(FileNames.removeExtension(file.getName()))) {
                 return file;
             }

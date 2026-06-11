@@ -21,10 +21,6 @@ public final class FileTypes {
 
     private static final String POSITIONS_NAME_SUFFIX = "-position.csv";
 
-    public static final String GEOHAMMER_EXTENSION = "geohammer";
-
-    private static final FileProbe GEOHAMMER_PROBE = new ExtensionProbe(GEOHAMMER_EXTENSION);
-
     private FileTypes() {
     }
 
@@ -50,10 +46,6 @@ public final class FileTypes {
 
     public static boolean isNmeaFile(File file) {
         return NMEA_PROBE.matches(file) && NMEA_CONTENT_PROBE.matches(file);
-    }
-
-    public static boolean isGeohammerFile(File file) {
-        return GEOHAMMER_PROBE.matches(file);
     }
 
     public static boolean isPositionFile(File file) {

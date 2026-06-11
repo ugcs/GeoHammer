@@ -1,7 +1,6 @@
 package com.ugcs.geohammer;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,7 +34,6 @@ import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
-import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -131,10 +129,10 @@ public class Loader {
 				try {
 					listener.progressMsg("Opening " + file);
 
-					File openedFile = openFile(file);
-					if (openedFile != null) {
-						listener.progressMsg("File opened: " + openedFile);
-						openedFiles.add(openedFile);
+					boolean opened = openFile(file);
+					if (opened) {
+						listener.progressMsg("File opened: " + file);
+						openedFiles.add(file);
 					}
 				} catch (CancellationException e) {
 					// loading cancelled
@@ -218,44 +216,39 @@ public class Loader {
 		return result;
 	}
 
-	private @Nullable File openFile(File file) throws IOException {
+	private boolean openFile(File file) throws IOException {
 		if (file == null) {
-			return null;
+			return false;
 		}
-		if (FileTypes.isGeohammerFile(file)) {
-			return openGeohammerFile(file);
+		if (MetaFile.isMeta(file)) {
+			file = MetaFile.getSource(file);
+			if (file == null) {
+				return false;
+			}
 		}
 		if (FileTypes.isCsvFile(file)) {
 			openCsvFile(file);
-			return file;
+			return true;
 		}
 		if (FileTypes.isGprFile(file)) {
 			openGprFile(file);
-			return file;
+			return true;
 		}
 		if (FileTypes.isDztFile(file)) {
 			openDztFile(file);
-			return file;
+			return true;
 		}
 		if (FileTypes.isSvlogFile(file)) {
 			openSvlogFile(file);
-			return file;
+			return true;
 		}
 		if (FileTypes.isNmeaFile(file)) {
 			openNmeaFile(file);
-			return file;
+			return true;
 		}
 		// try csv as a fallback
 		openCsvFile(file);
-		return file;
-	}
-
-	private @Nullable File openGeohammerFile(File file) throws IOException {
-		File source = MetaFile.getSourceFile(file);
-		if (source == null) {
-			throw new FileNotFoundException("No data file found for " + file.getName());
-		}
-		return openFile(source);
+		return true;
 	}
 
 	private void openGprFile(File file) throws IOException {

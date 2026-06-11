@@ -555,6 +555,12 @@
 											<directory>${project.basedir}/scripts</directory>
 											<targetPath>scripts</targetPath>
 										</resource>
+										<resource>
+											<directory>${project.basedir}/src/main/resources</directory>
+											<includes>
+												<include>splash_screen.jpg</include>
+											</includes>
+										</resource>
 									</resources>
 								</configuration>
 							</execution>
@@ -580,6 +586,7 @@
 										<argument>--main-class</argument> <argument>com.ugcs.geohammer.MainGeoHammer</argument>
 										<argument>--main-jar</argument> <argument>${project.artifactId}-jar-with-dependencies.jar</argument>
 										<argument>--java-options</argument> <argument>-Xmx16384m</argument>
+										<argument>--java-options</argument> <argument>-splash:$APPDIR\splash_screen.jpg</argument>
 										<argument>--java-options</argument> <argument>-Djava.library.path=$ROOTDIR/runtime/bin</argument>
 										<argument>--runtime-image</argument> <argument>${project.build.directory}\jre21</argument>
 										<argument>--app-version</argument> <argument>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
@@ -686,6 +693,17 @@
 									</arguments>
 								</configuration>
 							</execution>
+							<execution>
+								<id>copy-splash</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>cp</executable>
+									<arguments>
+										<argument>src/main/resources/splash_screen.jpg</argument><argument>${installer.input}</argument>
+									</arguments>
+								</configuration>
+							</execution>
                             <execution>
                                 <id>Build Native Mac App</id>
                                 <phase>install</phase>
@@ -702,7 +720,8 @@
 										<argument>--name</argument> <argument>${project.name}</argument>
 										<argument>--main-class</argument> <argument>com.ugcs.geohammer.MainGeoHammer</argument>
 										<argument>--main-jar</argument> <argument>${project.artifactId}-jar-with-dependencies.jar</argument>
-										<argument>--java-options</argument> <argument>"-splash:splash_screen.jpg -Xmx16384m"</argument>
+										<argument>--java-options</argument> <argument>-Xmx16384m</argument>
+										<argument>--java-options</argument> <argument>-splash:$APPDIR/splash_screen.jpg</argument>
 										<argument>--runtime-image</argument> <argument>${project.build.directory}/jre21</argument>
 										<argument>--app-version</argument> <argument>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
 										<argument>--vendor</argument> <argument>"SPH Engeneering"</argument>

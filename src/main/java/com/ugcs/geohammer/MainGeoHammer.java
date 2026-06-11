@@ -89,6 +89,13 @@ public class MainGeoHammer extends Application {
 		stage.setY(0);
 		stage.show();
 
+		// JavaFX windows do not trigger the JVM splash auto-close (that hook is AWT-only),
+		// so close the -splash: image manually once the main stage is shown.
+		SplashScreen splash = SplashScreen.getSplashScreen();
+		if (splash != null) {
+			splash.close();
+		}
+
 		stage.setOnCloseRequest(event -> {
             eventSender.shutdown();
 

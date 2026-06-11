@@ -56,11 +56,27 @@ public class Range {
         );
     }
 
+    public Range intersection(Range range) {
+        double min = Math.max(this.min, range.min);
+        double max = Math.min(this.max, range.max);
+        return max >= min ? new Range(min, max) : null;
+    }
+
     public Range union(Range range) {
         return new Range(
                 Math.min(min, range.min),
                 Math.max(max, range.max)
         );
+    }
+
+    // Jaccard similarity coefficient
+    public double intersectionOverUnion(Range range) {
+        if (range == null) {
+            return 0.0;
+        }
+        double intersectionWidth = Math.max(0.0, Math.min(max, range.max) - Math.max(min, range.min));
+        double unionWidth = Math.max(max, range.max) - Math.min(min, range.min);
+        return unionWidth > 0.0 ? intersectionWidth / unionWidth : 0.0;
     }
 
     @Override

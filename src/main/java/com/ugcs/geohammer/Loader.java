@@ -15,6 +15,7 @@ import com.ugcs.geohammer.format.FileOpenException;
 import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.format.csv.parser.Warnings;
 import com.ugcs.geohammer.format.gpr.GprFile;
+import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.ProgressTask;
@@ -218,6 +219,12 @@ public class Loader {
 	private boolean openFile(File file) throws IOException {
 		if (file == null) {
 			return false;
+		}
+		if (MetaFile.isMeta(file)) {
+			file = MetaFile.getSource(file);
+			if (file == null) {
+				return false;
+			}
 		}
 		if (FileTypes.isCsvFile(file)) {
 			openCsvFile(file);

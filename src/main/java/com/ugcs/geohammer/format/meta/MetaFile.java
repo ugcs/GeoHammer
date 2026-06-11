@@ -124,6 +124,32 @@ public class MetaFile {
         return new File(source.getParentFile(), metaFileName).toPath();
     }
 
+	public static boolean isMeta(File file) {
+		return file.getName().endsWith(META_FILE_EXTENSION);
+	}
+
+    public static @Nullable File getSource(File metaFile) {
+        Check.notNull(metaFile);
+
+        File parent = metaFile.getParentFile();
+		if (parent == null) {
+			return null;
+		}
+        String base = FileNames.removeExtension(metaFile.getName());
+        File[] files = parent.listFiles();
+        if (files == null) {
+            return null;
+        }
+        for (File file : files) {
+            if (file.isFile()
+					&& !metaFile.getName().equals(file.getName())
+                    && base.equals(FileNames.removeExtension(file.getName()))) {
+                return file;
+            }
+        }
+        return null;
+    }
+
     public void load(Path path) throws IOException {
         Check.notNull(path);
 

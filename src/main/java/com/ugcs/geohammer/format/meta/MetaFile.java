@@ -4,7 +4,6 @@ import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
-import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.GsonConfig;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
@@ -143,7 +142,7 @@ public class MetaFile {
         }
         for (File file : files) {
             if (file.isFile()
-					&& !isMeta(file)
+					&& !metaFile.getName().equals(file.getName())
                     && base.equals(FileNames.removeExtension(file.getName()))) {
                 return file;
             }

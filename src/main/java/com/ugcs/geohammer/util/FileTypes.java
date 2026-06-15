@@ -9,7 +9,7 @@ public final class FileTypes {
 
     private static final FileProbe CSV_PROBE = new ExtensionProbe("csv", "asc", "pos");
 
-    private static final FileProbe GPR_PROBE = new ExtensionProbe("sgy");
+    private static final FileProbe GPR_PROBE = new ExtensionProbe("sgy", "segy");
 
     private static final FileProbe DZT_PROBE = new ExtensionProbe("dzt");
 

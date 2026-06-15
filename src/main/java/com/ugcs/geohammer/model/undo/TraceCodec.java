@@ -10,6 +10,7 @@ import com.ugcs.geohammer.util.Nulls;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -103,10 +104,10 @@ public final class TraceCodec {
         out.writeBoolean(trace.isMarked());
     }
 
-    private static Trace readTrace(DataInput in) throws IOException {
+    private static Trace readTrace(DataInput in, ByteOrder order) throws IOException {
         byte[] binHeader = readBytes(in);
         TraceHeader header = binHeader != null
-                ? GprFile.traceHeaderReader.read(binHeader)
+                ? GprFile.traceHeaderReader.read(binHeader, order)
                 : null;
         float[] samples = readFloats(in);
         LatLon latLon = readLatLon(in);
@@ -121,8 +122,9 @@ public final class TraceCodec {
         return trace;
     }
 
-    public static void write(DataOutput out, List<Trace> traces) throws IOException {
+    public static void write(DataOutput out, List<Trace> traces, ByteOrder order) throws IOException {
         traces = Nulls.toEmpty(traces);
+        out.writeBoolean(order == ByteOrder.LITTLE_ENDIAN);
         out.writeInt(traces.size());
         for (Trace trace : traces) {
             writeTrace(out, trace);
@@ -130,10 +132,11 @@ public final class TraceCodec {
     }
 
     public static List<Trace> read(DataInput in) throws IOException {
+        ByteOrder order = in.readBoolean() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
         int numTraces = in.readInt();
         List<Trace> traces = new ArrayList<>(numTraces);
         for (int i = 0; i < numTraces; i++) {
-            Trace trace = readTrace(in);
+            Trace trace = readTrace(in, order);
             trace.setIndex(i);
             traces.add(trace);
         }

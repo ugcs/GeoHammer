@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +25,7 @@ public class BinFile {
 	
 	private byte[] txtHdr;
 	private byte[] binHdr;
+	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 	private List<BinTrace> traces = new ArrayList<>();
 	
 	
@@ -47,11 +49,10 @@ public class BinFile {
 			
 			binFile.txtHdr = txtHdrBlock.read(blockFile).array();
 			binFile.binHdr = binHdrBlock.read(blockFile).array();
-			
-			BinaryHeader binaryHeader = GprFile.binaryHeaderReader.read(binHdrBlock.read(blockFile).array());
-			
-			System.out.println(binaryHeader.getDataSampleCode() + " " + binaryHeader.getDataSampleCode().getSize());
-			
+
+			binFile.byteOrder = GprFile.binaryHeaderReader.detectByteOrder(binFile.binHdr);
+			BinaryHeader binaryHeader = GprFile.binaryHeaderReader.read(binFile.binHdr, binFile.byteOrder);
+
 			while (blockFile.hasNext(TraceHeader.TRACE_HEADER_LENGTH)) {
 				if (Thread.currentThread().isInterrupted()) {
 					throw new CancellationException();
@@ -62,7 +63,7 @@ public class BinFile {
 				BinTrace binTrace = new BinTrace();
 				binTrace.header = traceHdrBlock.read(blockFile).array();
 
-		        TraceHeader header = GprFile.traceHeaderReader.read(binTrace.header);
+		        TraceHeader header = GprFile.traceHeaderReader.read(binTrace.header, binFile.byteOrder);
 
 		        int dataLength = binaryHeader.getDataSampleCode().getSize() * header.getNumberOfSamples();
 		        
@@ -105,6 +106,10 @@ public class BinFile {
 
 	public byte[] getBinHdr() {
 		return binHdr;
+	}
+
+	public ByteOrder getByteOrder() {
+		return byteOrder;
 	}
 
 	public void setBinHdr(byte[] binHdr) {

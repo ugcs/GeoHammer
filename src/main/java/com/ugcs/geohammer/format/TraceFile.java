@@ -33,11 +33,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
@@ -253,8 +252,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
     public abstract TraceFile copy();
 
     public FileSnapshot<TraceFile> createSnapshotWithTraces() {
+        return createSnapshotWithTraces(ByteOrder.BIG_ENDIAN);
+    }
+
+    protected FileSnapshot<TraceFile> createSnapshotWithTraces(ByteOrder byteOrder) {
         try {
-            return new SnapshotWithTraces(this);
+            return new SnapshotWithTraces(this, byteOrder);
         } catch (IOException e) {
             log.error("Failed to create snapshot", e);
             return null;
@@ -407,12 +410,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
         private final boolean backgroundRemoved;
 
-        public SnapshotWithTraces(TraceFile file) throws IOException {
+        public SnapshotWithTraces(TraceFile file, ByteOrder byteOrder) throws IOException {
             super(file);
 
             TempStore tempStore = AppContext.getInstance(TempStore.class);
             tracesEntry = tempStore.newEntry();
-            tracesEntry.write(out -> TraceCodec.write(out, file.traces));
+            tracesEntry.write(out -> TraceCodec.write(out, file.traces, byteOrder));
 
             profile = file.getGroundProfile();
             backgroundRemoved = file.isBackgroundRemoved();

@@ -267,6 +267,10 @@ public class GprFile extends TraceFile {
 		int y = buffer.getInt(SOURCE_Y_POS);
 
 		short scalar = buffer.getShort(SCALAR_FOR_COORDINATES_POS);
+		// a value of zero is assumed to be a scalar value of 1
+		if (scalar == 0) {
+			scalar = 1;
+		}
 		double k = scalar >= 0 ? scalar : 1.0 / -scalar;
 
 		// apply scale factor and convert to degrees

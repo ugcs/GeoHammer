@@ -23,12 +23,4 @@ jobs:
       - name: Build with Maven
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: mvn --batch-mode install -P linux-build
-      - name: Staging artifacts
-        run: mkdir staging && cp target/*.zip staging
-      - name: Store artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Linux-Package
-          path: staging
-          retention-days: 5
+          run: mvn --batch-mode package -P linux-build

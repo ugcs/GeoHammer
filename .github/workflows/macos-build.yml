@@ -18,14 +18,6 @@ jobs:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-    
+            ${{ runner.os }}-maven-
       - name: Build with Maven
-        run: mvn --batch-mode install -P macos-build
-      - name: Staging artifacts
-        run: mkdir staging && cp target/*.zip staging
-      - name: Store artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: MacOS-Package
-          path: staging
-          retention-days: 5
+        run: mvn --batch-mode package -P macos-build

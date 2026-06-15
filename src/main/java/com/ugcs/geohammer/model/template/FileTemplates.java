@@ -1,10 +1,11 @@
 package com.ugcs.geohammer.model.template;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -14,8 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.ugcs.geohammer.util.Resources;
 import org.slf4j.Logger;
@@ -213,9 +212,13 @@ public class FileTemplates implements InitializingBean {
         }
 
         String firstNonEmptyLines = "";
-        try (Stream<String> lines = Files.lines(file.toPath())) {
-            List<String> firstTenLines = lines.limit(lineThreshold).collect(Collectors.toList());
-            firstNonEmptyLines = String.join(System.lineSeparator(), firstTenLines);
+        try (var reader = new BufferedReader(new FileReader(file))) {
+            List<String> firstLines = new ArrayList<>();
+            String line;
+            while (firstLines.size() < lineThreshold && (line = reader.readLine()) != null) {
+                firstLines.add(line);
+            }
+            firstNonEmptyLines = String.join(System.lineSeparator(), firstLines);
             log.debug(firstNonEmptyLines);
         } catch (IOException e) {
             log.error("Error reading file: " + e.getMessage());

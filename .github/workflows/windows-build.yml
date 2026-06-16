@@ -13,8 +13,6 @@ jobs:
           distribution: 'liberica'
           java-package: 'jdk+fx'
           architecture: 'x64'
-      - name: Install Inno Setup
-        run: choco install innosetup -y --no-progress
       - name: Cache local Maven repository
         uses: actions/cache@v4
         with:
@@ -23,12 +21,4 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
       - name: Build with Maven
-        run: mvn --batch-mode install -P windows-build
-      - name: Staging artifacts
-        run: mkdir staging && copy target\*.exe staging
-      - name: Store artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Windows-Package
-          path: staging
-          retention-days: 5
+        run: mvn --batch-mode package -P windows-build

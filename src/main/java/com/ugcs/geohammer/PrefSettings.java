@@ -21,6 +21,8 @@ public class PrefSettings {
 
     private static final Logger log = LoggerFactory.getLogger(PrefSettings.class);
 
+    private static final String SETTINGS_FILE = "templates-settings.properties";
+
     @Value("${settings.prefix:geohammer.settings.}")
     private String prefix = "geohammer.settings.";
 
@@ -29,10 +31,9 @@ public class PrefSettings {
     private final Properties properties;
 
     public PrefSettings() {
-        path = Resources.resolvePath(Path.of(
-                FileTemplates.TEMPLATES_FOLDER,
-                "templates-settings.properties"));
-        properties = loadProperties(path);
+        path = Path.of(System.getProperty("user.home"), ".geohammer", SETTINGS_FILE);
+        Path legacyPath = Resources.resolvePath(Path.of(FileTemplates.TEMPLATES_FOLDER, SETTINGS_FILE));
+        properties = loadProperties(Files.exists(path) ? path : legacyPath);
     }
 
     private Properties loadProperties(Path path) {
@@ -54,9 +55,12 @@ public class PrefSettings {
         Check.notNull(properties);
         Check.notNull(path);
 
-        try (Writer w = Files.newBufferedWriter(path)) {
-            properties.store(w, null);
-            log.info("Properties saved to {}", path);
+        try {
+            Files.createDirectories(path.getParent());
+            try (Writer w = Files.newBufferedWriter(path)) {
+                properties.store(w, null);
+                log.info("Properties saved to {}", path);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

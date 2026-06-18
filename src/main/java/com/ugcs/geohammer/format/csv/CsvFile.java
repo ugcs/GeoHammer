@@ -6,6 +6,7 @@ import com.ugcs.geohammer.format.csv.parser.Writer;
 import com.ugcs.geohammer.format.csv.parser.WriterFactory;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.TraceKey;
@@ -35,6 +36,8 @@ public class CsvFile extends SgyFile {
 	private static final Logger log = LoggerFactory.getLogger(CsvFile.class.getName());
 
 	private List<GeoData> geoData = new ArrayList<>();
+
+	private boolean singlePointLinesMerged;
 
 	@Nullable
 	private Parser parser;
@@ -86,8 +89,16 @@ public class CsvFile extends SgyFile {
         }
 
         reorderLines();
+        singlePointLinesMerged = LineSchema.mergeSinglePointLines(geoData) > 0;
+        if (singlePointLinesMerged) {
+            reorderLines();
+        }
 
         setUnsaved(false);
+    }
+
+    public boolean hasMergedSinglePointLines() {
+        return singlePointLinesMerged;
     }
 
     private void reorderLines() {

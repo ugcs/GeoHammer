@@ -70,6 +70,32 @@ public class LineSchema {
         return ranges;
     }
 
+    public static int mergeSinglePointLines(List<GeoData> geodata) {
+        if (geodata == null) {
+            return 0;
+        }
+
+        NavigableMap<Integer, IndexRange> ranges = getLineRanges(geodata);
+        int merged = 0;
+        for (IndexRange range : ranges.values()) {
+            if (range.size() != 1) {
+                continue;
+            }
+            int index = range.from();
+            Integer targetLine = null;
+            if (index > 0) {
+                targetLine = geodata.get(index - 1).getLine();
+            } else if (index + 1 < geodata.size()) {
+                targetLine = geodata.get(index + 1).getLine();
+            }
+            if (targetLine != null) {
+                geodata.get(index).setLine(targetLine);
+                merged++;
+            }
+        }
+        return merged;
+    }
+
     public static NavigableMap<Integer, LineComponents> getLineComponents(
             List<GeoData> values, SortedMap<Integer, IndexRange> lineRanges) {
         NavigableMap<Integer, LineComponents> components = new TreeMap<>();

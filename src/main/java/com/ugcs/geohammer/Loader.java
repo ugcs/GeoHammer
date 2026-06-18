@@ -299,6 +299,13 @@ public class Loader {
 			}
 		}
 
+		if (csvFile.hasMergedSinglePointLines()) {
+			Dialogs.showWarning(
+					"Single-point lines in " + file.getName(),
+					"The file contained survey lines with a single point; "
+							+ "they were merged into adjacent lines.");
+		}
+
 		Platform.runLater(() -> {
             model.initChart(csvFile);
 		});
@@ -344,8 +351,8 @@ public class Loader {
 		switch (sgyFile) {
 			case CsvFile csvFile -> {
 				CsvFile temp = new CsvFile(model.getFileManager().getFileTemplates());
-				temp.open(file);
-				csvFile.loadFrom(temp);
+					temp.open(file);
+					csvFile.loadFrom(temp);
 			}
 			case GprFile gprFile -> {
 				GprFile temp = new GprFile();

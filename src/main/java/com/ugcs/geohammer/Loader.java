@@ -299,6 +299,13 @@ public class Loader {
 			}
 		}
 
+		int mergedSinglePointLines = csvFile.getMergedSinglePointLines();
+		if (mergedSinglePointLines > 0) {
+			Dialogs.showWarning(
+					"Single-point lines in " + file.getName(),
+					formatMergedLinesBody(mergedSinglePointLines));
+		}
+
 		Platform.runLater(() -> {
             model.initChart(csvFile);
 		});
@@ -311,6 +318,14 @@ public class Loader {
 			body.append("\n").append(group);
 		}
 		return body.toString();
+	}
+
+	private static String formatMergedLinesBody(int mergedSinglePointLines) {
+		return mergedSinglePointLines == 1
+				? "The file contained a survey line with a single point; "
+						+ "it was merged into an adjacent line."
+				: "The file contained " + mergedSinglePointLines + " survey lines with a single point; "
+						+ "they were merged into adjacent lines.";
 	}
 
 	private void openSvlogFile(File file) throws IOException {
@@ -344,8 +359,8 @@ public class Loader {
 		switch (sgyFile) {
 			case CsvFile csvFile -> {
 				CsvFile temp = new CsvFile(model.getFileManager().getFileTemplates());
-				temp.open(file);
-				csvFile.loadFrom(temp);
+					temp.open(file);
+					csvFile.loadFrom(temp);
 			}
 			case GprFile gprFile -> {
 				GprFile temp = new GprFile();

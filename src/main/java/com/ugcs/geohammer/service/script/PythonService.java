@@ -287,6 +287,8 @@ public class PythonService {
 		List<String> command = List.of(
 				pipreqsPath.toString(),
 				directory.toString(),
+				"--encoding",
+				"utf-8",
 				"--mode",
 				"no-pin"
 		);

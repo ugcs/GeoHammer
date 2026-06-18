@@ -299,11 +299,11 @@ public class Loader {
 			}
 		}
 
-		int mergedSinglePointLines = csvFile.getMergedSinglePointLines();
-		if (mergedSinglePointLines > 0) {
+		if (csvFile.hasMergedSinglePointLines()) {
 			Dialogs.showWarning(
 					"Single-point lines in " + file.getName(),
-					formatMergedLinesBody(mergedSinglePointLines));
+					"The file contained survey lines with a single point; "
+							+ "they were merged into adjacent lines.");
 		}
 
 		Platform.runLater(() -> {
@@ -318,14 +318,6 @@ public class Loader {
 			body.append("\n").append(group);
 		}
 		return body.toString();
-	}
-
-	private static String formatMergedLinesBody(int mergedSinglePointLines) {
-		return mergedSinglePointLines == 1
-				? "The file contained a survey line with a single point; "
-						+ "it was merged into an adjacent line."
-				: "The file contained " + mergedSinglePointLines + " survey lines with a single point; "
-						+ "they were merged into adjacent lines.";
 	}
 
 	private void openSvlogFile(File file) throws IOException {

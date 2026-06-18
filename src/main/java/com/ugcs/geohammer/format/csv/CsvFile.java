@@ -37,7 +37,7 @@ public class CsvFile extends SgyFile {
 
 	private List<GeoData> geoData = new ArrayList<>();
 
-	private int mergedSinglePointLines;
+	private boolean singlePointLinesMerged;
 
 	@Nullable
 	private Parser parser;
@@ -89,16 +89,16 @@ public class CsvFile extends SgyFile {
         }
 
         reorderLines();
-        mergedSinglePointLines = LineSchema.mergeSinglePointLines(geoData);
-        if (mergedSinglePointLines > 0) {
+        singlePointLinesMerged = LineSchema.mergeSinglePointLines(geoData) > 0;
+        if (singlePointLinesMerged) {
             reorderLines();
         }
 
         setUnsaved(false);
     }
 
-    public int getMergedSinglePointLines() {
-        return mergedSinglePointLines;
+    public boolean hasMergedSinglePointLines() {
+        return singlePointLinesMerged;
     }
 
     private void reorderLines() {

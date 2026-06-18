@@ -70,12 +70,12 @@ public class LineSchema {
         return ranges;
     }
 
-    public static int mergeSinglePointLines(List<GeoData> values) {
-        if (values == null) {
+    public static int mergeSinglePointLines(List<GeoData> geodata) {
+        if (geodata == null) {
             return 0;
         }
 
-        NavigableMap<Integer, IndexRange> ranges = getLineRanges(values);
+        NavigableMap<Integer, IndexRange> ranges = getLineRanges(geodata);
         int merged = 0;
         for (IndexRange range : ranges.values()) {
             if (range.size() != 1) {
@@ -84,12 +84,12 @@ public class LineSchema {
             int index = range.from();
             Integer targetLine = null;
             if (index > 0) {
-                targetLine = values.get(index - 1).getLine();
-            } else if (index + 1 < values.size()) {
-                targetLine = values.get(index + 1).getLine();
+                targetLine = geodata.get(index - 1).getLine();
+            } else if (index + 1 < geodata.size()) {
+                targetLine = geodata.get(index + 1).getLine();
             }
             if (targetLine != null) {
-                values.get(index).setLine(targetLine);
+                geodata.get(index).setLine(targetLine);
                 merged++;
             }
         }

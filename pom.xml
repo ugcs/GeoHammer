@@ -662,7 +662,7 @@
 										<argument>--app-version</argument> <argument>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
 										<argument>--vendor</argument> <argument>"SPH Engeneering"</argument>
 										<argument>--copyright</argument> <argument>"© SPH Engeneering, 2024"</argument>
-										<argument>--mac-package-identifier</argument> <argument>com.ugcs.gprvisualizer</argument>
+										<argument>--mac-package-identifier</argument> <argument>com.ugcs.geohammer</argument>
 										<argument>--mac-package-name</argument> <argument>${project.name}</argument>
 										<argument>--icon</argument> <argument>assembly/logo32.icns</argument>
 									</arguments>

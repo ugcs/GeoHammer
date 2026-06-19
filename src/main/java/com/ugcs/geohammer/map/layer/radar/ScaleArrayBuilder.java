@@ -14,7 +14,7 @@ public class ScaleArrayBuilder implements ArrayBuilder {
 	}
 	
 	/* (non-Javadoc)
-	 * @see com.ugcs.gprvisualizer.gpr.ArrayBuilder#build()
+	 * @see com.ugcs.geohammer.map.layer.radar.ArrayBuilder#build()
 	 */
 	@Override
 	public double[][] build(TraceFile file) {

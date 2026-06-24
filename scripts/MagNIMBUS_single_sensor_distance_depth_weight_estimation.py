@@ -153,7 +153,10 @@ def remove_background(tmi, x_pos, wavelength_m=LOWPASS_WAVELENGTH_M,
 
     DS = 0.5  # uniform resample spacing (m)
     x_u   = np.arange(x0, x1 + DS, DS)
-    tmi_u = np.interp(x_u, x_pos, tmi)
+    finite = np.isfinite(tmi)
+    if finite.sum() < 4:
+        return tmi - np.nanmean(tmi), True
+    tmi_u = np.interp(x_u, x_pos[finite], tmi[finite])
 
     Wn = min(2.0 * DS / wavelength_m, 0.99)
     b_f, a_f = butter(4, Wn, btype="low")
@@ -834,6 +837,18 @@ def main():
 
     lats    = pd.to_numeric(data[lat_col], errors="coerce").values
     lons    = pd.to_numeric(data[lon_col], errors="coerce").values
+
+    if not (np.isfinite(lats).any() and np.isfinite(lons).any()):
+        print(f"Error: The file has no valid coordinates - columns '{lat_col}' and "
+              f"'{lon_col}' contain no numeric Latitude/Longitude values.")
+        sys.exit(1)
+
+    tmi_finite = int(np.isfinite(pd.to_numeric(data[mag_col], errors="coerce")).sum())
+    if tmi_finite == 0:
+        print(f"Error: The selected data column '{mag_col}' contains no numeric values. "
+              f"Select the correct field column for this dataset and try again.")
+        sys.exit(1)
+
     x_track = build_along_track(lats, lons)
     x_m, y_m = latlon_to_local_xy(lats, lons)
 
@@ -857,7 +872,25 @@ def main():
     try:
         grid, xi, yi = build_2d_grid(x_m, y_m, tmi_detrended, cell_size)
     except ValueError as e:
-        print(f"Error: Failed to build grid: {e}")
+        n_tmi = int(np.isfinite(tmi_raw).sum())
+        n_lat = int(np.isfinite(lats).sum())
+        n_lon = int(np.isfinite(lons).sum())
+        n_dt = int(np.isfinite(tmi_detrended).sum())
+        if n_tmi == 0:
+            reason = (f"The selected data column '{mag_col}' contains no numeric values. "
+                      f"Select the correct field column for this dataset and try again.")
+        elif n_lat == 0 or n_lon == 0:
+            reason = ("The file has no valid coordinates (Latitude/Longitude are empty), "
+                      "so a map cannot be built.")
+        elif n_dt == 0:
+            reason = (f"Could not compute a background trend for '{mag_col}' - "
+                      f"its values may be constant or the track is too short.")
+        else:
+            reason = "Not enough valid data points to build a map for this dataset."
+        print(f"Error: {reason}")
+        print(f"Details: {e}; finite values - '{mag_col}': {n_tmi}/{n_rows}, "
+              f"latitude: {n_lat}/{n_rows}, longitude: {n_lon}/{n_rows}, "
+              f"detrended: {n_dt}/{n_rows}")
         sys.exit(1)
     cell_x = float(xi[1] - xi[0]) if len(xi) > 1 else cell_size
     cell_y = float(yi[1] - yi[0]) if len(yi) > 1 else cell_size

@@ -7,6 +7,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import butter, filtfilt, iirnotch
 
+from script_utils import detect_separator
+
 
 def notch_zero_filter(data, notchh, notchl, freq): # works as highpass lowpass and notch filter
     if len(data) < 2:
@@ -308,13 +310,14 @@ def main():
     input_file = args.file_path
     output_file = args.file_path
 
-    data = pd.read_csv(input_file)
+    separator = detect_separator(input_file)
+    data = pd.read_csv(input_file, sep=separator)
 
     print("Column names: ", data.columns)
 
     fix_tmi(data)
 
-    data.to_csv(output_file, index = False, sep = ',')
+    data.to_csv(output_file, index = False, sep = separator)
     print(f"Fixed data saved to {output_file}")
 
 if __name__ == "__main__":

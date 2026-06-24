@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import Akima1DInterpolator
 
+from script_utils import detect_separator
+
 DATA_VALID_COLUMN = "Data valid"
 
 
@@ -140,7 +142,8 @@ def main():
         sys.exit(1)
 
     print(f"Reading file {args.file_path}")
-    data = pd.read_csv(args.file_path)
+    separator = detect_separator(args.file_path)
+    data = pd.read_csv(args.file_path, sep=separator)
     data = filter_invalid_rows(data)
 
     numeric_cols, text_cols = classify_columns(data)
@@ -155,7 +158,7 @@ def main():
 
     print(f"Rows: {original_count} -> {len(decimated)}")
     print(f"Writing result to {args.file_path}")
-    decimated.to_csv(args.file_path, index=False)
+    decimated.to_csv(args.file_path, index=False, sep=separator)
     print("Decimation finished successfully")
 
 

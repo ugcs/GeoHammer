@@ -2,6 +2,8 @@ import sys
 import argparse
 import pandas as pd
 
+from script_utils import detect_separator
+
 
 def check_column_exists(data, column):
     if column not in data.columns:
@@ -39,13 +41,14 @@ def main():
     output_path = args.file_path
 
     print(f"Reading file {input_path}")
-    data = pd.read_csv(input_path)
+    separator = detect_separator(input_path)
+    data = pd.read_csv(input_path, sep=separator)
 
     print(f"Calculating gradient {args.lower_sensor_column} - {args.upper_sensor_column}")
     calculate_gradient(data, args.lower_sensor_column, args.upper_sensor_column)
 
     print(f"Writing result to {output_path}")
-    data.to_csv(output_path, index = False, sep = ',')
+    data.to_csv(output_path, index = False, sep = separator)
 
     print(f"Done")
 

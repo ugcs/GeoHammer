@@ -6,6 +6,8 @@ import pandas as pd
 from scipy.spatial import cKDTree
 from scipy.signal import find_peaks
 
+from script_utils import detect_separator
+
 
 def markExtremes(
     df: pd.DataFrame,
@@ -138,7 +140,8 @@ def main():
     args = parser.parse_args()
 
     # Enforce positional indexing semantics throughout
-    df = pd.read_csv(args.file_path).reset_index(drop=True)
+    separator = detect_separator(args.file_path)
+    df = pd.read_csv(args.file_path, sep=separator).reset_index(drop=True)
 
     index_to_range = markExtremes(
         df,
@@ -193,7 +196,7 @@ def main():
     #5 Write Mark = new-mark
     df["Mark"] = pd.Series(new_marks, index=df.index, dtype="Int8")
 
-    df.to_csv(args.file_path, index=False)
+    df.to_csv(args.file_path, index=False, sep=separator)
     print(f"Wrote output with markers to: {args.file_path}")
 
 

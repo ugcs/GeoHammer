@@ -3,7 +3,7 @@ import os
 import argparse
 import pandas as pd
 import numpy as np
-from script_utils import normalize_input_stem
+from script_utils import normalize_input_stem, detect_separator
 
 
 def check_column_exists(data, column):
@@ -150,7 +150,8 @@ def main():
     altitude_column = args.altitude_column
 
     print(f"Reading file {input_path}")
-    data = pd.read_csv(input_path)
+    separator = detect_separator(input_path)
+    data = pd.read_csv(input_path, sep=separator)
 
     # Validate required columns
     check_column_exists(data, lower_column)
@@ -195,13 +196,13 @@ def main():
 
     output_path = input_path
     print(f"Writing result to {output_path}")
-    data.to_csv(output_path, index=False, sep=',')
+    data.to_csv(output_path, index=False, sep=separator)
 
     # Create targets file with only marked rows
     targets_path = build_targets_path(input_path, args.output_dir)
     targets_data = data.loc[mark_indices]
     print(f"Writing targets file to {targets_path}")
-    targets_data.to_csv(targets_path, index=False, sep=',')
+    targets_data.to_csv(targets_path, index=False, sep=separator)
 
     print("Done")
 

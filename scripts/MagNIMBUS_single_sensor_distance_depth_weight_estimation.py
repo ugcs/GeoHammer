@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import heapq
 import argparse
 import math
@@ -8,7 +9,7 @@ import pandas as pd
 from scipy.interpolate import griddata, RBFInterpolator
 from scipy.spatial import cKDTree
 from scipy.signal import butter, filtfilt
-from script_utils import normalize_input_stem
+from script_utils import normalize_input_stem, detect_separator
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -44,7 +45,6 @@ LARGE_FWHM_RATIO          = 2.5
 # Asymmetry cap: trim the longer AS half-width when it exceeds the shorter by this ratio.
 # Corrects geological gradients (observed raw ratio up to ~2.3, Brandenburg 2024 dataset).
 ASYMMETRY_CAP_RATIO       = 1.20
-CSV_SEPARATOR             = ","
 DEFAULT_CELL_SIZE_M       = None
 
 _SCRIPT_OUTPUT_COLS = {
@@ -580,6 +580,21 @@ def process_anomaly(window_x, window_b, AS, marked_mask_in_window, mark_center_x
 # Timestamp / altitude resolution
 # ---------------------------------------------------------------------------
 
+def _normalize_col(name):
+    base = re.sub(r"\s*\[[^\]]*\]\s*$", "", str(name)).strip().lower()
+    return re.sub(r"\s+", " ", base)
+
+
+def resolve_column(data, name):
+    if name in data.columns:
+        return name
+    target = _normalize_col(name)
+    for col in data.columns:
+        if _normalize_col(col) == target:
+            return col
+    return None
+
+
 def resolve_timestamp(data):
     if "Timestamp" in data.columns:
         return pd.to_datetime(data["Timestamp"], errors="coerce")
@@ -768,8 +783,9 @@ def main():
     alt_agl_col = args.altitude_agl_column.strip()
 
     print(f"Reading {input_path}")
+    separator = detect_separator(input_path)
     try:
-        data = pd.read_csv(input_path, sep=CSV_SEPARATOR)
+        data = pd.read_csv(input_path, sep=separator)
     except FileNotFoundError:
         print(f"Error: File not found: {input_path}")
         sys.exit(1)
@@ -779,12 +795,23 @@ def main():
     original_cols = [c for c in data.columns if c not in _SCRIPT_OUTPUT_COLS]
     data = data[original_cols]
 
-    missing = [c for c in [mag_col, "Latitude", "Longitude"] if c not in data.columns]
+    mag_col = resolve_column(data, mag_col) or mag_col
+    lat_col = resolve_column(data, "Latitude")
+    lon_col = resolve_column(data, "Longitude")
+
+    missing = []
+    if mag_col not in data.columns:
+        missing.append(mag_col)
+    if lat_col is None:
+        missing.append("Latitude")
+    if lon_col is None:
+        missing.append("Longitude")
     if missing:
         print(f"Error: Missing required columns: {', '.join(missing)}")
         sys.exit(1)
 
-    has_agl = bool(alt_agl_col and alt_agl_col in data.columns)
+    agl_col = resolve_column(data, alt_agl_col) if alt_agl_col else None
+    has_agl = agl_col is not None
 
     if MARK_COLUMN not in data.columns:
         print(f"No '{MARK_COLUMN}' column found. Nothing to do.")
@@ -799,14 +826,14 @@ def main():
 
     ts_series  = resolve_timestamp(data)
     tmi_raw    = pd.to_numeric(data[mag_col], errors="coerce").values
-    agl_values = (pd.to_numeric(data[alt_agl_col], errors="coerce").values
+    agl_values = (pd.to_numeric(data[agl_col], errors="coerce").values
                   if has_agl else np.full(len(data), np.nan))
 
     if (not has_agl) or np.all(np.isnan(agl_values[marks == 1])):
         print("Warning: Altitude AGL not available - Estimated Depth = sensor-to-target distance.")
 
-    lats    = pd.to_numeric(data["Latitude"],  errors="coerce").values
-    lons    = pd.to_numeric(data["Longitude"], errors="coerce").values
+    lats    = pd.to_numeric(data[lat_col], errors="coerce").values
+    lons    = pd.to_numeric(data[lon_col], errors="coerce").values
     x_track = build_along_track(lats, lons)
     x_m, y_m = latlon_to_local_xy(lats, lons)
 
@@ -898,7 +925,7 @@ def main():
     data["Estimated_Weight_Harmonic"]   = _as_col(out_weight_avg)
 
     print(f"Writing result to {input_path}")
-    data.to_csv(input_path, index=False, sep=CSV_SEPARATOR)
+    data.to_csv(input_path, index=False, sep=separator)
 
     targets_path = _build_targets_path(input_path, args.output_dir)
     target_mask  = marks == 1
@@ -909,7 +936,7 @@ def main():
         "Estimated_Weight_Min",   "Estimated_Weight_Max",   "Estimated_Weight_Harmonic",
     ]].copy()
     print(f"Writing targets to {targets_path}")
-    targets_df.to_csv(targets_path, index=False, sep=CSV_SEPARATOR)
+    targets_df.to_csv(targets_path, index=False, sep=separator)
 
     print(f"Done. {anomaly_id} anomaly group(s) processed.")
 

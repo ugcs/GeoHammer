@@ -331,6 +331,11 @@
 			<artifactId>spring-context</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>com.github.thecoldwine</groupId>
+			<artifactId>sigrun</artifactId>
+			<version>0.4.5</version>
+		</dependency>
+		<dependency>
 			<groupId>gov.nist.math</groupId>
 			<artifactId>jama</artifactId>
 			<version>1.0.3</version>

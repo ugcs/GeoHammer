@@ -15,14 +15,10 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 
 import com.github.thecoldwine.sigrun.common.BinaryHeader;
-import com.github.thecoldwine.sigrun.common.ConverterFactory;
 import com.github.thecoldwine.sigrun.common.TraceHeader;
-import com.github.thecoldwine.sigrun.converters.SeismicValuesConverter;
 import com.github.thecoldwine.sigrun.serialization.BinaryHeaderFormat;
-import com.github.thecoldwine.sigrun.serialization.BinaryHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
-import com.github.thecoldwine.sigrun.serialization.TraceHeaderReader;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
 import com.ugcs.geohammer.format.meta.MetaFile;
@@ -30,11 +26,15 @@ import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
 import com.ugcs.geohammer.model.element.BaseObject;
+import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.LengthUnit;
 import com.ugcs.geohammer.util.MissingValues;
 import com.ugcs.geohammer.util.Traces;
+import com.ugcs.geohammer.format.gpr.segy.BinaryHeaderReader;
+import com.ugcs.geohammer.format.gpr.segy.SampleCodec;
+import com.ugcs.geohammer.format.gpr.segy.TraceHeaderReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +45,12 @@ public class GprFile extends TraceFile {
     private static final int FILE_NUM_SAMPLES_POS = 20;
 
     private static final int RECEIVER_ELEVATION_POS = 40;
+
+    private static final int SCALAR_FOR_COORDINATES_POS = 70;
+
+    private static final int SOURCE_X_POS = 72;
+
+    private static final int SOURCE_Y_POS = 76;
 
     private static final int NUM_SAMPLES_POS = 114;
 
@@ -78,11 +84,18 @@ public class GprFile extends TraceFile {
 
     private BinaryHeader binaryHeader;
 
+    private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
+
     private SampleNormalizer sampleNormalizer = new SampleNormalizer();
 
 	@Override
 	public int getSampleInterval() {
 		return binaryHeader.getSampleInterval();
+	}
+
+	@Override
+	public FileSnapshot<TraceFile> createSnapshotWithTraces() {
+		return createSnapshotWithTraces(byteOrder);
 	}
 
 	@Override
@@ -110,7 +123,8 @@ public class GprFile extends TraceFile {
 		txtHdr = binFile.getTxtHdr();
 		binHdr = binFile.getBinHdr();
 
-		binaryHeader = binaryHeaderReader.read(binFile.getBinHdr());
+		byteOrder = binFile.getByteOrder();
+		binaryHeader = binaryHeaderReader.read(binHdr, byteOrder);
 
 		log.debug("Sample interval: {}", binaryHeader.getSampleInterval());
 		log.debug("Samples per data trace {}", binaryHeader.getSamplesPerDataTrace());
@@ -141,8 +155,7 @@ public class GprFile extends TraceFile {
 	}
 
 	private List<Trace> readTraces(BinFile binFile) {
-		SeismicValuesConverter converter = ConverterFactory
-				.getConverter(binaryHeader.getDataSampleCode());
+		SampleCodec codec = SampleCodec.create(binaryHeader.getDataSampleCode(), byteOrder);
 
 		List<BinTrace> binTraces = binFile.getTraces();
 		List<Trace> traces = new ArrayList<>(binTraces.size());
@@ -151,18 +164,18 @@ public class GprFile extends TraceFile {
 				throw new CancellationException();
 			}
 
-			Trace trace = readTrace(binTrace, converter);
+			Trace trace = readTrace(binTrace, codec);
 			traces.add(trace);
 		}
 		return traces;
 	}
 
-	private Trace readTrace(BinTrace binTrace, SeismicValuesConverter converter) {
+	private Trace readTrace(BinTrace binTrace, SampleCodec codec) {
 		byte[] binHeader = binTrace.header;
-        TraceHeader header = traceHeaderReader.read(binHeader);
+        TraceHeader header = traceHeaderReader.read(binHeader, byteOrder);
 
-        float[] values = converter.convert(binTrace.data);
-        LatLon latLon = getLatLon(header);
+        float[] values = codec.decode(binTrace.data);
+        LatLon latLon = getLatLon(binHeader);
 		Instant time = getTimestamp(header);
 
         Trace trace = new Trace(binHeader, header, values, latLon, time);
@@ -173,9 +186,11 @@ public class GprFile extends TraceFile {
         return trace;
 	}
 
-	private LatLon getLatLon(TraceHeader header) {
-		double lon = retrieveVal(header.getLongitude(), header.getSourceX());
-		double lat = retrieveVal(header.getLatitude(), header.getSourceY());
+	private LatLon getLatLon(byte[] binHeader) {
+		ByteBuffer buffer = ByteBuffer.wrap(binHeader).order(byteOrder);
+
+		double lon = retrieveVal(buffer.getDouble(LONGITUDE_POS), buffer.getFloat(SOURCE_X_POS));
+		double lat = retrieveVal(buffer.getDouble(LATITUDE_POS), buffer.getFloat(SOURCE_Y_POS));
 
 		if (Double.isNaN(lon) || Double.isNaN(lat)
 				|| Math.abs(lon) < 0.0001
@@ -183,7 +198,7 @@ public class GprFile extends TraceFile {
 				|| Math.abs(lon) > 18000
 				|| Math.abs(lat) > 18000) {
 			// try handle source coordinates as scaled integers
-			return getScaledSourceLatLon(header);
+			return getScaledSourceLatLon(buffer);
 		}
 
 		double rlon = convertDegreeFraction(lon);
@@ -193,7 +208,7 @@ public class GprFile extends TraceFile {
 	}
 
     private Float getReceiverElevation(byte[] binHeader) {
-        ByteBuffer buffer = ByteBuffer.wrap(binHeader).order(ByteOrder.LITTLE_ENDIAN);
+        ByteBuffer buffer = ByteBuffer.wrap(binHeader).order(byteOrder);
         float elevation = Float.intBitsToFloat(buffer.getInt(RECEIVER_ELEVATION_POS));
         // convert to meters if file uses feet
         if (binaryHeader.getMeasurementSystem() == 2) {
@@ -246,22 +261,17 @@ public class GprFile extends TraceFile {
 		return v2 != null ? v2.doubleValue() : 0;
 	}
 
-	private LatLon getScaledSourceLatLon(TraceHeader header) {
-		Float sourceX = header.getSourceX();
-		Float sourceY = header.getSourceY();
-		if (sourceX == null || sourceY == null) {
-			return null;
-		}
+	private LatLon getScaledSourceLatLon(ByteBuffer buffer) {
+		// source coordinates stored as scaled arc seconds (raw integers)
+		int x = buffer.getInt(SOURCE_X_POS);
+		int y = buffer.getInt(SOURCE_Y_POS);
 
-		// scaled arc seconds as integers
-		int x = Float.floatToIntBits(sourceX);
-		int y = Float.floatToIntBits(sourceY);
-
-		double k = 1.0;
-		Short scalar = header.getScalarForCoordinates();
-		if (scalar != null) {
-			k = scalar >= 0 ? scalar : 1.0 / -scalar;
+		short scalar = buffer.getShort(SCALAR_FOR_COORDINATES_POS);
+		// a value of zero is assumed to be a scalar value of 1
+		if (scalar == 0) {
+			scalar = 1;
 		}
+		double k = scalar >= 0 ? scalar : 1.0 / -scalar;
 
 		// apply scale factor and convert to degrees
 		double lon = k * x / 3600.0;
@@ -286,12 +296,11 @@ public class GprFile extends TraceFile {
         // update number of samples in the header
         if (numSamples != binaryHeader.getSamplesPerDataTrace()) {
             binaryHeader.setSamplesPerDataTrace(numSamples);
-            ByteBuffer headerBuffer = ByteBuffer.wrap(binHdr).order(ByteOrder.LITTLE_ENDIAN);
+            ByteBuffer headerBuffer = ByteBuffer.wrap(binHdr).order(byteOrder);
             headerBuffer.putShort(FILE_NUM_SAMPLES_POS, numSamples);
         }
 
-        SeismicValuesConverter converter = ConverterFactory
-				.getConverter(binaryHeader.getDataSampleCode());
+        SampleCodec codec = SampleCodec.create(binaryHeader.getDataSampleCode(), byteOrder);
 
 		BinFile binFile = new BinFile();
 
@@ -310,8 +319,7 @@ public class GprFile extends TraceFile {
 			binTrace.header = trace.getBinHeader();
 
 			// upd coordinates
-			ByteBuffer buffer = ByteBuffer.wrap(binTrace.header);
-			buffer.order(ByteOrder.LITTLE_ENDIAN);
+			ByteBuffer buffer = ByteBuffer.wrap(binTrace.header).order(byteOrder);
             updateTraceBuffer(trace, buffer);
 
 			// set or clear mark
@@ -322,7 +330,9 @@ public class GprFile extends TraceFile {
 				binTrace.header[MARK_BYTE_POS] = 0;
 			}
 
-			binTrace.data = converter.valuesToByteBuffer(trace).array();
+			IndexRange sampleRange = trace.getSampleRange();
+			int from = sampleRange != null ? sampleRange.from() : 0;
+			binTrace.data = codec.encode(trace.getFileSamples(), from, trace.numSamples());
 			binFile.getTraces().add(binTrace);
 		}
 

@@ -325,7 +325,7 @@ public class ProjectionView extends CanvasWindow {
         CheckBox cropAir = new CheckBox("Crop air gap");
         cropAir.selectedProperty().bindBidirectional(gridOptions.cropAirProperty());
 
-        CheckBox migration = new CheckBox("Migration (sector summation)");
+        CheckBox migration = new CheckBox("Sector summation");
         migration.selectedProperty().bindBidirectional(gridOptions.migrationProperty());
 
         CheckBox refraction = new CheckBox("Refraction");

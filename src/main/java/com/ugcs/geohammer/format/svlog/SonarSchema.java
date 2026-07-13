@@ -69,6 +69,12 @@ public final class SonarSchema {
             .withDisplay(true)
             .withReadOnly(true);
 
+    public static final String GPS_QUALITY_HEADER = "GPS Quality";
+
+    public static final Column GPS_QUALITY_COLUMN = new Column(GPS_QUALITY_HEADER)
+            .withDisplay(true)
+            .withReadOnly(true);
+
     public static ColumnSchema createSchema() {
         // basic (min) schema of sonar file
         ColumnSchema schema = ColumnSchema.copy(TraceGeoData.SCHEMA);

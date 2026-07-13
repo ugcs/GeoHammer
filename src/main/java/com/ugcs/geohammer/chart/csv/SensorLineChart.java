@@ -1008,14 +1008,16 @@ public class SensorLineChart extends Chart {
         Map<Integer, List<Integer>> graph = new HashMap<>();
         for (int i = 0; i < n; i++) {
             Plot left = nodes.get(i).plot;
-            Range leftRange = left.getDataRange();
+            // compare spike-resistant ranges so that outliers
+            // do not break similarity of the valuable data ranges
+            Range leftRange = left.getRobustRange();
             if (leftRange == null) {
                 continue;
             }
             String leftSourceSeriesName = getSourceSeriesName(left.getSeriesName());
             for (int j = i + 1; j < n; j++) {
                 Plot right = nodes.get(j).plot;
-                Range rightRange = right.getDataRange();
+                Range rightRange = right.getRobustRange();
                 if (rightRange == null) {
                     continue;
                 }
@@ -1530,6 +1532,8 @@ public class SensorLineChart extends Chart {
 
         private final @Nullable Range dataRange;
 
+        private final @Nullable Range robustRange;
+
         private Range displayRange;
 
         public Plot(String seriesName, @Nullable String unit, List<@Nullable Number> data) {
@@ -1538,6 +1542,7 @@ public class SensorLineChart extends Chart {
             this.color = ColorPalette.highContrast().getColor(this.seriesName);
             this.data = data;
             this.dataRange = buildDataRange(data);
+            this.robustRange = buildRobustRange(data);
             this.displayRange = buildDisplayRange(this.dataRange);
         }
 
@@ -1583,6 +1588,51 @@ public class SensorLineChart extends Chart {
 
         public @Nullable Range getDataRange() {
             return dataRange;
+        }
+
+        // outlier spikes trimmed by Tukey fences (q1/q3 +- 1.5 iqr);
+        // matches the full data range when there are no outliers
+        public static @Nullable Range buildRobustRange(List<@Nullable Number> data) {
+            List<@Nullable Number> values = Nulls.toEmpty(data);
+            double[] sorted = new double[values.size()];
+            int n = 0;
+            for (Number value : values) {
+                if (value == null) {
+                    continue;
+                }
+                double unboxed = value.doubleValue();
+                if (!Double.isFinite(unboxed)) {
+                    continue;
+                }
+                sorted[n++] = unboxed;
+            }
+            if (n == 0) {
+                return null;
+            }
+            Arrays.sort(sorted, 0, n);
+            double q1 = sorted[(int)(0.25 * (n - 1))];
+            double q3 = sorted[(int)(0.75 * (n - 1))];
+            double iqr = q3 - q1;
+            if (iqr < 1e-12) {
+                // iqr cannot separate outliers, keep the full range
+                return new Range(sorted[0], sorted[n - 1]);
+            }
+            double lowFence = q1 - 1.5 * iqr;
+            double highFence = q3 + 1.5 * iqr;
+            // snap fences to the nearest values within them
+            int low = 0;
+            while (sorted[low] < lowFence) {
+                low++;
+            }
+            int high = n - 1;
+            while (sorted[high] > highFence) {
+                high--;
+            }
+            return new Range(sorted[low], sorted[high]);
+        }
+
+        public @Nullable Range getRobustRange() {
+            return robustRange;
         }
 
         public static double getScaleFactor(double value) {

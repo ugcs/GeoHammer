@@ -4,11 +4,13 @@ import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Strings;
 import net.sf.marineapi.nmea.parser.SentenceFactory;
 import net.sf.marineapi.nmea.sentence.DateSentence;
+import net.sf.marineapi.nmea.sentence.GGASentence;
 import net.sf.marineapi.nmea.sentence.HeadingSentence;
 import net.sf.marineapi.nmea.sentence.PositionSentence;
 import net.sf.marineapi.nmea.sentence.Sentence;
 import net.sf.marineapi.nmea.sentence.TimeSentence;
 import net.sf.marineapi.nmea.util.Date;
+import net.sf.marineapi.nmea.util.GpsFixQuality;
 import net.sf.marineapi.nmea.util.Measurement;
 import net.sf.marineapi.nmea.util.Position;
 import net.sf.marineapi.nmea.util.Time;
@@ -60,6 +62,14 @@ public class NmeaParser {
     public Double parseHeading(Sentence sentence) {
         if (sentence instanceof HeadingSentence headingSentence) {
             return headingSentence.getHeading();
+        }
+        return null;
+    }
+
+    public Integer parseFixQuality(Sentence sentence) {
+        if (sentence instanceof GGASentence ggaSentence) {
+            GpsFixQuality fixQuality = ggaSentence.getFixQuality();
+            return fixQuality != null ? fixQuality.toInt() : null;
         }
         return null;
     }

@@ -166,6 +166,10 @@ public class SonarFile extends SgyFileWithMeta {
             GeoData.addColumn(getGeoData(), SonarSchema.PRESSURE_COLUMN);
             value.setValue(SonarSchema.PRESSURE_HEADER, sonarState.getPressure());
         }
+        if (sonarState.getGpsQuality() != null) {
+            GeoData.addColumn(getGeoData(), SonarSchema.GPS_QUALITY_COLUMN);
+            value.setValue(SonarSchema.GPS_QUALITY_HEADER, sonarState.getGpsQuality());
+        }
     }
 
     @Override

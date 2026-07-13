@@ -34,6 +34,10 @@ public class SvlogParser {
         if (altitude != null) {
             sonarState.setAltitude(altitude);
         }
+        Integer gpsQuality = parseFixQuality(packet);
+        if (gpsQuality != null) {
+            sonarState.setGpsQuality(gpsQuality);
+        }
         Instant timestamp = parseTime(packet);
         if (timestamp != null) {
             sonarState.setTimestamp(timestamp);
@@ -95,6 +99,11 @@ public class SvlogParser {
     public Instant parseTime(SvlogPacket packet) {
         Sentence sentence = parseNmeaSentence(packet);
         return nmeaParser.parseTime(sentence);
+    }
+
+    public Integer parseFixQuality(SvlogPacket packet) {
+        Sentence sentence = parseNmeaSentence(packet);
+        return nmeaParser.parseFixQuality(sentence);
     }
 
     public Double parseDepth(SvlogPacket packet) {

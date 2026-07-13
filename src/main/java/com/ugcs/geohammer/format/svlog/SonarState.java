@@ -28,6 +28,8 @@ public class SonarState {
 
     private Float pressure;
 
+    private Integer gpsQuality;
+
     public LatLon getLatLon() {
         return latLon;
     }
@@ -114,5 +116,13 @@ public class SonarState {
 
     public void setPressure(Float pressure) {
         this.pressure = pressure;
+    }
+
+    public Integer getGpsQuality() {
+        return gpsQuality;
+    }
+
+    public void setGpsQuality(Integer gpsQuality) {
+        this.gpsQuality = gpsQuality;
     }
 }

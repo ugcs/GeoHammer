@@ -159,6 +159,10 @@ public class NmeaFile extends SgyFileWithMeta {
                         NmeaSchema.composeHeader(gga, "Altitude"),
                         String.valueOf(gga.getAltitudeUnits().toChar()),
                         gga.getAltitude());
+                setValue(geoData,
+                        NmeaSchema.composeHeader(gga, "GPS Quality"),
+                        null,
+                        nmeaParser.parseFixQuality(gga));
             }
             case ZDASentence zda -> {
                 setTime(geoData, nmeaParser.parseTime(zda.getDate(), zda.getTime()));

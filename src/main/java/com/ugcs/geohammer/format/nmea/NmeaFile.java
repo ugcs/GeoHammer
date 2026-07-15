@@ -146,8 +146,8 @@ public class NmeaFile extends SgyFileWithMeta {
                 setPosition(geoData, nmeaParser.parseLocation(rmc.getPosition()));
                 setValue(geoData,
                         NmeaSchema.composeHeader(rmc, "Speed"),
-                        "M",
-                        SpeedUnit.KNOTS.toMetersPerSecond(rmc.getSpeed()));
+                        "kn",
+                        rmc.getSpeed());
                 setValue(geoData,
                         NmeaSchema.composeHeader(rmc, "Course"),
                         "D",

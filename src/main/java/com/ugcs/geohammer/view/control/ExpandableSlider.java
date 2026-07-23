@@ -1,7 +1,8 @@
-package com.ugcs.geohammer.view;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Ticks;
+import com.ugcs.geohammer.view.Views;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;

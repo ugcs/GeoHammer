@@ -46,15 +46,15 @@ public class ProfileField {
 		}
 
 		this.maxHeightInSamples = maxHeight;
-		getProfileSettings().maxsamples = maxHeightInSamples;
+		getSettings().setMaxSamples(maxHeightInSamples);
 
-		if (getProfileSettings().getLayer() + getProfileSettings().hpage > maxHeightInSamples) {
-			getProfileSettings().setLayer(maxHeightInSamples / 4);
-			getProfileSettings().hpage = maxHeightInSamples / 4;
+		if (getSettings().getDepthStart() + getSettings().getDepthHeight() > maxHeightInSamples) {
+			getSettings().setDepthStart(maxHeightInSamples / 4);
+			getSettings().setDepthHeight(maxHeightInSamples / 4);
 		}
 	}
 
-	public Settings getProfileSettings() {
+	public Settings getSettings() {
 		return profileSettings;
 	}
 

@@ -68,8 +68,4 @@ public class MedianScaleBuilder implements ArrayBuilder {
 		
 		return scale;
 	}
-
-	//private int nrm(int i, int max) {
-	//	return Math.max(0, Math.min(max - 1, i));
-	//}
 }

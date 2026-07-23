@@ -59,8 +59,8 @@ public class DepthStart extends HoverHandle {
 	}
 
 	protected IndexRange buildIndexRange(TraceSample ts, ProfileField profField) {
-		var settings = profField.getProfileSettings();
-		return new IndexRange(ts.sample(), ts.sample() + settings.hpage);
+		var settings = profField.getSettings();
+		return new IndexRange(ts.sample(), ts.sample() + settings.getDepthHeight());
 	}
 
 	@Override
@@ -105,7 +105,7 @@ public class DepthStart extends HoverHandle {
 	protected Point2D getCenter(ScrollableData scrollableData) {
 		if (scrollableData instanceof GPRChart gprChart) {
 			var profField = gprChart.getField();
-			int y = gprChart.sampleToScreen(profField.getProfileSettings().getLayer());
+			int y = gprChart.sampleToScreen(profField.getSettings().getDepthStart());
             return new Point2D(profField.getVisibleStart(), y);
 		} else {
 			return scrollableData.traceSampleToScreen(0, 0);

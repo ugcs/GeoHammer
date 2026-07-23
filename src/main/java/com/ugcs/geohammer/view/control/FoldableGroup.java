@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.chart.tool.projection.control;
+package com.ugcs.geohammer.view.control;
 
 import javafx.scene.Node;
 import javafx.scene.control.Label;

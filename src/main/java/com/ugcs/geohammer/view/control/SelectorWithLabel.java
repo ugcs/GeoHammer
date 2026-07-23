@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.chart.tool.projection.control;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.view.Views;

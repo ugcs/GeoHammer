@@ -1,9 +1,9 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
-import com.ugcs.geohammer.chart.tool.projection.control.FoldableGroup;
-import com.ugcs.geohammer.chart.tool.projection.control.InputWithLabel;
-import com.ugcs.geohammer.chart.tool.projection.control.SelectorWithLabel;
-import com.ugcs.geohammer.chart.tool.projection.control.SliderWithLabel;
+import com.ugcs.geohammer.view.control.FoldableGroup;
+import com.ugcs.geohammer.view.control.InputWithLabel;
+import com.ugcs.geohammer.view.control.SelectorWithLabel;
+import com.ugcs.geohammer.view.control.SliderWithLabel;
 import com.ugcs.geohammer.chart.tool.projection.model.Axis;
 import com.ugcs.geohammer.chart.tool.projection.model.GridOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;

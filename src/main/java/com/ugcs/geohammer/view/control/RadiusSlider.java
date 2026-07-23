@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.view;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
@@ -15,15 +15,14 @@ public class RadiusSlider extends BaseSlider {
 
 	@Override
 	public int updateModel() {
-		
-		settings.radius = (int) slider.getValue();
-		return settings.radius;
+		settings.setRadius((int)slider.getValue());
+		return settings.getRadius();
 	}
 
 	@Override
 	public void updateUI() {
 		slider.setMin(2);
 		slider.setMax(50);
-		slider.setValue(settings.radius);
+		slider.setValue(settings.getRadius());
 	}
 }

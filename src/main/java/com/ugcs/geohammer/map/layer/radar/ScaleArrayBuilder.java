@@ -23,13 +23,13 @@ public class ScaleArrayBuilder implements ArrayBuilder {
 			return scaleArray;
 		}
 		
-		scaleArray = new double[2][settings.maxsamples];
+		scaleArray = new double[2][settings.getMaxSamples()];
 		
-		for (int i = 0; i < settings.maxsamples; i++) {
-			scaleArray[0][i] = settings.threshold;
-			scaleArray[1][i] = (settings.topscale 
-					+ (settings.bottomscale - settings.topscale) 
-					* i / settings.maxsamples)
+		for (int i = 0; i < settings.getMaxSamples(); i++) {
+			scaleArray[0][i] = settings.getThreshold();
+			scaleArray[1][i] = (settings.getTopGain()
+					+ (settings.getBottomGain() - settings.getTopGain())
+					* i / settings.getMaxSamples())
 					/ 10000.0;
 		}
 		

@@ -33,8 +33,9 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.format.HorizontalProfile;
-import com.ugcs.geohammer.view.BaseSlider;
+import com.ugcs.geohammer.view.control.BaseSlider;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.view.control.ContrastSlider;
 import javafx.application.Platform;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Tooltip;
@@ -77,10 +78,6 @@ public class GPRChart extends Chart {
                     BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
                     10.0f, new float[] {5.0f}, 0.0f);
 
-	private static final int MIN_CONTRAST = 0;
-
-    private static final int MAX_CONTRAST = 100;
-
     private static final String DEPTH_SLIDER_TOOLTIP = "Hold Ctrl to move independently";
 
 	private BaseObject selectedMouseHandler;
@@ -100,8 +97,6 @@ public class GPRChart extends Chart {
     private int height = 600;
 
     private final PaintLimiter repaintLimiter = new PaintLimiter(60, () -> draw(width, height));
-
-    private double contrast = 50;
 
     private final VBox vbox = new VBox();
 
@@ -148,7 +143,7 @@ public class GPRChart extends Chart {
             repaintEvent();
             setContrastToMeta();
         };
-        contrastSlider = new ContrastSlider(profileField.getProfileSettings(), contrastListener);
+        contrastSlider = new ContrastSlider(profileField.getSettings(), contrastListener);
 
 		setContrastFromMeta(contrastSlider, traceFile);
 		setDepthRangeFromMeta(traceFile);
@@ -224,7 +219,8 @@ public class GPRChart extends Chart {
 		TraceFile traceFile = profileField.getFile();
 		MetaFile meta = traceFile.getMetaFile();
 		if (meta != null) {
-			meta.setContrast(contrast);
+            Settings settings = profileField.getSettings();
+			meta.setContrast(settings.getContrast());
 		}
 	}
 
@@ -233,11 +229,11 @@ public class GPRChart extends Chart {
 		if (max <= 0) {
 			return;
 		}
-		var settings = profileField.getProfileSettings();
+        Settings settings = profileField.getSettings();
 		int clampedLayer = Math.min(Math.max(0, depthRange.from()), max - 1);
 		int clampedHpage = Math.min(Math.max(0, depthRange.to() - depthRange.from()), max - clampedLayer);
-		settings.setLayer(clampedLayer);
-		settings.hpage = clampedHpage;
+		settings.setDepthStart(clampedLayer);
+		settings.setDepthHeight(clampedHpage);
 		repaintEvent();
 		updateDepthRangeInMeta();
 	}
@@ -246,9 +242,9 @@ public class GPRChart extends Chart {
 		TraceFile traceFile = profileField.getFile();
 		MetaFile meta = traceFile.getMetaFile();
 		if (meta != null) {
-			var profileSettings = profileField.getProfileSettings();
-			int min = profileSettings.getLayer();
-			int max = min + profileSettings.hpage;
+            Settings settings = profileField.getSettings();
+			int min = settings.getDepthStart();
+			int max = min + settings.getDepthHeight();
 			meta.setDepthRange(new IndexRange(min, max));
 		}
 	}
@@ -257,7 +253,9 @@ public class GPRChart extends Chart {
 		MetaFile meta = traceFile.getMetaFile();
 		Double contrastFromMeta = meta != null ? meta.getContrast() : null;
 		if (slider != null && contrastFromMeta != null) {
-			this.contrast = Math.clamp(contrastFromMeta, MIN_CONTRAST, MAX_CONTRAST);
+            double contrast = Math.clamp(contrastFromMeta, Settings.MIN_CONTRAST, Settings.MAX_CONTRAST);
+            Settings settings = profileField.getSettings();
+            settings.setContrast(contrast);
 			slider.updateUI();
 		}
 	}
@@ -266,35 +264,11 @@ public class GPRChart extends Chart {
 		MetaFile meta = traceFile.getMetaFile();
 		IndexRange savedRange = meta != null ? meta.getDepthRange() : null;
 		if (savedRange != null) {
-			var profileSettings = profileField.getProfileSettings();
-			profileSettings.hpage = savedRange.to() - savedRange.from();
-			profileSettings.setLayer(savedRange.from());
+            Settings settings = profileField.getSettings();
+			settings.setDepthHeight(savedRange.to() - savedRange.from());
+			settings.setDepthStart(savedRange.from());
 		}
 	}
-
-    private class ContrastSlider extends BaseSlider {
-        public ContrastSlider(Settings settings, ChangeListener<Number> listenerExt) {
-            super(settings, listenerExt);
-            name = "Contrast";
-            units = "";
-            tickUnits = 25;
-        }
-
-        public void updateUI() {
-			if (slider == null) {
-				return;
-			}
-            slider.setMax(MAX_CONTRAST);
-            slider.setMin(MIN_CONTRAST);
-            slider.setValue(contrast);
-        }
-
-        public int updateModel() {
-            contrast = (int) slider.getValue();
-			setContrastToMeta();
-            return (int) contrast;
-        }
-    }
 
     private void initCanvas() {
         canvas.setOnScroll(event -> {
@@ -455,21 +429,21 @@ public class GPRChart extends Chart {
     }
 
     private double getRealContrast() {
-        return Math.pow(1.08, 140 - contrast);
+        Settings settings = profileField.getSettings();
+        return Math.pow(1.08, 140 - settings.getContrast());
     }
 
     private void drawAmplitudeMapLevels(Graphics2D g2) {
         g2.setColor(Color.MAGENTA);
         g2.setStroke(DASHED_STROKE);
 
-        var profileSettings = profileField.getProfileSettings();
+        Settings settings = profileField.getSettings();
 
-        int y = sampleToScreen(profileSettings.getLayer());
+        int y = sampleToScreen(settings.getDepthStart());
         g2.drawLine(-width / 2, y, width / 2, y);
 
-        int bottomSelectedSmp = profileSettings.getLayer() + profileSettings.hpage;
+        int bottomSelectedSmp = settings.getDepthStart() + settings.getDepthHeight();
         int y2 = sampleToScreen(bottomSelectedSmp);
-
 
         g2.drawLine(-width / 2, y2, width / 2, y2);
     }

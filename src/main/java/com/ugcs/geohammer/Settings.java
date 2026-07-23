@@ -1,61 +1,120 @@
 package com.ugcs.geohammer;
 
-import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.apache.commons.lang3.mutable.MutableInt;
-
 public class Settings {
 
-	public enum RadarMapMode {
-		AMPLITUDE,
-		SEARCH
-	}
-	
-	public RadarMapMode radarMapMode = RadarMapMode.AMPLITUDE;
-	
-	public boolean isRadarMapVisible = true;
-	
-	public int maxsamples = 400;
-	
-	public int width = 800;
-	public int height = 600;
-	public int radius = 15;
-	
-	public int hpage = 47;
+	public static final double MIN_CONTRAST = 0;
 
-	private int layer = 80; 
-	
-	public int hypermiddleamp = 0;
-	
-	public MutableBoolean showEdge = new MutableBoolean(); 
-	public MutableBoolean showGood = new MutableBoolean();
-	public MutableBoolean hyperliveview = new MutableBoolean();
-	public MutableInt levelPreviewShift = new MutableInt(0);
-	
-	public int topscale = 200;
-	public int bottomscale = 250;
-	public int zoom = 100;
-    
-	public boolean autogain = true;
-	
-	public int threshold = 0;
-    
-	public int getWidth() {
-		return (int) (width * zoom / 100.0);
-	}
-	
-	public int getHeight() {
-		return (int) (height * zoom / 100.0);
-	}
-	
-	public MutableBoolean getHyperliveview() {
-		return hyperliveview;
+	public static final double MAX_CONTRAST = 100;
+
+	private boolean radarMapVisible = true;
+
+	private int maxSamples = 400;
+
+	// top sample of the visible depth window
+	private int depthStart = 80;
+
+	// window height in samples
+	private int depthHeight = 47;
+
+	private int middleAmplitude;
+
+	private double contrast = 50;
+
+	private boolean autoGain = true;
+
+	private int topGain = 200;
+
+	private int bottomGain = 250;
+
+	private int threshold = 0;
+
+	private int radius = 15;
+
+	public boolean isRadarMapVisible() {
+		return radarMapVisible;
 	}
 
-	public int getLayer() {
-		return layer;
+	public void setRadarMapVisible(boolean radarMapVisible) {
+		this.radarMapVisible = radarMapVisible;
 	}
 
-	public void setLayer(int layer) {
-		this.layer = layer;
-	}	
+	public int getMaxSamples() {
+		return maxSamples;
+	}
+
+	public void setMaxSamples(int maxSamples) {
+		this.maxSamples = maxSamples;
+	}
+
+	public int getDepthStart() {
+		return depthStart;
+	}
+
+	public void setDepthStart(int depthStart) {
+		this.depthStart = depthStart;
+	}
+
+	public int getDepthHeight() {
+		return depthHeight;
+	}
+
+	public void setDepthHeight(int depthHeight) {
+		this.depthHeight = depthHeight;
+	}
+
+	public int getMiddleAmplitude() {
+		return middleAmplitude;
+	}
+
+	public void setMiddleAmplitude(int middleAmplitude) {
+		this.middleAmplitude = middleAmplitude;
+	}
+
+	public double getContrast() {
+		return contrast;
+	}
+
+	public void setContrast(double contrast) {
+		this.contrast = contrast;
+	}
+
+	public boolean isAutoGain() {
+		return autoGain;
+	}
+
+	public void setAutoGain(boolean autoGain) {
+		this.autoGain = autoGain;
+	}
+
+	public int getTopGain() {
+		return topGain;
+	}
+
+	public void setTopGain(int topGain) {
+		this.topGain = topGain;
+	}
+
+	public int getBottomGain() {
+		return bottomGain;
+	}
+
+	public void setBottomGain(int bottomGain) {
+		this.bottomGain = bottomGain;
+	}
+
+	public int getThreshold() {
+		return threshold;
+	}
+
+	public void setThreshold(int threshold) {
+		this.threshold = threshold;
+	}
+
+	public int getRadius() {
+		return radius;
+	}
+
+	public void setRadius(int radius) {
+		this.radius = radius;
+	}
 }

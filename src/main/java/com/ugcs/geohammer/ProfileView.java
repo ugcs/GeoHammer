@@ -153,10 +153,10 @@ public class ProfileView implements InitializingBean {
 			GPRChart chart = model.getGprChart(traceFile);
 			if (chart != null) {
 				ProfileField profileField = chart.getField();
-				Settings profileSettings = profileField.getProfileSettings();
+				Settings profileSettings = profileField.getSettings();
 
-				int offset = profileSettings.getLayer();
-				int length = profileSettings.hpage;
+				int offset = profileSettings.getDepthStart();
+				int length = profileSettings.getDepthHeight();
 				traceTransform.cropGprSamples(traceFile, offset, length);
 			}
 		}

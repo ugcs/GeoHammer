@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.chart.tool.projection.control;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Pos;
@@ -10,7 +10,7 @@ public class InputWithLabel extends HBox {
 
     private static final double SPACING = 4;
 
-    private final TextField input;
+    protected final TextField input;
 
     public InputWithLabel(String text) {
         Label label = new Label(text);

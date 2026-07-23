@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.view;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
@@ -15,19 +15,25 @@ import javafx.scene.layout.Region;
 public abstract class BaseSlider {
 
 	protected Settings settings;
-	protected Slider slider;
-	protected String name;
-	protected String units = "";
-	protected Label label;
-	protected double tickUnits = 25;
-	protected ChangeListener<Number> listenerExt;
-	protected ChangeListener<Number> listener = new ChangeListener<Number>() {
+
+    protected Slider slider;
+
+    protected String name;
+
+    protected String units = "";
+
+    protected Label label;
+
+    protected double tickUnits = 25;
+
+    protected ChangeListener<Number> listenerExt;
+
+    protected ChangeListener<Number> listener = new ChangeListener<>() {
         @Override
-        public void changed(ObservableValue<? extends Number> source,
-        		Number oldValue, Number newValue) {
-        	int val = updateModel();
-        	label.textProperty().setValue(name + ": " + String.valueOf(val) + " " + units);
-        } 
+        public void changed(ObservableValue<? extends Number> source, Number oldValue, Number newValue) {
+            int value = updateModel();
+            label.textProperty().setValue(name + ": " + value + " " + units);
+        }
     };
 	
 	public BaseSlider(Settings settings, ChangeListener<Number> listenerExt) {
@@ -72,5 +78,4 @@ public abstract class BaseSlider {
 	public abstract int updateModel();
 	
 	public abstract void updateUI();
-	
 }

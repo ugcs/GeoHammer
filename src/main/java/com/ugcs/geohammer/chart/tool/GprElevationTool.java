@@ -15,7 +15,7 @@ import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.util.SinglePendingExecutor;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.view.ExpandableSlider;
+import com.ugcs.geohammer.view.control.ExpandableSlider;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.geometry.Insets;

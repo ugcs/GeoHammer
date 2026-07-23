@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.view;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
@@ -14,14 +14,13 @@ public class ThresholdSlider  extends BaseSlider {
 	}
 
 	public void updateUI() {
-		//slider.setDisable(settings.autogain);
-		slider.setMax(10000);		
+		slider.setMax(10000);
 		slider.setMin(0);
-		slider.setValue(settings.threshold);
+		slider.setValue(settings.getThreshold());
 	}
 	
 	public int updateModel() {
-		settings.threshold = (int) slider.getValue();
-		return settings.threshold;
+		settings.setThreshold((int)slider.getValue());
+		return settings.getThreshold();
 	}
 }

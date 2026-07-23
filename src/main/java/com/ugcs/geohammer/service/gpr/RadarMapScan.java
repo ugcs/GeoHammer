@@ -29,15 +29,15 @@ public class RadarMapScan implements Command {
 		GPRChart gprChart = model.getGprChart(file);
 		if (gprChart != null) {
 			var field = gprChart.getField();
-			int start = Math.clamp(field.getProfileSettings().getLayer(),
+			int start = Math.clamp(field.getSettings().getDepthStart(),
 					0, field.getMaxHeightInSamples());
 
-			int finish = Math.clamp(field.getProfileSettings().getLayer() + field.getProfileSettings().hpage,
+			int finish = Math.clamp(field.getSettings().getDepthStart() + field.getSettings().getDepthHeight(),
 					0, field.getMaxHeightInSamples());
 
 			for (int i = 0; i < file.numTraces(); i++) {
 				Trace trace = file.getTraces().get(i);
-				double alpha = calcAlpha(trace, start, finish, field.getProfileSettings(), scaleBuilder.build(file));
+				double alpha = calcAlpha(trace, start, finish, field.getSettings(), scaleBuilder.build(file));
 				file.getAmplScan().intensity[i] = alpha;
 			}
 		}
@@ -49,7 +49,7 @@ public class RadarMapScan implements Command {
 		start = Math.clamp(start, 0, trace.numSamples());
 		finish = Math.clamp(finish, 0, trace.numSamples());
 
-		double additionalThreshold = profileSettings.autogain ? profileSettings.threshold : 0;
+		double additionalThreshold = profileSettings.isAutoGain() ? profileSettings.getThreshold() : 0;
 		
 		for (int i = start; i < finish; i++) {
 			double threshold = scaleArray[0][i];

@@ -30,8 +30,6 @@ public class Trace {
      */
     private byte[] edges;
 
-    private byte[] good;
-
     private LatLon latLon;
 
     private LatLon latLonOrigin;
@@ -56,7 +54,6 @@ public class Trace {
 
         this.samples = samples;
         this.edges = new byte[samples.length];
-        this.good = new byte[samples.length];
 
         this.latLonOrigin = latLon;
         this.latLon = latLon;
@@ -146,14 +143,6 @@ public class Trace {
 
     public void setEdge(int index, byte value) {
         edges[localToGlobal(index)] = value;
-    }
-
-    public byte getGood(int index) {
-        return good[localToGlobal(index)];
-    }
-
-    public void setGood(int index, byte value) {
-        good[localToGlobal(index)] = value;
     }
 
     public LatLon getLatLon() {

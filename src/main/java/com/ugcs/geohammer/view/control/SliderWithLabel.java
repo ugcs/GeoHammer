@@ -1,4 +1,4 @@
-package com.ugcs.geohammer.chart.tool.projection.control;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Formats;

@@ -1,10 +1,11 @@
-package com.ugcs.geohammer.view;
+package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
 import javafx.beans.value.ChangeListener;
 
 public class AutoGainCheckbox extends BaseCheckBox {
+
 	protected Settings settings;
 	
 	public AutoGainCheckbox(Settings settings, ChangeListener<Boolean> listenerExt) {
@@ -12,12 +13,13 @@ public class AutoGainCheckbox extends BaseCheckBox {
 		this.settings = settings;
 	}
 
+	@Override
 	public void updateUI() {
-		checkBox.setSelected(settings.autogain);
+		checkBox.setSelected(settings.isAutoGain());
 	}
-	
-	public boolean updateModel() {
-		settings.autogain = checkBox.isSelected();
-		return settings.autogain;
+
+	@Override
+	public void updateModel() {
+		settings.setAutoGain(checkBox.isSelected());
 	}
 }

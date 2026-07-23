@@ -25,15 +25,14 @@ import com.ugcs.geohammer.service.gpr.CommandRegistry;
 import com.ugcs.geohammer.service.gpr.RadarMapScan;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
-import com.ugcs.geohammer.Settings.RadarMapMode;
 import com.ugcs.geohammer.model.ScanProfile;
-import com.ugcs.geohammer.view.AutoGainCheckbox;
-import com.ugcs.geohammer.view.BaseCheckBox;
-import com.ugcs.geohammer.view.BaseSlider;
-import com.ugcs.geohammer.view.GainBottomSlider;
-import com.ugcs.geohammer.view.GainTopSlider;
-import com.ugcs.geohammer.view.RadiusSlider;
-import com.ugcs.geohammer.view.ThresholdSlider;
+import com.ugcs.geohammer.view.control.AutoGainCheckbox;
+import com.ugcs.geohammer.view.control.BaseCheckBox;
+import com.ugcs.geohammer.view.control.BaseSlider;
+import com.ugcs.geohammer.view.control.BottomGainSlider;
+import com.ugcs.geohammer.view.control.TopGainSlider;
+import com.ugcs.geohammer.view.control.RadiusSlider;
+import com.ugcs.geohammer.view.control.ThresholdSlider;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -41,7 +40,6 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.VBox;
 
@@ -76,11 +74,6 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		public void handle(ActionEvent event) {
 			setActive(showMapButtonAmp.isSelected());
 
-			if (showMapButtonAmp.isSelected()) {
-                radarMapSettings.radarMapMode = RadarMapMode.AMPLITUDE;
-                radarMapSettings.getHyperliveview().setFalse();
-			}
-			
 			if (isActive()) {
 				q.submit();
 			} else {
@@ -90,14 +83,12 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		}
 	};
 	
-	ToggleGroup group = new ToggleGroup();
 	private ToggleButton showMapButtonAmp = ResourceImageHolder.setButtonImage(ResourceImageHolder.LIGHT, new ToggleButton());
 
 	{
 		showMapButtonAmp.setTooltip(new Tooltip("Toggle amplitude map layer"));
 		showMapButtonAmp.setSelected(true);
 		showMapButtonAmp.setOnAction(showMapListener);
-		showMapButtonAmp.setToggleGroup(group);
 	}
 	
 	private ChangeListener<Number> sliderListener = new ChangeListener<Number>() {
@@ -110,11 +101,11 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	};
 	
 	public boolean isActive() {
-		return radarMapSettings.isRadarMapVisible;
+		return radarMapSettings.isRadarMapVisible();
 	}
 
 	public void setActive(boolean active) {
-		radarMapSettings.isRadarMapVisible = active;
+		radarMapSettings.setRadarMapVisible(active);
 	}
 	
 	private ChangeListener<Boolean> autoGainListener = new ChangeListener<Boolean>() {
@@ -151,8 +142,8 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		scaleArrayBuilder = new ScaleArrayBuilder(radarMapSettings);
 
 		Settings settings = radarMapSettings;
-		gainTopSlider = new GainTopSlider(settings, sliderListener);
-		gainBottomSlider = new GainBottomSlider(settings, sliderListener);
+		gainTopSlider = new TopGainSlider(settings, sliderListener);
+		gainBottomSlider = new BottomGainSlider(settings, sliderListener);
 		thresholdSlider = new ThresholdSlider(settings, sliderListener);
 		radiusSlider = new RadiusSlider(settings, sliderListener);
 		
@@ -214,16 +205,11 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	public void createHiRes(MapField field, BufferedImage img) {
 		DblArray da = new DblArray(img.getWidth(), img.getHeight());
 
-		int[] palette;
-		if (radarMapSettings.radarMapMode == RadarMapMode.AMPLITUDE) {
-			// fill file.amplScan
-			commandRegistry.runForGprFiles(
-					model.getFileManager().getGprFiles(),
-					new RadarMapScan(getArrayBuilder(), model));
-			palette = DblArray.paletteAmp;
-		} else {
-			palette = DblArray.paletteAlg;
-		}
+		// fill file.amplScan
+		commandRegistry.runForGprFiles(
+				model.getFileManager().getGprFiles(),
+				new RadarMapScan(getArrayBuilder(), model));
+		int[] palette = DblArray.paletteAmp;
 
 		drawCircles(field, da);
 		da.toImg(img, palette);
@@ -242,17 +228,13 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	}
 
 	public ScanProfile getFileScanProfile(TraceFile file) {
-		ScanProfile profile = null;
-		if (radarMapSettings.radarMapMode == RadarMapMode.AMPLITUDE) {
-			profile = file.getAmplScan();
-		}
-		return profile;
+        return file.getAmplScan();
 	}
 
 	public void drawFileCircles(MapField field, DblArray da, SgyFile file, 
 			ScanProfile profile, List<Trace> traces) {
 		
-		int radius = radarMapSettings.radius;
+		int radius = radarMapSettings.getRadius();
 		int centerX = da.getWidth() / 2;
 		int centerY = da.getHeight() / 2;
 		
@@ -298,7 +280,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	}
 
 	private ArrayBuilder getArrayBuilder() {
-		if (radarMapSettings.autogain) {
+		if (radarMapSettings.isAutoGain()) {
 			return autoArrayBuilder;
 		} else {
 			return scaleArrayBuilder;

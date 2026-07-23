@@ -18,8 +18,8 @@ public class DepthHeight extends DepthStart {
 
 	@Override
 	protected IndexRange buildIndexRange(TraceSample ts, ProfileField profField) {
-		var settings = profField.getProfileSettings();
-		int from = settings.getLayer();
+		var settings = profField.getSettings();
+		int from = settings.getDepthStart();
 		int to = Math.max(from, ts.sample()) + 1;
 		return new IndexRange(from, to);
 	}
@@ -28,7 +28,7 @@ public class DepthHeight extends DepthStart {
 	protected Point2D getCenter(ScrollableData scrollable) {
 		if (scrollable instanceof GPRChart gprChart) {
 			var profField = gprChart.getField();
-            int sample = profField.getProfileSettings().getLayer() + profField.getProfileSettings().hpage;
+            int sample = profField.getSettings().getDepthStart() + profField.getSettings().getDepthHeight();
             int y = gprChart.sampleToScreen(sample);
             return new Point2D(gprChart.getField().getVisibleStart(), y);
 		} else {

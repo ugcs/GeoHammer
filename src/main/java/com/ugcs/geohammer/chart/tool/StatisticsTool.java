@@ -11,6 +11,7 @@ import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.FileUpdatedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.template.DataMapping;
@@ -241,8 +242,23 @@ public class StatisticsTool extends ToolView {
     }
 
     @EventListener
+    private void onFileUpdated(FileUpdatedEvent event) {
+        if (Objects.equals(selectedFile, event.getFile())) {
+            Platform.runLater(() -> {
+                metricsView.invalidateIndex();
+                updateView();
+            });
+        }
+    }
+
+    @EventListener
     private void onChange(WhatChanged changed) {
-        if (changed.isCsvDataZoom() || changed.isTraceCut() || changed.isTraceSelected()) {
+        if (changed.isTraceCut()) {
+            Platform.runLater(() -> {
+                metricsView.invalidateIndex();
+                updateView();
+            });
+        } else if (changed.isCsvDataZoom() || changed.isTraceSelected()) {
             Platform.runLater(this::updateView);
         }
     }
@@ -346,6 +362,11 @@ public class StatisticsTool extends ToolView {
 
             indexedChart = chart;
             indexedSeries = series;
+        }
+
+        void invalidateIndex() {
+            indexedChart = null;
+            indexedSeries = null;
         }
 
         void update() {

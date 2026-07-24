@@ -8,6 +8,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
+import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -32,11 +33,11 @@ public class RunningMedianTool extends FilterToolView {
         this.model = model;
         this.preferences = preferences;
 
-        windowInput = new TextField();
-        windowInput.setPromptText("Enter window size");
+        InputWithTopLabel windowWithLabel = new InputWithTopLabel("Window length (measurements)");
+        windowInput = windowWithLabel.getInput();
         windowInput.textProperty().addListener(this::onShiftChange);
 
-        inputContainer.getChildren().setAll(windowInput);
+        inputContainer.getChildren().setAll(windowWithLabel);
 
         showApply(true);
         showApplyToAll(true);

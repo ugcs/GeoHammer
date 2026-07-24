@@ -2,6 +2,7 @@ package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
+import com.ugcs.geohammer.util.Unit;
 import javafx.beans.value.ChangeListener;
 
 public class RadiusSlider extends BaseSlider {
@@ -9,7 +10,7 @@ public class RadiusSlider extends BaseSlider {
 	public RadiusSlider(Settings settings, ChangeListener<Number> listenerExt) {
 		super(settings, listenerExt);
 		name = "Radius";
-		units = "px";
+		unit = Unit.symbol("px");
 		tickUnits = 10;
 	}
 

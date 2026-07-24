@@ -2,6 +2,7 @@ package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
+import com.ugcs.geohammer.util.Unit;
 import javafx.beans.value.ChangeListener;
 
 public class TopGainSlider extends BaseSlider {
@@ -10,7 +11,7 @@ public class TopGainSlider extends BaseSlider {
 		super(settings, listenerExt);
 		
 		name = "Top gain";
-		units = "%";
+		unit = Unit.symbol("%", "");
 		tickUnits = 200;
 	}
 

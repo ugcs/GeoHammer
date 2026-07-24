@@ -10,6 +10,7 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.gpr.CommandRegistry;
 import com.ugcs.geohammer.service.gpr.SpreadCoordinates;
+import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.layout.HBox;
@@ -96,7 +97,7 @@ public class GprBackgroundTool extends FilterToolView {
         inputContainer.getChildren().clear();
         if (selectedFile instanceof TraceFile traceFile) {
             inputContainer.getChildren().addAll(profileView.getRight(traceFile));
-            HBox buttons = new HBox(Tools.DEFAULT_SPACING,
+            HBox buttons = new HBox(Views.DEFAULT_SPACING,
                     removeBackground,
                     spreadCoordinates);
             inputContainer.getChildren().add(buttons);

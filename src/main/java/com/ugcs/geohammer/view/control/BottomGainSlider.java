@@ -2,6 +2,7 @@ package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
+import com.ugcs.geohammer.util.Unit;
 import javafx.beans.value.ChangeListener;
 
 public class BottomGainSlider extends BaseSlider {
@@ -9,7 +10,7 @@ public class BottomGainSlider extends BaseSlider {
 	public BottomGainSlider(Settings settings, ChangeListener<Number> listenerExt) {
 		super(settings, listenerExt);
 		name = "Bottom gain";
-		units = "%";
+		unit = Unit.symbol("%", "");
 		tickUnits = 200;
 	}
 

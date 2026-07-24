@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
+import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
@@ -51,12 +52,12 @@ public abstract class FilterToolView extends ToolView {
         applyToAllButton.setDisable(true);
 
         // input
-        inputContainer = new VBox(Tools.DEFAULT_SPACING);
+        inputContainer = new VBox(Views.DEFAULT_SPACING);
 
         // buttons
         Region separator = new Region();
         HBox.setHgrow(separator, Priority.ALWAYS);
-        buttonContainer = new HBox(Tools.DEFAULT_SPACING, applyButton, separator, applyToAllButton);
+        buttonContainer = new HBox(Views.DEFAULT_SPACING, applyButton, separator, applyToAllButton);
 
         VBox container = Tools.createToolContainer(inputContainer, buttonContainer);
         getChildren().addAll(progress, container);

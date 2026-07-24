@@ -13,8 +13,6 @@ import java.util.List;
 
 public class SelectorWithLabel<T> extends HBox {
 
-    private static final double SPACING = 4;
-
     private final ComboBox<T> selector;
 
     public SelectorWithLabel(String text, List<T> values) {
@@ -26,7 +24,7 @@ public class SelectorWithLabel<T> extends HBox {
         ObservableList<T> items = FXCollections.observableList(Nulls.toEmpty(values));
         selector.setItems(items);
 
-        setSpacing(SPACING);
+        setSpacing(Views.LABEL_SPACING);
         setAlignment(Pos.BASELINE_LEFT);
         getChildren().addAll(label, Views.createSpacer(), selector);
     }

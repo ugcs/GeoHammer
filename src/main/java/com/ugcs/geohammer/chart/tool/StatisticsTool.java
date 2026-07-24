@@ -92,17 +92,17 @@ public class StatisticsTool extends ToolView {
         showInspector.setOnAction(e -> inspectorView.toggle());
 
         HBox valueGroup = new HBox(seriesName, spacer, value, showInspector);
-        valueGroup.setSpacing(Tools.DEFAULT_SPACING);
+        valueGroup.setSpacing(Views.DEFAULT_SPACING);
         valueGroup.setAlignment(Pos.CENTER_LEFT);
 
         // metrics
         metricsView = new MetricsView();
         metricsContextSelector = new MetricsContextSelector();
         VBox metricsGroup = createMetricsGroup(metricsView, metricsContextSelector);
-        VBox.setMargin(metricsGroup, new Insets(Tools.DEFAULT_SPACING, 0, 0, 0));
+        VBox.setMargin(metricsGroup, new Insets(Views.DEFAULT_SPACING, 0, 0, 0));
 
-        VBox container = new VBox(Tools.DEFAULT_SPACING, valueGroup, metricsGroup);
-        container.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
+        VBox container = new VBox(Views.DEFAULT_SPACING, valueGroup, metricsGroup);
+        container.setPadding(Views.DEFAULT_OPTIONS_INSETS);
 
         getChildren().add(container);
 
@@ -325,7 +325,7 @@ public class StatisticsTool extends ToolView {
                 getColumnConstraints().add(columnConstraints);
             }
 
-            setVgap(Tools.DEFAULT_SPACING);
+            setVgap(Views.DEFAULT_SPACING);
             setMaxWidth(Double.MAX_VALUE);
         }
 

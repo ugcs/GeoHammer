@@ -40,9 +40,11 @@ import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.view.Dialogs;
+import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -108,8 +110,8 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		scriptsMetadataSelector.setPromptText("Select script");
 		scriptsMetadataSelector.setMaxWidth(Double.MAX_VALUE);
 
-		parametersBox = new VBox(Tools.DEFAULT_SPACING);
-		parametersBox.setPadding(Tools.DEFAULT_OPTIONS_INSETS);
+		parametersBox = new VBox(Views.DEFAULT_SPACING);
+		parametersBox.setPadding(Views.DEFAULT_OPTIONS_INSETS);
 
 		scriptsMetadataSelector.setCellFactory(param -> createScriptMetadataCell());
 		scriptsMetadataSelector.setButtonCell(createScriptMetadataCell());
@@ -276,11 +278,14 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	}
 
 	private VBox createParameterInput(ScriptParameter param, String initialValue) {
-		VBox paramBox = new VBox(5);
+		VBox paramBox = new VBox(Views.TOP_LABEL_SPACING);
 		String labelText = param.displayName() + rangeHint(param) + (param.required() ? " *" : "");
 		Node inputNode = getInputNode(param, initialValue, labelText);
 		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
-			paramBox.getChildren().add(new Label(labelText));
+			Label label = new Label(labelText);
+			label.getStyleClass().addAll(Views.TOP_LABEL_STYLES);
+			label.setPadding(Views.TOP_LABEL_INSETS);
+			paramBox.getChildren().add(label);
 		}
 		paramBox.getChildren().add(inputNode);
 		return paramBox;
@@ -367,7 +372,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	}
 
 	private HBox createFolderPathSelector(ScriptParameter param, String initialValue) {
-		HBox container = new HBox(5);
+		HBox container = new HBox(Views.DEFAULT_SPACING);
 		container.setUserData(param);
 
 		String defaultFolderPath = initialValue;

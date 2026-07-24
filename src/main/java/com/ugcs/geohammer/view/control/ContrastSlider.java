@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
+import com.ugcs.geohammer.util.Unit;
 import javafx.beans.value.ChangeListener;
 
 public class ContrastSlider extends BaseSlider {
@@ -9,7 +10,7 @@ public class ContrastSlider extends BaseSlider {
         super(settings, listenerExt);
 
         name = "Contrast";
-        units = "";
+        unit = Unit.empty();
         tickUnits = 25;
     }
 

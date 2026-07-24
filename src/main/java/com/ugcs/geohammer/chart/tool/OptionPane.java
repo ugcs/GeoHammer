@@ -40,7 +40,7 @@ public class OptionPane extends VBox {
         seriesControl.setVisible(false);
         seriesControl.setManaged(false);
 
-        toolContainer = new VBox(2 * Tools.DEFAULT_SPACING,
+        toolContainer = new VBox(2 * Views.DEFAULT_SPACING,
                 new ToolToggleBox(statisticsTool, "Statistics"),
                 new ToolToggleBox(lowPassTool, "Low-pass filter"),
                 new ToolToggleBox(griddingTool, "Gridding"),
@@ -90,7 +90,7 @@ public class OptionPane extends VBox {
             toggle.setSelected(tool.isVisible());
             toggle.setOnAction(event -> tool.show(toggle.isSelected()));
 
-            setSpacing(Tools.DEFAULT_SPACING);
+            setSpacing(Views.DEFAULT_SPACING);
             getChildren().setAll(toggle, tool);
 
             // hide by default

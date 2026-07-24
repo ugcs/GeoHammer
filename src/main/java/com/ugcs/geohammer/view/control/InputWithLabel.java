@@ -8,8 +8,6 @@ import javafx.scene.layout.HBox;
 
 public class InputWithLabel extends HBox {
 
-    private static final double SPACING = 4;
-
     protected final TextField input;
 
     public InputWithLabel(String text) {
@@ -19,7 +17,7 @@ public class InputWithLabel extends HBox {
         input.setPrefWidth(80);
         input.setAlignment(Pos.BASELINE_RIGHT);
 
-        setSpacing(SPACING);
+        setSpacing(Views.LABEL_SPACING);
         setAlignment(Pos.BASELINE_LEFT);
         getChildren().addAll(label, Views.createSpacer(), input);
     }

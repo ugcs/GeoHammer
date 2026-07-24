@@ -2,6 +2,7 @@ package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
+import com.ugcs.geohammer.util.Unit;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
@@ -20,7 +21,7 @@ public abstract class BaseSlider {
 
     protected String name;
 
-    protected String units = "";
+    protected Unit unit;
 
     protected Label label;
 
@@ -32,7 +33,7 @@ public abstract class BaseSlider {
         @Override
         public void changed(ObservableValue<? extends Number> source, Number oldValue, Number newValue) {
             int value = updateModel();
-            label.textProperty().setValue(name + ": " + value + " " + units);
+            label.textProperty().setValue(name + ": " + (unit != null ? unit.format(value) : value));
         }
     };
 	

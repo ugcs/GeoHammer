@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.view.control;
 
+import com.ugcs.geohammer.view.Views;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -37,8 +38,8 @@ public abstract class BaseCheckBox {
 
         HBox root = new HBox();
         root.setAlignment(Pos.CENTER_RIGHT);
-        root.setPadding(new Insets(5));
-        root.setSpacing(5);        
+        root.setPadding(new Insets(Views.DEFAULT_SPACING));
+        root.setSpacing(Views.DEFAULT_SPACING);
         root.getChildren().addAll(new Label(name), checkBox);
         
         return root;

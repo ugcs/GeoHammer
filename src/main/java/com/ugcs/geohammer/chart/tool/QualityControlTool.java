@@ -16,11 +16,15 @@ import com.ugcs.geohammer.service.quality.QualityIssue;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
+import com.ugcs.geohammer.view.Views;
+import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -67,33 +71,47 @@ public class QualityControlTool extends FilterToolView {
         this.preferences = preferences;
         this.qualityLayer = qualityLayer;
 
-        Label lineDistanceLabel = new Label("Distance between lines");
+        Label lineDistanceLabel = new Label("Max distance between lines");
 
-        maxLineDistanceInput = new TextField(String.valueOf(DEFAULT_MAX_LINE_DISTANCE));
-        maxLineDistanceInput.setPromptText("Distance between lines (m)");
+        InputWithTopLabel maxLineDistanceWithLabel = new InputWithTopLabel("Distance (m)");
+        maxLineDistanceInput = maxLineDistanceWithLabel.getInput();
+        maxLineDistanceInput.setText(String.valueOf(DEFAULT_MAX_LINE_DISTANCE));
         maxLineDistanceInput.textProperty().addListener(this::onInputChange);
 
-        lineDistanceToleranceInput = new TextField(String.valueOf(DEFAULT_LINE_DISTANCE_TOLERANCE));
-        lineDistanceToleranceInput.setPromptText("Distance tolerance (m)");
+        InputWithTopLabel lineDistanceToleranceWithLabel = new InputWithTopLabel("Tolerance (m)");
+        lineDistanceToleranceInput = lineDistanceToleranceWithLabel.getInput();
+        lineDistanceToleranceInput.setText(String.valueOf(DEFAULT_LINE_DISTANCE_TOLERANCE));
         lineDistanceToleranceInput.textProperty().addListener(this::onInputChange);
 
-        Label altitudeLabel = new Label("Altitude AGL");
+        VBox lineDistanceGroup = new VBox(Views.DEFAULT_SPACING,
+                lineDistanceLabel,
+                new HBox(Views.DEFAULT_SPACING,
+                        maxLineDistanceWithLabel,
+                        lineDistanceToleranceWithLabel));
+        lineDistanceGroup.getStyleClass().add("group");
 
-        maxAltitudeInput = new TextField(String.valueOf(DEFAULT_MAX_ALTITUDE));
-        maxAltitudeInput.setPromptText("Altitude AGL (m)");
+        Label altitudeLabel = new Label("Max altitude AGL");
+
+        InputWithTopLabel maxAltitudeWithLabel = new InputWithTopLabel("Altitude AGL (m)");
+        maxAltitudeInput = maxAltitudeWithLabel.getInput();
+        maxAltitudeInput.setText(String.valueOf(DEFAULT_MAX_ALTITUDE));
         maxAltitudeInput.textProperty().addListener(this::onInputChange);
 
-        altitudeToleranceInput = new TextField(String.valueOf(DEFAULT_ALTITUDE_TOLERANCE));
-        altitudeToleranceInput.setPromptText("Altitude tolerance (m)");
+        InputWithTopLabel altitudeToleranceWithLabel = new InputWithTopLabel("Tolerance (m)");
+        altitudeToleranceInput = altitudeToleranceWithLabel.getInput();
+        altitudeToleranceInput.setText(String.valueOf(DEFAULT_ALTITUDE_TOLERANCE));
         altitudeToleranceInput.textProperty().addListener(this::onInputChange);
 
-        inputContainer.getChildren().setAll(
-                lineDistanceLabel,
-                maxLineDistanceInput,
-                lineDistanceToleranceInput,
+        VBox altitudeGroup = new VBox(Views.DEFAULT_SPACING,
                 altitudeLabel,
-                maxAltitudeInput,
-                altitudeToleranceInput
+                new HBox(Views.DEFAULT_SPACING,
+                        maxAltitudeWithLabel,
+                        altitudeToleranceWithLabel));
+        altitudeGroup.getStyleClass().add("group");
+
+        inputContainer.getChildren().setAll(
+                lineDistanceGroup,
+                altitudeGroup
         );
 
         showApply(true);

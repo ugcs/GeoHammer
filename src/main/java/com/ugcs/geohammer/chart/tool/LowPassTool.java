@@ -10,6 +10,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
+import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -34,11 +35,11 @@ public class LowPassTool extends FilterToolView {
         this.model = model;
         this.preferences = preferences;
 
-        orderInput = new TextField();
-        orderInput.setPromptText("Enter cutoff wavelength (fiducials)");
+        InputWithTopLabel orderWithLabel = new InputWithTopLabel("Filter length (measurements)");
+        orderInput = orderWithLabel.getInput();
         orderInput.textProperty().addListener(this::onOrderChange);
 
-        inputContainer.getChildren().setAll(orderInput);
+        inputContainer.getChildren().setAll(orderWithLabel);
 
         showApply(true);
         showApplyToAll(true);

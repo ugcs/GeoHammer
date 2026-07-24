@@ -8,6 +8,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
+import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -32,11 +33,11 @@ public class TimeLagTool extends FilterToolView {
         this.model = model;
         this.preferences = preferences;
 
-        shiftInput = new TextField();
-        shiftInput.setPromptText("Enter time-lag (fiducials)");
+        InputWithTopLabel shiftWithLabel = new InputWithTopLabel("Shift (measurements)");
+        shiftInput = shiftWithLabel.getInput();
         shiftInput.textProperty().addListener(this::onShiftChange);
 
-        inputContainer.getChildren().setAll(shiftInput);
+        inputContainer.getChildren().setAll(shiftWithLabel);
 
         showApply(true);
         showApplyToAll(true);

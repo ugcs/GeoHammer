@@ -24,6 +24,7 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.ColorPalette;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
+import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -117,7 +118,7 @@ public class SeriesSelectorView extends VBox {
 
         HBox container = new HBox();
         container.setAlignment(Pos.CENTER_LEFT);
-        container.setSpacing(Tools.DEFAULT_SPACING);
+        container.setSpacing(Views.DEFAULT_SPACING);
 
         title = new Label(DEFAULT_TITLE);
         title.setMinHeight(26);

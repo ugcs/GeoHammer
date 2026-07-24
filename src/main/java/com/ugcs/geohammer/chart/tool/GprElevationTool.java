@@ -15,6 +15,7 @@ import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.util.SinglePendingExecutor;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Unit;
 import com.ugcs.geohammer.view.control.ExpandableSlider;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
@@ -82,7 +83,7 @@ public class GprElevationTool extends FilterToolView {
         traceHeaderSelector.setPrefWidth(200);
         traceHeaderSelector.setOnAction(event -> updateProfile());
 
-        HBox traceHeader = new HBox(Tools.DEFAULT_SPACING,
+        HBox traceHeader = new HBox(Views.DEFAULT_SPACING,
                 new Label("Trace index"),
                 Views.createSpacer(),
                 traceHeaderSelector);
@@ -93,7 +94,7 @@ public class GprElevationTool extends FilterToolView {
         altitudeHeaderSelector.setPrefWidth(200);
         altitudeHeaderSelector.setOnAction(event -> updateProfile());
 
-        HBox altitudeHeader = new HBox(Tools.DEFAULT_SPACING,
+        HBox altitudeHeader = new HBox(Views.DEFAULT_SPACING,
                 new Label("Altitude AGL"),
                 Views.createSpacer(),
                 altitudeHeaderSelector);
@@ -104,7 +105,7 @@ public class GprElevationTool extends FilterToolView {
         ellipsoidalHeightHeaderSelector.setPrefWidth(200);
         //ellipsoidalHeightHeaderSelector.setOnAction(event -> updateProfile());
 
-        HBox ellipsoidalHeightHeader = new HBox(Tools.DEFAULT_SPACING,
+        HBox ellipsoidalHeightHeader = new HBox(Views.DEFAULT_SPACING,
                 new Label("Ellipsoidal height"),
                 Views.createSpacer(),
                 ellipsoidalHeightHeaderSelector);
@@ -119,7 +120,7 @@ public class GprElevationTool extends FilterToolView {
         elevationSource.setPadding(new Insets(8));
 
         traceOffsetSlider = new ExpandableSlider(
-                "Trace lag,\ntraces", 0, 200) {
+                "Trace lag", Unit.word("trace"), 0, 200) {
             @Override
             public void onValue(int value) {
                 updateProfile();
@@ -127,7 +128,7 @@ public class GprElevationTool extends FilterToolView {
         };
 
         sampleOffsetSlider = new ExpandableSlider(
-                "Sample offset,\nsamples", 0, 200) {
+                "Sample offset", Unit.word("sample"), 0, 200) {
             @Override
             public void onValue(int value) {
                 updateProfile();
@@ -141,7 +142,7 @@ public class GprElevationTool extends FilterToolView {
 
         Range peakWindowRange = new Range(0, 100);
         peakWindowSlider = new ExpandableSlider(
-                "Window,\nsamples", 8, 30, peakWindowRange) {
+                "Window", Unit.word("sample"), 8, 30, peakWindowRange) {
             @Override
             public void onValue(int value) {
                 updateProfile();
@@ -150,14 +151,14 @@ public class GprElevationTool extends FilterToolView {
 
         Range surfaceFilterWindowRange = new Range(0, 1000);
         surfaceFilterWindowSlider = new ExpandableSlider(
-                "Filter window,\ntraces", 25, 100, surfaceFilterWindowRange) {
+                "Filter window", Unit.word("trace"), 25, 100, surfaceFilterWindowRange) {
             @Override
             public void onValue(int value) {
                 updateProfile();
             }
         };
 
-        VBox surfaceOptions = new VBox(Tools.DEFAULT_SPACING,
+        VBox surfaceOptions = new VBox(Views.DEFAULT_SPACING,
                 detectPeaks,
                 peakWindowSlider,
                 surfaceFilterWindowSlider);
@@ -173,7 +174,7 @@ public class GprElevationTool extends FilterToolView {
         flattenSurface.setMaxWidth(150);
         flattenSurface.setOnAction(event -> flattenSurface());
 
-        HBox flattenSurfaceContainer = new HBox(Tools.DEFAULT_SPACING,
+        HBox flattenSurfaceContainer = new HBox(Views.DEFAULT_SPACING,
                 removeAirGap,
                 Views.createSpacer(),
                 flattenSurface);
@@ -184,7 +185,7 @@ public class GprElevationTool extends FilterToolView {
         reproject.setMaxWidth(150);
         reproject.setOnAction(event -> gprReprojectionView.toggle());
 
-        HBox reprojectContainer = new HBox(Tools.DEFAULT_SPACING,
+        HBox reprojectContainer = new HBox(Views.DEFAULT_SPACING,
                 Views.createSpacer(),
                 reproject);
 

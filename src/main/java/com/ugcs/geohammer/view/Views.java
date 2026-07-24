@@ -2,6 +2,7 @@ package com.ugcs.geohammer.view;
 
 import com.ugcs.geohammer.util.Nulls;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -27,6 +28,18 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 
 public final class Views {
+
+    public static final double DEFAULT_SPACING = 5;
+
+    public static final Insets DEFAULT_OPTIONS_INSETS = new Insets(10, 0, 5, 0);
+
+    public static final double LABEL_SPACING = 4;
+
+    public static final double TOP_LABEL_SPACING = 3;
+
+    public static final Insets TOP_LABEL_INSETS = new Insets(0, 0, 0, 2);
+
+    public static final List<String> TOP_LABEL_STYLES = List.of("dim");
 
     private Views() {
     }

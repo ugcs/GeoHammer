@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
+import com.ugcs.geohammer.util.Unit;
 import com.ugcs.geohammer.view.control.FoldableGroup;
 import com.ugcs.geohammer.view.control.InputWithLabel;
 import com.ugcs.geohammer.view.control.SelectorWithLabel;
@@ -194,7 +195,7 @@ public class ProjectionView extends CanvasWindow {
     private Node createGridGroup() {
         GridOptions gridOptions = projectionModel.getGridOptions();
 
-        SliderWithLabel resolution = new SliderWithLabel("Resolution", "%", new Range(1, 100));
+        SliderWithLabel resolution = new SliderWithLabel("Resolution", Unit.symbol("%", ""), new Range(1, 100));
         resolution.getSlider().valueProperty().bindBidirectional(
                 Bindings.fractionToPercent(gridOptions.resolutionProperty()));
 
@@ -238,10 +239,10 @@ public class ProjectionView extends CanvasWindow {
         SelectorWithLabel<SpectrumType> spectrum = new SelectorWithLabel<>("Palette", List.of(SpectrumType.values()));
         spectrum.getSelector().valueProperty().bindBidirectional(renderOptions.spectrumTypeProperty());
 
-        SliderWithLabel gain = new SliderWithLabel("Gain at max depth", "dB", new Range(0, 128));
+        SliderWithLabel gain = new SliderWithLabel("Gain at max depth", Unit.symbol("dB"), new Range(0, 128));
         gain.getSlider().valueProperty().bindBidirectional(renderOptions.maxGainProperty());
 
-        SliderWithLabel contrast = new SliderWithLabel("Contrast", "%", new Range(0, 100));
+        SliderWithLabel contrast = new SliderWithLabel("Contrast", Unit.symbol("%", ""), new Range(0, 100));
         contrast.getSlider().valueProperty().bindBidirectional(
                 Bindings.fractionToPercent(renderOptions.contrastProperty()));
 
@@ -262,7 +263,7 @@ public class ProjectionView extends CanvasWindow {
         zeroSample.getInput().textProperty().bindBidirectional(
                 projectionOptions.sampleOffsetProperty(), new NumberStringConverter());
 
-        InputWithLabel centerFrequency = new InputWithLabel("Center frequency, MHz");
+        InputWithLabel centerFrequency = new InputWithLabel("Center frequency (MHz)");
         centerFrequency.getInput().textProperty().bindBidirectional(
                 projectionOptions.centerFrequencyProperty(), new NumberStringConverter());
 
@@ -270,23 +271,23 @@ public class ProjectionView extends CanvasWindow {
         relativePermittivity.getInput().textProperty().bindBidirectional(
                 projectionOptions.relativePermittivityProperty(), new NumberStringConverter());
 
-        SliderWithLabel antennaOffset = new SliderWithLabel("Antenna offset", "cm", new Range(-300, 300));
+        SliderWithLabel antennaOffset = new SliderWithLabel("Antenna offset", Unit.symbol("cm"), new Range(-300, 300));
         antennaOffset.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.antennaOffsetProperty()));
 
-        SliderWithLabel terrainOffset = new SliderWithLabel("Terrain offset", "cm", new Range(-500, 500));
+        SliderWithLabel terrainOffset = new SliderWithLabel("Terrain offset", Unit.symbol("cm"), new Range(-500, 500));
         terrainOffset.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.terrainOffsetProperty()));
 
-        SliderWithLabel antennaSmoothing = new SliderWithLabel("Antenna smoothing", "cm", new Range(0, 500));
+        SliderWithLabel antennaSmoothing = new SliderWithLabel("Antenna smoothing", Unit.symbol("cm"), new Range(0, 500));
         antennaSmoothing.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.antennaSmoothingRadiusProperty()));
 
-        SliderWithLabel terrainSmoothing = new SliderWithLabel("Terrain smoothing", "cm", new Range(0, 1000));
+        SliderWithLabel terrainSmoothing = new SliderWithLabel("Terrain smoothing", Unit.symbol("cm"), new Range(0, 1000));
         terrainSmoothing.getSlider().valueProperty().bindBidirectional(
                 Bindings.metersToCentimeters(projectionOptions.terrainSmoothingRadiusProperty()));
 
-        SliderWithLabel normalWeight = new SliderWithLabel("Normal weight", "", new Range(0, 1));
+        SliderWithLabel normalWeight = new SliderWithLabel("Normal weight", Unit.empty(), new Range(0, 1));
         normalWeight.getSlider().valueProperty().bindBidirectional(
                 projectionOptions.normalWeightProperty());
 
@@ -331,7 +332,7 @@ public class ProjectionView extends CanvasWindow {
         CheckBox refraction = new CheckBox("Refraction");
         refraction.selectedProperty().bindBidirectional(gridOptions.refractionProperty());
 
-        SliderWithLabel fresnelApertureFactor = new SliderWithLabel("Fresnel aperture factor", "", new Range(1, 3));
+        SliderWithLabel fresnelApertureFactor = new SliderWithLabel("Fresnel aperture factor", Unit.empty(), new Range(1, 3));
         fresnelApertureFactor.getSlider().valueProperty().bindBidirectional(
                 gridOptions.fresnelApertureFactorProperty());
 

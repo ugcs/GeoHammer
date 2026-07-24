@@ -2,6 +2,7 @@ package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
 
+import com.ugcs.geohammer.util.Unit;
 import javafx.beans.value.ChangeListener;
 
 public class ThresholdSlider  extends BaseSlider {
@@ -9,7 +10,7 @@ public class ThresholdSlider  extends BaseSlider {
 	public ThresholdSlider(Settings settings, ChangeListener<Number> listenerExt) {
 		super(settings, listenerExt);
 		name = "Threshold";
-		units = "";
+		unit = Unit.empty();
 		tickUnits = 200;
 	}
 

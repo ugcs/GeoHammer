@@ -1,7 +1,9 @@
 package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.model.Range;
+import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Ticks;
+import com.ugcs.geohammer.util.Unit;
 import com.ugcs.geohammer.view.Views;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
@@ -19,21 +21,26 @@ abstract public class ExpandableSlider extends HBox {
 
     private final String name;
 
+    private final Unit unit;
+
     private final Range range;
 
     private final Label label;
 
     private final Slider slider;
 
-    public ExpandableSlider(String name, int defaultValue, int width) {
-        this(name, defaultValue, width, null);
+    public ExpandableSlider(String name, Unit unit, int defaultValue, int width) {
+        this(name, unit, defaultValue, width, null);
     }
 
-    public ExpandableSlider(String name, int defaultValue, int width, Range range) {
+    public ExpandableSlider(String name, Unit unit, int defaultValue, int width, Range range) {
+        Check.notNull(unit);
+
         this.name = name;
+        this.unit = unit;
         this.range = range;
 
-        label = new Label(name + ": " + defaultValue);
+        label = new Label(formatLabelText(defaultValue));
 
         slider = new Slider();
         slider.setPrefWidth(200);
@@ -75,12 +82,21 @@ abstract public class ExpandableSlider extends HBox {
         reset(value, (int) slider.getMax() - (int) slider.getMin());
     }
 
+    private String formatLabelText(Number value) {
+        StringBuilder text = new StringBuilder(name);
+        text.append(":");
+        if (value != null) {
+            text.append("\n").append(unit.format(value));
+        }
+        return text.toString();
+    }
+
     private void onValueChanged(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
         int value = newValue.intValue();
         if (value == oldValue.intValue()) {
             return;
         }
-        label.setText(name + ": " + value);
+        label.setText(formatLabelText(value));
         onValue(value);
     }
 

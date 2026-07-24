@@ -27,6 +27,7 @@ import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.Views;
+import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -123,13 +124,17 @@ public class GriddingTool extends FilterToolView {
         warning.setVisible(false);
         warning.setManaged(false);
 
-        cellSizeInput = new TextField();
-        cellSizeInput.setPromptText("Enter cell size");
+        InputWithTopLabel cellSizeWithLabel = new InputWithTopLabel("Cell size (m)");
+        cellSizeInput = cellSizeWithLabel.getInput();
         cellSizeInput.textProperty().addListener(this::onCellSizeChange);
 
-        blankingDistanceInput = new TextField();
-        blankingDistanceInput.setPromptText("Enter blanking distance");
+        InputWithTopLabel blankingDistanceWithLabel = new InputWithTopLabel("Blanking distance (m)");
+        blankingDistanceInput = blankingDistanceWithLabel.getInput();
         blankingDistanceInput.textProperty().addListener(this::onBlankingDistanceChange);
+
+        HBox inputGroup = new HBox(Views.DEFAULT_SPACING,
+                cellSizeWithLabel,
+                blankingDistanceWithLabel);
 
         // palette
 
@@ -146,12 +151,12 @@ public class GriddingTool extends FilterToolView {
             paletteView.toggle();
         });
 
-        HBox paletteGroup = new HBox(Tools.DEFAULT_SPACING,
+        HBox paletteGroup = new HBox(Views.DEFAULT_SPACING,
                 paletteSelector,
                 spectrumSelector,
                 showPalette);
         paletteGroup.setAlignment(Pos.BASELINE_CENTER);
-        VBox.setMargin(paletteGroup,  new Insets(Tools.DEFAULT_SPACING, 0, 0, 0));
+        VBox.setMargin(paletteGroup,  new Insets(2, 0, 0, 0));
 
         // range slider
 
@@ -182,7 +187,7 @@ public class GriddingTool extends FilterToolView {
         Region minMaxSeparator = new Region();
         HBox.setHgrow(minMaxSeparator, Priority.ALWAYS);
 
-        HBox minMaxContainer = new HBox(Tools.DEFAULT_SPACING);
+        HBox minMaxContainer = new HBox(Views.DEFAULT_SPACING);
         minMaxContainer.setAlignment(Pos.BASELINE_CENTER);
         minMaxContainer.getChildren().addAll(minLabel, minInput, minMaxSeparator, maxInput, maxLabel);
 
@@ -212,10 +217,9 @@ public class GriddingTool extends FilterToolView {
 
         inputContainer.getChildren().setAll(
                 warning,
-                cellSizeInput,
-                blankingDistanceInput,
-                paletteGroup,
+                inputGroup,
                 rangeGroup,
+                paletteGroup,
                 postProcessingGroup);
 
         showApply(true);
@@ -223,9 +227,9 @@ public class GriddingTool extends FilterToolView {
     }
 
     private VBox createGroup(Node... children) {
-        VBox group = new VBox(5, children);
+        VBox group = new VBox(Views.DEFAULT_SPACING, children);
         group.getStyleClass().add("group");
-        VBox.setMargin(group,  new Insets(Tools.DEFAULT_SPACING, 0, Tools.DEFAULT_SPACING, 0));
+        VBox.setMargin(group,  new Insets(Views.DEFAULT_SPACING, 0, Views.DEFAULT_SPACING, 0));
         return group;
     }
 

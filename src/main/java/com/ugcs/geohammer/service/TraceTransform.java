@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
 
@@ -178,6 +179,42 @@ public class TraceTransform {
                 value.setLine(lineIndex + 1);
                 linesToShift.add(lineIndex + 1);
             }
+        }
+
+        onFileTracesUpdated(file);
+    }
+
+    public boolean hasNextLine(SgyFile file, int traceIndex) {
+        Check.notNull(file);
+        Check.condition(traceIndex >= 0);
+
+        List<GeoData> values = Nulls.toEmpty(file.getGeoData());
+        if (values.isEmpty() || traceIndex >= values.size()) {
+            return false;
+        }
+        return values.get(traceIndex).getLineOrDefault(0)
+                != values.getLast().getLineOrDefault(0);
+    }
+
+    public void mergeLineWithNext(SgyFile file, int traceIndex) {
+        Check.notNull(file);
+        Check.condition(traceIndex >= 0);
+
+        undoModel.saveSnapshot(file);
+
+        List<GeoData> values = file.getGeoData();
+        int mergeLine = values.get(traceIndex).getLineOrDefault(0);
+
+        // ranges after the merge line
+        NavigableMap<Integer, IndexRange> ranges = file.getLineRanges()
+                .tailMap(mergeLine, false);
+
+        for (IndexRange range : ranges.values()) {
+            for (int i = range.from(); i < range.to(); i++) {
+                GeoData value = values.get(i);
+                value.setLine(mergeLine);
+            }
+            mergeLine++;
         }
 
         onFileTracesUpdated(file);

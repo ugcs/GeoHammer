@@ -50,6 +50,7 @@ public class TraceCutter implements Layer, InitializingBean {
 	private ToggleButton buttonCutMode = ResourceImageHolder.setButtonImage(ResourceImageHolder.SELECT_RECT, new ToggleButton());
 	private Button buttonCrop = ResourceImageHolder.setButtonImage(ResourceImageHolder.CROP, new Button());
 	private Button buttonSplit = ResourceImageHolder.setButtonImage(ResourceImageHolder.SPLIT, new Button());
+	private Button buttonMerge = ResourceImageHolder.setButtonImage(ResourceImageHolder.MERGE, new Button());
 	private Button buttonUndo = ResourceImageHolder.setButtonImage(ResourceImageHolder.UNDO, new Button());
 
 	{
@@ -57,6 +58,7 @@ public class TraceCutter implements Layer, InitializingBean {
 		buttonUndo.setTooltip(new Tooltip("Undo"));
 		buttonCrop.setTooltip(new Tooltip("Apply crop"));
 		buttonSplit.setTooltip(new Tooltip("Split the line"));
+		buttonMerge.setTooltip(new Tooltip("Merge with the next line"));
 	}
 
 	public TraceCutter(
@@ -120,6 +122,8 @@ public class TraceCutter implements Layer, InitializingBean {
 
 		buttonSplit.setOnAction(e -> applySplitLine());
 
+		buttonMerge.setOnAction(e -> applyMergeLineWithNext());
+
 		buttonUndo.setOnAction(e -> {
 			undo();
 
@@ -132,6 +136,7 @@ public class TraceCutter implements Layer, InitializingBean {
 				new ToolNode(buttonCutMode, ActivationPolicy.fileSelected()),
 				new ToolNode(buttonCrop, (m, file) -> file != null && buttonCutMode.isSelected()),
 				new ToolNode(buttonSplit, ActivationPolicy.traceSelected()),
+				new ToolNode(buttonMerge, (m, file) -> hasNextLine(m.getSelectedTraceInCurrentChart())),
 				new ToolNode(buttonUndo, (m, file) -> undoModel.canUndo())
 		);
 	}
@@ -257,6 +262,40 @@ public class TraceCutter implements Layer, InitializingBean {
 		traceTransform.splitLine(file, splitIndex);
 	}
 
+	private boolean hasNextLine(SelectedTrace selectedTrace) {
+		if (selectedTrace == null) {
+			return false;
+		}
+		TraceKey trace = selectedTrace.trace();
+		if (trace == null) {
+			return false;
+		}
+		return traceTransform.hasNextLine(trace.getFile(), trace.getIndex());
+	}
+
+	private void applyMergeLineWithNext() {
+		SelectedTrace selectedTrace = model.getSelectedTraceInCurrentChart();
+		TraceKey mark = selectedTrace != null ? selectedTrace.trace() : null;
+		if (mark == null) {
+			return;
+		}
+
+		SgyFile file = mark.getFile();
+		int traceIndex = mark.getIndex();
+
+		if (!hasNextLine(selectedTrace)) {
+			return;
+		}
+
+		// clear selection
+		Chart chart = model.getChart(file);
+		if (chart != null) {
+			model.clearSelectedTrace(chart);
+		}
+
+		traceTransform.mergeLineWithNext(file, traceIndex);
+	}
+
 	@EventListener
 	public void onFileOpened(FileOpenedEvent event) {
 		//TODO: maybe we need other event for this
@@ -264,5 +303,4 @@ public class TraceCutter implements Layer, InitializingBean {
 		//undoFiles.clear();
 		initButtons();
 	}
-
 }

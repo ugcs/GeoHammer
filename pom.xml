@@ -41,6 +41,10 @@
 		<error-prone.version>2.38.0</error-prone.version>
 		<nullaway.version>0.12.7</nullaway.version>
 
+		<!-- override Spring Boot managed versions for JDK 24+ support -->
+		<mockito.version>5.20.0</mockito.version>
+		<byte-buddy.version>1.17.8</byte-buddy.version>
+
 		<gt.version>32.2</gt.version>
 
 		<build.timestamp>${maven.build.timestamp}</build.timestamp>
@@ -261,6 +265,27 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- exposes ${org.mockito:mockito-core:jar} for the surefire agent -->
+						<id>resolve-test-agent-paths</id>
+						<goals>
+							<goal>properties</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- attach mockito statically: JDK 21+ deprecates dynamic agent loading -->
+					<argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

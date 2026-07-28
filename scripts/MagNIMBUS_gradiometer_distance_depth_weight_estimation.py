@@ -181,10 +181,10 @@ def main():
         args.sensor_separation, args.altimeter_lower_offset
     )
 
-    # Save results - add columns with empty string for non-marked rows
-    data["Estimated_Distance"] = ""
-    data["Estimated_Depth"] = ""
-    data["Estimated_Weight"] = ""
+    # Save results - non-marked rows stay NaN and are written as empty fields
+    data["Estimated_Distance"] = np.nan
+    data["Estimated_Depth"] = np.nan
+    data["Estimated_Weight"] = np.nan
 
     for i, idx in enumerate(mark_indices):
         if not np.isnan(distances[i]):

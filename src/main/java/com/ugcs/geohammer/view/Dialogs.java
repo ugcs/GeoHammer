@@ -10,6 +10,7 @@ import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -17,11 +18,15 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
-import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Separator;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.jspecify.annotations.Nullable;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -33,9 +38,73 @@ public class Dialogs {
 
 	private static final double CONTENT_WIDTH = 400.0;
 
+	private static final int CONTENT_MAX_ROWS = 8;
+
 	public static final ButtonType REPORT_ISSUE = new ButtonType("Report issue", ButtonBar.ButtonData.OK_DONE);
 
 	public static final ButtonType SUBMIT_FEEDBACK = new ButtonType("Submit", ButtonBar.ButtonData.OK_DONE);
+
+	private static Node createContent(String message) {
+		TextArea textArea = new TextArea(message);
+		// hide border and background
+		textArea.getStyleClass().addAll("label");
+		textArea.setEditable(false);
+		textArea.setWrapText(true);
+		textArea.setFocusTraversable(false);
+
+		textArea.setPrefWidth(CONTENT_WIDTH);
+
+		updateContentHeight(textArea, CONTENT_WIDTH);
+		Listeners.onChange(textArea.widthProperty(), width
+				-> updateContentHeight(textArea, width.doubleValue()));
+
+		return textArea;
+	}
+
+	private static void updateContentHeight(TextArea textArea, double width) {
+		ScrollPane viewport = (ScrollPane)textArea.lookup(".scroll-pane");
+		Region content = viewport != null
+				? (Region)viewport.lookup(".content")
+				: null;
+		double padding = getHorizontalPadding(textArea)
+				+ getHorizontalPadding(viewport)
+				+ getHorizontalPadding(content);
+		double wrappingWidth = Math.max(1.0, width - padding);
+
+		int numRows = Views.estimateTextRows(textArea.getText(), wrappingWidth, textArea.getFont());
+		numRows = Math.clamp(numRows, 1, CONTENT_MAX_ROWS);
+
+		double verticalPadding = getVerticalPadding(textArea)
+				+ getVerticalPadding(viewport)
+				+ getVerticalPadding(content);
+		double height = numRows * Views.estimateRowHeight(textArea.getFont()) + verticalPadding;
+		textArea.setMinHeight(height);
+		textArea.setPrefHeight(height);
+		textArea.setMaxHeight(height);
+
+		if (viewport != null) {
+			viewport.setHbarPolicy(ScrollBarPolicy.NEVER);
+			viewport.setVbarPolicy(numRows < CONTENT_MAX_ROWS
+					? ScrollBarPolicy.NEVER
+					: ScrollBarPolicy.AS_NEEDED);
+		}
+	}
+
+	private static double getHorizontalPadding(@Nullable Region region) {
+		if (region == null) {
+			return 0;
+		}
+		Insets insets = region.getInsets();
+		return Math.round(insets.getLeft()) + Math.round(insets.getRight());
+	}
+
+	private static double getVerticalPadding(@Nullable Region region) {
+		if (region == null) {
+			return 0;
+		}
+		Insets insets = region.getInsets();
+		return Math.round(insets.getTop()) + Math.round(insets.getBottom());
+	}
 
 	private static Alert createAlert(AlertType alertType, String header, String message) {
 		if (alertType == null) {
@@ -46,12 +115,7 @@ public class Dialogs {
 		alert.setTitle(getAlertTitle(alertType));
 		alert.setHeaderText(header);
 
-		Label content = new Label(message);
-		content.setWrapText(true);
-		content.setPrefWidth(CONTENT_WIDTH);
-		content.setMaxWidth(CONTENT_WIDTH);
-
-		alert.getDialogPane().setContent(content);
+		alert.getDialogPane().setContent(createContent(message));
 		alert.initOwner(AppContext.stage);
 
 		AppContext.getInstance(ThemeService.class)

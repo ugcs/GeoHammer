@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.view;
 
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Strings;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -19,6 +20,9 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextBoundsType;
 import javafx.stage.Screen;
 import javafx.stage.Window;
 
@@ -172,5 +176,32 @@ public final class Views {
             });
         }
         return scrollPane;
+    }
+
+    public static double estimateRowHeight(Font font) {
+        Text temp = new Text("W");
+        temp.setFont(font);
+        temp.setBoundsType(TextBoundsType.LOGICAL_VERTICAL_CENTER);
+        return temp.getLayoutBounds().getHeight();
+    }
+
+    public static int estimateTextRows(String text, double wrappingWidth, Font font) {
+        if (Strings.isNullOrEmpty(text)) {
+            return 0;
+        }
+
+        Text temp = new Text("W");
+        temp.setFont(font);
+        // text layouts are cached by a content;
+        // measure in the same type to keep a row height and a text height in sync
+        temp.setBoundsType(TextBoundsType.LOGICAL_VERTICAL_CENTER);
+        double rowHeight = temp.getLayoutBounds().getHeight();
+        if (rowHeight <= 0) {
+            return 0;
+        }
+        temp.setWrappingWidth(wrappingWidth);
+        temp.setText(text);
+        double textHeight = temp.getLayoutBounds().getHeight();
+        return (int)Math.ceil(textHeight / rowHeight);
     }
 }

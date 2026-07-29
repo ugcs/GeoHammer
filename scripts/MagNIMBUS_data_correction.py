@@ -1,6 +1,5 @@
 import argparse
 import pandas as pd
-import statsmodels.api as sm
 from scipy.fft import fft, ifft
 import numpy as np
 from sklearn.preprocessing import PolynomialFeatures
@@ -8,6 +7,39 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import butter, filtfilt, iirnotch
 
 from script_utils import detect_separator
+
+
+def add_constant(x):
+    return np.column_stack([np.ones(len(x)), x])
+
+
+def finite_rows(y, x):
+    return np.isfinite(y) & np.all(np.isfinite(x), axis = 1)
+
+
+def fit_least_squares(y, x):
+    rows = finite_rows(y, x)
+    return np.linalg.pinv(x[rows]) @ y[rows]
+
+
+def fit_quantile(y, x, q = 0.5, max_iter = 1000, tolerance = 1e-6):
+    rows = finite_rows(y, x)
+    x = x[rows]
+    y = y[rows]
+
+    coefficients = np.ones(x.shape[1])
+    x_weighted = x
+    for _ in range(max_iter):
+        previous = coefficients
+        coefficients = np.linalg.pinv(x_weighted.T @ x) @ (x_weighted.T @ y)
+        residuals = y - x @ coefficients
+        small = np.abs(residuals) < 1e-6
+        residuals[small] = np.where(residuals[small] >= 0, 1e-6, -1e-6)
+        weights = np.abs(np.where(residuals < 0, q * residuals, (1 - q) * residuals))
+        x_weighted = x / weights[:, np.newaxis]
+        if np.max(np.abs(coefficients - previous)) < tolerance:
+            break
+    return coefficients
 
 
 def notch_zero_filter(data, notchh, notchl, freq): # works as highpass lowpass and notch filter
@@ -227,15 +259,15 @@ def fix_line_tmi(data, tmi_mean, line_index):
     x_first_order = x_first_order.loc[x_high_order.index]
 
     x_combined = np.hstack([x_first_order.values, x_high_order_poly])
-    x_combined = sm.add_constant(x_combined)
+    x_combined = add_constant(x_combined)
 
     y = selected['TMI']
     y = y.loc[x_high_order.index]
 
     if (args.quantile_regression):
-        model = sm.QuantReg(y, x_combined, missing='drop').fit(q = 0.5)
+        coefficients = fit_quantile(y.values, x_combined, q = 0.5)
     else:
-        model = sm.OLS(y, x_combined, missing='drop').fit()
+        coefficients = fit_least_squares(y.values, x_combined)
 
     # ----------------------------------------
     # predict
@@ -245,9 +277,9 @@ def fix_line_tmi(data, tmi_mean, line_index):
 
     x_full_first_order = data[first_order_components]
     x_full_combined = np.hstack([x_full_first_order.values, x_full_high_order_poly])
-    x_full_combined = sm.add_constant(x_full_combined)
+    x_full_combined = add_constant(x_full_combined)
 
-    y_pred = model.predict(x_full_combined)
+    y_pred = x_full_combined @ coefficients
 
     residuals = data['TMI'] - y_pred
     residuals_median = residuals.median()
@@ -269,7 +301,7 @@ def fix_tmi(data):
     print(f"Empty Next WP: {num_empty_next_wp}")
     if num_empty_next_wp > 0:
         data = data.copy()
-        data['Next WP'] = data['Next WP'].fillna(method='ffill').fillna(0)
+        data['Next WP'] = data['Next WP'].ffill().fillna(0)
 
     # Get global TMI mean for compensation adjustments
     tmi_mean = data['TMI'].dropna().mean()

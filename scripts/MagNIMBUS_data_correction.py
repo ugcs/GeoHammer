@@ -247,22 +247,32 @@ def fix_line_tmi(data, tmi_mean, line_index):
     # Higher-order components also get their first-order term in the model
     first_order_components += high_order_components
 
+    if len(first_order_components) == 0:
+        print("Warning: No model components selected")
+        return fix_line_tmi_short(data, tmi_mean, line_index)
+
     poly = PolynomialFeatures(degree = 2, include_bias = False)
 
-    x_high_order = selected[high_order_components].dropna()
-    if len(x_high_order) == 0:
-        print("Warning: High order components are empty")
-        return fix_line_tmi_short(data, tmi_mean, line_index)
-    x_high_order_poly = poly.fit_transform(x_high_order)
+    train_index = selected.index
+    if len(high_order_components) > 0:
+        x_high_order = selected[high_order_components].dropna()
+        if len(x_high_order) == 0:
+            print("Warning: High order components are empty")
+            return fix_line_tmi_short(data, tmi_mean, line_index)
+        train_index = x_high_order.index
+        x_high_order_poly = poly.fit_transform(x_high_order)
 
     x_first_order = selected[first_order_components]
-    x_first_order = x_first_order.loc[x_high_order.index]
+    x_first_order = x_first_order.loc[train_index]
 
-    x_combined = np.hstack([x_first_order.values, x_high_order_poly])
+    if len(high_order_components) > 0:
+        x_combined = np.hstack([x_first_order.values, x_high_order_poly])
+    else:
+        x_combined = x_first_order.values
     x_combined = add_constant(x_combined)
 
     y = selected['TMI']
-    y = y.loc[x_high_order.index]
+    y = y.loc[train_index]
 
     if (args.quantile_regression):
         coefficients = fit_quantile(y.values, x_combined, q = 0.5)
@@ -272,11 +282,14 @@ def fix_line_tmi(data, tmi_mean, line_index):
     # ----------------------------------------
     # predict
 
-    x_full_high_order = data[high_order_components]
-    x_full_high_order_poly = poly.transform(x_full_high_order)
-
     x_full_first_order = data[first_order_components]
-    x_full_combined = np.hstack([x_full_first_order.values, x_full_high_order_poly])
+
+    if len(high_order_components) > 0:
+        x_full_high_order = data[high_order_components]
+        x_full_high_order_poly = poly.transform(x_full_high_order)
+        x_full_combined = np.hstack([x_full_first_order.values, x_full_high_order_poly])
+    else:
+        x_full_combined = x_full_first_order.values
     x_full_combined = add_constant(x_full_combined)
 
     y_pred = x_full_combined @ coefficients

@@ -3,5 +3,5 @@
   "display_name": "Swap Omniscan 450 channels",
   "operating_systems": ["win"],
   "parameters": [],
-  "templates": []
+  "templates": ["SVLOG"]
 }

@@ -241,4 +241,8 @@ public class SonarFile extends SgyFileWithMeta {
         copy.packets = packets;
         return copy;
     }
+
+    public void loadFrom(SonarFile other) {
+        loadMetaFrom(other, () -> packets = other.packets);
+    }
 }

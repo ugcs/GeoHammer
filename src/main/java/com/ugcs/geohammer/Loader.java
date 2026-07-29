@@ -364,6 +364,11 @@ public class Loader {
 				temp.open(file);
 				dztFile.loadFrom(temp);
 			}
+			case SonarFile sonarFile -> {
+				SonarFile temp = new SonarFile();
+				temp.open(file);
+				sonarFile.loadFrom(temp);
+			}
 			default -> throw new IllegalArgumentException(
 					"Unsupported file type: " + sgyFile.getClass().getSimpleName());
 		}

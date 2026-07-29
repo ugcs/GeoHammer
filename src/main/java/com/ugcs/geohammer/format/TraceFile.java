@@ -349,21 +349,10 @@ public abstract class TraceFile extends SgyFileWithMeta {
 	}
 
 	public void loadFrom(TraceFile other) {
-		setTraces(other.getTraces());
-		setGroundProfile(other.getGroundProfile());
-		setUnsaved(true);
-
-		TraceMeta meta = other.metaFile != null
-				? other.metaFile.getMetaFromState()
-				: null;
-		if (meta == null) {
-			return; // no meta
-		}
-		if (metaFile == null) {
-			return; // no meta file
-		}
-		metaFile.setMetaToState(meta);
-		syncMeta();
+		loadMetaFrom(other, () -> {
+			setTraces(other.getTraces());
+			setGroundProfile(other.getGroundProfile());
+		});
 	}
 
 	public void removeBackground(@Nullable UndoModel undoModel) {

@@ -30,6 +30,24 @@ public abstract class SgyFileWithMeta extends SgyFile {
 
     abstract public void syncMeta();
 
+    protected void loadMetaFrom(SgyFileWithMeta other, Runnable loadData) {
+        TraceMeta meta = other.metaFile != null
+                ? other.metaFile.getMetaFromState()
+                : null;
+        if (meta == null) {
+            return;
+        }
+        if (metaFile == null) {
+            return;
+        }
+
+        loadData.run();
+        setUnsaved(true);
+
+        metaFile.setMetaToState(meta);
+        syncMeta();
+    }
+
     @Override
     public FileSnapshot<SgyFileWithMeta> createSnapshot() {
         return new TraceFile.Snapshot<>(this);

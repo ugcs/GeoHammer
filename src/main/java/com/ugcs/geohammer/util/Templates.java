@@ -43,7 +43,7 @@ public final class Templates {
         }
         return switch (file) {
             case CsvFile csvFile -> getCsvTemplateName(csvFile);
-            case SonarFile sonarFile -> "sonar";
+            case SonarFile sonarFile -> "SVLOG";
             case NmeaFile nmeaFile -> "nmea";
             case GprFile gprFile -> "sgy";
             case DztFile dztFile -> "dzt";

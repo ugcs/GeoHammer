@@ -25,6 +25,7 @@ import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
@@ -44,7 +45,6 @@ import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -175,7 +175,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	@Override
     public boolean isVisibleFor(SgyFile file) {
-        return file instanceof CsvFile || file instanceof TraceFile;
+        return file instanceof CsvFile || file instanceof TraceFile || file instanceof SonarFile;
     }
 
     @Override
@@ -352,9 +352,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		columnSelector.setPromptText("Select column");
 		columnSelector.setMaxWidth(Double.MAX_VALUE);
 		columnSelector.setUserData(param);
-		if (selectedFile instanceof CsvFile csvFile) {
-			updateComboBoxIfChanged(columnSelector, getAvailableColumnsForFile(csvFile), initialValue);
-		}
+		updateComboBoxIfChanged(columnSelector, getAvailableColumnsForFile(selectedFile), initialValue);
 		return columnSelector;
 	}
 
@@ -408,8 +406,8 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		return container;
 	}
 
-	private Set<String> getAvailableColumnsForFile(CsvFile csvFile) {
-		Chart chart = model.getChart(csvFile);
+	private Set<String> getAvailableColumnsForFile(@Nullable SgyFile file) {
+		Chart chart = model.getChart(file);
 		if (chart instanceof SensorLineChart sensorChart) {
 			return new TreeSet<>(sensorChart.getSeriesNames());
 		}
@@ -573,17 +571,14 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		if (!Objects.equals(file, selectedFile)) {
 			return;
 		}
-		if (!(selectedFile instanceof CsvFile csvFile)) {
-			return;
-		}
 		if (isUpdatingColumns.get()) {
 			return;
 		}
-		Platform.runLater(() -> refreshColumnSelectors(csvFile));
+		Platform.runLater(() -> refreshColumnSelectors(file));
 	}
 
-	private void refreshColumnSelectors(CsvFile csvFile) {
-		Set<String> availableColumns = getAvailableColumnsForFile(csvFile);
+	private void refreshColumnSelectors(SgyFile file) {
+		Set<String> availableColumns = getAvailableColumnsForFile(file);
 		for (Node paramBox : parametersBox.getChildren()) {
 			if (!(paramBox instanceof VBox vbox)) {
 				continue;

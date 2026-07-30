@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -63,6 +64,8 @@ public class ScriptCoordinator {
 				runScriptOnFiles(sgyFiles, metadata, params, recent, listener);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
+			} catch (CancellationException e) {
+				// cancellation is not an execution error
 			} catch (Exception e) {
 				log.error(formatErrorOutput(recent, e));
 				listener.onError(metadata, e, formatErrorOutput(recent, e));
@@ -124,6 +127,8 @@ public class ScriptCoordinator {
 					try {
 						scriptExecutor.execute(sgyFile, scriptFile, metadata, params, recent.capture(), snapshots::add);
 						listener.onSuccess(metadata);
+					} catch (InterruptedException | CancellationException e) {
+						throw e;
 					} catch (Exception e) {
 						listener.onError(metadata, e, formatErrorOutput(recent, e));
 					}

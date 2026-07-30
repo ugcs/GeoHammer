@@ -146,7 +146,7 @@ public abstract class Parser {
             String[] valueTokens;
             while ((valueTokens = readValues(r)) != null) {
                 if (Thread.currentThread().isInterrupted()) {
-                    break;
+                    throw new CancellationException();
                 }
                 GeoData value = parseValues(valueTokens, columns);
                 if (value != null) {

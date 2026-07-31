@@ -47,22 +47,21 @@ public class GriddingService {
         List<Double> valuesList = new ArrayList<>(dataPoints.stream().map(p -> p.value()).toList());
         var median = calculateMedian(valuesList);
 
-        int gridWidth = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
+        double width = Math.max(
+                new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
                 new LatLon(maxLat, minLon).getDistance(new LatLon(maxLat, maxLon)));
-
-        gridWidth = (int) (gridWidth / params.cellSize());
-
-        int gridHeight = (int) Math.max(new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
+        double height = (int) Math.max(
+                new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
                 new LatLon(minLat, maxLon).getDistance(new LatLon(maxLat, maxLon)));
 
-        gridHeight = (int) (gridHeight / params.cellSize());
-
+        int gridWidth = (int) (width / params.cellSize());
+        int gridHeight = (int) (height / params.cellSize());
         if (gridWidth == 0 || gridHeight == 0) {
             return null;
         }
 
-        double lonStep = (maxLon - minLon) / (gridWidth - 1);
-        double latStep = (maxLat - minLat) / (gridHeight - 1);
+        double lonStep = (maxLon - minLon) / gridWidth;
+        double latStep = (maxLat - minLat) / gridHeight;
 
         var grid = new float[gridWidth][gridHeight];
 
@@ -73,40 +72,36 @@ public class GriddingService {
             }
         }
 
-        Map<String, List<Double>> points = new HashMap<>();
+        Map<CellIndex, List<Double>> points = new HashMap<>();
         for (DataPoint point : dataPoints) {
             int xIndex = (int) ((point.longitude() - minLon) / lonStep);
+            xIndex = Math.min(xIndex, gridWidth - 1);
             int yIndex = (int) ((point.latitude() - minLat) / latStep);
+            yIndex = Math.min(yIndex, gridHeight - 1);
 
-            String key = xIndex + "," + yIndex;
-            points.computeIfAbsent(key, (k -> new ArrayList<>())).add(point.value());
+            points.computeIfAbsent(new CellIndex(xIndex, yIndex), (k -> new ArrayList<>()))
+                    .add(point.value());
         }
 
-        var gridBDx = gridWidth / (gridWidth * params.cellSize() / params.blankingDistance());
-        var gridBDy = gridHeight / (gridHeight * params.cellSize() / params.blankingDistance());
+        int blankingRadius = (int) (params.blankingDistance() / params.cellSize());
         var visiblePoints = new boolean[gridWidth][gridHeight];
 
-        for (Map.Entry<String, List<Double>> entry : points.entrySet()) {
-            String[] coords = entry.getKey().split(",");
-            int xIndex = Integer.parseInt(coords[0]);
-            int yIndex = Integer.parseInt(coords[1]);
+        for (Map.Entry<CellIndex, List<Double>> entry : points.entrySet()) {
+            CellIndex cellIndex = entry.getKey();
+            int xIndex = cellIndex.x();
+            int yIndex = cellIndex.y();
             double medianValue = calculateMedian(entry.getValue());
-            try {
-                grid[xIndex][yIndex] = (float) medianValue;
-                m[xIndex][yIndex] = false;
+            grid[xIndex][yIndex] = (float) medianValue;
+            m[xIndex][yIndex] = false;
 
-                for (int dx = -(int) gridBDx; dx <= gridBDx; dx++) {
-                    for (int dy = -(int) gridBDy; dy <= gridBDy; dy++) {
-                        int nx = xIndex + dx;
-                        int ny = yIndex + dy;
-                        if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
-                            visiblePoints[nx][ny] = true;
-                        }
+            for (int dx = -blankingRadius; dx <= blankingRadius; dx++) {
+                for (int dy = -blankingRadius; dy <= blankingRadius; dy++) {
+                    int nx = xIndex + dx;
+                    int ny = yIndex + dy;
+                    if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
+                        visiblePoints[nx][ny] = true;
                     }
                 }
-            } catch (ArrayIndexOutOfBoundsException e) {
-                log.info("x = {}, y = {}", xIndex, yIndex);
-                log.error("Error", e);
             }
         }
 
@@ -341,4 +336,6 @@ public class GriddingService {
         }
         return new int[]{rowsum / (rowcount != 0 ? rowcount : 1), colsum / (colcount != 0 ? colcount : 1)};
     }
+
+    private record CellIndex(int x, int y) {}
 }

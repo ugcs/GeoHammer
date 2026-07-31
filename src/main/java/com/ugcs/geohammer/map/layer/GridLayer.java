@@ -198,11 +198,16 @@ public final class GridLayer extends BaseLayer {
         double lonStep = (maxLatLon.getLonDgr() - minLatLon.getLonDgr()) / gridWidth;
         double latStep = (maxLatLon.getLatDgr() - minLatLon.getLatDgr()) / gridHeight;
 
-        var minLatLonPoint = field.latLonToScreen(minLatLon);
-        var nextLatLonPoint = field.latLonToScreen(new LatLon(minLatLon.getLatDgr() + latStep, minLatLon.getLonDgr() + lonStep));
-
-        double cellWidth = Math.abs(minLatLonPoint.getX() - nextLatLonPoint.getX()) + 1; //3; //width / gridSizeX;
-        double cellHeight = Math.abs(minLatLonPoint.getY() - nextLatLonPoint.getY()) + 1; //3; //height / gridSizeY;
+        int[] cellX = new int[gridWidth + 1];
+        for (int i = 0; i <= gridWidth; i++) {
+            double lon = minLatLon.getLonDgr() + i * lonStep;
+            cellX[i] = (int) Math.round(field.latLonToScreen(new LatLon(minLatLon.getLatDgr(), lon)).getX());
+        }
+        int[] cellY = new int[gridHeight + 1];
+        for (int j = 0; j <= gridHeight; j++) {
+            double lat = minLatLon.getLatDgr() + j * latStep;
+            cellY[j] = (int) Math.round(field.latLonToScreen(new LatLon(lat, minLatLon.getLonDgr())).getY());
+        }
 
         for (int i = 0; i < gridWidth; i++) {
             for (int j = 0; j < gridHeight; j++) {
@@ -235,11 +240,9 @@ public final class GridLayer extends BaseLayer {
 
                     g2.setColor(color);
 
-                    double lat = minLatLon.getLatDgr() + j * latStep;
-                    double lon = minLatLon.getLonDgr() + i * lonStep;
-
-                    var point = field.latLonToScreen(new LatLon(lat, lon));
-                    g2.fillRect((int) point.getX(), (int) point.getY(), (int) cellWidth, (int) cellHeight);
+                    // cellY descend with the row index, as screen y grows southward
+                    g2.fillRect(cellX[i], cellY[j + 1],
+                            cellX[i + 1] - cellX[i], cellY[j] - cellY[j + 1]);
                 } catch (Exception e) {
                     log.error("Error", e);
                 }

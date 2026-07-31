@@ -144,15 +144,18 @@ public abstract class RenderQueue {
 
         double scale = Math.pow(2, field.getZoom() - frame.field().getZoom());
         BufferedImage image = frame.image();
-        double width = image.getWidth() * scale;
-        double height = image.getHeight() * scale;
 
-        g2.drawImage(image,
-                (int) (offset.getX() - 0.5 * width),
-                (int) (offset.getY() - 0.5 * height),
-                (int) width,
-                (int) height,
-                null);
+        // frame content was rendered with the scene center at this pixel
+        double centerX = 0.5 * image.getWidth();
+        double centerY = 0.5 * image.getHeight();
+
+        // round both edges, so the placed size stays consistent with the placed origin
+        int x0 = (int) Math.round(offset.getX() - centerX * scale);
+        int y0 = (int) Math.round(offset.getY() - centerY * scale);
+        int x1 = (int) Math.round(offset.getX() + (image.getWidth() - centerX) * scale);
+        int y1 = (int) Math.round(offset.getY() + (image.getHeight() - centerY) * scale);
+
+        g2.drawImage(image, x0, y0, x1 - x0, y1 - y0, null);
     }
 
     public record Frame(BufferedImage image, MapField field) {

@@ -361,6 +361,7 @@ public class GprFile extends TraceFile {
 		copy.binHdr = this.binHdr;
 		copy.txtHdr = this.txtHdr;
 		copy.binaryHeader = this.binaryHeader;
+		copy.byteOrder = this.byteOrder;
 		copy.sampleNormalizer.copyFrom(this.sampleNormalizer);
 
 		copy.setFile(getFile());

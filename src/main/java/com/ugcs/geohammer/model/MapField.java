@@ -46,29 +46,38 @@ public class MapField {
 	}
 	
 	public Point2D latLonToScreen(@Nullable LatLon latlon) {
-		if (latlon == null || getSceneCenter() == null) {
+		LatLon sceneCenter = getSceneCenter();
+		if (latlon == null || sceneCenter == null) {
 			return new Point2D(0, 0);
 		}
-		
-		Point2D psc = GoogleCoordUtils.latLonToPoint(getSceneCenter(), zoom);
+
+		Point2D origin = getScreenOrigin(sceneCenter);
 		Point2D p2d = GoogleCoordUtils.latLonToPoint(latlon, zoom);
 
 		return new Point2D(
-			(p2d.getX() - psc.getX()),
-			(p2d.getY() - psc.getY()));
+			(p2d.getX() - origin.getX()),
+			(p2d.getY() - origin.getY()));
 	}
-	
+
 	public LatLon screenTolatLon(Point2D point) {
-		if (getSceneCenter() == null) {
+		LatLon sceneCenter = getSceneCenter();
+		if (sceneCenter == null) {
 			return GoogleCoordUtils.latLonFromPoint(new Point2D(0, 0), zoom);
 		}
 
-		Point2D psc = GoogleCoordUtils.latLonToPoint(getSceneCenter(), zoom);
+		Point2D origin = getScreenOrigin(sceneCenter);
 		Point2D p = new Point2D(
-			psc.getX() + point.getX(), 
-			psc.getY() + point.getY());
-		
+			origin.getX() + point.getX(),
+			origin.getY() + point.getY());
+
 		return GoogleCoordUtils.latLonFromPoint(p, zoom);
+	}
+
+	private Point2D getScreenOrigin(LatLon sceneCenter) {
+		Point2D psc = GoogleCoordUtils.latLonToPoint(sceneCenter, zoom);
+		// convert to a whole-pixel origin, so the scene translates rigidly
+		// instead of every layer rounding its own sliding offset as the map moves
+		return new Point2D(Math.round(psc.getX()), Math.round(psc.getY()));
 	}
 	
 	public double getZoom() {

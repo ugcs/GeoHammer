@@ -45,6 +45,7 @@ import com.ugcs.geohammer.util.Nodes;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Ticks;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.geometry.Bounds;
@@ -92,6 +93,8 @@ public class SensorLineChart extends Chart {
     private static final double ZOOM_STEP = 1.38;
 
     private static final Color LINE_COLOR = Color.web("0xdf818eff");
+
+    private static final int NUM_Y_AXIS_TICKS = 10;
 
     private static final double RANGE_MERGE_SIMILARITY_THRESHOLD = 0.5;
 
@@ -298,7 +301,7 @@ public class SensorLineChart extends Chart {
     }
 
     private ValueAxis<Number> createYAxis(Plot plot) {
-        SensorLineChartYAxis yAxis = new SensorLineChartYAxis(10);
+        SensorLineChartYAxis yAxis = new SensorLineChartYAxis(NUM_Y_AXIS_TICKS);
         yAxis.setLabel(Strings.nullToEmpty(plot.getUnit()));
         yAxis.setSide(Side.RIGHT); // Y-axis on the right
         yAxis.setPrefWidth(70);
@@ -1014,16 +1017,13 @@ public class SensorLineChart extends Chart {
             if (leftRange == null) {
                 continue;
             }
-            String leftSourceSeriesName = getSourceSeriesName(left.getSeriesName());
             for (int j = i + 1; j < n; j++) {
                 Plot right = nodes.get(j).plot;
                 Range rightRange = right.getRobustRange();
                 if (rightRange == null) {
                     continue;
                 }
-                String rightSourceSeriesName = getSourceSeriesName(right.getSeriesName());
-                if (Objects.equals(leftSourceSeriesName, rightSourceSeriesName)
-                        || leftRange.intersectionOverUnion(rightRange) >= RANGE_MERGE_SIMILARITY_THRESHOLD) {
+                if (leftRange.intersectionOverUnion(rightRange) >= RANGE_MERGE_SIMILARITY_THRESHOLD) {
                     graph.computeIfAbsent(i, k -> new ArrayList<>()).add(j);
                     graph.computeIfAbsent(j, k -> new ArrayList<>()).add(i);
                 }
@@ -1058,16 +1058,6 @@ public class SensorLineChart extends Chart {
                 }
             }
         }
-    }
-
-    private String getSourceSeriesName(String seriesName) {
-        if (seriesName.endsWith("_LPF")) {
-            return getSourceSeriesName(seriesName.substring(0, seriesName.length() - 4));
-        }
-        if (seriesName.endsWith("_LAG")) {
-            return getSourceSeriesName(seriesName.substring(0, seriesName.length() - 4));
-        }
-        return seriesName;
     }
 
     public void applyFilter(SequenceFilter filter, String seriesName, String filteredSeriesSuffix) {
@@ -1635,26 +1625,20 @@ public class SensorLineChart extends Chart {
             return robustRange;
         }
 
-        public static double getScaleFactor(double value) {
-            int base = (int)Math.clamp(Math.floor(Math.log10(Math.abs(value))), 0, 3);
-            return Math.pow(10, base);
-        }
-
         public static Range buildDisplayRange(@Nullable Range dataRange) {
             if (dataRange == null) {
                 return new Range(0, 1); // default display range
             }
             double min = dataRange.getMin();
             double max = dataRange.getMax();
-            // get scale factor and align min max to it
-            double f = Math.max(getScaleFactor(min), getScaleFactor(max));
-            double minAligned = f * Math.floor(min / f);
-            double maxAligned = f * Math.ceil(max / f);
-            if (Math.abs(maxAligned - minAligned) < 1e-6) {
-                minAligned -= f;
-                maxAligned += f;
+            // align bounds to a pretty step of the data span
+            double tick = Ticks.getPrettyTick(min, max, NUM_Y_AXIS_TICKS);
+            if (tick <= 0.0) {
+                // constant series, pad symmetrically around the value
+                double pad = Math.max(1e-6, 1e-3 * Math.abs(min));
+                return new Range(min - pad, max + pad);
             }
-            return new Range(minAligned, maxAligned);
+            return new Range(tick * Math.floor(min / tick), tick * Math.ceil(max / tick));
         }
 
         public Range getDisplayRange() {

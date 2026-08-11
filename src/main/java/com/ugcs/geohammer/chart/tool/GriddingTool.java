@@ -10,6 +10,7 @@ import com.ugcs.geohammer.map.layer.GridLayer;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.GridUpdatedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesUpdatedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
@@ -748,6 +749,24 @@ public class GriddingTool extends FilterToolView {
         if (changed.isTraceCut() || changed.isTraceValues()) {
             showParamsChangedWarning(true);
         }
+    }
+
+    @EventListener
+    private void onGridUpdated(GridUpdatedEvent event) {
+        // sync param inputs with the actual grid state, so that grids
+        // built outside of this tool (e.g. over MCP) are reflected
+        if (event.getGrid() == null || !Objects.equals(event.getFile(), selectedFile)) {
+            return;
+        }
+        GriddingResult result = gridLayer.getResult(event.getFile());
+        if (result == null || result.params() == null) {
+            return;
+        }
+        GriddingParams params = result.params();
+        Platform.runLater(() -> {
+            cellSizeInput.setText(String.valueOf(params.cellSize()));
+            blankingDistanceInput.setText(String.valueOf(params.blankingDistance()));
+        });
     }
 
     @EventListener

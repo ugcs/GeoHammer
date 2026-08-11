@@ -181,7 +181,7 @@
 								<argument>--module-path</argument>
 								<argument>${project.build.directory}/*.jar</argument>
 								<argument>--add-modules</argument>
-								<argument>javafx.controls,javafx.swing,jdk.crypto.cryptoki,java.logging,java.sql,java.naming</argument>
+								<argument>javafx.controls,javafx.swing,jdk.crypto.cryptoki,jdk.httpserver,java.logging,java.sql,java.naming</argument>
 								<argument>--output</argument>
 								<argument>${project.build.directory}/jre21</argument>
 								<argument>--no-header-files</argument>

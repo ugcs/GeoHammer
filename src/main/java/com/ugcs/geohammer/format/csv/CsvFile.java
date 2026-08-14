@@ -63,8 +63,14 @@ public class CsvFile extends SgyFile {
     public void open(File csvFile) throws IOException {
         Template template = fileTemplates.findTemplate(csvFile);
         if (template == null) {
-            throw new RuntimeException("Can`t find template for file " + csvFile.getName());
+            throw new RuntimeException("Can't find template for file " + csvFile.getName());
         }
+        open(csvFile, template);
+    }
+
+    // opens with an explicit template, possibly not stored in a template registry
+    public void open(File csvFile, Template template) throws IOException {
+        Check.notNull(template);
 
         log.debug("template: {}", template.getName());
 

@@ -68,3 +68,8 @@
 .dialog-pane > .label {
     -fx-font-weight: normal;
 }
+
+.table-view .column-header.subheader {
+    -fx-border-color: transparent -color-outline -color-outline transparent;
+    -fx-border-width: 0 1 1 0;
+}

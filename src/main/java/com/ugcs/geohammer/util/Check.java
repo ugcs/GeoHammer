@@ -43,6 +43,24 @@ public final class Check {
 		return collection;
 	}
 
+	public static <T extends CharSequence> Collection<T> hasNonEmptyElement(Collection<T> collection) {
+		return hasNonEmptyElement(collection, null);
+	}
+
+	public static <T extends CharSequence> Collection<T> hasNonEmptyElement(Collection<T> collection, String message) {
+		boolean hasNonEmptyElement = false;
+		if (collection != null) {
+			for (T s : collection) {
+				if (s != null && !s.isEmpty()) {
+					hasNonEmptyElement = true;
+					break;
+				}
+			}
+		}
+		condition(hasNonEmptyElement, message);
+		return collection;
+	}
+
 	public static void condition(boolean condition) {
 		condition(condition, null);
 	}

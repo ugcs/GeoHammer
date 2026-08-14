@@ -90,7 +90,7 @@ public class ColumnSchema implements Iterable<Column> {
         Check.notNull(column);
 
         String header = column.getHeader();
-        Check.notEmpty(header);
+        Check.notNull(header);
         Check.condition(!columns.containsKey(header),
                 "Duplicate header: " + header);
 

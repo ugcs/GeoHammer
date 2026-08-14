@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.util;
 
+import com.ugcs.geohammer.model.template.data.DateTime;
+
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
@@ -10,9 +12,11 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -113,43 +117,97 @@ public final class Text {
         }
     }
 
-    public static LocalDate parseDate(String value, String format) {
+    public static LocalDate parseDate(String value, List<String> formats) {
         if (Strings.isNullOrBlank(value)) {
             return null;
         }
-        Check.notNull(format, "Date format is not specified");
+        Check.hasNonEmptyElement(formats, "Date format is not specified");
+        return parse(value, formats, (v, format) -> {
+            try {
+                return LocalDate.parse(value, formatterFor(format));
+            } catch (DateTimeParseException e) {
+                throw new IncorrectFormatException(value, format);
+            }
+        });
+    }
+
+    public static LocalTime parseTime(String value, List<String> formats) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        Check.hasNonEmptyElement(formats, "Time format is not specified");
+        return parse(value, formats, (v, format) -> {
+            try {
+                return LocalTime.parse(value, formatterFor(format));
+            } catch (DateTimeParseException e) {
+                throw new IncorrectFormatException(value, format);
+            }
+        });
+    }
+
+    public static LocalDateTime parseDateTime(String value, List<String> formats) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        Check.hasNonEmptyElement(formats, "DateTime format is not specified");
+        return parse(value, formats, (v, format) -> {
+            if (format.equals(GPST_FORMAT)) {
+                return parseGpsDateTime(value);
+            }
+            try {
+                return LocalDateTime.parse(value, formatterFor(format));
+            } catch (DateTimeParseException e) {
+                throw new IncorrectFormatException(value, format);
+            }
+        });
+    }
+
+    public static LocalDateTime parseGpsDateTime(String value) {
+        if (Strings.isNullOrBlank(value)) {
+            return null;
+        }
+        String[] tokens = value.split(" ");
+        if (tokens.length < 2) {
+            return null;
+        }
         try {
-            return LocalDate.parse(value, formatterFor(format));
-        } catch (DateTimeParseException e) {
-           throw new IncorrectFormatException(value, format);
+            int weeks = Integer.parseInt(tokens[0]);
+            double seconds = Double.parseDouble(tokens[1]);
+            LocalDateTime gpsEpoch = LocalDateTime.of(1980, 1, 6, 0, 0, 0);
+            return gpsEpoch
+                    .plusDays(weeks * 7L)
+                    .plus((long) (seconds * 1000), ChronoUnit.MILLIS);
+        } catch (NumberFormatException e) {
+            throw new IncorrectFormatException(value, GPST_FORMAT);
         }
     }
 
-    public static LocalTime parseTime(String value, String format) {
+    public static <T> T parse(String value, List<String> formats, BiFunction<String, String, T> parser) {
         if (Strings.isNullOrBlank(value)) {
             return null;
         }
-        Check.notNull(format, "Time format is not specified");
-        try {
-            return LocalTime.parse(value, formatterFor(format));
-        } catch (DateTimeParseException e) {
-			throw new IncorrectFormatException(value, format);
-        }
-    }
 
-    public static LocalDateTime parseDateTime(String value, String format) {
-        if (Strings.isNullOrBlank(value)) {
-            return null;
+        RuntimeException firstError = null;
+        for (String format : formats) {
+            if (Strings.isNullOrEmpty(format)) {
+                continue;
+            }
+            try {
+                // null result means no match: try the next format
+                T parsed = parser.apply(value, format);
+                if (parsed != null) {
+                    return parsed;
+                }
+            } catch (RuntimeException e) {
+                if (firstError == null) {
+                    firstError = e;
+                }
+            }
         }
-        Check.notNull(format, "DateTime format is not specified");
-        if (format.equals(GPST_FORMAT)) {
-            return parseGpsDateTime(value);
+        if (firstError != null) {
+            throw firstError;
         }
-        try {
-            return LocalDateTime.parse(value, formatterFor(format));
-        } catch (DateTimeParseException e) {
-            throw new IncorrectFormatException(value, format);
-        }
+        return null;
     }
 
     private static DateTimeFormatter formatterFor(String pattern) {
@@ -168,26 +226,6 @@ public final class Text {
 		}
 		return DateTimeFormatter.ofPattern(pattern, Locale.US);
 	}
-
-    public static LocalDateTime parseGpsDateTime(String value) {
-        if (Strings.isNullOrBlank(value)) {
-            return null;
-        }
-        String[] tokens = value.split(" ");
-        if (tokens.length < 2) {
-            return null;
-        }
-        try {
-            int weeks = Integer.parseInt(tokens[0]);
-            double seconds = Double.parseDouble(tokens[1]);
-            LocalDateTime gpsEpoch = LocalDateTime.of(1980, 1, 6, 0, 0, 0);
-            return gpsEpoch
-                    .plusDays(weeks * 7L)
-                    .plus((long) (seconds * 1000), ChronoUnit.MILLIS);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 
     public static String unescape(String escaped) {
         if (escaped == null) {

@@ -4,7 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
@@ -12,11 +13,15 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
 
+import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Resources;
+import com.ugcs.geohammer.util.TextFiles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -29,7 +34,6 @@ import org.springframework.util.StringUtils;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
-import org.yaml.snakeyaml.error.YAMLException;
 import org.yaml.snakeyaml.introspector.Property;
 import org.yaml.snakeyaml.introspector.PropertyUtils;
 
@@ -43,7 +47,9 @@ public class FileTemplates implements InitializingBean {
 
     public static final String TEMPLATES_FOLDER = "templates";
 
-    private final List<Template> templates = new ArrayList<>();
+    private static final int MAX_LINE_LENGTH = 4096;
+
+    private final List<Template> templates = new CopyOnWriteArrayList<>();
 
     private Yaml yaml;
 
@@ -62,18 +68,31 @@ public class FileTemplates implements InitializingBean {
     public void afterPropertiesSet() throws Exception {
         log.info("Loading templates...");
 
+        yaml = createYaml();
+
+        this.templatesPath = Resources.resolvePath(TEMPLATES_FOLDER);
+        templates.addAll(loadTemplates());
+
+        if (!templates.isEmpty()) {
+            status.showMessage("Loaded " + templates.size() + " templates", "Templates");
+        }
+    }
+
+    // yaml instances are not thread-safe: a new one is created
+    // for every load outside of the template watcher
+    private static Yaml createYaml() {
         Constructor c = new Constructor(Template.class, new LoaderOptions());
 
         c.setPropertyUtils(new PropertyUtils() {
             @Override
-            public Property getProperty(Class<? extends Object> type, String name) {
+            public Property getProperty(Class<?> type, String name) {
                 if (name.indexOf('-') > -1) {
-                    name = toCameCase(name);
+                    name = toCamelCase(name);
                 }
                 return super.getProperty(type, name);
             }
 
-            private String toCameCase(String name) {
+            private String toCamelCase(String name) {
                 String[] parts = name.split("-");
                 StringBuilder sb = new StringBuilder(parts[0]);
                 for (int i = 1; i < parts.length; i++) {
@@ -84,46 +103,94 @@ public class FileTemplates implements InitializingBean {
         });
 
         c.getPropertyUtils().setSkipMissingProperties(true);
-        yaml = new Yaml(c);
-
-        this.templatesPath = Resources.resolvePath(TEMPLATES_FOLDER);
-        loadTemplates(yaml, templates);
-
-        // Show status message with the number of loaded templates
-        if (!templates.isEmpty()) {
-            status.showMessage("Loaded " + templates.size() + " templates", "Templates");
-        }
+        return new Yaml(c);
     }
 
-    private void loadTemplates(Yaml yaml, List<Template> templates) {
-        try {
-            // Get all resources ending with .yaml from path
-            Resource[] resources = new PathMatchingResourcePatternResolver()
-                    .getResources("file:" + templatesPath.toString() + "/*.yaml");
+    private Template loadTemplate(Yaml yaml, Reader r) {
+        return loadTemplate(yaml, r, false);
+    }
 
-            for (Resource resource : resources) {
-                try (InputStream inputStream = resource.getInputStream()) {
-                    try {
-                        Template template = yaml.load(inputStream);
-                        template.init();
-                        if (template.isTemplateValid()) {
-                            templates.add(template);
-                            log.debug("Valid template, data: " + template);
-                        } else {
-                            log.error("Invalid template: " + template);
-                            status.showMessage("Invalid template: " + template, "Templates");
-                        }
-                    } catch (YAMLException e) {
-                        log.error("Error reading template: " + e.getMessage());
-                    }
+    private Template loadTemplate(Yaml yaml, Reader r, boolean silent) {
+        Check.notNull(yaml);
+        if (r == null) {
+            return null;
+        }
+        try {
+            Template template = yaml.load(new BufferedReader(r));
+            if (template == null) {
+                return null;
+            }
+            template.init();
+            if (template.isTemplateValid()) {
+                if (!silent) {
+                    log.debug("Valid template: {}", template);
+                }
+                return template;
+            } else {
+                if (!silent) {
+                    log.error("Invalid template: {}", template);
+                    status.showMessage("Invalid template: " + template, "Templates");
                 }
             }
-            if (templates.isEmpty()) {
-                log.error("No templates found in " + templatesPath);
+        } catch (RuntimeException e) {
+            if (!silent) {
+                log.error("Error reading template: {}", e.getMessage());
             }
-        } catch (IOException e) {
-            log.error("Error reading template: " + e.getMessage());
         }
+        return null;
+    }
+
+    private List<Template> loadTemplates(File directory) {
+        if (directory == null || !directory.isDirectory()) {
+            return List.of();
+        }
+        File[] files = directory.listFiles((dir, name) -> name.endsWith(".yaml"));
+        if (files == null || files.length == 0) {
+            return List.of();
+        }
+        Arrays.sort(files);
+
+        Yaml yaml = createYaml();
+        List<Template> templates = new ArrayList<>();
+        for (File file : files) {
+            try (Reader r = new FileReader(file)) {
+                Template template = loadTemplate(yaml, r, true);
+                if (template != null) {
+                    templates.add(template);
+                }
+            } catch (IOException e) {
+                log.warn("Error reading template", e);
+            }
+        }
+        return templates;
+    }
+
+    private List<Template> loadTemplates() {
+        Resource[] resources;
+        try {
+            resources = new PathMatchingResourcePatternResolver()
+                    .getResources("file:" + templatesPath.toString() + "/*.yaml");
+        } catch (IOException e) {
+            log.error("Error reading templates folder", e);
+            return List.of();
+        }
+
+        List<Template> templates = new ArrayList<>(resources.length);
+        for (Resource resource : resources) {
+            try (Reader r = new InputStreamReader(resource.getInputStream())) {
+                Template template = loadTemplate(yaml, r);
+                if (template != null) {
+                    templates.add(template);
+                }
+            } catch (IOException e) {
+                log.error("Error reading template", e);
+                // try next
+            }
+        }
+        if (templates.isEmpty()) {
+            log.error("No templates found in {}", templatesPath);
+        }
+        return templates;
     }
 
     @Async
@@ -133,60 +200,51 @@ public class FileTemplates implements InitializingBean {
         }
 
         try {
-            // Create a WatchService
             WatchService watchService = FileSystems.getDefault().newWatchService();
-
-            // Register the directory for specific events
             templatesPath.register(watchService,
                     StandardWatchEventKinds.ENTRY_CREATE,
                     StandardWatchEventKinds.ENTRY_DELETE,
                     StandardWatchEventKinds.ENTRY_MODIFY);
 
-            //System.out.println("Watching directory: " + directoryPath);
-
-            // Infinite loop to continuously watch for events
             while (true) {
-                //System.out.println("watch started");
                 WatchKey key = watchService.take();
 
                 for (WatchEvent<?> event : key.pollEvents()) {
-                    // Handle the specific event
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            log.info("Template file created: " + templateName);
+                            log.info("Template file created: {}", templateName);
                             status.showMessage("Template created: " + templateName, "Templates");
                         }
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            log.info("Template file deleted: " + templateName);
+                            log.info("Template file deleted: {}", templateName);
                             status.showMessage("Template deleted: " + templateName, "Templates");
                         }
                     } else if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                         if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
                             String templateName = templatePath.toString();
-                            log.info("Template file modified: " + templateName);
+                            log.info("Template file modified: {}", templateName);
                             status.showMessage("Template updated: " + templateName, "Templates");
                         } else {
                             continue;
                         }
                     }
+                    // load before replacing to keep templates readable while reloading
+                    List<Template> reloaded = loadTemplates();
                     templates.clear();
-                    loadTemplates(yaml, templates);
+                    templates.addAll(reloaded);
 
-                    // Show status message with the number of reloaded templates
                     if (!templates.isEmpty()) {
                         status.showMessage("Reloaded " + templates.size() + " templates", "Templates");
                     }
                 }
-
                 // To receive further events, reset the key
                 key.reset();
             }
-
         } catch (IOException | InterruptedException e) {
-            log.error("Error reading template: " + e.getMessage());
+            log.error("Error reading template: {}", e.getMessage());
         }
     }
 
@@ -208,33 +266,44 @@ public class FileTemplates implements InitializingBean {
             var ot = templates.stream()
                     .filter(t -> FileType.Segy.equals(t.getFileType()))
                     .findFirst();
-            return ot.isPresent() ? ot.get() : null;
+            return ot.orElse(null);
         }
 
-        String firstNonEmptyLines = "";
-        try (var reader = new BufferedReader(new FileReader(file))) {
-            List<String> firstLines = new ArrayList<>();
-            String line;
-            while (firstLines.size() < lineThreshold && (line = reader.readLine()) != null) {
-                firstLines.add(line);
-            }
-            firstNonEmptyLines = String.join(System.lineSeparator(), firstLines);
-            log.debug(firstNonEmptyLines);
+        String firstLines = readFirstLines(file);
+
+        // templates in the file directory take precedence
+        // over the application templates
+        File directory = file.getAbsoluteFile().getParentFile();
+        Template local = matchTemplate(loadTemplates(directory), firstLines);
+        if (local != null) {
+            return local;
+        }
+        return matchTemplate(templates, firstLines);
+    }
+
+    // bounded read: an over-long line stops reading, so binary
+    // content cannot produce huge inputs for the template regexes
+    private String readFirstLines(File file) {
+        try {
+            List<String> firstLines = TextFiles.readLines(file, lineThreshold, MAX_LINE_LENGTH);
+            return String.join(System.lineSeparator(), firstLines);
         } catch (IOException e) {
-            log.error("Error reading file: " + e.getMessage());
+            log.error("Error reading file: {}", e.getMessage());
+            return "";
         }
+    }
 
+    private static Template matchTemplate(List<Template> templates, String content) {
         for (var t : templates) {
             try {
                 var regex = Pattern.compile(t.getMatchRegex(), Pattern.MULTILINE | Pattern.DOTALL);
-                if (regex.matcher(firstNonEmptyLines).find()) {
+                if (regex.matcher(content).find()) {
                     return t;
                 }
             } catch (Exception e) {
                 log.error("Error matching template: " + e.getMessage());
             }
         }
-
         return null;
     }
 

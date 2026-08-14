@@ -26,6 +26,9 @@ import com.ugcs.geohammer.format.dzt.DztFile;
 import com.ugcs.geohammer.model.event.FileOpenErrorEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.model.template.Template;
+import com.ugcs.geohammer.template.TemplateEditor;
 import com.ugcs.geohammer.service.TaskRunner;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.util.Check;
@@ -64,14 +67,17 @@ public class Loader {
 
 	private final ExecutorService executor;
 
+	private final TemplateEditor templateEditor;
+
 	@Autowired
 	public Loader(Model model, Status status, ApplicationEventPublisher eventPublisher,
-			TaskService taskService, ExecutorService executor) {
+			TaskService taskService, ExecutorService executor, TemplateEditor templateEditor) {
 		this.model = model;
 		this.status = status;
 		this.eventPublisher = eventPublisher;
 		this.taskService = taskService;
 		this.executor = executor;
+		this.templateEditor = templateEditor;
 	}
 
 	public EventHandler<DragEvent> getDragHandler() {
@@ -102,16 +108,6 @@ public class Loader {
         event.consume();
     };
 
-	/**
-	 * Attempts to load and process the specified list of files based on their type.
-	 * The method supports processing `constPoints`, KML, and CSV files. If the file
-	 * type is recognized, it invokes the appropriate file-handling logic. For unsupported
-	 * or unprocessed cases, the method initializes a background task with progress
-	 * tracking to handle the file processing.
-	 *
-	 * @param files the list of files to be loaded; each file is evaluated to determine
-	 *              its type and processed accordingly
-	 */
 	public void load(List<File> files) {
 		if (files.isEmpty()) {
 			return;
@@ -246,9 +242,12 @@ public class Loader {
 			openNmeaFile(file);
 			return true;
 		}
-		// try csv as a fallback
-		openCsvFile(file);
-		return true;
+		// try csv as a fallback for text formats only
+		if (FileTypes.isTextFile(file)) {
+			openCsvFile(file);
+			return true;
+		}
+		throw new IOException("Unsupported file format: " + file.getName());
 	}
 
 	private void openGprFile(File file) throws IOException {
@@ -285,9 +284,17 @@ public class Loader {
 	private void openCsvFile(File file) throws IOException {
 		Check.notNull(file);
 
-		CsvFile csvFile = new CsvFile(model.getFileManager().getFileTemplates());
+		FileTemplates fileTemplates = model.getFileManager().getFileTemplates();
+		Template template = fileTemplates.findTemplate(file);
+		if (template == null) {
+			template = templateEditor.createTemplate(file);
+			if (template == null) {
+				throw new RuntimeException("Can't find template for file " + file.getName());
+			}
+		}
 
-		csvFile.open(file);
+		CsvFile csvFile = new CsvFile(fileTemplates);
+		csvFile.open(file, template);
 
 		Parser parser = csvFile.getParser();
 		if (parser != null) {
@@ -351,8 +358,14 @@ public class Loader {
 		switch (sgyFile) {
 			case CsvFile csvFile -> {
 				CsvFile temp = new CsvFile(model.getFileManager().getFileTemplates());
+				// keep the template of the source file: it may be unsaved
+				Parser parser = csvFile.getParser();
+				if (parser != null) {
+					temp.open(file, parser.getTemplate());
+				} else {
 					temp.open(file);
-					csvFile.loadFrom(temp);
+				}
+				csvFile.loadFrom(temp);
 			}
 			case GprFile gprFile -> {
 				GprFile temp = new GprFile();

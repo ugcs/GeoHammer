@@ -44,15 +44,14 @@ public class FileFormat {
         return switch (type) {
             case CSV -> isDecimalSeparatorValid() && isSeparatorValid() && commentPrefix != null
                     && columns != null && isDateTimeColumnsValid(columns)
-                    && (hasHeader ? (columns.getLatitude() != null 
+                    && (hasHeader ? (columns.getLatitude() != null
                             && StringUtils.hasLength(columns.getLatitude().getHeader())
-                            && columns.getLongitude() != null 
+                            && columns.getLongitude() != null
                             && StringUtils.hasLength(columns.getLongitude().getHeader())
                             &&  columns.getLatitude().getIndex() == null
                             &&  columns.getLongitude().getIndex() == null)
                             : (columns.getLatitude() != null && columns.getLatitude().getIndex() != null
-                                    && columns.getLongitude() != null && columns.getLongitude().getIndex() != null)
-                                    && !StringUtils.hasLength(columns.getLongitude().getHeader()));
+                                    && columns.getLongitude() != null && columns.getLongitude().getIndex() != null));
 
             case ColumnsFixedWidth -> isDecimalSeparatorValid() && columnLengths != null && commentPrefix != null
                     && columns != null

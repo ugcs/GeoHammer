@@ -2,13 +2,12 @@ package com.ugcs.geohammer.model.template;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.template.data.BaseData;
 import com.ugcs.geohammer.model.template.data.SensorData;
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.NullUnmarked;
 import org.springframework.util.StringUtils;
@@ -45,10 +44,10 @@ public class Template {
      * Initialize template on load
      */
     public void init() {
+        initIndexedHeaders();
+
         addLineDataValue();
         addMarkDataValue();
-
-        initIndexedHeaders();
     }
 
     private void addLineDataValue() {
@@ -102,26 +101,10 @@ public class Template {
      * @return true if the template is valid, false otherwise.
      */
     public boolean isTemplateValid() {
-        return isValidRegex()
+        return Regex.isValid(matchRegex)
                 && StringUtils.hasLength(name)
                 && !FileType.Unknown.equals(fileType)
                 && isFormatValid();
-    }
-
-    /**
-     * Checks if the match regex is valid.
-     *
-     * @return true if the match regex is valid, false otherwise.
-     */
-    private boolean isValidRegex() {
-        if (!StringUtils.hasLength(matchRegex))
-            return false;
-        try {
-            Pattern.compile(matchRegex);
-        } catch (PatternSyntaxException ex) {
-            return false;
-        }
-        return true;
     }
 
     /**

@@ -140,7 +140,7 @@ public class PositionFile {
 
 		Template template = templates.findTemplate(file);
 		if (template == null) {
-			throw new RuntimeException("Can`t find template for file " + file.getName());
+			throw new RuntimeException("Can't find template for file " + file.getName());
 		}
 
 		log.info("Using position file template: {}", template.getName());

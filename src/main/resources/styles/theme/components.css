@@ -4,6 +4,10 @@
 
 /* custom classes */
 
+.surface {
+    -fx-background-color: -color-surface;
+}
+
 .surface-translucent {
     -fx-background-color: -color-surface-translucent;
     -fx-background-radius: 8;
@@ -25,6 +29,10 @@
 
 .no-padding {
     -fx-padding: 0;
+}
+
+.monospace {
+    -fx-font-family: monospace;
 }
 
 .smaller {
@@ -73,6 +81,13 @@
 .text-input.label {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
+}
+
+.popover {
+    -fx-background-color: -color-outline, -color-input;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 4, 3;
+    -fx-padding: 8;
 }
 
 .vertical-separator {
@@ -132,7 +147,34 @@
     -fx-background-color: -color-outline, -color-surface-accent;
 }
 
-/* ststus */
+.table-view .column-header.subheader {
+    -fx-background-color: -color-input;
+    -fx-padding: 4;
+    -fx-size: 38;
+    -fx-font-weight: normal;
+}
+
+/* template editor */
+
+.column-options:set {
+    -fx-text-fill: -color-accent;
+    -fx-font-weight: bold;
+}
+
+.column-summary {
+    -fx-text-fill: -color-text-dim;
+    -fx-font-size: 0.91em;
+    -fx-font-weight: normal;
+}
+
+.line-number {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 3;
+    -fx-text-fill: -color-text-dim;
+    -fx-padding: 0 4;
+}
+
+/* status */
 
 .status-bar {
     -fx-text-fill: -color-text-dim;

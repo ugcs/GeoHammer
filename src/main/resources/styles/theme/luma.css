@@ -331,6 +331,20 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
     -fx-text-fill: -color-accent-text;
 }
 
+.menu-button {
+    -fx-background-color: -color-outline, -color-input;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+}
+
+.menu-button:focused {
+    -fx-background-color: -color-accent, -color-input;
+}
+
+.menu-button .label {
+    -fx-text-fill: -color-text;
+}
+
 .toggle-button {
     -fx-background-color: -color-outline, -color-surface;
     -fx-background-insets: 0, 1;
@@ -474,6 +488,58 @@ BorderPane, BorderPane.root, VBox.root, HBox.root, DialogPane.root {
 
 .list-header .label {
     -fx-text-fill: -color-text;
+}
+
+.table-view {
+    -fx-background-color: -color-outline, -color-input;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-table-cell-border-color: -color-outline;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: -color-surface;
+    -fx-background-insets: 1 1 0 1;
+    -fx-background-radius: 5 5 0 0;
+    -fx-border-color: -color-outline;
+    -fx-border-width: 0 0 1 0;
+}
+
+.table-view .column-header,
+.table-view .column-header-background .filler {
+    -fx-background-color: transparent;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -color-text;
+    -fx-alignment: center-left;
+}
+
+.table-view .column-header.subheader {
+    -fx-border-color: -color-outline -color-outline transparent transparent;
+    -fx-border-width: 1 1 0 0;
+}
+
+.table-view .table-row-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: -color-outline;
+    -fx-border-width: 0 0 1 0;
+}
+
+.table-view .table-row-cell:selected {
+    -fx-background-color: -color-selection;
+}
+
+.table-view .table-cell {
+    -fx-text-fill: -color-text;
+}
+
+.table-view .table-row-cell:selected .table-cell {
+    -fx-text-fill: -color-selection-text;
+}
+
+.table-view .placeholder .label {
+    -fx-text-fill: -color-text-dim;
 }
 
 .chart-plot-background {

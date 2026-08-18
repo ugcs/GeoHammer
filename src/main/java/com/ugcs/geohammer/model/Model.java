@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.PrefSettings;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.FileDataContainer;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
@@ -63,6 +64,10 @@ public class Model implements InitializingBean {
 
 	public static final double DEFAULT_LOOKUP_THRESHOLD = 1.0;
 
+	private static final String PREF_TRACE = "trace";
+
+	private static final String PREF_LOOKUP_THRESHOLD = "lookupThreshold";
+
 	private double traceLookupThreshold = DEFAULT_LOOKUP_THRESHOLD;
 
 	private boolean loading = false;
@@ -85,21 +90,32 @@ public class Model implements InitializingBean {
 
 	private final TemplateSettings templateSettings;
 
+	private final PrefSettings prefSettings;
+
 	@Nullable
 	private Node selectedDataNode;
 
 	@Nullable
 	private SgyFile currentFile;
 
-	public Model(FileManager fileManager, ApplicationEventPublisher eventPublisher, TemplateSettings templateSettings) {
+	public Model(FileManager fileManager, ApplicationEventPublisher eventPublisher,
+			TemplateSettings templateSettings, PrefSettings prefSettings) {
 		this.fileManager = fileManager;
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
 		this.templateSettings = templateSettings;
+		this.prefSettings = prefSettings;
+		this.traceLookupThreshold = prefSettings.getDoubleOrDefault(
+				PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD);
+	}
+
+	public double getTraceLookupThreshold() {
+		return traceLookupThreshold;
 	}
 
 	public void setTraceLookupThreshold(double threshold) {
 		this.traceLookupThreshold = threshold;
+		prefSettings.setValue(PREF_TRACE, PREF_LOOKUP_THRESHOLD, threshold);
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {

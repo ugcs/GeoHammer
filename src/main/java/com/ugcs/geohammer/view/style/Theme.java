@@ -63,4 +63,9 @@ public enum Theme {
     public Color strokeColor() {
         return dark ? STROKE_COLOR_DARK : STROKE_COLOR_LIGHT;
     }
+
+    @Override
+    public String toString() {
+        return title;
+    }
 }

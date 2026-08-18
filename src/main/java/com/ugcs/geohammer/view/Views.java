@@ -4,10 +4,13 @@ import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.Blend;
@@ -156,6 +159,18 @@ public final class Views {
         Region separator = new Region();
         separator.getStyleClass().add("horizontal-separator");
         return separator;
+    }
+
+    public static HBox createLabeledSeparator(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("dim");
+
+        Separator separator = new Separator(Orientation.HORIZONTAL);
+        HBox.setHgrow(separator, Priority.ALWAYS);
+
+        HBox container = new HBox(DEFAULT_SPACING, label, separator);
+        container.setAlignment(Pos.CENTER_LEFT);
+        return container;
     }
 
     public static ScrollPane createVerticalScrollContainer(Node content, Node parent) {

@@ -149,9 +149,7 @@ public abstract class Parser {
                     throw new CancellationException();
                 }
                 GeoData value = parseValues(valueTokens, columns);
-                if (value != null) {
-                    values.add(value);
-                }
+                values.add(value);
             }
 
 			if (values.isEmpty()) {
@@ -404,19 +402,10 @@ public abstract class Parser {
         }
 
         LocalDate date = null;
-        for (String format : Nulls.toEmpty(dateColumn.getAllFormats())) {
-            if (Strings.isNullOrEmpty(format)) {
-                continue;
-            }
-			try {
-				date = Text.parseDate(value, format);
-			} catch (IncorrectFormatException e) {
-				warnings.add("Date", e);
-			}
-
-            if (date != null) {
-                break;
-            }
+        try {
+            date = Text.parseDate(value, dateColumn.getAllFormats());
+        } catch (IncorrectFormatException e) {
+            warnings.add("Date", e);
         }
         return date;
     }
@@ -430,7 +419,7 @@ public abstract class Parser {
 		DateTime dateTimeColumn = mapping.getDateTime();
 		if (hasHeader(dateTimeColumn)) {
 			String value = getString(values, dateTimeColumn);
-			dateTime = Text.parseDateTime(value, dateTimeColumn.getFormat());
+			dateTime = Text.parseDateTime(value, dateTimeColumn.getAllFormats());
 		}
 		if (dateTime != null) {
 			return dateTime;
@@ -440,12 +429,12 @@ public abstract class Parser {
 		DateTime timeColumn = mapping.getTime();
 		if (hasHeader(timeColumn)) {
 			String timeValue = getString(values, timeColumn);
-			LocalTime time = Text.parseTime(timeValue, timeColumn.getFormat());
+			LocalTime time = Text.parseTime(timeValue, timeColumn.getAllFormats());
 			if (time != null) {
 				Date dateColumn = mapping.getDate();
 				if (hasHeader(dateColumn)) {
 					String dateValue = getString(values, dateColumn);
-					LocalDate date = Text.parseDate(dateValue, dateColumn.getFormat());
+					LocalDate date = Text.parseDate(dateValue, dateColumn.getAllFormats());
 					if (date != null) {
 						dateTime = LocalDateTime.of(date, time);
 					}

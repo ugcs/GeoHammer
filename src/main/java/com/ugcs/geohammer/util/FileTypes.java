@@ -7,6 +7,8 @@ import java.util.Objects;
 
 public final class FileTypes {
 
+    private static final FileProbe TEXT_PROBE = new ExtensionProbe("csv", "asc", "pos", "txt", "log", "xyz");
+
     private static final FileProbe CSV_PROBE = new ExtensionProbe("csv", "asc", "pos");
 
     private static final FileProbe GPR_PROBE = new ExtensionProbe("sgy", "segy");
@@ -22,6 +24,10 @@ public final class FileTypes {
     private static final String POSITIONS_NAME_SUFFIX = "-position.csv";
 
     private FileTypes() {
+    }
+
+    public static boolean isTextFile(File file) {
+        return TEXT_PROBE.matches(file);
     }
 
     public static boolean isCsvFile(File file) {

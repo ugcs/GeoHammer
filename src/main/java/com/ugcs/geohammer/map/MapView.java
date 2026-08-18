@@ -16,7 +16,7 @@ import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.UndoStackChanged;
-import com.ugcs.geohammer.SettingsView;
+import com.ugcs.geohammer.settings.SettingsView;
 import com.ugcs.geohammer.map.layer.BaseLayer;
 import com.ugcs.geohammer.map.layer.GpsTrack;
 import com.ugcs.geohammer.map.layer.GridLayer;

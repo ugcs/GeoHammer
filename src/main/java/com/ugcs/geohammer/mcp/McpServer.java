@@ -5,13 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.view.status.Status;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -25,7 +27,7 @@ import java.util.concurrent.Executors;
 
 // Serves the Model Context Protocol over streamable HTTP (JSON-RPC 2.0 on POST /mcp).
 // Connect from Claude Code with:
-// claude mcp add --transport http geohammer http://127.0.0.1:3323/mcp
+// claude mcp add --transport http geohammer http://127.0.0.1:41693/mcp
 @Service
 public class McpServer {
 
@@ -36,15 +38,21 @@ public class McpServer {
     private static final Set<String> SUPPORTED_PROTOCOL_VERSIONS = Set.of(
             "2024-11-05", "2025-03-26", LATEST_PROTOCOL_VERSION);
 
+    private static final boolean DEFAULT_ENABLED = false;
+
+    private static final int DEFAULT_PORT = 41693;
+
+    private static final String PREF_MCP = "mcp";
+
+    private static final String PREF_ENABLED = "enabled";
+
     private final McpTools tools;
 
+    private final PrefSettings prefSettings;
+
+    private final Status status;
+
     private final ObjectMapper mapper = new ObjectMapper();
-
-    @Value("${mcp.server.enabled:true}")
-    private boolean enabled;
-
-    @Value("${mcp.server.port:3323}")
-    private int port;
 
     @Nullable
     private HttpServer server;
@@ -52,35 +60,73 @@ public class McpServer {
     @Nullable
     private ExecutorService executor;
 
-    public McpServer(McpTools tools) {
+    public McpServer(McpTools tools, PrefSettings prefSettings, Status status) {
         this.tools = tools;
+        this.prefSettings = prefSettings;
+        this.status = status;
+    }
+
+    private InetSocketAddress getServerAddress() {
+        return new InetSocketAddress(InetAddress.getLoopbackAddress(), DEFAULT_PORT);
+    }
+
+    public McpIdentity getIdentity() {
+        InetSocketAddress serverAddress = getServerAddress();
+        String serverUrl = String.format("http://%s:%d/mcp",
+                serverAddress.getHostName(),
+                serverAddress.getPort());
+        return new McpIdentity("geohammer", serverUrl);
+    }
+
+    public boolean isEnabled() {
+        return prefSettings.getBooleanOrDefault(PREF_MCP, PREF_ENABLED, DEFAULT_ENABLED);
+    }
+
+    public synchronized void setEnabled(boolean enabled) {
+        prefSettings.setValue(PREF_MCP, PREF_ENABLED, enabled);
+        if (!enabled && isRunning()) {
+            stop();
+        }
+        if (enabled && !isRunning()) {
+            start();
+        }
+    }
+
+    public boolean isRunning() {
+        return server != null;
     }
 
     @PostConstruct
-    public void start() {
-        if (!enabled) {
+    public synchronized void start() {
+        if (!isEnabled() || isRunning()) {
             return;
         }
+        InetSocketAddress serverAddress = getServerAddress();
         try {
-            server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
+            server = HttpServer.create(serverAddress, 0);
+            Check.notNull(server);
         } catch (IOException e) {
-            log.error("Failed to start MCP server on port " + port, e);
+            status.showMessage("Failed to start MCP server at " + serverAddress
+                    + ": " + e.getMessage(), "MCP");
             return;
         }
         executor = Executors.newVirtualThreadPerTaskExecutor();
         server.setExecutor(executor);
         server.createContext("/mcp", this::handle);
         server.start();
-        log.info("MCP server listening at http://127.0.0.1:{}/mcp", port);
+        status.showMessage("MCP server started at " + serverAddress, "MCP");
     }
 
     @PreDestroy
-    public void stop() {
+    public synchronized void stop() {
         if (server != null) {
             server.stop(0);
+            server = null;
+            status.showMessage("MCP server stopped", "MCP");
         }
         if (executor != null) {
             executor.shutdownNow();
+            executor = null;
         }
     }
 

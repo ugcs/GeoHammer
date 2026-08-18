@@ -2,6 +2,7 @@ package com.ugcs.geohammer.template.view;
 
 import com.ugcs.geohammer.template.TemplateEditorController;
 import com.ugcs.geohammer.model.template.Template;
+import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.UtilityWindow;
 import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.WindowProperties;
@@ -15,6 +16,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.StageStyle;
+import org.controlsfx.validation.ValidationMessage;
+import org.controlsfx.validation.ValidationResult;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -103,7 +106,7 @@ public class TemplateEditorView extends UtilityWindow {
         Button useTemplate = new Button("Use template");
         useTemplate.setDefaultButton(true);
         useTemplate.disableProperty().bind(Bindings.createBooleanBinding(
-                () -> !templateEditorController.validate().success(),
+                () -> !templateEditorController.validate().getMessages().isEmpty(),
                 templateEditorController.validationDependencies()));
         useTemplate.setOnAction(e -> useTemplate());
 
@@ -117,10 +120,12 @@ public class TemplateEditorView extends UtilityWindow {
     }
 
     private String getStatusMessage() {
-        TemplateEditorController.ValidationResult validationResult = templateEditorController.validate();
-        return validationResult.message();
+        ValidationResult validation = templateEditorController.validate();
+        for (ValidationMessage message : validation.getMessages()) {
+            return message.getText();
+        }
+        return Strings.empty();
     }
-
 
     private void useTemplate() {
         if (result != null) {

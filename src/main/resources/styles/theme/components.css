@@ -27,6 +27,23 @@
     -fx-faint-focus-color: transparent;
 }
 
+.toggle-button.flat,
+.toggle-button.flat:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4;
+    -fx-text-fill: -color-text;
+}
+
+.toggle-button.flat:hover {
+    -fx-background-color: -color-surface-accent-translucent;
+}
+
+.toggle-button.flat:selected,
+.toggle-button.flat:selected:focused {
+    -fx-background-color: -color-surface-accent;
+}
+
 .no-padding {
     -fx-padding: 0;
 }

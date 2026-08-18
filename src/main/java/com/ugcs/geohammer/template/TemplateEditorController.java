@@ -18,6 +18,7 @@ import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.Listeners;
 import javafx.collections.ListChangeListener;
 import javafx.beans.Observable;
+import org.controlsfx.validation.ValidationResult;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -281,24 +282,24 @@ public class TemplateEditorController {
     public ValidationResult validate() {
         String name = Strings.trim(templateModel.getName());
         if (Strings.isNullOrBlank(name)) {
-            return new ValidationResult(false, "Enter a template name");
+            return ValidationResult.fromError(null, "Enter a template name");
         }
         if (templateModel.getParsedSample().headers().isEmpty()) {
-            return new ValidationResult(false, "No columns found: check the separator and the header line");
+            return ValidationResult.fromError(null, "No columns found: check the separator and the header line");
         }
         ColumnsModel columns = templateModel.getColumns();
         if (columns.getColumn(ColumnType.LATITUDE) == null
                 || columns.getColumn(ColumnType.LONGITUDE) == null) {
-            return new ValidationResult(false, "Select latitude and longitude columns");
+            return ValidationResult.fromError(null, "Select latitude and longitude columns");
         }
         if (Strings.isNullOrBlank(templateModel.getMatchRegex())) {
-            return new ValidationResult(false, "Select a match line in the raw view");
+            return ValidationResult.fromError(null, "Select a match line in the raw view");
         }
         for (ColumnModel column : columns.getColumns()) {
             switch (column.getType()) {
                 case DATE_TIME, DATE, TIME -> {
                     if (column.getFormats().isEmpty()) {
-                        return new ValidationResult(false,
+                        return ValidationResult.fromError(null,
                                 "Enter date and time formats for the " + column.getHeader() + " column");
                     }
                 }
@@ -306,7 +307,7 @@ public class TemplateEditorController {
                 }
             }
         }
-        return new ValidationResult(true, Strings.empty());
+        return new ValidationResult();
     }
 
     public Observable[] validationDependencies() {
@@ -343,6 +344,4 @@ public class TemplateEditorController {
         TemplateWriter.write(yaml, file.toPath());
         return template;
     }
-
-    public record ValidationResult(boolean success, String message) {}
 }

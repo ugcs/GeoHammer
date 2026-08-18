@@ -52,7 +52,7 @@ public class FormatView extends VBox {
         saveAs.setMinWidth(Region.USE_PREF_SIZE);
         saveAs.setOnAction(e -> saveTemplateAs());
         saveAs.disableProperty().bind(Bindings.createBooleanBinding(
-                () -> !templateEditorController.validate().success(),
+                () -> !templateEditorController.validate().getMessages().isEmpty(),
                 templateEditorController.validationDependencies()));
 
         FormatModel format = templateModel.getFormat();

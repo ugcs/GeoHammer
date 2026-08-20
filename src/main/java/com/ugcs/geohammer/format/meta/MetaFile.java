@@ -3,12 +3,10 @@ package com.ugcs.geohammer.format.meta;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.GsonConfig;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.model.Range;
-import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.Nullable;
 
 import java.io.File;
@@ -25,8 +23,6 @@ import java.util.Map;
 import java.util.Set;
 
 public class MetaFile {
-
-    private static final String META_FILE_EXTENSION = ".geohammer";
 
     private @Nullable IndexRange sampleRange;
 
@@ -115,39 +111,21 @@ public class MetaFile {
         return value.getTraceIndex();
     }
 
-    public static Path getMetaPath(File source) {
+    public boolean loadFor(File source) throws IOException {
         Check.notNull(source);
 
-        String sourceBase = FileNames.removeExtension(source.getName());
-        String metaFileName = Strings.nullToEmpty(sourceBase) + META_FILE_EXTENSION;
-
-        return new File(source.getParentFile(), metaFileName).toPath();
+        Path metaPath = MetaFileNaming.findMetaPath(source);
+        if (metaPath == null) {
+            return false;
+        }
+        load(metaPath);
+        return true;
     }
 
-	public static boolean isMeta(File file) {
-		return file.getName().endsWith(META_FILE_EXTENSION);
-	}
+    public void saveFor(File source) throws IOException {
+        Check.notNull(source);
 
-    public static @Nullable File getSource(File metaFile) {
-        Check.notNull(metaFile);
-
-        File parent = metaFile.getParentFile();
-		if (parent == null) {
-			return null;
-		}
-        String base = FileNames.removeExtension(metaFile.getName());
-        File[] files = parent.listFiles();
-        if (files == null) {
-            return null;
-        }
-        for (File file : files) {
-            if (file.isFile()
-					&& !metaFile.getName().equals(file.getName())
-                    && base.equals(FileNames.removeExtension(file.getName()))) {
-                return file;
-            }
-        }
-        return null;
+        save(MetaFileNaming.getMetaPath(source));
     }
 
     public void load(Path path) throws IOException {

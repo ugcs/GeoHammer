@@ -3,9 +3,15 @@ package com.ugcs.geohammer.util;
 import com.ugcs.geohammer.format.nmea.NmeaContentProbe;
 
 import java.io.File;
+import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 public final class FileTypes {
+
+    private static final List<String> KNOWN_EXTENSIONS = List.of(
+            "dzt", "nme", "nmea", "segy", "sgy", "svlog",
+            "asc", "csv", "log", "pos", "txt", "xyz");
 
     private static final FileProbe TEXT_PROBE = new ExtensionProbe("csv", "asc", "pos", "txt", "log", "xyz");
 
@@ -52,6 +58,16 @@ public final class FileTypes {
 
     public static boolean isNmeaFile(File file) {
         return NMEA_PROBE.matches(file) && NMEA_CONTENT_PROBE.matches(file);
+    }
+
+    public static int getExtensionRank(File file) {
+        if (file == null) {
+            return KNOWN_EXTENSIONS.size();
+        }
+        String extension = Strings.nullToEmpty(FileNames.getExtension(file.getName()))
+                .toLowerCase(Locale.ROOT);
+        int index = KNOWN_EXTENSIONS.indexOf(extension);
+        return index != -1 ? index : KNOWN_EXTENSIONS.size();
     }
 
     public static boolean isPositionFile(File file) {

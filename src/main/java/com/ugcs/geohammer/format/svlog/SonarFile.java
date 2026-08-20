@@ -3,6 +3,7 @@ package com.ugcs.geohammer.format.svlog;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.MetaFileNaming;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMeta;
@@ -15,8 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -40,12 +39,10 @@ public class SonarFile extends SgyFileWithMeta {
         File source = getFile();
         Check.notNull(source);
 
-        Path metaPath = MetaFile.getMetaPath(source);
+        MetaFileNaming.migrateLegacyMeta(source);
+
         metaFile = new MetaFile(SonarSchema.createSchema());
-        if (Files.exists(metaPath)) {
-            // load existing meta
-            metaFile.load(metaPath);
-        } else {
+        if (!metaFile.loadFor(source)) {
             initMeta();
         }
 
@@ -76,8 +73,8 @@ public class SonarFile extends SgyFileWithMeta {
         File source = getFile();
         Check.notNull(source);
 
-        Path metaPath = MetaFile.getMetaPath(source);
-        metaFile.save(metaPath);
+        metaFile.saveFor(source);
+        MetaFileNaming.deleteLegacyMeta(source);
     }
 
     @Override

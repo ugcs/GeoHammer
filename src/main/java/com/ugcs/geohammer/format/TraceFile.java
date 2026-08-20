@@ -2,6 +2,7 @@ package com.ugcs.geohammer.format;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.MetaFileNaming;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMark;
@@ -34,8 +35,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteOrder;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -70,12 +69,10 @@ public abstract class TraceFile extends SgyFileWithMeta {
         File source = getFile();
         Check.notNull(source);
 
-        Path metaPath = MetaFile.getMetaPath(source);
+        MetaFileNaming.migrateLegacyMeta(source);
+
         MetaFile newMeta = new MetaFile();
-        if (Files.exists(metaPath)) {
-            // load existing meta
-            newMeta.load(metaPath);
-        } else {
+        if (!newMeta.loadFor(source)) {
             // init meta
             TraceMeta meta = getMetaFromTraces(traces);
             newMeta.setMetaToState(meta);
@@ -163,8 +160,8 @@ public abstract class TraceFile extends SgyFileWithMeta {
         Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements());
         metaFile.setMarks(marks);
 
-        Path metaPath = MetaFile.getMetaPath(source);
-        metaFile.save(metaPath);
+        metaFile.saveFor(source);
+        MetaFileNaming.deleteLegacyMeta(source);
     }
 
     public abstract int getSampleInterval();

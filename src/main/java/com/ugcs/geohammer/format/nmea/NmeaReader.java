@@ -27,10 +27,17 @@ public class NmeaReader implements Closeable {
     }
 
     public Sentence readSentence() throws IOException {
-        String nmea = reader.readLine();
-        if (nmea == null) {
-            return null;
+        String nmea;
+        while ((nmea = reader.readLine()) != null) {
+            if (!NmeaParser.isNmeaSentence(nmea)) {
+                continue;
+            }
+            try {
+                return nmeaParser.parseSentence(nmea);
+            } catch (RuntimeException e) {
+                // skip unsupported sentence
+            }
         }
-        return nmeaParser.parseSentence(nmea);
+        return null;
     }
 }

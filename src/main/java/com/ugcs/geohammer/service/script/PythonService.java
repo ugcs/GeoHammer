@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,6 +30,8 @@ public class PythonService {
 	private static final String PREF_PYTHON_EXECUTOR_PATH = "path";
 
 	private static final String REQUIREMENTS_ANALYZER = "pipreqs";
+
+	private static final String REQUIREMENTS_ANALYZER_MODULE = "pipreqs.pipreqs";
 
 	private static final String REQUIREMENTS_FILE = "requirements.txt";
 
@@ -211,81 +212,12 @@ public class PythonService {
 		}
 	}
 
-	private Path getPipreqsPath() throws IOException, InterruptedException {
-		Path pythonPath = getPythonPath();
-
-		Path pipreqsPath = findPipreqsInPythonDirectory(pythonPath);
-		if (pipreqsPath != null && Files.exists(pipreqsPath)) {
-			return pipreqsPath;
-		}
-
-		pipreqsPath = findPipreqsFromPackageLocation();
-		if (pipreqsPath != null) {
-			return pipreqsPath;
-		}
-
-		throw new IllegalStateException(
-				"Requirements analyzer (pipreqs) not found. Install it manually by running: \""
-						+ pythonPath + "\" -m pip install pipreqs");
-	}
-
-	private @Nullable Path findPipreqsInPythonDirectory(Path pythonPath) {
-		Path parent = pythonPath.getParent();
-		if (parent == null) {
-			return null;
-		}
-		if (OperatingSystemUtils.isWindows()) {
-			return parent.resolve(Paths.get("Scripts", "pipreqs.exe"));
-		}
-		return parent.resolve("pipreqs");
-	}
-
-	private @Nullable Path findPipreqsFromPackageLocation() throws IOException, InterruptedException {
-		String pythonExecutable = getPythonPath().toString();
-		List<String> command = List.of(pythonExecutable, "-m", "pip", "show", REQUIREMENTS_ANALYZER);
-
-		StringBuilder output = new StringBuilder();
-		Consumer<String> outputConsumer = line -> output.append(line).append("\n");
-		commandExecutor.executeCommand(command, outputConsumer);
-
-		String location = null;
-		for (String line : output.toString().split("\n")) {
-			if (line.startsWith("Location:")) {
-				location = line.substring("Location:".length()).trim();
-				break;
-			}
-		}
-
-		if (location == null || location.isEmpty()) {
-			return null;
-		}
-
-		Path sitePackages = Paths.get(location);
-
-		if (OperatingSystemUtils.isWindows()) {
-			Path scriptsDir = Paths.get("Scripts", "pipreqs.exe");
-			Path parent = sitePackages.getParent();
-			if (parent == null) {
-				return null;
-			}
-			Path pipreqsPath = parent.resolve(scriptsDir);
-			if (Files.exists(pipreqsPath)) {
-				return pipreqsPath;
-			}
-		} else {
-			Path pipreqsPath = sitePackages.getParent().resolve("pipreqs");
-			if (Files.exists(pipreqsPath)) {
-				return pipreqsPath;
-			}
-		}
-		return null;
-	}
-
 	private void generateRequirementsFile(Path directory, Consumer<String> onOutput) throws IOException,
 			InterruptedException {
-		Path pipreqsPath = getPipreqsPath();
 		List<String> command = List.of(
-				pipreqsPath.toString(),
+				getPythonPath().toString(),
+				"-m",
+				REQUIREMENTS_ANALYZER_MODULE,
 				directory.toString(),
 				"--encoding",
 				"utf-8",

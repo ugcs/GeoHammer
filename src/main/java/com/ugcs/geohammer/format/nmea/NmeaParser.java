@@ -8,6 +8,7 @@ import net.sf.marineapi.nmea.sentence.GGASentence;
 import net.sf.marineapi.nmea.sentence.HeadingSentence;
 import net.sf.marineapi.nmea.sentence.PositionSentence;
 import net.sf.marineapi.nmea.sentence.Sentence;
+import net.sf.marineapi.nmea.sentence.SentenceValidator;
 import net.sf.marineapi.nmea.sentence.TimeSentence;
 import net.sf.marineapi.nmea.util.Date;
 import net.sf.marineapi.nmea.util.GpsFixQuality;
@@ -23,6 +24,10 @@ import java.time.ZoneOffset;
 public class NmeaParser {
 
     private static final SentenceFactory sf = SentenceFactory.getInstance();
+
+    public static boolean isNmeaSentence(String s) {
+        return SentenceValidator.isSentence(s);
+    }
 
     public static String stripNmeaChecksum(String s) {
         if (Strings.isNullOrEmpty(s)) {

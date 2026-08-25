@@ -9,13 +9,13 @@ import java.util.Objects;
 
 public final class FileTypes {
 
-    private static final List<String> KNOWN_EXTENSIONS = List.of(
-            "dzt", "nme", "nmea", "segy", "sgy", "svlog",
-            "asc", "csv", "log", "pos", "txt", "xyz");
+	private static final List<String> KNOWN_EXTENSIONS = List.of(
+			"dzt", "nme", "nmea", "segy", "sgy", "svlog",
+			"asc", "csv", "log", "pos", "dat", "txt", "xyz");
 
-    private static final FileProbe TEXT_PROBE = new ExtensionProbe("csv", "asc", "pos", "txt", "log", "xyz");
+	private static final FileProbe TEXT_PROBE = new TextContentProbe();
 
-    private static final FileProbe CSV_PROBE = new ExtensionProbe("csv", "asc", "pos");
+    private static final FileProbe CSV_PROBE = new ExtensionProbe("csv", "asc", "pos", "dat");
 
     private static final FileProbe GPR_PROBE = new ExtensionProbe("sgy", "segy");
 

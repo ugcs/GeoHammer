@@ -14,7 +14,6 @@ import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
-import com.ugcs.geohammer.util.SpeedUnit;
 import net.sf.marineapi.nmea.sentence.DBTSentence;
 import net.sf.marineapi.nmea.sentence.DPTSentence;
 import net.sf.marineapi.nmea.sentence.GGASentence;
@@ -210,6 +209,10 @@ public class NmeaFile extends SgyFileWithMeta {
         setUnsaved(false);
 
         sentenceGroups = readSentences(file);
+        if (sentenceGroups.isEmpty()) {
+            throw new IOException("File has no NMEA data");
+        }
+
         loadMeta();
     }
 

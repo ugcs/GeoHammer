@@ -2,7 +2,7 @@ package com.ugcs.geohammer.format;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.format.meta.MetaFile;
-import com.ugcs.geohammer.format.meta.MetaFileNaming;
+import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMark;
@@ -69,7 +69,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
         File source = getFile();
         Check.notNull(source);
 
-        MetaFileNaming.migrateLegacyMeta(source);
+        MetaFiles.migrateLegacyMeta(source);
 
         MetaFile newMeta = new MetaFile();
         if (!newMeta.loadFor(source)) {
@@ -161,7 +161,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
         metaFile.setMarks(marks);
 
         metaFile.saveFor(source);
-        MetaFileNaming.deleteLegacyMeta(source);
+        MetaFiles.deleteLegacyMeta(source);
     }
 
     public abstract int getSampleInterval();

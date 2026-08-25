@@ -114,7 +114,7 @@ public class MetaFile {
     public boolean loadFor(File source) throws IOException {
         Check.notNull(source);
 
-        Path metaPath = MetaFileNaming.findMetaPath(source);
+        Path metaPath = MetaFiles.findMetaPath(source);
         if (metaPath == null) {
             return false;
         }
@@ -125,7 +125,7 @@ public class MetaFile {
     public void saveFor(File source) throws IOException {
         Check.notNull(source);
 
-        save(MetaFileNaming.getMetaPath(source));
+        save(MetaFiles.getMetaPath(source));
     }
 
     public void load(Path path) throws IOException {

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class MetaFileNamingTest {
+class MetaFilesTest {
 
     @TempDir
     Path directory;
@@ -23,14 +23,14 @@ class MetaFileNamingTest {
     void getMetaPath_keepsSourceExtension() {
         File source = directory.resolve("data.csv").toFile();
 
-        assertEquals(directory.resolve("data.csv.geohammer"), MetaFileNaming.getMetaPath(source));
+        assertEquals(directory.resolve("data.csv.geohammer"), MetaFiles.getMetaPath(source));
     }
 
     @Test
     void getLegacyMetaPath_replacesSourceExtension() {
         File source = directory.resolve("data.csv").toFile();
 
-        assertEquals(directory.resolve("data.geohammer"), MetaFileNaming.getLegacyMetaPath(source));
+        assertEquals(directory.resolve("data.geohammer"), MetaFiles.getLegacyMetaPath(source));
     }
 
     @Test
@@ -40,7 +40,7 @@ class MetaFileNamingTest {
         File metaFile = createFile("data.csv.geohammer");
 
         assertEquals(List.of(new File(directory.toFile(), "data.csv")),
-                MetaFileNaming.getSources(metaFile));
+                MetaFiles.getSources(metaFile));
     }
 
     @Test
@@ -54,7 +54,7 @@ class MetaFileNamingTest {
                         new File(directory.toFile(), "data.sgy"),
                         new File(directory.toFile(), "data.csv"),
                         new File(directory.toFile(), "data.jpg")),
-                MetaFileNaming.getSources(metaFile));
+                MetaFiles.getSources(metaFile));
     }
 
     @Test
@@ -63,7 +63,7 @@ class MetaFileNamingTest {
         File metaFile = createFile("data.geohammer");
 
         assertEquals(List.of(new File(directory.toFile(), "DATA.sgy")),
-                MetaFileNaming.getSources(metaFile));
+                MetaFiles.getSources(metaFile));
     }
 
     @Test
@@ -71,14 +71,14 @@ class MetaFileNamingTest {
         createFile("data.geohammer");
         File metaFile = createFile("data.geohammer.geohammer");
 
-        assertTrue(MetaFileNaming.getSources(metaFile).isEmpty());
+        assertTrue(MetaFiles.getSources(metaFile).isEmpty());
     }
 
     @Test
     void getSources_withMetaFileOnly_returnsEmpty() throws IOException {
         File metaFile = createFile("data.geohammer");
 
-        assertTrue(MetaFileNaming.getSources(metaFile).isEmpty());
+        assertTrue(MetaFiles.getSources(metaFile).isEmpty());
     }
 
     @Test
@@ -87,7 +87,7 @@ class MetaFileNamingTest {
         createFile("data.sgy.geohammer");
         createFile("data.geohammer");
 
-        assertEquals(MetaFileNaming.getMetaPath(source), MetaFileNaming.findMetaPath(source));
+        assertEquals(MetaFiles.getMetaPath(source), MetaFiles.findMetaPath(source));
     }
 
     @Test
@@ -95,14 +95,14 @@ class MetaFileNamingTest {
         File source = createFile("data.sgy");
         createFile("data.geohammer");
 
-        assertEquals(MetaFileNaming.getLegacyMetaPath(source), MetaFileNaming.findMetaPath(source));
+        assertEquals(MetaFiles.getLegacyMetaPath(source), MetaFiles.findMetaPath(source));
     }
 
     @Test
     void findMetaPath_withoutMetaFile_returnsNull() throws IOException {
         File source = createFile("data.sgy");
 
-        assertNull(MetaFileNaming.findMetaPath(source));
+        assertNull(MetaFiles.findMetaPath(source));
     }
 
     @Test
@@ -110,10 +110,10 @@ class MetaFileNamingTest {
         File source = createFile("data.sgy");
         createFile("data.geohammer");
 
-        MetaFileNaming.migrateLegacyMeta(source);
+        MetaFiles.migrateLegacyMeta(source);
 
-        assertTrue(Files.exists(MetaFileNaming.getMetaPath(source)));
-        assertFalse(Files.exists(MetaFileNaming.getLegacyMetaPath(source)));
+        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
+        assertFalse(Files.exists(MetaFiles.getLegacyMetaPath(source)));
     }
 
     @Test
@@ -122,10 +122,10 @@ class MetaFileNamingTest {
         createFile("data.sgy.geohammer");
         createFile("data.geohammer");
 
-        MetaFileNaming.migrateLegacyMeta(source);
+        MetaFiles.migrateLegacyMeta(source);
 
-        assertTrue(Files.exists(MetaFileNaming.getMetaPath(source)));
-        assertTrue(Files.exists(MetaFileNaming.getLegacyMetaPath(source)));
+        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
+        assertTrue(Files.exists(MetaFiles.getLegacyMetaPath(source)));
     }
 
     @Test
@@ -133,10 +133,10 @@ class MetaFileNamingTest {
         File source = createFile("data");
         createFile("data.geohammer");
 
-        MetaFileNaming.migrateLegacyMeta(source);
+        MetaFiles.migrateLegacyMeta(source);
 
-        assertEquals(MetaFileNaming.getLegacyMetaPath(source), MetaFileNaming.getMetaPath(source));
-        assertTrue(Files.exists(MetaFileNaming.getMetaPath(source)));
+        assertEquals(MetaFiles.getLegacyMetaPath(source), MetaFiles.getMetaPath(source));
+        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
     }
 
     @Test
@@ -144,9 +144,9 @@ class MetaFileNamingTest {
         File source = createFile("data.sgy");
         createFile("data.geohammer");
 
-        MetaFileNaming.deleteLegacyMeta(source);
+        MetaFiles.deleteLegacyMeta(source);
 
-        assertFalse(Files.exists(MetaFileNaming.getLegacyMetaPath(source)));
+        assertFalse(Files.exists(MetaFiles.getLegacyMetaPath(source)));
     }
 
     @Test
@@ -154,9 +154,9 @@ class MetaFileNamingTest {
         File source = createFile("data");
         createFile("data.geohammer");
 
-        MetaFileNaming.deleteLegacyMeta(source);
+        MetaFiles.deleteLegacyMeta(source);
 
-        assertTrue(Files.exists(MetaFileNaming.getMetaPath(source)));
+        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
     }
 
     private File createFile(String name) throws IOException {

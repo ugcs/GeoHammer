@@ -4,7 +4,7 @@ import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.meta.MetaFile;
-import com.ugcs.geohammer.format.meta.MetaFileNaming;
+import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.format.meta.TraceLine;
 import com.ugcs.geohammer.format.meta.TraceMeta;
@@ -52,7 +52,7 @@ public class NmeaFile extends SgyFileWithMeta {
         File source = getFile();
         Check.notNull(source);
 
-        MetaFileNaming.migrateLegacyMeta(source);
+        MetaFiles.migrateLegacyMeta(source);
 
         metaFile = new MetaFile(NmeaSchema.createSchema());
         if (!metaFile.loadFor(source)) {
@@ -87,7 +87,7 @@ public class NmeaFile extends SgyFileWithMeta {
         Check.notNull(source);
 
         metaFile.saveFor(source);
-        MetaFileNaming.deleteLegacyMeta(source);
+        MetaFiles.deleteLegacyMeta(source);
     }
 
     @Override

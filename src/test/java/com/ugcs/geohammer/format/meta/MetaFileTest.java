@@ -21,7 +21,7 @@ class MetaFileTest {
     @Test
     void loadFor_withCurrentNaming_loadsMeta() throws IOException {
         File source = createFile("data.sgy");
-        saveMeta(MetaFileNaming.getMetaPath(source), new IndexRange(3, 11));
+        saveMeta(MetaFiles.getMetaPath(source), new IndexRange(3, 11));
 
         MetaFile metaFile = new MetaFile();
 
@@ -32,7 +32,7 @@ class MetaFileTest {
     @Test
     void loadFor_withLegacyNaming_loadsMeta() throws IOException {
         File source = createFile("data.sgy");
-        saveMeta(MetaFileNaming.getLegacyMetaPath(source), new IndexRange(3, 11));
+        saveMeta(MetaFiles.getLegacyMetaPath(source), new IndexRange(3, 11));
 
         MetaFile metaFile = new MetaFile();
 
@@ -43,8 +43,8 @@ class MetaFileTest {
     @Test
     void loadFor_withBothNamings_prefersCurrent() throws IOException {
         File source = createFile("data.sgy");
-        saveMeta(MetaFileNaming.getMetaPath(source), new IndexRange(3, 11));
-        saveMeta(MetaFileNaming.getLegacyMetaPath(source), new IndexRange(7, 9));
+        saveMeta(MetaFiles.getMetaPath(source), new IndexRange(3, 11));
+        saveMeta(MetaFiles.getLegacyMetaPath(source), new IndexRange(7, 9));
 
         MetaFile metaFile = new MetaFile();
 
@@ -68,7 +68,7 @@ class MetaFileTest {
         metaFile.saveFor(source);
 
         MetaFile saved = new MetaFile();
-        saved.load(MetaFileNaming.getMetaPath(source));
+        saved.load(MetaFiles.getMetaPath(source));
         assertEquals(new IndexRange(3, 11), saved.getSampleRange());
     }
 

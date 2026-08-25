@@ -16,13 +16,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-public final class MetaFileNaming {
+public final class MetaFiles {
 
-    private static final Logger log = LoggerFactory.getLogger(MetaFileNaming.class);
+    private static final Logger log = LoggerFactory.getLogger(MetaFiles.class);
 
     private static final String META_FILE_EXTENSION = ".geohammer";
 
-    private MetaFileNaming() {
+    private MetaFiles() {
     }
 
     public static boolean isMeta(File file) {

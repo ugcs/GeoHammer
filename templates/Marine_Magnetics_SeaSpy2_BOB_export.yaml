@@ -37,13 +37,17 @@
       - header: "Field"
         semantic: "TMI"
         units: "nT"
+        description: "Total magnetic field intensity: the scalar magnitude of the magnetic field at the sensor."
         read-only: true
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."
       - header: "Depth"
         semantic: "Depth"
         units: "m"
+        description: "Depth of the towed sensor below the water surface."
       - header: "Line_Name"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line."
         read-only: true

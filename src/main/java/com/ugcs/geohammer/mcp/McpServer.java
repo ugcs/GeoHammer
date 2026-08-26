@@ -203,8 +203,14 @@ public class McpServer {
                 + "\"gpr\" files (ground penetrating radar: SGY, DZT) hold a sequence of traces; each "
                 + "trace is a column of amplitude samples along the time/depth axis. Point and trace "
                 + "indices are 0-based positions in file order. Marks (flags) annotate notable points "
-                + "and are shown on charts and the map. Processing scripts (Python) can be listed, "
-                + "run, and created for reusable multi-step operations.");
+                + "and are shown on charts and the map. "
+                + "Processing scripts (Python) are an opt-in feature and are NOT a part of the normal "
+                + "workflow: do the work with the regular tools above. Only touch the script tools "
+                + "(list_scripts, get_script, run_script, create_script) when the user explicitly asks "
+                + "for scripts, either to run one (by name or by asking to pick a suitable one) or to "
+                + "save an algorithm as a GeoHammer script. Never list, inspect, run or create scripts "
+                + "on your own initiative, and never create a script to keep intermediate or scratch "
+                + "results.");
         return result;
     }
 

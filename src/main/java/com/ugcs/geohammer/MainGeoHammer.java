@@ -9,20 +9,24 @@ import com.ugcs.geohammer.analytics.FileOpenEventsAnalytics;
 
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.util.FilePaths;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.awt.*;
 import java.io.File;
-import java.util.Arrays;
 import java.util.List;
 
 public class MainGeoHammer extends Application {
+
+	private static final Logger log = LoggerFactory.getLogger(MainGeoHammer.class);
 
 	private static final String TITLE_VERSION = "GeoHammer ";
 
@@ -45,9 +49,15 @@ public class MainGeoHammer extends Application {
 	private ThemeService themeService;
 
 	public static void main(String[] args) {
+		if (!SingleInstance.acquire() && SingleInstance.forwardFiles(args)) {
+			closeSplash();
+			return;
+		}
+		installSystemOpenFileHandler();
+
 		launch(args);
 	}
-	
+
 	@Override
     public void init() {
 		//create all classes
@@ -91,10 +101,7 @@ public class MainGeoHammer extends Application {
 
 		// JavaFX windows do not trigger the JVM splash auto-close (that hook is AWT-only),
 		// so close the -splash: image manually once the main stage is shown.
-		SplashScreen splash = SplashScreen.getSplashScreen();
-		if (splash != null) {
-			splash.close();
-		}
+		closeSplash();
 
 		stage.setOnCloseRequest(event -> {
             eventSender.shutdown();
@@ -115,13 +122,43 @@ public class MainGeoHammer extends Application {
 			"There are no templates for the csv files loaded, so you could not open any csv");
 		}
 
-		//load files if they were given in parameters 
-		if (!getParameters().getRaw().isEmpty()) {
-			String name = getParameters().getRaw().get(0);
-			List<File> f = Arrays.asList(new File(name));			
-			loader.load(f);
-		}
+		// load files given in parameters and files opened later
+		// from the system file manager
+		FileOpenQueue.setHandler(this::openFiles);
+		FileOpenQueue.submit(FilePaths.existingFiles(getParameters().getRaw()));
 
 		eventSender.send(eventsFactory.createAppStartedEvent(appBuildInfo.getBuildVersion()));
+	}
+
+	private static void installSystemOpenFileHandler() {
+		try {
+			if (!Desktop.isDesktopSupported()) {
+				return;
+			}
+			Desktop desktop = Desktop.getDesktop();
+			if (!desktop.isSupported(Desktop.Action.APP_OPEN_FILE)) {
+				return;
+			}
+			desktop.setOpenFileHandler(event -> FileOpenQueue.submit(event.getFiles()));
+		} catch (UnsupportedOperationException | SecurityException e) {
+			log.warn("Cannot register a system open file handler", e);
+		}
+	}
+
+	private static void closeSplash() {
+		SplashScreen splash = SplashScreen.getSplashScreen();
+		if (splash != null) {
+			splash.close();
+		}
+	}
+
+	private void openFiles(List<File> files) {
+		Stage stage = AppContext.stage;
+		if (stage != null) {
+			stage.setIconified(false);
+			stage.toFront();
+			stage.requestFocus();
+		}
+		loader.load(files);
 	}
 }

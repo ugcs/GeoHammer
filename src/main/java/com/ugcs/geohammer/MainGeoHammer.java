@@ -86,7 +86,7 @@ public class MainGeoHammer extends Application {
 	@Override
 	public void start(Stage stage) {
 		AppContext.stage = stage;
-        stage.getIcons().add(ResourceImageHolder.IMG_LOGO24);
+        stage.getIcons().addAll(ResourceImageHolder.IMG_LOGO32, ResourceImageHolder.IMG_LOGO128);
         stage.setTitle(TITLE_VERSION + Version.toString(appBuildInfo.getBuildVersion()));
 		
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();

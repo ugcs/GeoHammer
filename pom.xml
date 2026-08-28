@@ -563,6 +563,7 @@
 							<jar>${project.build.directory}/${project.artifactId}-jar-with-dependencies.jar</jar>
 							<outfile>${project.build.directory}/${project.artifactId}.exe</outfile>
 							<errTitle>${project.artifactId}</errTitle>
+							<icon>${project.basedir}/assembly/logo.ico</icon>
 							<classPath>
 							<mainClass>com.ugcs.geohammer.MainGeoHammer</mainClass>
 							<addDependencies>false</addDependencies>
@@ -694,7 +695,7 @@
 										<argument>--copyright</argument> <argument>"© SPH Engeneering, 2024"</argument>
 										<argument>--mac-package-identifier</argument> <argument>com.ugcs.geohammer</argument>
 										<argument>--mac-package-name</argument> <argument>${project.name}</argument>
-										<argument>--icon</argument> <argument>assembly/logo32.icns</argument>
+										<argument>--icon</argument> <argument>assembly/logo.icns</argument>
 									</arguments>
 									<workingDirectory>${project.basedir}/</workingDirectory>
 								</configuration>

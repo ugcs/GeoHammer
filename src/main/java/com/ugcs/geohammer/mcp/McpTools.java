@@ -103,7 +103,7 @@ public class McpTools {
         register(new GetChartImage(model));
         register(new GetScreenshot(model));
         register(new Undo(model, undoModel));
-        register(new CutToLines(model, undoModel));
+        register(new CutToLines(model, traceTransform));
         register(new GetGprInfo(model));
         register(new ReadTraces(model));
         register(new RemoveGprBackground(model, undoModel));

@@ -6,26 +6,21 @@ import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.ColumnSchema;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.Semantic;
-import com.ugcs.geohammer.model.element.BaseObject;
-import com.ugcs.geohammer.model.element.PositionalObject;
-import com.ugcs.geohammer.model.undo.FileSnapshot;
-import com.ugcs.geohammer.model.undo.UndoFrame;
-import com.ugcs.geohammer.model.undo.UndoModel;
+import com.ugcs.geohammer.service.TraceTransform;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 public class CutToLines extends McpTool {
 
-    private final UndoModel undoModel;
+    private final TraceTransform traceTransform;
 
-    public CutToLines(Model model, UndoModel undoModel) {
+    public CutToLines(Model model, TraceTransform traceTransform) {
         super(model);
-        this.undoModel = undoModel;
+        this.traceTransform = traceTransform;
     }
 
     @Override
@@ -58,29 +53,28 @@ public class CutToLines extends McpTool {
         if (rangesNode == null || !rangesNode.isArray() || rangesNode.isEmpty()) {
             throw new IllegalArgumentException("ranges must be a non-empty array of [from, to] pairs");
         }
-        List<int[]> ranges = new ArrayList<>(rangesNode.size());
+        List<IndexRange> ranges = new ArrayList<>(rangesNode.size());
         for (JsonNode rangeNode : rangesNode) {
             if (!rangeNode.isArray() || rangeNode.size() != 2
                     || !rangeNode.get(0).canConvertToInt() || !rangeNode.get(1).canConvertToInt()) {
                 throw new IllegalArgumentException("Each range must be a [from, to] pair of point indices");
             }
-            ranges.add(new int[] {rangeNode.get(0).asInt(), rangeNode.get(1).asInt()});
-        }
-        for (int i = 0; i < ranges.size(); i++) {
-            int[] range = ranges.get(i);
-            if (range[0] < 0 || range[1] <= range[0]) {
-                throw new IllegalArgumentException("Invalid range: [" + range[0] + ", " + range[1] + ")");
+            int from = rangeNode.get(0).asInt();
+            int to = rangeNode.get(1).asInt();
+            if (from < 0 || to <= from) {
+                throw new IllegalArgumentException("Invalid range: [" + from + ", " + to + ")");
             }
-            if (i > 0 && range[0] < ranges.get(i - 1)[1]) {
+            if (!ranges.isEmpty() && from < ranges.getLast().to()) {
                 throw new IllegalArgumentException("Ranges must be ascending and not overlap");
             }
+            ranges.add(new IndexRange(from, to));
         }
         return text(inFxThread(() -> {
             SgyFile dataFile = resolveFile(fileName);
             List<GeoData> values = dataFile.getGeoData();
             int total = values.size();
-            if (ranges.getLast()[1] > total) {
-                throw new IllegalArgumentException("Range end " + ranges.getLast()[1]
+            if (ranges.getLast().to() > total) {
+                throw new IllegalArgumentException("Range end " + ranges.getLast().to()
                         + " is out of bounds, file has " + total + " points");
             }
             ColumnSchema schema = GeoData.getSchema(values);
@@ -88,47 +82,14 @@ public class CutToLines extends McpTool {
                 throw new IllegalArgumentException("File has no line column");
             }
 
-            FileSnapshot<? extends SgyFile> snapshot = dataFile.createSnapshot();
-
-            int[] newIndex = new int[total];
-            Arrays.fill(newIndex, -1);
-            List<GeoData> kept = new ArrayList<>();
-            int lineIndex = 0;
-            for (int[] range : ranges) {
-                for (int i = range[0]; i < range[1]; i++) {
-                    GeoData value = values.get(i);
-                    value.setLine(lineIndex);
-                    newIndex[i] = kept.size();
-                    kept.add(value);
-                }
-                lineIndex++;
+            int kept = 0;
+            for (IndexRange range : ranges) {
+                kept += range.size();
             }
+            traceTransform.cropLinesToRanges(dataFile, ranges);
 
-            // reindex positional elements, drop the ones in removed regions
-            Iterator<BaseObject> it = dataFile.getAuxElements().iterator();
-            while (it.hasNext()) {
-                if (it.next() instanceof PositionalObject positional) {
-                    int oldIndex = positional.getTraceIndex();
-                    int updated = oldIndex >= 0 && oldIndex < total ? newIndex[oldIndex] : -1;
-                    if (updated == -1) {
-                        it.remove();
-                    } else {
-                        positional.offset(updated - oldIndex);
-                    }
-                }
-            }
-
-            values.clear();
-            values.addAll(kept);
-
-            if (snapshot != null) {
-                undoModel.push(new UndoFrame(snapshot));
-            }
-            dataFile.setUnsaved(true);
-            model.reload(dataFile);
-
-            return "Kept " + kept.size() + " points in " + ranges.size() + " lines, removed "
-                    + (total - kept.size()) + " points";
+            return "Kept " + kept + " points in " + ranges.size() + " lines, removed "
+                    + (total - kept) + " points";
         }));
     }
 }

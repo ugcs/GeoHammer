@@ -4,10 +4,13 @@ import com.ugcs.geohammer.mcp.McpIdentity;
 import com.ugcs.geohammer.mcp.McpServer;
 import com.ugcs.geohammer.service.script.CommandExecutor;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.view.Listeners;
+import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -18,6 +21,9 @@ import java.util.concurrent.ExecutorService;
 
 @Component
 public class McpTab implements SettingsTab {
+
+    private static final String DOCUMENTATION_URL =
+            "https://github.com/ugcs/GeoHammer/wiki/AI-Integration";
 
     private final McpServer mcpServer;
 
@@ -35,14 +41,20 @@ public class McpTab implements SettingsTab {
 
         serverUrlLabel.getStyleClass().add("dim");
 
+        Button copyUrl = Views.createSvgButton(
+                ResourceImageHolder.COPY,
+                24,
+                "Copy server address to clipboard");
+        copyUrl.setOnAction(event -> Views.copyToClipboard(mcpIdentity.url()));
+
+        // server is started and stopped on save, as any other setting
         mcpEnabled = new CheckBox("Enable MCP server");
-        // start/stop MCP server on checkbox changes
-        Listeners.onChange(mcpEnabled.selectedProperty(), mcpServer::setEnabled);
 
         HBox serverRow = new HBox(Views.DEFAULT_SPACING,
                 mcpEnabled,
                 Views.createSpacer(),
-                serverUrlLabel);
+                serverUrlLabel,
+                copyUrl);
         serverRow.setAlignment(Pos.CENTER_LEFT);
 
         agents = List.of(
@@ -54,9 +66,19 @@ public class McpTab implements SettingsTab {
             AgentView agentView = new AgentView(agent);
             content.getChildren().add(agentView);
         }
-        Label agentRestartHint = new Label("Changes take effect in new agent sessions.");
-        agentRestartHint.getStyleClass().add("dim");
-        content.getChildren().add(agentRestartHint);
+
+        Hyperlink helpLink = new Hyperlink("How to enable AI integration");
+        ResourceImageHolder.setButtonImage(
+                ResourceImageHolder.EXTERNAL_LINK,
+                22,
+                helpLink);
+        // icon trails the text, as an external link marker
+        helpLink.setContentDisplay(ContentDisplay.RIGHT);
+        helpLink.setOnAction(event -> Views.browse(DOCUMENTATION_URL));
+
+        content.getChildren().addAll(
+                Views.createSpacer(),
+                helpLink);
     }
 
     @Override
@@ -70,5 +92,10 @@ public class McpTab implements SettingsTab {
         for (AgentController agent : agents) {
             agent.check();
         }
+    }
+
+    @Override
+    public void save() {
+        mcpServer.setEnabled(mcpEnabled.isSelected());
     }
 }

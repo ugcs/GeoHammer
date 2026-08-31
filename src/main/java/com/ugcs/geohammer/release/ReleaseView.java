@@ -15,8 +15,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
 import org.springframework.stereotype.Component;
 
-import java.awt.Desktop;
-import java.net.URI;
 import java.util.List;
 
 @Component
@@ -125,7 +123,7 @@ public class ReleaseView extends Popup {
 
         // download link
         Hyperlink download = new Hyperlink("Download");
-        download.setOnAction(event -> openBrowser(release.getHtmlUrl()));
+        download.setOnAction(event -> Views.browse(release.getHtmlUrl()));
         // visible property affects layout changes so using opacity instead
         download.setOpacity(0);
         download.opacityProperty().bind(Bindings.when(row.hoverProperty())
@@ -134,12 +132,5 @@ public class ReleaseView extends Popup {
         row.getChildren().add(download);
 
         return row;
-    }
-
-    private void openBrowser(String url) {
-        try {
-            Desktop.getDesktop().browse(URI.create(url));
-        } catch (Exception ignored) {
-        }
     }
 }

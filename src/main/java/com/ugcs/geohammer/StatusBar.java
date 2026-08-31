@@ -19,8 +19,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
@@ -190,7 +188,7 @@ public class StatusBar extends HBox implements Status, InitializingBean {
 			if (!listView.getSelectionModel().isEmpty() && MouseButton.PRIMARY.equals(me.getButton())) {
 				String selected = listView.getSelectionModel().getSelectedItem();
 				if (selected != null && !selected.isEmpty()) {
-					copyToClipboard(selected);
+					Views.copyToClipboard(selected);
 					Toast.show("Copied to clipboard", textField, me.getScreenX(), me.getScreenY());
 				}
 			}
@@ -204,11 +202,5 @@ public class StatusBar extends HBox implements Status, InitializingBean {
 		historyPopup.getContent().add(vbox);
 		historyPopup.setAutoHide(true);
 		historyPopup.show(textField, event.getScreenX(), event.getScreenY());
-	}
-
-	private void copyToClipboard(String text) {
-		ClipboardContent content = new ClipboardContent();
-		content.putString(text);
-		Clipboard.getSystemClipboard().setContent(content);
 	}
 }

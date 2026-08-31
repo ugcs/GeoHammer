@@ -163,6 +163,9 @@ public class ResourceImageHolder {
     public static final String LIST = """
         M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z""";
 
+    public static final String EXTERNAL_LINK = """
+        M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z""";
+
     public static final String HISTOGRAM = """
         M3 17h4V8H3v9zm5 0h4V5H8v12zm5 0h4v-5h-4v5z""";
 

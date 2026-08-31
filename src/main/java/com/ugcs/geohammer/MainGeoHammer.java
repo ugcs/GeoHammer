@@ -8,6 +8,7 @@ import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.analytics.FileOpenEventsAnalytics;
 
 import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.mcp.McpServer;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Application;
@@ -44,6 +45,8 @@ public class MainGeoHammer extends Application {
 
 	private ThemeService themeService;
 
+	private McpServer mcpServer;
+
 	public static void main(String[] args) {
 		launch(args);
 	}
@@ -71,6 +74,8 @@ public class MainGeoHammer extends Application {
 		eventsFactory = context.getBean(EventsFactory.class);
 
 		themeService = context.getBean(ThemeService.class);
+
+		mcpServer = context.getBean(McpServer.class);
     }
 
 	@Override
@@ -113,6 +118,11 @@ public class MainGeoHammer extends Application {
 		if (fileTemplates.getTemplates().isEmpty()) {
             Dialogs.showError("There are no templates for the csv files",
 			"There are no templates for the csv files loaded, so you could not open any csv");
+		}
+
+		McpServer.StartFailure mcpStartFailure = mcpServer.getStartFailure();
+		if (mcpStartFailure != null) {
+			Dialogs.showWarning("MCP server was not started", mcpStartFailure.getMessage());
 		}
 
 		//load files if they were given in parameters 

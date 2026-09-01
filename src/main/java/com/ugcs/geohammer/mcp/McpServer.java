@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -58,6 +59,9 @@ public class McpServer {
     private HttpServer server;
 
     @Nullable
+    private StartFailure startFailure;
+
+    @Nullable
     private ExecutorService executor;
 
     public McpServer(McpTools tools, PrefSettings prefSettings, Status status) {
@@ -84,11 +88,10 @@ public class McpServer {
 
     public synchronized void setEnabled(boolean enabled) {
         prefSettings.setValue(PREF_MCP, PREF_ENABLED, enabled);
-        if (!enabled && isRunning()) {
-            stop();
-        }
-        if (enabled && !isRunning()) {
+        if (enabled) {
             start();
+        } else {
+            stop();
         }
     }
 
@@ -96,18 +99,30 @@ public class McpServer {
         return server != null;
     }
 
+    public @Nullable StartFailure getStartFailure() {
+        return startFailure;
+    }
+
     @PostConstruct
+    public synchronized void startIfEnabled() {
+        if (isEnabled()) {
+            start();
+        }
+    }
+
     public synchronized void start() {
-        if (!isEnabled() || isRunning()) {
+        if (isRunning()) {
             return;
         }
+        startFailure = null;
         InetSocketAddress serverAddress = getServerAddress();
         try {
             server = HttpServer.create(serverAddress, 0);
             Check.notNull(server);
         } catch (IOException e) {
-            status.showMessage("Failed to start MCP server at " + serverAddress
-                    + ": " + e.getMessage(), "MCP");
+            log.error("Failed to start MCP server at " + serverAddress, e);
+            startFailure = new StartFailure(serverAddress, e);
+            status.showMessage("MCP server was not started: " + startFailure.getMessage(), "MCP");
             return;
         }
         executor = Executors.newVirtualThreadPerTaskExecutor();
@@ -119,6 +134,7 @@ public class McpServer {
 
     @PreDestroy
     public synchronized void stop() {
+        startFailure = null;
         if (server != null) {
             server.stop(0);
             server = null;
@@ -203,8 +219,14 @@ public class McpServer {
                 + "\"gpr\" files (ground penetrating radar: SGY, DZT) hold a sequence of traces; each "
                 + "trace is a column of amplitude samples along the time/depth axis. Point and trace "
                 + "indices are 0-based positions in file order. Marks (flags) annotate notable points "
-                + "and are shown on charts and the map. Processing scripts (Python) can be listed, "
-                + "run, and created for reusable multi-step operations.");
+                + "and are shown on charts and the map. "
+                + "Processing scripts (Python) are an opt-in feature and are NOT a part of the normal "
+                + "workflow: do the work with the regular tools above. Only touch the script tools "
+                + "(list_scripts, get_script, run_script, create_script) when the user explicitly asks "
+                + "for scripts, either to run one (by name or by asking to pick a suitable one) or to "
+                + "save an algorithm as a GeoHammer script. Never list, inspect, run or create scripts "
+                + "on your own initiative, and never create a script to keep intermediate or scratch "
+                + "results.");
         return result;
     }
 
@@ -251,6 +273,18 @@ public class McpServer {
             return "localhost".equals(host) || "127.0.0.1".equals(host) || "[::1]".equals(host);
         } catch (IllegalArgumentException e) {
             return false;
+        }
+    }
+
+    public record StartFailure(InetSocketAddress address, Exception e) {
+
+        public String getMessage() {
+            if (e instanceof BindException) {
+                return "Port " + address.getPort()
+                        + " is already in use. Another GeoHammer instance is most likely running:"
+                        + " only one instance at a time can serve MCP.";
+            }
+            return e.getMessage();
         }
     }
 }

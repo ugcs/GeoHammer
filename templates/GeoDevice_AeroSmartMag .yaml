@@ -31,12 +31,15 @@
       - header: "Field"
         semantic: "TMI"
         units: "nT"
+        description: "Total magnetic field intensity: the scalar magnitude of the magnetic field at the sensor."
         read-only: true
       - header: "Alt"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."
         read-only: true
       - header: "Line"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line."
         read-only: true
 

@@ -24,25 +24,32 @@
       header: 'Timestamp [ms]'
     data-values:
       - header: "Sensor ID"
+        description: "Identifier of the magnetometer probe the reading comes from; the readings of the probes are interleaved in the file."
         read-only: true
       - header: "Total field anomaly [nT]"
         semantic: "TMI"
         units: "nT"
+        description: "Total magnetic field anomaly: the total field intensity with the regional field removed."
         read-only: true
       - header: "Altitude [m]"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."
       - header: "Mag-X [nT]"
         semantic: "Bx"
         units: "nT"
+        description: "X component of the magnetic field vector in the sensor frame."
       - header: "Mag-Y [nT]"
         semantic: "By"
         units: "nT"
+        description: "Y component of the magnetic field vector in the sensor frame."
       - header: "Mag-Z [nT]"
         semantic: "Bz"
         units: "nT"
+        description: "Z component of the magnetic field vector in the sensor frame."
       - header: "Line"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line."
         read-only: true
 
 

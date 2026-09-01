@@ -42,28 +42,38 @@
       - header: "Heading"
         semantic: "Heading"
         units: "deg"
+        description: "Heading of the carrier in degrees clockwise from north."
         read-only: true
       - header: "Altitude AGL"
         semantic: "Altitude AGL"
         units: "m"
+        description: "Height above ground level, measured by the onboard altimeter."
         read-only: true
       - header: "RSS:Direction"
+        description: "Direction of the measured flow reported by the radar sensor: towards or away from the sensor."
         read-only: true
       - header: "RSS:Velocity raw"
         semantic: "RSS:Velocity raw"
         units: "m/s"
+        description: "Surface flow velocity measured by the radar sensor, before the internal filtering of the sensor."
         read-only: true
       - header: "RSS:Velocity filtered"
         semantic: "RSS:Velocity filtered"
         units: "m/s"
+        description: "Surface flow velocity after the internal filtering of the sensor; smoother and less noisy than the raw velocity."
         read-only: true
       - header: "RSS:Signal"
+        description: "Strength of the radar return. Low values mean the velocity reading is unreliable."
         read-only: true
       - header: "RSS:Q1"
+        description: "Radar signal quality indicator reported by the sensor."
         read-only: true
       - header: "RSS:Q2"
+        description: "Second radar signal quality indicator reported by the sensor."
         read-only: true
       - header: "RSS:Tilt"
+        description: "Tilt angle of the radar sensor, used to project the measured velocity onto the surface."
         read-only: true
       - header: "RSS:Trace"
+        description: "Raw radar spectrum recorded together with the measurement."
         read-only: true

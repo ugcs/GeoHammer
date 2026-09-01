@@ -28,38 +28,48 @@
       - header: "Height"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."
         read-only: true
       - header: "Total"
         semantic: "Total"
         units: "ppm"
+        description: "Total radionuclide concentration derived from the full gamma spectrum."
         read-only: true
       - header: "Countrate"
+        description: "Number of gamma counts registered by the detector per second."
         read-only: true
       - header: "U238"
         semantic: "U238"
         units: "Bq/kg"
+        description: "Concentration of uranium-238 in the ground, derived from the gamma lines of its decay products."
         read-only: true
       - header: "K40"
         semantic: "K40"
         units: "Bq/kg"
+        description: "Concentration of potassium-40 in the ground."
         read-only: true
       - header: "Th232"
         semantic: "Th232"
         units: "Bq/kg"
+        description: "Concentration of thorium-232 in the ground, derived from the gamma lines of its decay products."
         read-only: true
       - header: "Cs137"
         semantic: "Cs137"
         units: "Bq/kg"
+        description: "Concentration of caesium-137 in the ground, an artificial radionuclide left by nuclear fallout."
         read-only: true
       - header: "Press"
         semantic: "Atm. pressure"
         units: "millibar"
+        description: "Atmospheric pressure measured by the detector."
         read-only: true
       - header: "Temp"
         semantic: "Temperature"
         units: "Deg."
+        description: "Temperature measured inside the detector housing."
         read-only: true
       - header: "Hum"
         semantic: "Atm. humidity"
         units: "%"
+        description: "Relative humidity measured inside the detector housing."
         read-only: true

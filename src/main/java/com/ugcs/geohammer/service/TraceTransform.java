@@ -147,6 +147,76 @@ public class TraceTransform {
         onFileTracesUpdated(file);
     }
 
+    public void cropLinesToRanges(SgyFile file, List<IndexRange> ranges) {
+        Check.notNull(file);
+        Check.notEmpty(ranges);
+
+        undoModel.saveSnapshot(file);
+
+        Chart chart = model.getChart(file);
+        TraceKey selectedTraceKey = null;
+        if (chart != null) {
+            SelectedTrace selectedTrace = model.getSelectedTrace(chart);
+            selectedTraceKey = selectedTrace != null ? selectedTrace.trace() : null;
+        }
+
+        // positional element indices should be updated
+        // on trace manipulations
+        Map<Integer, List<PositionalObject>> elements = AuxElements
+                .getPositionalElements(file.getAuxElements());
+
+        // all elements that should be removed
+        Set<PositionalObject> toRemove = new HashSet<>();
+
+        List<GeoData> values = file.getGeoData();
+        int numRemoved = 0;
+        // ranges are ascending and do not overlap, so a single
+        // cursor over them is enough
+        int rangeIndex = 0;
+        IndexRange range = ranges.get(rangeIndex);
+
+        for (int i = 0; i < values.size(); i++) {
+            GeoData value = values.get(i);
+            while (i >= range.to() && rangeIndex < ranges.size() - 1) {
+                rangeIndex++;
+                range = ranges.get(rangeIndex);
+            }
+            if (range.contains(i)) {
+                // every kept range becomes a line
+                value.setLine(rangeIndex);
+                if (numRemoved > 0) {
+                    values.set(i - numRemoved, value);
+                    // offset elements
+                    for (PositionalObject element : Nulls.toEmpty(elements.get(i))) {
+                        element.offset(-numRemoved);
+                    }
+                    // offset selection
+                    if (selectedTraceKey != null && selectedTraceKey.getIndex() == i) {
+                        selectedTraceKey.offset(-numRemoved);
+                    }
+                }
+            } else {
+                numRemoved++;
+                // collect elements to remove
+                toRemove.addAll(Nulls.toEmpty(elements.get(i)));
+                // clear selection on chart
+                if (selectedTraceKey != null && selectedTraceKey.getIndex() == i) {
+                    model.clearSelectedTrace(chart);
+                }
+            }
+        }
+
+        if (numRemoved > 0) {
+            // clear tail
+            values.subList(values.size() - numRemoved, values.size()).clear();
+        }
+
+        // remove elements
+        file.getAuxElements().removeAll(toRemove);
+
+        onFileTracesUpdated(file);
+    }
+
     public boolean isStartOfLine(SgyFile file, int traceIndex) {
         Check.notNull(file);
         Check.condition(traceIndex >= 0);

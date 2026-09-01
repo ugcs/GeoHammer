@@ -13,7 +13,7 @@ public class CodexAgent extends AgentController {
 
     @Override
     public String getName() {
-        return "OpenAI Codex";
+        return "Codex";
     }
 
     @Override

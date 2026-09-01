@@ -26,6 +26,7 @@
     data-values:
       - header: "GPSalt"
         semantic: "Altitude"
+        description: "Altitude above sea level, from the GNSS receiver."
         read-only: true
         units: "m"
 

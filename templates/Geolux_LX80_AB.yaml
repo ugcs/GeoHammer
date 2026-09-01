@@ -34,25 +34,32 @@
       - header: "Heading"
         semantic: "Heading"
         units: "deg"
+        description: "Heading of the carrier in degrees clockwise from north."
         read-only: true
       - header: "Altitude RTK"
         semantic: "Altitude RTK"
         units: "m"
+        description: "Altitude above sea level from the RTK GNSS receiver, more accurate than the standard GNSS altitude."
         read-only: true
       - header: "Ellipsoidal Height"
         semantic: "Ellipsoidal Height"
         units: "m"
+        description: "Height above the WGS-84 ellipsoid, before the geoid correction that gives altitude above sea level."
         read-only: true
       - header: "Altitude AGL"
         semantic: "Altitude AGL"
         units: "m"
+        description: "Height above ground level, measured by the onboard altimeter."
       - header: "LX:Distance"
         semantic: "LX:Distance"
         units: "m"
+        description: "Distance from the LX-80 laser sensor to the surface below it. Subtract it from the carrier altitude to get the elevation of the surface."
         read-only: true
       - header: "LX:Temperature"
         semantic: "LX:Temperature"
         units: "C"
+        description: "Internal temperature of the LX-80 sensor."
       - header: "Line"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line."
         read-only: true

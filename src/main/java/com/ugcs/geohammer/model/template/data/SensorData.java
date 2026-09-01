@@ -11,6 +11,8 @@ public class SensorData extends BaseData {
 
     String units;
 
+    String description;
+
     private boolean readOnly = false;
 
     public String getFormat() {
@@ -35,6 +37,14 @@ public class SensorData extends BaseData {
 
     public void setUnits(String units) {
         this.units = units;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public boolean isReadOnly() {

@@ -30,15 +30,19 @@
       - header: "nT"
         semantic: "TMI"
         units: "nT"
+        description: "Total magnetic field intensity: the scalar magnitude of the magnetic field at the sensor."
         read-only: true
       - header: "alt"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."
         read-only: true
       - header: "laser"
         semantic: "Altitude AGL"
         units: "m"
+        description: "Height above ground level, measured by the onboard altimeter."
         read-only: true
       - header: "Next WP"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line. This file uses the index of the next waypoint of the planned route, which increments at every turn."
         read-only: true

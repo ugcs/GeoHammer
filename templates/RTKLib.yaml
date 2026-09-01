@@ -30,41 +30,52 @@
       - header: "height(m)"
         index: 3
         semantic: "Altitude"
+        description: "Height of the GNSS antenna in the RTKLIB position solution; above the ellipsoid unless a geoid model was applied."
         read-only: true
       - header: "Q"
         index: 4
+        description: "Quality of the position solution: 1 = fixed, 2 = float, 3 = SBAS, 4 = DGPS, 5 = single, 6 = PPP. Only a fixed solution (1) is accurate to centimetres."
         read-only: true
       - header: "ns"
         index: 5
+        description: "Number of satellites used in the position solution."
         read-only: true
       - header: "sdn(m)"
         index: 6
         units: "m"
+        description: "Standard deviation of the north component of the position solution."
         read-only: true
       - header: "sde(m)"
         index: 7
         units: "m"
+        description: "Standard deviation of the east component of the position solution."
         read-only: true
       - header: "sdu(m)"
         index: 8
         units: "m"
+        description: "Standard deviation of the up component of the position solution."
         read-only: true
       - header: "sdne(m)"
         index: 9
         units: "m"
+        description: "Square root of the absolute north-east covariance of the position solution; the sign follows the sign of the covariance."
         read-only: true
       - header: "sdeu(m)"
         index: 10
         units: "m"
+        description: "Square root of the absolute east-up covariance of the position solution; the sign follows the sign of the covariance."
         read-only: true
       - header: "sdun(m)"
         index: 11
         units: "m"
+        description: "Square root of the absolute up-north covariance of the position solution; the sign follows the sign of the covariance."
         read-only: true
       - header: "age(s)"
         index: 12
         units: "s"
+        description: "Age of the differential corrections used in the solution; large values mean the corrections were stale."
         read-only: true
       - header: "ratio"
         index: 13
+        description: "Ambiguity resolution ratio factor; values above 3 usually indicate a reliable fixed solution."
         read-only: true

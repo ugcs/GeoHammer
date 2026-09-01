@@ -28,8 +28,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -317,15 +315,8 @@ public class InspectorView {
         }
     }
 
-    private void copyToClipboard(String text) {
-        Clipboard clipboard = Clipboard.getSystemClipboard();
-        ClipboardContent content = new ClipboardContent();
-        content.putString(text);
-        clipboard.setContent(content);
-    }
-
     private void copyToClipboard(Value value) {
-        copyToClipboard(value.value());
+        Views.copyToClipboard(value.value());
     }
 
     private void copyAllToClipboard() {
@@ -334,7 +325,7 @@ public class InspectorView {
             sb.append(value.header()).append(": ").append(value.value());
             sb.append("\n");
         }
-        copyToClipboard(sb.toString());
+        Views.copyToClipboard(sb.toString());
     }
 
     private void selectPreviousTrace() {

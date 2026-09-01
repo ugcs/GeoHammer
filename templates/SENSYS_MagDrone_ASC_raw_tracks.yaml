@@ -28,35 +28,45 @@
       header: 'Timestamp [ms]'
     data-values:
       - header: "Track ID"
+        description: "Identifier of the recorded track, one continuous acquisition run."
         read-only: true
       - header: "Sensor ID"
+        description: "Identifier of the magnetometer probe the reading comes from; the readings of the probes are interleaved in the file."
         read-only: true
       - header: "Total field [nT]"
         semantic: "TMI"
         units: "nT"
+        description: "Total magnetic field intensity: the scalar magnitude of the magnetic field at the sensor."
         read-only: true
       - header: "Altitude [m]"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."
       - header: "Mag-X [nT]"
         semantic: "Bx"
         units: "nT"
+        description: "X component of the magnetic field vector in the sensor frame."
       - header: "Mag-Y [nT]"
         semantic: "By"
         units: "nT"
+        description: "Y component of the magnetic field vector in the sensor frame."
       - header: "Mag-Z [nT]"
         semantic: "Bz"
         units: "nT"
+        description: "Z component of the magnetic field vector in the sensor frame."
       - header: "Declination [°]"
         semantic: "Declination"
         units: "°"
+        description: "Declination of the measured field vector: its angle in the horizontal plane."
         read-only: true
       - header: "Inclination [°]"
         semantic: "Inclination"
         units: "°"
+        description: "Inclination of the measured field vector: its angle from the horizontal plane."
         read-only: true
       - header: "Line"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line."
         read-only: true
 
 

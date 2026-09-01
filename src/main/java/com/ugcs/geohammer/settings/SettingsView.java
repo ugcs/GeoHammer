@@ -129,11 +129,11 @@ public class SettingsView extends UtilityWindow implements ToolProducer {
 		save.setPrefWidth(60);
 		save.setOnAction(event -> onSave());
 
-		Button close = new Button("Close");
-		close.setPrefWidth(60);
-		close.setOnAction(event -> hide());
+		Button cancel = new Button("Cancel");
+		cancel.setPrefWidth(60);
+		cancel.setOnAction(event -> hide());
 
-		HBox buttons = new HBox(Views.DEFAULT_SPACING, close, save);
+		HBox buttons = new HBox(Views.DEFAULT_SPACING, cancel, save);
 		buttons.setAlignment(Pos.CENTER_RIGHT);
 		return buttons;
 	}

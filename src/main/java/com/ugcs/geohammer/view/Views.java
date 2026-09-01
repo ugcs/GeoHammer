@@ -18,6 +18,8 @@ import javafx.scene.effect.BlendMode;
 import javafx.scene.effect.ColorInput;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -28,13 +30,19 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextBoundsType;
 import javafx.stage.Screen;
 import javafx.stage.Window;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.AlphaComposite;
+import java.awt.Desktop;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.net.URI;
 import java.util.List;
 
 public final class Views {
+
+    private static final Logger log = LoggerFactory.getLogger(Views.class);
 
     public static final double DEFAULT_SPACING = 5;
 
@@ -218,5 +226,31 @@ public final class Views {
         temp.setText(text);
         double textHeight = temp.getLayoutBounds().getHeight();
         return (int)Math.ceil(textHeight / rowHeight);
+    }
+
+    public static void copyToClipboard(String text) {
+        ClipboardContent content = new ClipboardContent();
+        content.putString(text);
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    public static boolean canBrowse() {
+        return Desktop.isDesktopSupported()
+                && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE);
+    }
+
+    public static void browse(String url) {
+        if (Strings.isNullOrEmpty(url)) {
+            return;
+        }
+        if (!canBrowse()) {
+            log.warn("Opening a browser is not supported on the system");
+            return;
+        }
+        try {
+            Desktop.getDesktop().browse(URI.create(url));
+        } catch (Exception e) {
+            log.error("Browse error", e);
+        }
     }
 }

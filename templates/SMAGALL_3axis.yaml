@@ -27,23 +27,29 @@
       - header: "magneticTotal"
         semantic: "TMI"
         units: "nT"
+        description: "Total magnetic field intensity: the scalar magnitude of the magnetic field at the sensor."
         read-only: true
       - header: "altitude"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."
         read-only: true
       - header: "magneticX"
         semantic: "Bx"
         units: "nT"
+        description: "X component of the magnetic field vector in the sensor frame."
         read-only: true
       - header: "magneticY"
         semantic: "By"
         units: "nT"
+        description: "Y component of the magnetic field vector in the sensor frame."
         read-only: true
       - header: "magneticZ"
         semantic: "Bz"
         units: "nT"
+        description: "Z component of the magnetic field vector in the sensor frame."
         read-only: true
       - header: "Line"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line."
         read-only: true

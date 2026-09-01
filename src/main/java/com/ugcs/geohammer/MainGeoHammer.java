@@ -121,7 +121,21 @@ public class MainGeoHammer extends Application {
 			List<File> f = Arrays.asList(new File(name));			
 			loader.load(f);
 		}
+		installSystemOpenFileHandler();
 
 		eventSender.send(eventsFactory.createAppStartedEvent(appBuildInfo.getBuildVersion()));
+	}
+
+	// macOS delivers double clicked files as application events instead of process
+	// arguments; events received before this handler is set are kept by the system
+	private void installSystemOpenFileHandler() {
+		Desktop desktop = Desktop.getDesktop();
+		if (!desktop.isSupported(Desktop.Action.APP_OPEN_FILE)) {
+			return;
+		}
+		desktop.setOpenFileHandler(event -> {
+			List<File> files = event.getFiles();
+			Platform.runLater(() -> loader.load(files));
+		});
 	}
 }

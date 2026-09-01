@@ -19,7 +19,10 @@ public class ResourceImageHolder {
 	public static Image IMG_CLOSE_FILE;
 	public static Image IMG_CLOSE;
 
-	public static javafx.scene.image.Image IMG_LOGO24;
+	// WindowStage.setIcons() keeps a single image, rescaled to 32x32 on Windows and 128x128
+	// on macOS and Linux; these two match exactly, so no other size would ever be selected
+	public static javafx.scene.image.Image IMG_LOGO32;
+	public static javafx.scene.image.Image IMG_LOGO128;
 
 	public static final String SAVE = """
 		m 12,2.1 c -0.3,0 -0.5,0.2 -0.5,0.5 v 2.3 c 0,0.3 0.2,0.5 0.5,0.5 0.3,0 0.5,-0.2 0.5,-0.5 V 2.6 C 12.5,2.4 12.3,2.1 12,2.1 Z
@@ -230,8 +233,10 @@ public class ResourceImageHolder {
 			IMG_CLOSE = ImageIO.read(getClassLoader()
 					.getResourceAsStream("close.png"));
 
-			IMG_LOGO24 = new javafx.scene.image.Image(getClassLoader()
-					.getResourceAsStream("logo24.png"));
+			IMG_LOGO32 = new javafx.scene.image.Image(getClassLoader()
+					.getResourceAsStream("logo32.png"));
+			IMG_LOGO128 = new javafx.scene.image.Image(getClassLoader()
+					.getResourceAsStream("logo128.png"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

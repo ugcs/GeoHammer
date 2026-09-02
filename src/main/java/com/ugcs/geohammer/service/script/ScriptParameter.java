@@ -88,6 +88,6 @@ public record ScriptParameter(
 	}
 
     public enum ParameterType {
-        STRING, INTEGER, DOUBLE, BOOLEAN, FILE_PATH, FOLDER_PATH, COLUMN_NAME, ENUM
+        STRING, INTEGER, DOUBLE, BOOLEAN, FILE_PATH, FOLDER_PATH, COLUMN_NAME, LINE_INDEX, ENUM
     }
 }

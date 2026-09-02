@@ -224,6 +224,19 @@ public final class Text {
 		return DateTimeFormatter.ofPattern(pattern, Locale.US);
 	}
 
+    public static boolean isPrintable(char c) {
+        if (c == '\t' || c == '\n' || c == '\r' || c == '\f') {
+            return true;
+        }
+        return switch (Character.getType(c)) {
+            case Character.CONTROL,
+                 Character.FORMAT,
+                 Character.PRIVATE_USE,
+                 Character.UNASSIGNED -> false;
+            default -> true;
+        };
+    }
+
     public static String escape(String raw) {
         if (raw == null) {
             return null;

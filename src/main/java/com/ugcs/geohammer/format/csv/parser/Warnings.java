@@ -1,34 +1,66 @@
 package com.ugcs.geohammer.format.csv.parser;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.ugcs.geohammer.util.IncorrectFormatException;
+import com.ugcs.geohammer.util.Strings;
 
 public class Warnings {
-	private final Map<String, Group> warnings = new LinkedHashMap<>();
 
-	public void add(String column, IncorrectFormatException e) {
-		String key = e.getFormat() != null ? column + ":" + e.getFormat() : column;
-		add(key, column, e.getMessage());
+	private final List<String> warnings = new ArrayList<>();
+
+	private final Map<String, FormatError> formatErrors = new LinkedHashMap<>();
+
+	public boolean isEmpty() {
+		return warnings.isEmpty() && formatErrors.isEmpty();
 	}
 
-	public void add(String key, String column, String message) {
-		warnings.compute(key, (k, existing) -> {
-			if (existing == null) {
-				return new Group(column, message);
+	public void addWarning(String message) {
+		if (Strings.isNullOrEmpty(message)) {
+			return;
+		}
+		warnings.add(message);
+	}
+
+	public void addFormatError(String column, IncorrectFormatException e) {
+		String key = e.getFormat() != null ? column + ":" + e.getFormat() : column;
+		addFormatError(key, column, e.getMessage());
+	}
+
+	private void addFormatError(String key, String column, String message) {
+		formatErrors.compute(key, (k, group) -> {
+			if (group == null) {
+				return new FormatError(column, message);
 			}
-			existing.incrementCount();
-			return existing;
+			group.incrementCount();
+			return group;
 		});
 	}
 
-	public Collection<Group> getGroups() {
-		return warnings.values();
+	public String format() {
+		StringBuilder sb = new StringBuilder();
+		for (String warning : warnings) {
+			if (!sb.isEmpty()) {
+				sb.append("\n\n");
+			}
+			sb.append(warning);
+		}
+		if (!formatErrors.isEmpty()) {
+			if (!sb.isEmpty()) {
+				sb.append("\n\n");
+			}
+			sb.append("The following values could not be parsed and are left empty:");
+			for (Warnings.FormatError formatError : formatErrors.values()) {
+				sb.append("\n").append(formatError);
+			}
+		}
+		return sb.toString();
 	}
 
-	public static class Group {
+	public static class FormatError {
 
 		private final String column;
 
@@ -36,14 +68,10 @@ public class Warnings {
 
 		private int count;
 
-		public Group(String column, String message) {
+		public FormatError(String column, String message) {
 			this.column = column;
 			this.message = message;
 			count = 1;
-		}
-
-		private void incrementCount() {
-			this.count++;
 		}
 
 		public String getColumn() {
@@ -56,6 +84,10 @@ public class Warnings {
 
 		public int getCount() {
 			return count;
+		}
+
+		private void incrementCount() {
+			this.count++;
 		}
 
 		@Override

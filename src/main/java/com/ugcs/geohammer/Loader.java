@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -322,33 +321,15 @@ public class Loader {
 
 		Parser parser = csvFile.getParser();
 		if (parser != null) {
-			Collection<Warnings.Group> parserWarnings = parser.getWarnings();
-			if (!parserWarnings.isEmpty()) {
-				Dialogs.showWarning(
-						"Format warnings in " + file.getName(),
-						formatWarningsBody(parserWarnings));
+			Warnings warnings = parser.getWarnings();
+			if (!warnings.isEmpty()) {
+				Dialogs.showWarning("Warnings in " + file.getName(), warnings.format());
 			}
-		}
-
-		if (csvFile.hasMergedSinglePointLines()) {
-			Dialogs.showWarning(
-					"Single-point lines in " + file.getName(),
-					"The file contained survey lines with a single point; "
-							+ "they were merged into adjacent lines.");
 		}
 
 		Platform.runLater(() -> {
             model.initChart(csvFile);
 		});
-	}
-
-	private static String formatWarningsBody(Collection<Warnings.Group> parserWarnings) {
-		StringBuilder body = new StringBuilder();
-		body.append("The following values could not be parsed and are left empty:");
-		for (Warnings.Group group : parserWarnings) {
-			body.append("\n").append(group);
-		}
-		return body.toString();
 	}
 
 	private void openSvlogFile(File file) throws IOException {

@@ -75,18 +75,14 @@ public class TextContentProbe implements FileProbe {
         }
         chars.flip();
         int numChars = chars.remaining();
-        int numControls = 0;
+        int numUnprintable = 0;
         for (int i = 0; i < numChars; i++) {
             char c = chars.get(i);
-            if (Character.isISOControl(c)
-                    && c != '\n'
-                    && c != '\r'
-                    && c != '\t'
-                    && c != '\f') {
-                numControls++;
+            if (!Text.isPrintable(c)) {
+                numUnprintable++;
             }
         }
-        return numControls <= Math.max(1, numChars / 100);
+        return numUnprintable <= Math.max(1, numChars / 100);
     }
 
     private static boolean startsWith(byte[] bytes, byte[] prefix) {

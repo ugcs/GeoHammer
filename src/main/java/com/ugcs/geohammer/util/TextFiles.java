@@ -20,7 +20,7 @@ public final class TextFiles {
         Check.condition(maxLineLength > 0);
 
         List<String> lines = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader = new BufferedReader(new PrintableFilter(new FileReader(file)))) {
             StringBuilder line = new StringBuilder();
             boolean skipLf = false;
             int c;

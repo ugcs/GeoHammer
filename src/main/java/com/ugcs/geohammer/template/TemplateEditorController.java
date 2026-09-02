@@ -1,5 +1,8 @@
 package com.ugcs.geohammer.template;
 
+import com.google.re2j.Matcher;
+import com.google.re2j.Pattern;
+import com.ugcs.geohammer.format.csv.parser.Splitter;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.template.model.ColumnModel;
@@ -14,7 +17,9 @@ import com.ugcs.geohammer.template.model.TemplateModel;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.ReentranceGuard;
+import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.Listeners;
 import javafx.collections.ListChangeListener;
 import javafx.beans.Observable;
@@ -29,8 +34,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Component
 public class TemplateEditorController {
@@ -133,15 +136,18 @@ public class TemplateEditorController {
         String firstLine = numSkipLines < fileSample.numLines()
                 ? fileSample.line(numSkipLines)
                 : null;
-        String separator = sampleParser.bestSeparator(
-                firstLine, Defaults.MATCH_SEPARATORS, true);
-        if (Strings.isNullOrEmpty(separator)) {
+        List<Splitter> splitters = Splitter.ofEscaped(Defaults.MATCH_SEPARATORS, true);
+        Splitter bestSplitter = Splitter.best(splitters, firstLine);
+        if (bestSplitter == null) {
             return;
         }
 
+        // escape separator as splitter unescapes it internally
+        String bestSeparator = Text.escape(bestSplitter.separator());
+
         FormatModel format = templateModel.getFormat();
-        format.getSeparators().setAll(separator);
-        format.repeatableSeparatorProperty().set(" ".equals(separator));
+        format.getSeparators().setAll(bestSeparator);
+        format.repeatableSeparatorProperty().set(" ".equals(bestSeparator));
     }
 
     private void detectColumns() {
@@ -229,7 +235,7 @@ public class TemplateEditorController {
             if (i > 0) {
                 regex.append("\\s+");
             }
-            regex.append(Pattern.quote(tokens[i]));
+            regex.append(Regex.quote(tokens[i]));
         }
         return regex.append("\\s*").toString();
     }
@@ -256,7 +262,7 @@ public class TemplateEditorController {
         int last = 0;
         while (matcher.find()) {
             if (matcher.start() > last) {
-                regex.append(Pattern.quote(trimmed.substring(last, matcher.start())));
+                regex.append(Regex.quote(trimmed.substring(last, matcher.start())));
             }
             if (Character.isWhitespace(matcher.group().charAt(0))) {
                 regex.append("\\s+");
@@ -266,7 +272,7 @@ public class TemplateEditorController {
             last = matcher.end();
         }
         if (last < trimmed.length()) {
-            regex.append(Pattern.quote(trimmed.substring(last)));
+            regex.append(Regex.quote(trimmed.substring(last)));
         }
         return regex.append("\\s*").toString();
     }

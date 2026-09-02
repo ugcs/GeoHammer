@@ -1,5 +1,24 @@
 package com.ugcs.geohammer.format.csv.parser;
 
+import com.google.re2j.Pattern;
+import com.ugcs.geohammer.format.GeoData;
+import com.ugcs.geohammer.model.Column;
+import com.ugcs.geohammer.model.ColumnSchema;
+import com.ugcs.geohammer.model.Semantic;
+import com.ugcs.geohammer.model.template.DataMapping;
+import com.ugcs.geohammer.model.template.SkipLinesTo;
+import com.ugcs.geohammer.model.template.Template;
+import com.ugcs.geohammer.model.template.data.BaseData;
+import com.ugcs.geohammer.model.template.data.Date;
+import com.ugcs.geohammer.model.template.data.DateTime;
+import com.ugcs.geohammer.model.template.data.SensorData;
+import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.GpsTime;
+import com.ugcs.geohammer.util.IncorrectFormatException;
+import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Text;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -20,25 +39,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.regex.Pattern;
-
-import com.ugcs.geohammer.format.GeoData;
-import com.ugcs.geohammer.model.Column;
-import com.ugcs.geohammer.model.ColumnSchema;
-import com.ugcs.geohammer.model.Semantic;
-import com.ugcs.geohammer.model.template.DataMapping;
-import com.ugcs.geohammer.model.template.SkipLinesTo;
-import com.ugcs.geohammer.model.template.Template;
-import com.ugcs.geohammer.model.template.data.BaseData;
-import com.ugcs.geohammer.model.template.data.Date;
-import com.ugcs.geohammer.model.template.data.DateTime;
-import com.ugcs.geohammer.model.template.data.SensorData;
-import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.GpsTime;
-import com.ugcs.geohammer.util.IncorrectFormatException;
-import com.ugcs.geohammer.util.Nulls;
-import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.Text;
 
 public abstract class Parser {
 
@@ -195,7 +195,7 @@ public abstract class Parser {
                     r.reset();
                     break;
                 }
-                if (pattern.asMatchPredicate().test(line)) {
+                if (pattern.matches(line)) {
                     if (skipLinesTo.isSkipMatchedLine()) {
                         skippedLines.add(line);
                     } else {

@@ -17,9 +17,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.regex.Pattern;
 
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.TextFiles;
 import org.slf4j.Logger;
@@ -294,14 +294,14 @@ public class FileTemplates implements InitializingBean {
     }
 
     private static Template matchTemplate(List<Template> templates, String content) {
-        for (var t : templates) {
-            try {
-                var regex = Pattern.compile(t.getMatchRegex(), Pattern.MULTILINE | Pattern.DOTALL);
-                if (regex.matcher(content).find()) {
-                    return t;
-                }
-            } catch (Exception e) {
-                log.error("Error matching template: " + e.getMessage());
+        for (var template : templates) {
+            var regex = Regex.compileMultiline(template.getMatchRegex());
+            if (regex == null) {
+                log.error("Template {} has an unsupported match regex", template.getName());
+                continue;
+            }
+            if (regex.matcher(content).find()) {
+                return template;
             }
         }
         return null;

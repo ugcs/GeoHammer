@@ -1,7 +1,5 @@
 package com.ugcs.geohammer.util;
 
-import com.ugcs.geohammer.model.template.data.DateTime;
-
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
@@ -19,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 
 public final class Text {
 
@@ -226,6 +223,24 @@ public final class Text {
 		}
 		return DateTimeFormatter.ofPattern(pattern, Locale.US);
 	}
+
+    public static String escape(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            switch (c) {
+                case '\t' -> sb.append("\\t");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\\' -> sb.append("\\\\");
+                default -> sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
 
     public static String unescape(String escaped) {
         if (escaped == null) {

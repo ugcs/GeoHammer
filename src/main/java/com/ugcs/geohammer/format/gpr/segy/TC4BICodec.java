@@ -16,9 +16,7 @@ public class TC4BICodec implements SampleCodec {
     public float[] decode(byte[] bytes, int offset, int length) {
         float[] result = new float[length / 4];
         ByteBuffer buffer = ByteBuffer.wrap(bytes, offset, length).order(order);
-        // first sample is skipped by the source format
-        buffer.getInt();
-        for (int i = 1; i < result.length; i++) {
+        for (int i = 0; i < result.length; i++) {
             result[i] = buffer.getInt();
         }
         return result;

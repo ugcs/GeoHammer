@@ -34,8 +34,8 @@ public class BackgroundNoiseRemover implements Command {
 
 		List<Trace> traces = file.getTraces();
 		BackgroundRemovalFilter brf = new BackgroundRemovalFilter();
-		int deep = file.getMaxSamples();
-		float[] noiseProfile = brf.prepareNoiseProfile(traces, deep);
+		int depth = file.getMaxSamples();
+		float[] noiseProfile = brf.computeNoiseProfile(traces, depth);
 		brf.subtractProfile(traces, noiseProfile);
 
 		if (undoModel != null) {

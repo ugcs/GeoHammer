@@ -155,16 +155,18 @@ public class HorizontalProfile {
         int[][] peaks = new int[n][];
         double bipolarSum = 0;
         for (int i = 0; i < n; i++) {
-            float[] samples = traces.get(i).getFileSamples();
-            peaks[i] = detectPeak(samples, surface[i]);
+            Trace trace = traces.get(i);
+            float[] samples = trace.getFileSamples();
+            float baseline = trace.getAmplitudeBaseline();
+            peaks[i] = detectPeak(samples, surface[i], baseline);
             // check polarity
             int min = peaks[i][0];
             int max = peaks[i][1];
-            if (samples[max] > 0) {
-                bipolarSum += samples[max];
+            if (samples[max] - baseline > 0) {
+                bipolarSum += samples[max] - baseline;
             }
-            if (samples[min] < 0) {
-                bipolarSum += samples[min];
+            if (samples[min] - baseline < 0) {
+                bipolarSum += samples[min] - baseline;
             }
         }
         int polarity = bipolarSum >= 0 ? 1 : -1; // peek strongest polarity
@@ -175,7 +177,7 @@ public class HorizontalProfile {
 
     // returns arrays of two elements: indices of the samples
     // with min and max amplitudes in a given window
-    private int[] detectPeak(float[] samples, int center) {
+    private int[] detectPeak(float[] samples, int center, float baseline) {
         // w - scan window (from both sides of center)
         int w = peakWindow;
         // max distance penalty
@@ -190,7 +192,7 @@ public class HorizontalProfile {
         int max = center;
         int min = center;
         for (int i = start; i <= end; i++) {
-            float amplitude = samples[i];
+            float amplitude = samples[i] - baseline;
             float distanceRatio = w > 1 ? Math.abs(i - center) / (float)w : 0f;
             float score = amplitude * (1 - distancePenalty * distanceRatio);
             if (score > maxScore) {
@@ -246,6 +248,8 @@ public class HorizontalProfile {
         for (int i = 0; i < n; i++) {
             Trace trace = traces.get(i);
             float[] samples = trace.getFileSamples();
+            // zero amplitude of a trace, taken before samples are shifted
+            float baseline = trace.getAmplitudeBaseline();
             int offset = surface[i] - level;
             if (offset > 0) {
                 System.arraycopy(
@@ -256,7 +260,7 @@ public class HorizontalProfile {
                         samples,
                         samples.length - offset,
                         samples.length,
-                        0f);
+                        baseline);
             }
         }
         // crop air

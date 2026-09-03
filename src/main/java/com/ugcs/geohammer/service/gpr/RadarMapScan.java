@@ -55,7 +55,7 @@ public class RadarMapScan implements Command {
 			double threshold = scaleArray[0][i];
 			double factor = scaleArray[1][i];		
 			
-			if (trace.getEdge(i) != 0) {
+			if (!trace.getEdge(i).isEmpty()) {
 				double av = Math.abs(trace.getSample(i));
 				if (av < additionalThreshold) {
 					av = 0;

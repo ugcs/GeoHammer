@@ -20,14 +20,6 @@ public class Trace {
 
     private float[] samples;
 
-    /*
-     * 0
-     * 1 - 0 ('+' -> '-')
-     * 2 - 0 ('-' -> '+')
-     * 3 - min
-     * 4 - max
-     *
-     */
     private byte[] edges;
 
     private LatLon latLon;
@@ -137,12 +129,23 @@ public class Trace {
         return samples;
     }
 
-    public byte getEdge(int index) {
-        return edges[localToGlobal(index)];
+    public float getAmplitudeBaseline() {
+        int numSamples = numSamples();
+        // only bottom half because top has big distortion
+        int from = numSamples / 2;
+        double sum = 0;
+        for (int i = from; i < numSamples; i++) {
+            sum += getSample(i);
+        }
+        return from < numSamples ? (float) (sum / (numSamples - from)) : 0f;
     }
 
-    public void setEdge(int index, byte value) {
-        edges[localToGlobal(index)] = value;
+    public Edge getEdge(int index) {
+        return Edge.of(edges[localToGlobal(index)]);
+    }
+
+    public void setEdge(int index, Edge edge) {
+        edges[localToGlobal(index)] = edge.code();
     }
 
     public LatLon getLatLon() {

@@ -7,8 +7,8 @@ import sys
 import tempfile
 from xml.sax.saxutils import escape
 
+from rdp import rdp
 from scipy.ndimage import median_filter
-from shapely.geometry import LineString
 
 from script_utils import normalize_input_stem
 
@@ -31,8 +31,9 @@ TANGENT_HALF_WINDOW = max(1, round(TANGENT_BASE_M / WAYPOINT_SPACING_M / 2))
 # are thinned out again where the line runs straight, keeping the shape within this much
 SIMPLIFY_TOLERANCE_M = 0.5
 
-# a route point closer than this to the previous one carries no shape and only
-# makes the drone hunt between two places
+# a route point closer than this to the previous one carries no shape and only makes
+# the drone hunt between two places. equal to the spacing above by coincidence, not by
+# rule: the spacing samples the track, this one limits the route
 MIN_WAYPOINT_DISTANCE_M = 1.0
 
 MEDIAN_WINDOW = 5
@@ -207,17 +208,8 @@ def simplify(track):
     if len(track) < 3:
         return track
 
-    line = LineString([(x, y) for x, y, _ in track])
-    kept = list(line.simplify(SIMPLIFY_TOLERANCE_M, preserve_topology=False).coords)
-
-    # simplify keeps a subset of the vertices in order, so the depths follow them
-    simplified = []
-    index = 0
-    for point in track:
-        if index < len(kept) and point[0] == kept[index][0] and point[1] == kept[index][1]:
-            simplified.append(point)
-            index += 1
-    return simplified
+    kept = rdp([[x, y] for x, y, _ in track], epsilon=SIMPLIFY_TOLERANCE_M, return_mask=True)
+    return [point for point, keep in zip(track, kept) if keep]
 
 
 def thin(track):
@@ -285,6 +277,8 @@ def write_kml(lines, path, document_name):
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as f:
             f.write(document)
+        # mkstemp creates the file private to its owner, a route is not a secret
+        os.chmod(temporary, 0o644)
         os.replace(temporary, path)
     except BaseException:
         if os.path.exists(temporary):

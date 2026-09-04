@@ -512,6 +512,10 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private void showError(ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
 		String message;
+		if (e instanceof ScriptValidationException) {
+			showError(e.getMessage());
+			return;
+		}
         if (e instanceof CommandExecutionException commandExecutionException) {
             message = "Script '" + scriptMetadata.filename()
                     + "' failed with exit code " + commandExecutionException.getExitCode() + ".";

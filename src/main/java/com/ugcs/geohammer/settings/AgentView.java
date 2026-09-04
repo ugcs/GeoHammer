@@ -8,8 +8,6 @@ import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
@@ -33,7 +31,7 @@ public class AgentView extends VBox {
                 ResourceImageHolder.COPY,
                 24,
                 "Copy command to clipboard");
-        copy.setOnAction(event -> copyToClipboard(agentController.getEnableCommand()));
+        copy.setOnAction(event -> Views.copyToClipboard(agentController.getEnableCommand()));
 
         HBox agentStatusRow = new HBox(Views.DEFAULT_SPACING, agentStatus, Views.createSpacer(), copyHint, copy);
         agentStatusRow.setAlignment(Pos.CENTER_LEFT);
@@ -73,11 +71,5 @@ public class AgentView extends VBox {
         }
         agentStatus.setText(text);
         agentStatus.setDisable(busy || status == Status.UNKNOWN || status == Status.NOT_AVAILABLE);
-    }
-
-    private void copyToClipboard(String text) {
-        ClipboardContent content = new ClipboardContent();
-        content.putString(text);
-        Clipboard.getSystemClipboard().setContent(content);
     }
 }

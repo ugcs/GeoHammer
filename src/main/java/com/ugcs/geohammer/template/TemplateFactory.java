@@ -20,18 +20,22 @@ import com.ugcs.geohammer.template.model.SkipLinesModel;
 import com.ugcs.geohammer.template.model.TemplateModel;
 import com.ugcs.geohammer.template.model.TimeReference;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 public final class TemplateFactory {
 
     private static final String DECIMAL_SEPARATOR = ".";
 
     private static final String ALTITUDE_UNITS = "m";
+
+    // line-scoped gap: '.' would span the whole probed block under DOTALL
+    // and make the header regex backtrack catastrophically
+    private static final String LINE_GAP = "[^\\r\\n]*";
 
     private TemplateFactory() {
     }
@@ -234,11 +238,11 @@ public final class TemplateFactory {
         if (!model.getFormat().isHasHeader()) {
             return Strings.empty();
         }
-        StringBuilder regex = new StringBuilder("^.*");
+        StringBuilder regex = new StringBuilder("^").append(LINE_GAP);
         for (ColumnModel column : model.getColumns().getColumns()) {
             if (column.getType() != ColumnType.NONE
                     && !Strings.isNullOrBlank(column.getHeader())) {
-                regex.append(Pattern.quote(column.getHeader())).append(".*");
+                regex.append(Regex.quote(column.getHeader())).append(LINE_GAP);
             }
         }
         return regex.toString();

@@ -30,28 +30,36 @@
       - header: "TMI"
         semantic: "TMI"
         units: "nT"
+        description: "Total magnetic field intensity: the scalar magnitude of the magnetic field at the sensor."
         read-only: true
       - header: "Bx"
         semantic: "Bx"
         units: "nT"
+        description: "X component of the magnetic field vector in the sensor frame."
         read-only: true
       - header: "By"
         semantic: "By"
         units: "nT"
+        description: "Y component of the magnetic field vector in the sensor frame."
         read-only: true
       - header: "Bz"
         semantic: "Bz"
         units: "nT"
+        description: "Z component of the magnetic field vector in the sensor frame."
         read-only: true
       - header: "Next WP"
         semantic: "Line"
+        description: "Survey line the point belongs to; points sharing a value form one line. This file uses the index of the next waypoint of the planned route, which increments at every turn."
         read-only: true
       - header: "Heading"
+        description: "Heading of the carrier in degrees clockwise from north."
         read-only: true
       - header: "Altitude AGL"
         semantic: "Altitude AGL"
         units: "m"
+        description: "Height above ground level, measured by the onboard altimeter."
         read-only: true
       - header: "Altitude"
         semantic: "Altitude"
         units: "m"
+        description: "Altitude above sea level, from the GNSS receiver."

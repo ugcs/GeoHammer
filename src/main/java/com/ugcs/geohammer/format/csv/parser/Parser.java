@@ -1,27 +1,6 @@
 package com.ugcs.geohammer.format.csv.parser;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.CancellationException;
-import java.util.regex.Pattern;
-
+import com.google.re2j.Pattern;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
@@ -37,8 +16,29 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.GpsTime;
 import com.ugcs.geohammer.util.IncorrectFormatException;
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.PrintableFilter;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 public abstract class Parser {
 
@@ -85,8 +85,8 @@ public abstract class Parser {
         return column != null && headers.containsKey(column.getHeader());
     }
 
-	public Collection<Warnings.Group> getWarnings() {
-		return warnings.getGroups();
+	public Warnings getWarnings() {
+		return warnings;
 	}
 
 	public List<GeoData> parse(File file) throws IOException {
@@ -127,7 +127,8 @@ public abstract class Parser {
 
         ColumnSchema columns;
         List<GeoData> values = new ArrayList<>();
-        try (var r = new BufferedReader(new FileReader(file))) {
+        PrintableFilter filter = new PrintableFilter(new FileReader(file));
+        try (BufferedReader r = new BufferedReader(filter)) {
             // skip top lines
             skipLines(r);
 
@@ -163,6 +164,12 @@ public abstract class Parser {
         // based on loaded data values
         setColumnDisplay(columns, values);
 
+        // add rejected symbols warning
+        if (filter.numRejected() > 0) {
+            warnings.addWarning("The file contains non-printable characters."
+                    + " They were ignored while reading and will be lost if you save the file.");
+        }
+
         return values;
     }
 
@@ -195,7 +202,7 @@ public abstract class Parser {
                     r.reset();
                     break;
                 }
-                if (pattern.asMatchPredicate().test(line)) {
+                if (pattern.matches(line)) {
                     if (skipLinesTo.isSkipMatchedLine()) {
                         skippedLines.add(line);
                     } else {
@@ -319,7 +326,7 @@ public abstract class Parser {
 		try {
 			 dateTime = parseDateTime(tokens);
 		} catch (IncorrectFormatException e) {
-			warnings.add("Date-Time", e);
+			warnings.addFormatError("Date-Time", e);
 		}
         if (dateTime != null && template.isGpsTime()) {
             dateTime = GpsTime.gpsToUtc(dateTime);
@@ -340,7 +347,7 @@ public abstract class Parser {
 						// warn only for declared data values; meta columns (date, time, etc.)
 						// are parsed separately and aren't expected to be numeric
 						if (template.getDataMapping().getDataValueByHeader(header) != null) {
-							warnings.add(header, e);
+							warnings.addFormatError(header, e);
 						}
 					}
                     geoData.setValue(header, Objects.requireNonNullElse(number, str));
@@ -405,7 +412,7 @@ public abstract class Parser {
         try {
             date = Text.parseDate(value, dateColumn.getAllFormats());
         } catch (IncorrectFormatException e) {
-            warnings.add("Date", e);
+            warnings.addFormatError("Date", e);
         }
         return date;
     }

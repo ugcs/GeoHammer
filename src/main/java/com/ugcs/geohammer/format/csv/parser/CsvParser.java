@@ -3,70 +3,46 @@ package com.ugcs.geohammer.format.csv.parser;
 import com.ugcs.geohammer.model.template.FileFormat;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.Text;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.List;
-import java.util.regex.Pattern;
 
 public class CsvParser extends Parser {
 
-    private String separator;
-
-    private Pattern splitPattern;
+    private Splitter splitter;
 
     public CsvParser(Template template) {
         super(template);
     }
 
     public String getSeparator() {
-        return separator;
+        return splitter != null ? splitter.separator() : null;
     }
 
-    private void initSeparator(String line) {
-        if (this.separator != null) {
+    private void initSplitter(String line) {
+        if (this.splitter != null) {
             return;
         }
 
         FileFormat format = template.getFileFormat();
-
-        // detection heuristic:
-        // best separator produces most tokens on split
-        String bestVariant = null;
-        Pattern bestPattern = null;
-        int maxTokens = 0;
-
-        List<String> variants = format.mergeSeparators();
-        boolean repeatableSeparator = template.getFileFormat().isRepeatableSeparator();
-        for (String variant : variants) {
-            variant = Text.unescape(variant);
-            Pattern pattern = Regex.splitPattern(variant, repeatableSeparator);
-            String[] tokens = pattern.split(line);
-            if (tokens.length > maxTokens) {
-                bestVariant = variant;
-                bestPattern = pattern;
-                maxTokens = tokens.length;
-            }
+        List<Splitter> splitters = Splitter.ofEscaped(
+                format.mergeSeparators(),
+                format.isRepeatableSeparator()
+        );
+        if (!splitters.isEmpty()) {
+            this.splitter = Splitter.best(splitters, line);
         }
-
-        this.separator = bestVariant;
-        this.splitPattern = bestPattern;
     }
 
     private String[] splitLine(String line) {
         if (Strings.isNullOrEmpty(line)) {
             return new String[0];
         }
-        initSeparator(line);
-        Check.notNull(splitPattern);
-        String[] tokens = splitPattern.split(line);
-        for (int i = 0; i < tokens.length; i++) {
-            tokens[i] = tokens[i].trim();
-        }
-        return tokens;
+        initSplitter(line);
+        Check.notNull(splitter);
+        return splitter.splitToArray(line);
     }
 
     @Override

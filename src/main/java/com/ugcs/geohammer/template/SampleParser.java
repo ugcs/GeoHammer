@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.template;
 
+import com.google.re2j.Pattern;
+import com.ugcs.geohammer.format.csv.parser.Splitter;
 import com.ugcs.geohammer.template.model.Defaults;
 import com.ugcs.geohammer.template.model.FormatModel;
 import com.ugcs.geohammer.template.model.ParsedSample;
@@ -8,13 +10,10 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.Text;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 public final class SampleParser {
 
@@ -36,9 +35,8 @@ public final class SampleParser {
         // skip to regex
         Pattern pattern = getSkipToPattern();
         if (pattern != null) {
-            Predicate<String> matcher = pattern.asMatchPredicate();
             for (int i = 0; i < lines.size(); i++) {
-                if (matcher.test(lines.get(i))) {
+                if (pattern.matches(lines.get(i))) {
                     numSkipLines = i;
                     if (templateModel.getSkipLines().isSkipMatchedLine()) {
                         numSkipLines++;
@@ -77,20 +75,20 @@ public final class SampleParser {
         }
 
         lines = lines.subList(numSkipLines, lines.size());
-        Pattern splitPattern = getSplitPattern(lines.getFirst());
+        Splitter splitter = getBestSplitter(lines.getFirst());
 
-        List<String> headers = parseHeaders(lines, splitPattern);
-        List<List<String>> rows = parseRows(lines, splitPattern);
+        List<String> headers = parseHeaders(lines, splitter);
+        List<List<String>> rows = parseRows(lines, splitter);
 
         return new ParsedSample(headers, rows, numSkipLines);
     }
 
-    private List<String> parseHeaders(List<String> lines, Pattern splitPattern) {
+    private List<String> parseHeaders(List<String> lines, @Nullable Splitter splitter) {
         if (lines.isEmpty()) {
             return List.of();
         }
 
-        List<String> tokens = splitLine(lines.getFirst(), splitPattern);
+        List<String> tokens = splitLine(lines.getFirst(), splitter);
         if (templateModel.getFormat().isHasHeader()) {
             return tokens;
         } else {
@@ -103,7 +101,7 @@ public final class SampleParser {
         }
     }
 
-    private List<List<String>> parseRows(List<String> lines, Pattern splitPattern) {
+    private List<List<String>> parseRows(List<String> lines, @Nullable Splitter splitter) {
         int offset = templateModel.getFormat().isHasHeader() ? 1 : 0;
 
         List<List<String>> rows = new ArrayList<>();
@@ -112,58 +110,31 @@ public final class SampleParser {
             if (isBlankOrCommented(line)) {
                 continue;
             }
-            rows.add(splitLine(line, splitPattern));
+            rows.add(splitLine(line, splitter));
         }
         return rows;
     }
 
-    private List<String> splitLine(String line, Pattern splitPattern) {
+    private List<String> splitLine(String line, @Nullable Splitter splitter) {
         if (Strings.isNullOrEmpty(line)) {
             return List.of();
         }
-        if (splitPattern == null) {
-            return List.of(line);
+        if (splitter == null) {
+            return List.of(line.trim());
         }
-
-        String[] tokens = splitPattern.split(line);
-        List<String> values = new ArrayList<>(tokens.length);
-        for (String token : tokens) {
-            values.add(token.trim());
-        }
-        return values;
+        return splitter.split(line);
     }
 
     private @Nullable Pattern getSkipToPattern() {
-        return Regex.compile(templateModel.getSkipLines().getMatchRegex());
+        String skipRegex = templateModel.getSkipLines().getMatchRegex();
+        return Regex.compile(skipRegex);
     }
 
-    private @Nullable Pattern getSplitPattern(String line) {
+    private @Nullable Splitter getBestSplitter(String line) {
         FormatModel format = templateModel.getFormat();
-
-        String separator = bestSeparator(line, format.getSeparators(), format.isRepeatableSeparator());
-        return !Strings.isNullOrEmpty(separator)
-                ? Regex.splitPattern(Text.unescape(separator), format.isRepeatableSeparator())
-                : null;
-    }
-
-    // separator producing most tokens on the line
-    // repeatable = true for detection
-    public @Nullable String bestSeparator(String line, List<String> separators, boolean repeatable) {
-        if (Strings.isNullOrEmpty(line)) {
-            return null;
-        }
-
-        String bestSeparator = null;
-        int maxTokens = 0;
-
-        for (String separator : Nulls.toEmpty(separators)) {
-            Pattern pattern = Regex.splitPattern(Text.unescape(separator), repeatable);
-            int numTokens = pattern.split(line).length;
-            if (numTokens > maxTokens) {
-                bestSeparator = separator;
-                maxTokens = numTokens;
-            }
-        }
-        return bestSeparator;
+        List<Splitter> splitters = Splitter.ofEscaped(
+                format.getSeparators(),
+                format.isRepeatableSeparator());
+        return Splitter.best(splitters, line);
     }
 }

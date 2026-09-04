@@ -37,8 +37,6 @@ public class CsvFile extends SgyFile {
 
 	private List<GeoData> geoData = new ArrayList<>();
 
-	private boolean singlePointLinesMerged;
-
 	@Nullable
 	private Parser parser;
 
@@ -95,16 +93,17 @@ public class CsvFile extends SgyFile {
         }
 
         reorderLines();
-        singlePointLinesMerged = LineSchema.mergeSinglePointLines(geoData) > 0;
-        if (singlePointLinesMerged) {
+        int numSinglePointLines = LineSchema.mergeSinglePointLines(geoData);
+        if (numSinglePointLines > 0) {
             reorderLines();
+
+            // not actually a parser warning, but maybe we'll decide to
+            // place merge routine inside parser; anyway report as a parse warning
+            parser.getWarnings().addWarning("The file contains survey lines with a single point;"
+                    + " they were merged into adjacent lines.");
         }
 
         setUnsaved(false);
-    }
-
-    public boolean hasMergedSinglePointLines() {
-        return singlePointLinesMerged;
     }
 
     private void reorderLines() {

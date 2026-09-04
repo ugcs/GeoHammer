@@ -29,6 +29,7 @@ import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
+import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.script.CommandExecutionException;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
@@ -222,6 +223,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		}
 
 		restoreScriptSelection();
+		refreshLineSelectors(file);
 		refreshExecutionStatus(file);
 	}
 
@@ -279,9 +281,11 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private VBox createParameterInput(ScriptParameter param, String initialValue) {
 		VBox paramBox = new VBox(Views.TOP_LABEL_SPACING);
-		String labelText = param.displayName() + rangeHint(param) + (param.required() ? " *" : "");
+		String labelText = param.getLabel(rangeHint(param));
 		Node inputNode = getInputNode(param, initialValue, labelText);
-		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
+		inputNode.setUserData(param);
+		if (param.type() != ScriptParameter.ParameterType.BOOLEAN
+				&& param.type() != ScriptParameter.ParameterType.LINE_INDEX) {
 			Label label = new Label(labelText);
 			label.getStyleClass().addAll(Views.TOP_LABEL_STYLES);
 			label.setPadding(Views.TOP_LABEL_INSETS);
@@ -309,39 +313,36 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
 		return switch (param.type()) {
 			case STRING, FILE_PATH -> createTextField(param, initialValue);
-			case INTEGER -> createIntegerField(param, initialValue);
-			case DOUBLE -> createDoubleField(param, initialValue);
-			case BOOLEAN -> createCheckBox(param, initialValue, labelText);
+			case INTEGER -> createIntegerField(initialValue);
+			case DOUBLE -> createDoubleField(initialValue);
+			case BOOLEAN -> createCheckBox(initialValue, labelText);
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
-			case FOLDER_PATH -> createFolderPathSelector(param, initialValue);
+			case LINE_INDEX -> new LineSelector(param, selectedFile, this::getChartLineIndex);
+			case FOLDER_PATH -> createFolderPathSelector(initialValue);
 			case ENUM -> createEnumSelector(param, initialValue);
 		};
 	}
 
 	private static TextField createTextField(ScriptParameter param, String initialValue) {
 		TextField textField = new TextField(initialValue);
-		textField.setUserData(param);
 		textField.setPromptText(param.displayName());
 		return textField;
 	}
 
-	private static TextField createIntegerField(ScriptParameter param, String initialValue) {
+	private static TextField createIntegerField(String initialValue) {
 		TextField textField = new TextField(initialValue);
-		textField.setUserData(param);
 		textField.setPromptText("Enter integer value");
 		return textField;
 	}
 
-	private static TextField createDoubleField(ScriptParameter param, String initialValue) {
+	private static TextField createDoubleField(String initialValue) {
 		TextField textField = new TextField(initialValue);
-		textField.setUserData(param);
 		textField.setPromptText("Enter decimal value");
 		return textField;
 	}
 
-	private static CheckBox createCheckBox(ScriptParameter param, String initialValue, String labelText) {
+	private static CheckBox createCheckBox(String initialValue, String labelText) {
 		CheckBox checkBox = new CheckBox();
-		checkBox.setUserData(param);
 		checkBox.setSelected(Boolean.parseBoolean(initialValue));
 		checkBox.setText(labelText);
 		return checkBox;
@@ -351,15 +352,13 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		ComboBox<String> columnSelector = new ComboBox<>();
 		columnSelector.setPromptText("Select column");
 		columnSelector.setMaxWidth(Double.MAX_VALUE);
-		columnSelector.setUserData(param);
-		updateComboBoxIfChanged(columnSelector, getAvailableColumnsForFile(selectedFile), initialValue);
+		updateComboBoxIfChanged(columnSelector, getAvailableColumnsForFile(selectedFile), param, initialValue);
 		return columnSelector;
 	}
 
 	private static ComboBox<String> createEnumSelector(ScriptParameter param, String initialValue) {
 		ComboBox<String> selector = new ComboBox<>();
 		selector.setMaxWidth(Double.MAX_VALUE);
-		selector.setUserData(param);
 		List<String> values = param.enumValues() != null ? param.enumValues() : List.of();
 		selector.getItems().addAll(values);
 		String selected = (!initialValue.isEmpty() && values.contains(initialValue))
@@ -369,9 +368,8 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		return selector;
 	}
 
-	private HBox createFolderPathSelector(ScriptParameter param, String initialValue) {
+	private HBox createFolderPathSelector(String initialValue) {
 		HBox container = new HBox(Views.DEFAULT_SPACING);
-		container.setUserData(param);
 
 		String defaultFolderPath = initialValue;
 		if (Strings.isNullOrEmpty(defaultFolderPath) && selectedFile != null && selectedFile.getFile() != null) {
@@ -404,6 +402,14 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 		container.getChildren().addAll(pathField, selectButton);
 		return container;
+	}
+
+	@Nullable
+	private Integer getChartLineIndex() {
+		Chart chart = model.getChart(selectedFile);
+		return chart instanceof SensorLineChart sensorChart
+				? sensorChart.getSelectedLineIndex()
+				: null;
 	}
 
 	private Set<String> getAvailableColumnsForFile(@Nullable SgyFile file) {
@@ -506,6 +512,10 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private void showError(ScriptMetadata scriptMetadata, Exception e, @Nullable String scriptOutput) {
 		String message;
+		if (e instanceof ScriptValidationException) {
+			showError(e.getMessage());
+			return;
+		}
         if (e instanceof CommandExecutionException commandExecutionException) {
             message = "Script '" + scriptMetadata.filename()
                     + "' failed with exit code " + commandExecutionException.getExitCode() + ".";
@@ -524,18 +534,13 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private Map<String, String> extractScriptParams() {
 		Map<String, String> parameters = new HashMap<>();
-		for (Node paramBox : parametersBox.getChildren()) {
-			if (!(paramBox instanceof VBox vbox)) {
+		for (Node input : getParameterInputs()) {
+			if (!(input.getUserData() instanceof ScriptParameter param)) {
 				continue;
 			}
-			for (Node inputNode : vbox.getChildren()) {
-				if (!(inputNode.getUserData() instanceof ScriptParameter param)) {
-					continue;
-				}
-				String value = extractValueFromNode(inputNode);
-				if (value != null) {
-					parameters.put(param.name(), value);
-				}
+			String value = extractValueFromNode(input);
+			if (value != null) {
+				parameters.put(param.name(), value);
 			}
 		}
 		return parameters;
@@ -544,6 +549,10 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	@Nullable
 	private static String extractValueFromNode(Node node) {
 		return switch (node) {
+			case LineSelector lineSelector -> {
+				Integer line = lineSelector.getSelectedLineIndex();
+				yield line != null ? String.valueOf(line) : "";
+			}
 			case TextField textField -> textField.getText();
 			case CheckBox checkBox -> String.valueOf(checkBox.isSelected());
 			case ComboBox<?> comboBox -> {
@@ -579,22 +588,42 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private void refreshColumnSelectors(SgyFile file) {
 		Set<String> availableColumns = getAvailableColumnsForFile(file);
-		for (Node paramBox : parametersBox.getChildren()) {
-			if (!(paramBox instanceof VBox vbox)) {
-				continue;
+		for (Node input : getParameterInputs()) {
+			if (input instanceof ComboBox<?> comboBox
+					&& comboBox.getUserData() instanceof ScriptParameter param
+					&& param.type() == ScriptParameter.ParameterType.COLUMN_NAME) {
+				updateComboBoxIfChanged((ComboBox<String>) comboBox, availableColumns, param, null);
 			}
-			for (Node inputNode : vbox.getChildren()) {
-				if (inputNode instanceof ComboBox<?> comboBox
-						&& comboBox.getUserData() instanceof ScriptParameter param
-						&& param.type() == ScriptParameter.ParameterType.COLUMN_NAME) {
-					updateComboBoxIfChanged((ComboBox<String>) comboBox, availableColumns, null);
-				}
+		}
+	}
+
+	private List<Node> getParameterInputs() {
+		List<Node> inputs = new ArrayList<>();
+		for (Node paramBox : parametersBox.getChildren()) {
+			if (paramBox instanceof VBox vbox) {
+				inputs.addAll(vbox.getChildren());
+			}
+		}
+		return inputs;
+	}
+
+	@EventListener
+	private void onChange(WhatChanged changed) {
+		if (changed.isTraceCut()) {
+			Platform.runLater(() -> refreshLineSelectors(selectedFile));
+		}
+	}
+
+	private void refreshLineSelectors(@Nullable SgyFile file) {
+		for (Node input : getParameterInputs()) {
+			if (input instanceof LineSelector lineSelector) {
+				lineSelector.setFile(file);
 			}
 		}
 	}
 
 	private void updateComboBoxIfChanged(ComboBox<String> comboBox, Set<String> availableColumns,
-			@Nullable String initialValue) {
+			ScriptParameter param, @Nullable String initialValue) {
 		if (availableColumns.isEmpty()) {
 			comboBox.setPromptText("No columns available");
 			comboBox.setDisable(true);
@@ -607,18 +636,14 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		}
 		isUpdatingColumns.set(true);
 		String value = comboBox.getValue();
+		String defaultValue = param.defaultValue();
 		comboBox.getItems().setAll(availableColumns);
 		if (value != null && availableColumns.contains(value)) {
 			comboBox.setValue(value);
-		} else if (comboBox.getUserData() instanceof ScriptParameter param) {
-			String defaultValue = param.defaultValue();
-			if (initialValue != null && availableColumns.contains(initialValue)) {
-				comboBox.setValue(initialValue);
-			} else if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
-				comboBox.setValue(defaultValue);
-			} else {
-				comboBox.setValue(null);
-			}
+		} else if (initialValue != null && availableColumns.contains(initialValue)) {
+			comboBox.setValue(initialValue);
+		} else if (!defaultValue.isEmpty() && availableColumns.contains(defaultValue)) {
+			comboBox.setValue(defaultValue);
 		} else {
 			comboBox.setValue(null);
 		}

@@ -16,6 +16,38 @@ public record ScriptMetadata(
         @JsonProperty("operating_systems")
         @Nullable List<String> operatingSystems
 ) {
+	public boolean replacesInput() {
+		return findLineParameter() == null;
+	}
+
+	@Nullable
+	public Integer getLineIndex(Map<String, String> parameters) throws ScriptValidationException {
+		ScriptParameter lineParameter = findLineParameter();
+		if (lineParameter == null) {
+			return null;
+		}
+		String value = parameters.get(lineParameter.name());
+		if (value == null || value.isBlank()) {
+			throw new ScriptValidationException(
+					"Parameter '" + lineParameter.displayName() + "' is not set");
+		}
+		try {
+			return Integer.valueOf(value.trim());
+		} catch (NumberFormatException e) {
+			throw new ScriptValidationException("Invalid line index: " + value);
+		}
+	}
+
+	@Nullable
+	private ScriptParameter findLineParameter() {
+		for (ScriptParameter param : parameters()) {
+			if (param.type() == ScriptParameter.ParameterType.LINE_INDEX) {
+				return param;
+			}
+		}
+		return null;
+	}
+
 	public boolean supportsCurrentOs() {
 		if (operatingSystems == null || operatingSystems.isEmpty()) {
 			return true;

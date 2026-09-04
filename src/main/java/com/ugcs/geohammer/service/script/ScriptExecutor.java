@@ -70,7 +70,9 @@ public class ScriptExecutor {
 				throw new InterruptedException();
 			}
 
-			applyResult(sgyFile, tempFile, onSnapshotCreated);
+			if (metadata.replacesInput()) {
+				applyResult(sgyFile, tempFile, onSnapshotCreated);
+			}
 		} finally {
 			if (!tempFile.delete()) {
 				log.warn("Failed to delete temporary file: {}", tempFile);

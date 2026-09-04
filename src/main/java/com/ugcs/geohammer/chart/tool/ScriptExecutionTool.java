@@ -281,10 +281,11 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private VBox createParameterInput(ScriptParameter param, String initialValue) {
 		VBox paramBox = new VBox(Views.TOP_LABEL_SPACING);
-		String labelText = param.displayName() + rangeHint(param) + (param.required() ? " *" : "");
+		String labelText = param.getLabel(rangeHint(param));
 		Node inputNode = getInputNode(param, initialValue, labelText);
 		inputNode.setUserData(param);
-		if (param.type() != ScriptParameter.ParameterType.BOOLEAN) {
+		if (param.type() != ScriptParameter.ParameterType.BOOLEAN
+				&& param.type() != ScriptParameter.ParameterType.LINE_INDEX) {
 			Label label = new Label(labelText);
 			label.getStyleClass().addAll(Views.TOP_LABEL_STYLES);
 			label.setPadding(Views.TOP_LABEL_INSETS);
@@ -316,7 +317,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			case DOUBLE -> createDoubleField(initialValue);
 			case BOOLEAN -> createCheckBox(initialValue, labelText);
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
-			case LINE_INDEX -> new LineSelector(selectedFile, this::getChartLineIndex);
+			case LINE_INDEX -> new LineSelector(param, selectedFile, this::getChartLineIndex);
 			case FOLDER_PATH -> createFolderPathSelector(initialValue);
 			case ENUM -> createEnumSelector(param, initialValue);
 		};
@@ -545,7 +546,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	private static String extractValueFromNode(Node node) {
 		return switch (node) {
 			case LineSelector lineSelector -> {
-				Integer line = lineSelector.getSelectedLine();
+				Integer line = lineSelector.getSelectedLineIndex();
 				yield line != null ? String.valueOf(line) : "";
 			}
 			case TextField textField -> textField.getText();

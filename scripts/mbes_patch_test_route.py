@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-"""
-Generate a MBES Patch Test flight route from a single surveyed SVLOG line.
-
-L1 is the surveyed line, L3 and L5 are offset from it by half a swath to either side,
-and L2, L4, L6 are those three reversed. The offset is derived from the depth of every
-ping, so L3-L6 follow the bottom and come out as curves.
-
-The input file holds the packets of one line only: GeoHammer writes that temporary
-copy before the script starts.
-"""
 import argparse
 import math
 import os
@@ -16,6 +6,9 @@ import struct
 import sys
 import tempfile
 from xml.sax.saxutils import escape
+
+from scipy.ndimage import median_filter
+from shapely.geometry import LineString
 
 from script_utils import normalize_input_stem
 
@@ -27,17 +20,22 @@ HEADER_SIZE = 8
 NMEA_WRAPPER_ID = 109
 SURVEYOR_ATOF_POINT_DATA_ID = 3012
 
-# spacing stays well below the swath width (1.7 * depth) so the offset curve of L3-L6
-# still follows the bottom in shallow water; the tangent window keeps the direction
-# base at ~20 m, otherwise the normal picks up GPS noise
-WAYPOINT_SPACING_M = 2.0
-TANGENT_HALF_WINDOW = 5     # resampled points on each side of the tangent
+WAYPOINT_SPACING_M = 1.0
+
+# the direction of the track is taken over this much of it, so GPS noise does not swing
+# the normal of the offset; the window in points follows the spacing
+TANGENT_BASE_M = 20.0
+TANGENT_HALF_WINDOW = max(1, round(TANGENT_BASE_M / WAYPOINT_SPACING_M / 2))
 
 # the dense spacing above is what the offset needs, not what the route needs: waypoints
 # are thinned out again where the line runs straight, keeping the shape within this much
 SIMPLIFY_TOLERANCE_M = 0.5
 
-MEDIAN_WINDOW = 5           # pings, odd
+# a route point closer than this to the previous one carries no shape and only
+# makes the drone hunt between two places
+MIN_WAYPOINT_DISTANCE_M = 1.0
+
+MEDIAN_WINDOW = 5
 MIN_DEPTH_CHANGE = 2.0
 
 EARTH_RADIUS_M = 6378137.0
@@ -151,13 +149,8 @@ def read_pings(path):
 
 
 def smooth_depth(pings):
-    half = MEDIAN_WINDOW // 2
-    smoothed = []
-    for i in range(len(pings)):
-        window = [p[2] for p in pings[max(0, i - half):i + half + 1]]
-        window.sort()
-        smoothed.append((pings[i][0], pings[i][1], window[len(window) // 2]))
-    return smoothed
+    depths = median_filter([p[2] for p in pings], size=MEDIAN_WINDOW, mode="nearest")
+    return [(p[0], p[1], float(depth)) for p, depth in zip(pings, depths)]
 
 
 def to_local(pings):
@@ -211,39 +204,40 @@ def resample(track):
 
 
 def simplify(track):
-    # Douglas-Peucker: keep the points the shape depends on, drop the rest
     if len(track) < 3:
         return track
 
-    keep = [False] * len(track)
-    keep[0] = True
-    keep[-1] = True
-    pending = [(0, len(track) - 1)]
-    while pending:
-        first, last = pending.pop()
-        farthest = -1
-        farthest_distance = 0.0
-        for i in range(first + 1, last):
-            distance = _distance_to_segment(track[i], track[first], track[last])
-            if distance > farthest_distance:
-                farthest_distance = distance
-                farthest = i
-        if farthest > 0 and farthest_distance > SIMPLIFY_TOLERANCE_M:
-            keep[farthest] = True
-            pending.append((first, farthest))
-            pending.append((farthest, last))
+    line = LineString([(x, y) for x, y, _ in track])
+    kept = list(line.simplify(SIMPLIFY_TOLERANCE_M, preserve_topology=False).coords)
 
-    return [point for point, kept in zip(track, keep) if kept]
+    # simplify keeps a subset of the vertices in order, so the depths follow them
+    simplified = []
+    index = 0
+    for point in track:
+        if index < len(kept) and point[0] == kept[index][0] and point[1] == kept[index][1]:
+            simplified.append(point)
+            index += 1
+    return simplified
 
 
-def _distance_to_segment(point, start, end):
-    dx, dy = end[0] - start[0], end[1] - start[1]
-    length2 = dx * dx + dy * dy
-    if length2 == 0.0:
-        return math.hypot(point[0] - start[0], point[1] - start[1])
-    t = ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / length2
-    t = max(0.0, min(1.0, t))
-    return math.hypot(point[0] - (start[0] + t * dx), point[1] - (start[1] + t * dy))
+def thin(track):
+    if len(track) < 3:
+        return track
+
+    thinned = [track[0]]
+    for point in track[1:-1]:
+        if _distance(point, thinned[-1]) >= MIN_WAYPOINT_DISTANCE_M:
+            thinned.append(point)
+
+    last = track[-1]
+    while len(thinned) > 1 and _distance(last, thinned[-1]) < MIN_WAYPOINT_DISTANCE_M:
+        thinned.pop()
+    thinned.append(last)
+    return thinned
+
+
+def _distance(a, b):
+    return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
 def offset(track, sign):
@@ -333,9 +327,9 @@ def main():
 
     # offsets need the dense track for a stable tangent; the route does not
     resampled = resample(track)
-    l1 = simplify(resampled)
-    l3 = simplify(offset(resampled, 1.0))
-    l5 = simplify(offset(resampled, -1.0))
+    l1 = thin(simplify(resampled))
+    l3 = thin(simplify(offset(resampled, 1.0)))
+    l5 = thin(simplify(offset(resampled, -1.0)))
     lines = {
         "L1": to_geodetic(l1, latitude0, longitude0),
         "L2": to_geodetic(l1[::-1], latitude0, longitude0),

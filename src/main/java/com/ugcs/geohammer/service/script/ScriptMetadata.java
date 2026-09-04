@@ -16,6 +16,10 @@ public record ScriptMetadata(
         @JsonProperty("operating_systems")
         @Nullable List<String> operatingSystems
 ) {
+	public boolean replacesInput() {
+		return findLineParameter() == null;
+	}
+
 	@Nullable
 	public Integer getLineIndex(Map<String, String> parameters) throws ScriptValidationException {
 		ScriptParameter lineParameter = findLineParameter();

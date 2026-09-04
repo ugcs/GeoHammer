@@ -43,7 +43,7 @@ public class GetGprInfo extends McpTool {
             result.put("name", file != null ? file.getName() : null);
             result.put("template", Templates.getTemplateName(traceFile));
             result.put("traces", traceFile.numTraces());
-            result.put("samplesPerTrace", traceFile.getMaxSamples());
+            result.put("samplesPerTrace", traceFile.maxSamples());
             result.put("sampleInterval", traceFile.getSampleInterval());
             result.put("cmPerSampleInAir", traceFile.getSamplesToCmAir());
             result.put("cmPerSampleInGround", traceFile.getSamplesToCmGrn());

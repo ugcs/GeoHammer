@@ -292,7 +292,7 @@ public class GprFile extends TraceFile {
 		Check.notNull(file);
 		Check.notNull(range);
 
-        short numSamples = (short)getMaxSamples();
+        short numSamples = (short) maxSamples();
         // update number of samples in the header
         if (numSamples != binaryHeader.getSamplesPerDataTrace()) {
             binaryHeader.setSamplesPerDataTrace(numSamples);

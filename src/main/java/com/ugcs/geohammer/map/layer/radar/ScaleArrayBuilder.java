@@ -3,42 +3,44 @@ package com.ugcs.geohammer.map.layer.radar;
 import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.format.TraceFile;
 
+import java.util.Arrays;
+
 public class ScaleArrayBuilder implements ArrayBuilder {
 
 	private final Settings settings;
 
-	private double[][] scaleArray = null;
+	private double[][] scale;
 	
 	public ScaleArrayBuilder(Settings settings) {
 		this.settings = settings;
 	}
 	
-	/* (non-Javadoc)
-	 * @see com.ugcs.geohammer.map.layer.radar.ArrayBuilder#build()
-	 */
 	@Override
 	public double[][] build(TraceFile file) {
-		
-		if (scaleArray != null) {
-			return scaleArray;
+		if (scale != null) {
+			return scale;
 		}
-		
-		scaleArray = new double[2][settings.getMaxSamples()];
-		
-		for (int i = 0; i < settings.getMaxSamples(); i++) {
-			scaleArray[0][i] = settings.getThreshold();
-			scaleArray[1][i] = (settings.getTopGain()
-					+ (settings.getBottomGain() - settings.getTopGain())
-					* i / settings.getMaxSamples())
-					/ 10000.0;
+
+		int maxSamples = settings.getMaxSamples();
+		scale = new double[2][maxSamples];
+
+		double threshold = settings.getThreshold();
+		int topGain = settings.getTopGain();
+		int bottomGain = settings.getBottomGain();
+
+		// gain increase by sample
+		double gainFactor = (double)(bottomGain - topGain) / maxSamples;
+
+		for (int i = 0; i < maxSamples; i++) {
+			scale[0][i] = threshold;
+			scale[1][i] = (topGain + gainFactor * i) / 10_000.0;
 		}
-		
-		return scaleArray;
+
+		return scale;
 	}
 
 	@Override
 	public void clear() {
-		scaleArray = null;
+		scale = null;
 	}
-
 }

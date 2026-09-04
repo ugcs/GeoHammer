@@ -22,7 +22,6 @@ import com.ugcs.geohammer.service.gpr.EdgeFinder;
 import com.ugcs.geohammer.service.gpr.SpreadCoordinates;
 import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
-import com.ugcs.geohammer.model.ScanProfile;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.IndexRange;
@@ -62,8 +61,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
     protected HorizontalProfile groundProfile;
 
     @Nullable
-    // amplitude
-    private ScanProfile amplScan;
+    private ScanProfile amplitudeProfile;
 
     protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
@@ -177,12 +175,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
         return 100.0 / sampleDistance;
     }
 
-    public @Nullable ScanProfile getAmplScan() {
-        return amplScan;
+    public @Nullable ScanProfile getAmplitudeProfile() {
+        return amplitudeProfile;
     }
 
-    public void setAmplScan(@Nullable ScanProfile amplScan) {
-        this.amplScan = amplScan;
+    public void setAmplitudeProfile(@Nullable ScanProfile amplitudeProfile) {
+        this.amplitudeProfile = amplitudeProfile;
     }
 
     public boolean isSpreadCoordinatesNecessary() {
@@ -323,8 +321,12 @@ public abstract class TraceFile extends SgyFileWithMeta {
         }
     }
 
-    public int getMaxSamples() {
-        return getTraces().getFirst().numSamples();
+    public int maxSamples() {
+        int maxSamples = 0;
+        for (Trace trace : getTraces()) {
+            maxSamples = Math.max(maxSamples, trace.numSamples());
+        }
+        return maxSamples;
     }
 
     public void addLineBoundaryMarks() {

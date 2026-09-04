@@ -7,7 +7,7 @@ import com.ugcs.geohammer.model.ProgressListener;
 import com.ugcs.geohammer.map.layer.radar.ArrayBuilder;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
-import com.ugcs.geohammer.model.ScanProfile;
+import com.ugcs.geohammer.format.ScanProfile;
 import com.ugcs.geohammer.model.event.WhatChanged;
 
 public class RadarMapScan implements Command {
@@ -21,9 +21,10 @@ public class RadarMapScan implements Command {
 	}
 	
 	public void execute(TraceFile file, ProgressListener listener) {
-
-		if (file.getAmplScan() == null) {
-			file.setAmplScan(new ScanProfile(file.numTraces()));
+		ScanProfile profile = file.getAmplitudeProfile();
+		if (profile == null) {
+			profile = new ScanProfile(file.numTraces());
+			file.setAmplitudeProfile(profile);
 		}
 
 		GPRChart gprChart = model.getGprChart(file);
@@ -38,13 +39,13 @@ public class RadarMapScan implements Command {
 			for (int i = 0; i < file.numTraces(); i++) {
 				Trace trace = file.getTraces().get(i);
 				double alpha = calcAlpha(trace, start, finish, field.getSettings(), scaleBuilder.build(file));
-				file.getAmplScan().intensity[i] = alpha;
+				profile.setIntensity(i, alpha);
 			}
 		}
 	}
 
 	private double calcAlpha(Trace trace, int start, int finish, Settings profileSettings, double[][] scaleArray) {
-		double mx = 0;
+		double max = 0;
 
 		start = Math.clamp(start, 0, trace.numSamples());
 		finish = Math.clamp(finish, 0, trace.numSamples());
@@ -55,16 +56,16 @@ public class RadarMapScan implements Command {
 			double threshold = scaleArray[0][i];
 			double factor = scaleArray[1][i];		
 			
-			if (!trace.getEdge(i).isEmpty()) {
+			if (trace.getEdge(i).isPeak()) {
 				double av = Math.abs(trace.getSample(i));
 				if (av < additionalThreshold) {
 					av = 0;
 				}
 				double val = Math.max(0, av - threshold) * factor;
-				mx = Math.max(mx, val);
+				max = Math.max(max, val);
 			}
 		}
-		return Math.clamp(mx, 0, 200);
+		return Math.clamp(max, 0, 200);
 	}
 
 	@Override

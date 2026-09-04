@@ -12,6 +12,7 @@ import com.ugcs.geohammer.model.ActivationPolicy;
 import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.util.PaletteBuilder;
 import javafx.geometry.Point2D;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -25,7 +26,7 @@ import com.ugcs.geohammer.service.gpr.CommandRegistry;
 import com.ugcs.geohammer.service.gpr.RadarMapScan;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
-import com.ugcs.geohammer.model.ScanProfile;
+import com.ugcs.geohammer.format.ScanProfile;
 import com.ugcs.geohammer.view.control.AutoGainCheckbox;
 import com.ugcs.geohammer.view.control.BaseCheckBox;
 import com.ugcs.geohammer.view.control.BaseSlider;
@@ -45,6 +46,8 @@ import javafx.scene.layout.VBox;
 
 @Component
 public class RadarMap extends BaseLayer implements InitializingBean {
+
+	private static final int[] PALETTE = new PaletteBuilder().build();
 
 	private static final double MIN_CIRCLE_THRESHOLD = 2.0;
 
@@ -138,7 +141,7 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 	@Override
 	public void afterPropertiesSet() throws Exception {		
 		
-		autoArrayBuilder = new MedianScaleBuilder(model);
+		autoArrayBuilder = new MedianScaleBuilder();
 		scaleArrayBuilder = new ScaleArrayBuilder(radarMapSettings);
 
 		Settings settings = radarMapSettings;
@@ -209,26 +212,19 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		commandRegistry.runForGprFiles(
 				model.getFileManager().getGprFiles(),
 				new RadarMapScan(getArrayBuilder(), model));
-		int[] palette = DblArray.paletteAmp;
 
 		drawCircles(field, da);
-		da.toImg(img, palette);
+		da.toImg(img, PALETTE);
 	}
 
 	public void drawCircles(MapField field, DblArray da) {
 		for (TraceFile file : model.getFileManager().getGprFiles()) {
-			
-			ScanProfile profile = getFileScanProfile(file);
-			
+			ScanProfile profile = file.getAmplitudeProfile();
 			List<Trace> traces = file.getTraces();
 			if (profile != null) {
 				drawFileCircles(field, da, file, profile, traces);
 			}
 		}
-	}
-
-	public ScanProfile getFileScanProfile(TraceFile file) {
-        return file.getAmplScan();
 	}
 
 	public void drawFileCircles(MapField field, DblArray da, SgyFile file, 
@@ -240,21 +236,15 @@ public class RadarMap extends BaseLayer implements InitializingBean {
 		
 		for (int i = 0; i < file.numTraces(); i++) {
 			Trace trace = traces.get(i);
-			
-			double alpha = profile.intensity[i];
-			int effectRadius = 
-					(int) (profile.radius != null ? profile.radius[i] : radius);
-			
+			double alpha = profile.getIntensity(i);
+
 			if (alpha > MIN_CIRCLE_THRESHOLD) {				
-			
 				Point2D p = field.latLonToScreen(trace.getLatLon());
-				
 				da.drawCircle(
-					(int) p.getX() + centerX, 
-					(int) p.getY() + centerY, 
-					effectRadius, 
+					(int) p.getX() + centerX,
+					(int) p.getY() + centerY,
+					radius,
 					alpha);
-				
 			}
 		}
 	}

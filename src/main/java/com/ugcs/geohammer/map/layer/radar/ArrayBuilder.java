@@ -4,10 +4,9 @@ import com.ugcs.geohammer.format.TraceFile;
 
 public interface ArrayBuilder {
 
-	/**
-	 * builds. 
-	 * @return [0] - threshold,  [1] - scale  
-	 */
+	// [2, maxSamples]
+	// 0: threshold by depth
+	// 1: scale factor by depth
 	double[][] build(TraceFile file);
 	
 	void clear();

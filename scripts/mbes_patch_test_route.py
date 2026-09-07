@@ -7,8 +7,8 @@ import sys
 import tempfile
 from xml.sax.saxutils import escape
 
-from rdp import rdp
 from scipy.ndimage import median_filter
+from shapely.geometry import LineString
 
 from script_utils import normalize_input_stem
 
@@ -204,12 +204,25 @@ def resample(track):
     return resampled
 
 
+# Ramer-Douglas-Peucker over x/y. preserve_topology=False selects plain Douglas-Peucker;
+# the default in shapely is a topology preserving variant, which is a different algorithm.
+# The simplified line keeps original vertices, so the depth of each one is recovered by
+# walking the input in order
 def simplify(track):
     if len(track) < 3:
         return track
 
-    kept = rdp([[x, y] for x, y, _ in track], epsilon=SIMPLIFY_TOLERANCE_M, return_mask=True)
-    return [point for point, keep in zip(track, kept) if keep]
+    line = LineString([(x, y) for x, y, _ in track])
+    simplified = []
+    index = 0
+    for x, y in line.simplify(SIMPLIFY_TOLERANCE_M, preserve_topology=False).coords:
+        while index < len(track) and (track[index][0], track[index][1]) != (x, y):
+            index += 1
+        if index == len(track):
+            raise ValueError("Simplified line holds a point that is not a track point")
+        simplified.append(track[index])
+        index += 1
+    return simplified
 
 
 def thin(track):

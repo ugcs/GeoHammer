@@ -1,11 +1,13 @@
 package com.ugcs.geohammer.service.script;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -16,8 +18,16 @@ public class CommandExecutor {
 	private static final Logger log = LoggerFactory. getLogger(CommandExecutor. class);
 
 	public void executeCommand(List<String> command, Consumer<String> onOutput) throws IOException, InterruptedException {
+		executeCommand(command, null, onOutput);
+	}
+
+	public void executeCommand(List<String> command, @Nullable File workingDirectory, Consumer<String> onOutput)
+			throws IOException, InterruptedException {
 		log.debug("Executing command: {}", String.join(" ", command));
 		ProcessBuilder processBuilder = new ProcessBuilder(command);
+		if (workingDirectory != null) {
+			processBuilder.directory(workingDirectory);
+		}
 		processBuilder.redirectErrorStream(true);
 
 		Process process = processBuilder.start();

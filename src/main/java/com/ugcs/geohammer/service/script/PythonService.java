@@ -224,7 +224,9 @@ public class PythonService {
 				"--mode",
 				"no-pin"
 		);
-		commandExecutor.executeCommand(command, onOutput);
+		// pipreqs walks every sys.path entry, and "python -m" puts the working directory there;
+		// run it in the script copy directory so the walk stays inside it
+		commandExecutor.executeCommand(command, directory.toFile(), onOutput);
 	}
 
 	private void installDependenciesFromRequirements(Path directory, Consumer<String> onOutput) throws IOException,

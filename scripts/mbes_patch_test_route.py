@@ -4,7 +4,6 @@ import math
 import os
 import struct
 import sys
-import tempfile
 from xml.sax.saxutils import escape
 
 from scipy.ndimage import median_filter
@@ -19,6 +18,8 @@ BEAM_WIDTH_DEG = 80.0
 HEADER_SIZE = 8
 NMEA_WRAPPER_ID = 109
 SURVEYOR_ATOF_POINT_DATA_ID = 3012
+# a side scan sonar: it carries no soundings, so its logs are refused
+OMNISCAN_MONO_PROFILE_ID = 2198
 
 WAYPOINT_SPACING_M = 1.0
 
@@ -146,6 +147,10 @@ def read_pings(path):
             if depth is None or not depth > 0.0 or location is None:
                 continue
             pings.append((location[0], location[1], depth))
+        elif packet_id == OMNISCAN_MONO_PROFILE_ID:
+            sys.exit("This script cannot be applied to an Omniscan log: an Omniscan is a "
+                     "side scan sonar and it records no soundings. The MBES patch test "
+                     "needs a log of a Cerulean Surveyor multibeam sonar")
     return pings
 
 
@@ -284,19 +289,8 @@ def write_kml(lines, path, document_name):
     parts.append('</kml>')
     document = "\n".join(parts) + "\n"
 
-    # write aside and rename, so an interrupted run leaves no half-written route
-    directory = os.path.dirname(path) or "."
-    handle, temporary = tempfile.mkstemp(dir=directory, suffix=".kml")
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8") as f:
-            f.write(document)
-        # mkstemp creates the file private to its owner, a route is not a secret
-        os.chmod(temporary, 0o644)
-        os.replace(temporary, path)
-    except BaseException:
-        if os.path.exists(temporary):
-            os.remove(temporary)
-        raise
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(document)
 
 
 def main():

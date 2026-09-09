@@ -36,7 +36,6 @@ import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.format.HorizontalProfile;
 import com.ugcs.geohammer.view.control.BaseSlider;
 import com.ugcs.geohammer.model.IndexRange;
-import com.ugcs.geohammer.view.control.ContrastSlider;
 import javafx.application.Platform;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Tooltip;
@@ -390,7 +389,7 @@ public class GPRChart extends Chart {
 
         var mainRect = profileField.getMainRect();
         g2.setClip(mainRect.x, mainRect.y, mainRect.width, mainRect.height);
-        prismDrawer.draw(width, this, g2, buffer, getRealContrast());
+        prismDrawer.draw(width, this, g2, buffer);
         g2.drawImage(drawImage, 0, 0, width, height, null);
 
         g2.translate(mainRect.x + mainRect.width / 2, 0);
@@ -427,11 +426,6 @@ public class GPRChart extends Chart {
                     file.getGroundProfile(),
                     shiftGround.intValue());
         }
-    }
-
-    private double getRealContrast() {
-        Settings settings = profileField.getSettings();
-        return Math.pow(1.08, 140 - settings.getContrast());
     }
 
     private void drawAmplitudeMapLevels(Graphics2D g2) {

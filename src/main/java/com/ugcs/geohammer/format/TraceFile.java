@@ -60,7 +60,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
     protected HorizontalProfile groundProfile;
 
     @Nullable
-    private volatile Statistics statistics;
+    private volatile SampleStatistics statistics;
 
     protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
@@ -217,10 +217,10 @@ public abstract class TraceFile extends SgyFileWithMeta {
         this.groundProfile = groundProfile;
     }
 
-    public Statistics getStatistics() {
-        Statistics stats = statistics;
+    public SampleStatistics getStatistics() {
+        SampleStatistics stats = statistics;
         if (stats == null) {
-            stats = Statistics.compute(this);
+            stats = SampleStatistics.compute(this);
             statistics = stats;
         }
         return stats;
@@ -265,10 +265,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
             return null;
         }
     }
-
-    public abstract void normalize();
-
-    public abstract void denormalize();
 
     @Override
     public int numTraces() {
@@ -426,42 +422,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
         @Override
         public void discard() {
             tracesEntry.close();
-        }
-    }
-
-    public record Statistics(double baseline, double dispersion) {
-
-        public static Statistics compute(TraceFile file) {
-            List<Trace> traces = Check.notNull(file).getTraces();
-
-            double baseline = 0;
-            long n = 0;
-            for (Trace trace : traces) {
-                int numSamples = trace.numSamples();
-                // only bottom half because top has big distortion
-                for (int i = numSamples / 2; i < numSamples; i++) {
-                    baseline += trace.getSample(i);
-                    n++;
-                }
-            }
-            if (n > 0) {
-                baseline /= n;
-            }
-
-            double dispersion = 0;
-            n = 0;
-            for (Trace trace : traces) {
-                int numSamples = trace.numSamples();
-                for (int i = 0; i < numSamples; i++) {
-                    dispersion += Math.abs(trace.getSample(i) - baseline);
-                    n++;
-                }
-            }
-            if (n > 0) {
-                dispersion /= n;
-            }
-
-            return new Statistics(baseline, dispersion);
         }
     }
 }

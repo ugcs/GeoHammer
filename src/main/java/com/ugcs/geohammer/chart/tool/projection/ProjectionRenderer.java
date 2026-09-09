@@ -1,7 +1,7 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.chart.tool.projection.math.ContrastCurve;
+import com.ugcs.geohammer.chart.gpr.ContrastCurve;
 import com.ugcs.geohammer.chart.tool.projection.math.DbGain;
 import com.ugcs.geohammer.chart.tool.projection.math.Polyline;
 import com.ugcs.geohammer.chart.tool.projection.model.Grid;
@@ -11,6 +11,8 @@ import com.ugcs.geohammer.chart.tool.projection.model.RenderOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceProfile;
 import com.ugcs.geohammer.chart.tool.projection.model.TraceRay;
 import com.ugcs.geohammer.chart.tool.projection.model.Viewport;
+import com.ugcs.geohammer.format.SampleStatistics;
+import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.service.palette.Palettes;
 import com.ugcs.geohammer.service.palette.Spectrum;
 import com.ugcs.geohammer.service.palette.SpectrumType;
@@ -87,7 +89,7 @@ class ProjectionRenderer {
         if (traceProfile != null) {
             Grid grid =  projectionResult.getGrid();
             if (grid != null) {
-                drawGrid(grid);
+                drawGrid(traceProfile, grid);
             }
             if (renderOptions.isShowNormals()) {
                 drawNormals(traceProfile);
@@ -110,7 +112,7 @@ class ProjectionRenderer {
                 | color.getBlue();
     }
 
-    private void drawGrid(Grid grid) {
+    private void drawGrid(TraceProfile traceProfile, Grid grid) {
         Viewport viewport = projectionModel.getViewport();
 
         int w = (int)canvas.getWidth();
@@ -120,7 +122,10 @@ class ProjectionRenderer {
         }
 
         RenderOptions renderOptions = projectionModel.getRenderOptions();
-        ContrastCurve contrastCurve = new ContrastCurve(100 * renderOptions.getContrast());
+        SampleStatistics sampleStatistics = traceProfile.getSamples().getStatistics();
+        ContrastCurve contrastCurve = new ContrastCurve(
+                sampleStatistics.dispersion(),
+                100 * renderOptions.getContrast());
         DbGain gainFunction = new DbGain(0, renderOptions.getMaxGain());
         float maxDepth = grid.getMaxDepth();
 

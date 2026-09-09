@@ -151,7 +151,7 @@ public class HorizontalProfile {
         List<Trace> traces = traceFile.getFileTraces();
         int n = Math.min(surface.length, traces.size());
 
-        float baseline = (float)traceFile.getStatistics().baseline();
+        float baseline = traceFile.getStatistics().baseline();
 
         // find peaks with both polarities
         int[][] peaks = new int[n][];
@@ -234,7 +234,7 @@ public class HorizontalProfile {
         List<Trace> traces = traceFile.getFileTraces();
         int n = Math.min(surface.length, traces.size());
 
-        float baseline = (float)traceFile.getStatistics().baseline();
+        float baseline = traceFile.getStatistics().baseline();
 
         // highest surface sample
         int level = Integer.MAX_VALUE;

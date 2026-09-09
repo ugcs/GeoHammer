@@ -9,7 +9,7 @@ public class BottomGainSlider extends BaseSlider {
 	private final RadarSettings settings;
 
 	public BottomGainSlider(RadarSettings settings) {
-		super("Bottom gain", Unit.symbol("%", ""), new Range(1, 100));
+		super("Bottom gain", Unit.symbol("%", ""), new Range(0, 100), 10);
 		this.settings = settings;
 		update();
 	}

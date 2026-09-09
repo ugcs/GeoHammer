@@ -9,7 +9,7 @@ public class ThresholdSlider  extends BaseSlider {
 	private final RadarSettings settings;
 
 	public ThresholdSlider(RadarSettings settings) {
-		super("Threshold", Unit.empty(), new Range(0, 20));
+		super("Threshold", Unit.empty(), new Range(0, 20), 0.5);
 		this.settings = settings;
 		update();
 	}

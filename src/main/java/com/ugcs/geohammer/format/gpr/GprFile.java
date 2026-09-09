@@ -86,8 +86,6 @@ public class GprFile extends TraceFile {
 
     private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 
-    private SampleNormalizer sampleNormalizer = new SampleNormalizer();
-
 	@Override
 	public int getSampleInterval() {
 		return binaryHeader.getSampleInterval();
@@ -138,10 +136,7 @@ public class GprFile extends TraceFile {
 		}
 
 		loadMeta(traces);
-
-		sampleNormalizer.normalize(traces);
 		setTraces(traces);
-
 		updateTraces();
 		copyMarkedTracesToAuxElements();
 		updateTraceDistances();
@@ -362,7 +357,6 @@ public class GprFile extends TraceFile {
 		copy.txtHdr = this.txtHdr;
 		copy.binaryHeader = this.binaryHeader;
 		copy.byteOrder = this.byteOrder;
-		copy.sampleNormalizer.copyFrom(this.sampleNormalizer);
 
 		copy.setFile(getFile());
 		copy.setUnsaved(isUnsaved());
@@ -380,15 +374,5 @@ public class GprFile extends TraceFile {
 		copy.setAuxElements(elementsCopy);
 
 		return copy;
-	}
-
-	@Override
-	public void normalize() {
-		sampleNormalizer.normalize(traces);
-	}
-
-	@Override
-	public void denormalize() {
-		sampleNormalizer.back(traces);
 	}
 }

@@ -261,7 +261,6 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		if (sgyFile instanceof TraceFile traceFile) {
 			TraceFile copy = traceFile.copy();
-			copy.denormalize();
 			copy.addLineBoundaryMarks();
 			copy.save(toFile);
 		}
@@ -296,7 +295,6 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		if (sgyFile instanceof TraceFile traceFile) {
             TraceFile copy = traceFile.copy();
-			copy.denormalize();
             sgyFile = copy;
 		}
 

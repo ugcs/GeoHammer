@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.chart.tool.projection;
 
-import com.ugcs.geohammer.chart.tool.projection.math.ContrastCurve;
+import com.ugcs.geohammer.chart.gpr.ContrastCurve;
 import com.ugcs.geohammer.chart.tool.projection.math.DbGain;
 import com.ugcs.geohammer.chart.tool.projection.math.GainFunction;
 import com.ugcs.geohammer.chart.tool.projection.model.ExportFormat;
@@ -137,13 +137,12 @@ public class ExportService {
         GainFunction gainFunction = new DbGain(0, renderOptions.getMaxGain());
         float gainMaxDepth = grid.getMaxDepth();
 
-        ContrastCurve contrastCurve = null;
         ExportOptions exportOptions = projectionModel.getExportOptions();
-        if (exportOptions.isApplyContrast()) {
-            contrastCurve = new ContrastCurve(100 * renderOptions.getContrast());
-        }
-
-        return new ExportContext(gainFunction, gainMaxDepth, contrastCurve);
+        return new ExportContext(
+                gainFunction,
+                gainMaxDepth,
+                exportOptions.isApplyContrast(),
+                100 * renderOptions.getContrast());
     }
 
     private void writePoints(ScalarPointWriter writer,
@@ -180,6 +179,10 @@ public class ExportService {
 
         GainFunction gainFunction = context.gainFunction();
         float gainMaxDepth = context.gainMaxDepth();
+        float dispersion = profile.getSamples().getStatistics().dispersion();
+        ContrastCurve contrastCurve = context.applyContrast()
+                ? new ContrastCurve(dispersion, context.contrast())
+                : null;
 
         int width = grid.getWidth();
         int height = grid.getHeight();
@@ -202,8 +205,8 @@ public class ExportService {
 
                 float gain = gainFunction.getGain(gainMaxDepth > 0 ? cell.getDepth() / gainMaxDepth : 0);
                 float value = gain * cell.getValue();
-                if (context.contrastCurve() != null) {
-                    value = context.contrastCurve().map(value);
+                if (contrastCurve != null) {
+                    value = contrastCurve.map(value);
                 }
                 writer.write(new ScalarPoint(
                         columnWorldPoint.getX(),
@@ -260,6 +263,7 @@ public class ExportService {
     private record ExportRange(TraceFile traceFile, int line) {
     }
 
-    private record ExportContext(GainFunction gainFunction, float gainMaxDepth, ContrastCurve contrastCurve) {
+    private record ExportContext(GainFunction gainFunction, float gainMaxDepth,
+            boolean applyContrast, double contrast) {
     }
 }

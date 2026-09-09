@@ -9,7 +9,7 @@ public class RadiusSlider extends BaseSlider {
 	private final RadarSettings settings;
 
 	public RadiusSlider(RadarSettings settings) {
-		super("Radius", Unit.symbol("px"), new Range(2, 50));
+		super("Radius", Unit.symbol("px"), new Range(2.5, 50), 2.5);
 		this.settings = settings;
 		update();
 	}

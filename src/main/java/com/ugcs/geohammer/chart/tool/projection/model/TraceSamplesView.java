@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.tool.projection.model;
 
+import com.ugcs.geohammer.format.SampleStatistics;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.IndexRange;
@@ -15,6 +16,10 @@ public class TraceSamplesView implements TraceSamples {
 
     private final int maxSamples;
 
+    private final float baseline;
+
+    private final SampleStatistics statistics;
+
     public TraceSamplesView(TraceFile file, IndexRange range, int sampleOffset) {
         Check.notNull(file);
         Check.notNull(range);
@@ -24,11 +29,21 @@ public class TraceSamplesView implements TraceSamples {
         this.range = range;
         this.sampleOffset = sampleOffset;
 
+        // values are emitted relative to the file baseline
+        SampleStatistics fileStatistics = file.getStatistics();
+        this.baseline = fileStatistics.baseline();
+        this.statistics = new SampleStatistics(0f, fileStatistics.dispersion());
+
         int maxSamples = 0;
         for (int i = 0; i < range.size(); i++) {
             maxSamples = Math.max(maxSamples, numSamples(i));
         }
         this.maxSamples = maxSamples;
+    }
+
+    @Override
+    public SampleStatistics getStatistics() {
+        return statistics;
     }
 
     @Override
@@ -62,6 +77,6 @@ public class TraceSamplesView implements TraceSamples {
             }
             sampleIndex -= sampleRange.from();
         }
-        return trace.getSample(sampleIndex);
+        return trace.getSample(sampleIndex) - baseline;
     }
 }

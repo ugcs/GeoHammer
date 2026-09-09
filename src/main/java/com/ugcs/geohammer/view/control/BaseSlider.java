@@ -28,16 +28,16 @@ public abstract class BaseSlider extends HBox {
     private final DecimalFormat format = new DecimalFormat(
             "0.#", DecimalFormatSymbols.getInstance(Locale.US));
 
-    public BaseSlider(String name, Unit unit, Range range) {
+    public BaseSlider(String name, Unit unit, Range range, double tickUnit) {
         this.name = name;
         this.unit = unit;
 
         slider = new Slider(range.getMin(), range.getMax(), range.getMin());
-        double tickUnits = Ticks.getPrettyTick(range.getMin(), range.getMax(), 10);
-        slider.setMajorTickUnit(tickUnits);
-        slider.setPrefWidth(200);
-        slider.setShowTickLabels(true);
         slider.setShowTickMarks(true);
+        slider.setShowTickLabels(true);
+        slider.setMajorTickUnit(tickUnit);
+        slider.setMinorTickCount(0);
+        slider.setPrefWidth(200);
         slider.setBlockIncrement(1);
 
         Listeners.onChange(slider.valueProperty(), v -> {

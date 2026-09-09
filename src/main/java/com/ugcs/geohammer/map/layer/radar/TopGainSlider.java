@@ -9,7 +9,7 @@ public class TopGainSlider extends BaseSlider {
 	private final RadarSettings settings;
 
 	public TopGainSlider(RadarSettings settings) {
-		super("Top gain", Unit.symbol("%", ""), new Range(1, 100));
+		super("Top gain", Unit.symbol("%", ""), new Range(0, 100), 10);
 		this.settings = settings;
 		update();
 	}

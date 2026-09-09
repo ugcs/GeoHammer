@@ -2,6 +2,7 @@ package com.ugcs.geohammer.map.layer.radar;
 
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
+import com.ugcs.geohammer.format.SampleStatistics;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.math.QuickSelect;
@@ -30,7 +31,7 @@ public class IntensityCalculator {
         Check.notNull(file);
         Check.notNull(radarSettings);
 
-        TraceFile.Statistics stats = file.getStatistics();
+        SampleStatistics sampleStatistics = file.getStatistics();
         List<Trace> traces = file.getTraces();
         int numTraces = traces.size();
 
@@ -46,7 +47,7 @@ public class IntensityCalculator {
 
         // peaks
         List<List<Peak>> peaks = new ArrayList<>(numTraces);
-        float baseline = (float) stats.baseline();
+        float baseline = sampleStatistics.baseline();
         for (Trace trace : traces) {
             List<Peak> tracePeaks = findPeaks(trace, sampleRange, baseline);
             peaks.add(tracePeaks);
@@ -59,7 +60,7 @@ public class IntensityCalculator {
 
         // intensity
         double hardThreshold = radarSettings.isAutoGain()
-                ? radarSettings.getThreshold() * stats.dispersion()
+                ? radarSettings.getThreshold() * sampleStatistics.dispersion()
                 : 0;
         for (int i = 0; i < intensity.length; i++) {
             List<Peak> tracePeaks = peaks.get(i);
@@ -126,13 +127,13 @@ public class IntensityCalculator {
     }
 
     private Scale buildManualScale(TraceFile file, IndexRange sampleRange, RadarSettings radarSettings) {
-        TraceFile.Statistics stats = file.getStatistics();
+        SampleStatistics sampleStatistics = file.getStatistics();
 
         int maxSamples = file.maxSamples();
         float[] thresholds = new float[maxSamples];
         float[] factors = new float[maxSamples];
 
-        double dispersion = stats.dispersion();
+        double dispersion = sampleStatistics.dispersion();
         double threshold = radarSettings.getThreshold() * dispersion;
         // gain increase per sample in dispersion units
         double gainFactor = (radarSettings.getBottomGain() - radarSettings.getTopGain()) / maxSamples;

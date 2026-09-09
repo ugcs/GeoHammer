@@ -61,8 +61,7 @@ public class PythonInterpreter {
 
 	public void checkVersion() throws InterruptedException {
 		try {
-			String version = getVersion();
-			PythonVersion pythonVersion = PythonVersion.parse(version);
+			PythonVersion pythonVersion = getVersion();
 			if (pythonVersion.compareTo(MINIMAL_VERSION) < 0) {
 				throw new IllegalStateException(
 						"Python version " + pythonVersion + " is not supported. " + INSTALL_HINT);
@@ -73,11 +72,11 @@ public class PythonInterpreter {
 		}
 	}
 
-	private String getVersion() throws IOException, InterruptedException {
+	public PythonVersion getVersion() throws IOException, InterruptedException {
 		StringBuilder output = new StringBuilder();
 		commandExecutor.executeCommand(
 				List.of(getPath().toString(), "--version"),
 				line -> output.append(line).append('\n'));
-		return output.toString().trim();
+		return PythonVersion.parse(output.toString().trim());
 	}
 }

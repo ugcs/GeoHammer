@@ -39,8 +39,9 @@ public class EventsFactory {
                 .withProperty("expires_at", expiresAt);
     }
 
-    public Event createScriptExecutionStartedEvent(String scriptName) {
+    public Event createScriptExecutionStartedEvent(String scriptName, String pythonVersion) {
         return new Event(EventType.SCRIPT_EXECUTION_STARTED, null, null, null)
-                .withProperty("script_name", scriptName);
+                .withProperty("script_name", scriptName)
+                .withProperty("python_version", pythonVersion);
     }
 }

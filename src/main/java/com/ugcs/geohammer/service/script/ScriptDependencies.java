@@ -41,6 +41,10 @@ public class ScriptDependencies {
 			throws IOException, InterruptedException, DependencyImportException {
 		String filename = scriptFile.getName();
 
+		Path requirementsPath = forceReinstall
+				? scriptRequirements.generate(scriptFile, onOutput)
+				: scriptRequirements.generateIfMissing(scriptFile, onOutput);
+
 		if (!forceReinstall) {
 			try {
 				scriptImports.verify(scriptFile);
@@ -51,26 +55,22 @@ public class ScriptDependencies {
 			}
 		}
 
-		ScriptRequirements.Requirements requirements = scriptRequirements.derive(scriptFile, onOutput);
-		if (requirements == null) {
+		if (requirementsPath == null) {
 			return;
 		}
-		try (requirements) {
-			Path requirementsPath = requirements.path();
-			if (requirementsPath == null) {
-				onOutput.accept("No dependencies found for script " + filename);
-			} else if (forceReinstall) {
-				packageInstaller.reinstallFromRequirements(requirementsPath, onOutput);
-			} else {
-				packageInstaller.installFromRequirements(requirementsPath, onOutput);
-			}
 
-			scriptImports.verify(scriptFile);
-			if (requirementsPath != null) {
-				onOutput.accept(forceReinstall
-						? "Dependencies reinstalled for script " + filename
-						: "Dependencies installed for script " + filename);
-			}
+		boolean hasDependencies = forceReinstall
+				? packageInstaller.reinstallFromRequirements(requirementsPath, onOutput)
+				: packageInstaller.installFromRequirements(requirementsPath, onOutput);
+		if (!hasDependencies) {
+			onOutput.accept("No dependencies found for script " + filename);
+		}
+
+		scriptImports.verify(scriptFile);
+		if (hasDependencies) {
+			onOutput.accept(forceReinstall
+					? "Dependencies reinstalled for script " + filename
+					: "Dependencies installed for script " + filename);
 		}
 	}
 }

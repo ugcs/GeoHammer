@@ -1,0 +1,23 @@
+{
+  "filename": "mbes_patch_test_route.py",
+  "display_name": "MBES Patch Test route",
+  "parameters": [
+    {
+      "name": "line",
+      "display_name": "Survey line",
+      "type": "LINE_INDEX",
+      "default_value": "",
+      "required": true
+    },
+    {
+      "name": "output-dir",
+      "display_name": "Output folder",
+      "type": "FOLDER_PATH",
+      "default_value": "",
+      "required": true
+    }
+  ],
+  "templates": [
+    "SVLOG"
+  ]
+}

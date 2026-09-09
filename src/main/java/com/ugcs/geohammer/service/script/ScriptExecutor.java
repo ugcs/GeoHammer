@@ -15,6 +15,7 @@ import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
@@ -36,39 +37,43 @@ public class ScriptExecutor {
 
 	private final CommandExecutor commandExecutor;
 
-	private final PythonService pythonService;
+	private final PythonInterpreter pythonInterpreter;
 
 	public ScriptExecutor(Loader loader,
 	                      EventSender eventSender,
 	                      EventsFactory eventsFactory,
 	                      CommandExecutor commandExecutor,
-	                      PythonService pythonService) {
+	                      PythonInterpreter pythonInterpreter) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
 		this.commandExecutor = commandExecutor;
-		this.pythonService = pythonService;
+		this.pythonInterpreter = pythonInterpreter;
 	}
 
 	public void execute(SgyFile sgyFile, File scriptFile, ScriptMetadata metadata, Map<String, String> params,
 	                    Consumer<String> output, Consumer<FileSnapshot<?>> onSnapshotCreated)
-			throws IOException, InterruptedException {
+			throws IOException, InterruptedException, ScriptValidationException {
 		Check.notNull(sgyFile);
 		Check.notNull(scriptFile);
 		Check.notNull(metadata);
 
 		File tempFile = createTempFile(sgyFile);
 		try {
-			copy(sgyFile, tempFile);
+			IndexRange lineRange = resolveLineRange(sgyFile, metadata, params);
+			copy(sgyFile, tempFile, lineRange);
 
 			List<String> command = buildCommand(scriptFile, metadata, params, tempFile);
-			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(metadata.filename()));
+			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(
+					metadata.filename(), pythonInterpreter.getVersion().toString()));
 			commandExecutor.executeCommand(command, output);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}
 
-			applyResult(sgyFile, tempFile, onSnapshotCreated);
+			if (metadata.replacesInput()) {
+				applyResult(sgyFile, tempFile, onSnapshotCreated);
+			}
 		} finally {
 			if (!tempFile.delete()) {
 				log.warn("Failed to delete temporary file: {}", tempFile);
@@ -84,7 +89,25 @@ public class ScriptExecutor {
 		return Files.createTempFile(prefix, suffix).toFile();
 	}
 
-	private void copy(SgyFile from, File to) throws IOException {
+	@Nullable
+	private IndexRange resolveLineRange(SgyFile sgyFile, ScriptMetadata metadata, Map<String, String> params)
+			throws ScriptValidationException {
+		Integer lineIndex = metadata.getLineIndex(params);
+		if (lineIndex == null) {
+			return null;
+		}
+		IndexRange lineRange = sgyFile.getLineRanges().get(lineIndex);
+		if (lineRange == null) {
+			throw new ScriptValidationException("Line " + lineIndex + " not found in the selected file");
+		}
+		return lineRange;
+	}
+
+	private void copy(SgyFile from, File to, @Nullable IndexRange lineRange) throws IOException {
+		if (lineRange != null) {
+			from.save(to, lineRange);
+			return;
+		}
 		if (from instanceof TraceFile) {
 			File file = from.getFile();
 			if (file != null) {
@@ -98,7 +121,7 @@ public class ScriptExecutor {
 	private List<String> buildCommand(File scriptFile, ScriptMetadata metadata,
 	                                  Map<String, String> params, File tempFile) throws IOException {
 		List<String> command = new ArrayList<>();
-		command.add(pythonService.getPythonPath().toString());
+		command.add(pythonInterpreter.getPath().toString());
 		command.add(scriptFile.toPath().toString());
 		command.add(tempFile.toPath().toAbsolutePath().toString());
 		appendArgs(command, metadata, params);

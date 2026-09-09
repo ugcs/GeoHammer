@@ -19,6 +19,10 @@ public record ScriptParameter(
         @JsonProperty("max")
         Double max
 ) {
+    public String getLabel(String hint) {
+        return displayName + hint + (required ? " *" : "");
+    }
+
     public void validate() {
 		switch (type) {
 			case ENUM -> validateEnum();
@@ -88,6 +92,6 @@ public record ScriptParameter(
 	}
 
     public enum ParameterType {
-        STRING, INTEGER, DOUBLE, BOOLEAN, FILE_PATH, FOLDER_PATH, COLUMN_NAME, ENUM
+        STRING, INTEGER, DOUBLE, BOOLEAN, FILE_PATH, FOLDER_PATH, COLUMN_NAME, LINE_INDEX, ENUM
     }
 }

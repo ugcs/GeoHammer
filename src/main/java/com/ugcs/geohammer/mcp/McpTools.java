@@ -45,7 +45,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.service.gridding.GriddingService;
-import com.ugcs.geohammer.service.script.PythonService;
+import com.ugcs.geohammer.service.script.PythonInterpreter;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptPaths;
@@ -77,7 +77,7 @@ public class McpTools {
     public McpTools(Model model, UndoModel undoModel, TraceTransform traceTransform,
                     GriddingService griddingService, GridLayer gridLayer,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
-                    ScriptPaths scriptPaths, PythonService pythonService) {
+                    ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter) {
         register(new ListFiles(model));
         register(new ListSeries(model));
         register(new ReadSeries(model));
@@ -112,7 +112,7 @@ public class McpTools {
         register(new GetScript(model, scriptMetadataLoader, scriptPaths));
         register(new RunScript(model, scriptMetadataLoader, scriptPaths, scriptCoordinator));
         register(new CreateScript(model, scriptMetadataLoader, scriptPaths));
-        register(new SetPythonPath(model, pythonService));
+        register(new SetPythonPath(model, pythonInterpreter));
     }
 
     private void register(McpTool tool) {

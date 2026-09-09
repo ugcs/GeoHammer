@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.OperatingSystemUtils;
 import org.slf4j.Logger;
@@ -45,13 +45,13 @@ public class PythonService {
 
 	private final CommandExecutor commandExecutor;
 
-	private final PrefSettings prefSettings;
+	private final Settings settings;
 
 	private final ScriptPaths scriptPaths;
 
-	public PythonService(CommandExecutor commandExecutor, PrefSettings prefSettings, ScriptPaths scriptPaths) {
+	public PythonService(CommandExecutor commandExecutor, Settings settings, ScriptPaths scriptPaths) {
 		this.commandExecutor = commandExecutor;
-		this.prefSettings = prefSettings;
+		this.settings = settings;
 		this.scriptPaths = scriptPaths;
 	}
 
@@ -187,7 +187,7 @@ public class PythonService {
 	}
 
 	public Path getPythonPath() throws IOException {
-		String pythonPath = prefSettings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
+		String pythonPath = settings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
 		if (pythonPath == null || pythonPath.isEmpty()) {
 			String[] command;
 			if (OperatingSystemUtils.isWindows()) {
@@ -208,7 +208,7 @@ public class PythonService {
 
 	public void setPythonPath(@Nullable String pythonPath) {
 		if (pythonPath != null && !pythonPath.isEmpty()) {
-			prefSettings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
+			settings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
 		}
 	}
 

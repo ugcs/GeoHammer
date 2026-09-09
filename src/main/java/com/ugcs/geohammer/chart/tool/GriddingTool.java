@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -65,7 +65,7 @@ public class GriddingTool extends FilterToolView {
 
     private final Model model;
 
-    private final PrefSettings preferences;
+    private final Settings settings;
 
     private final GridLayer gridLayer;
 
@@ -104,7 +104,7 @@ public class GriddingTool extends FilterToolView {
 
     public GriddingTool(
             Model model,
-            PrefSettings preferences,
+            Settings settings,
             GridLayer gridLayer,
             PaletteView paletteView,
             GriddingService griddingService,
@@ -114,7 +114,7 @@ public class GriddingTool extends FilterToolView {
         super(executor);
 
         this.model = model;
-        this.preferences = preferences;
+        this.settings = settings;
         this.gridLayer = gridLayer;
         this.paletteView = paletteView;
         this.griddingService = griddingService;
@@ -548,20 +548,20 @@ public class GriddingTool extends FilterToolView {
         try {
             String templateName = Templates.getTemplateName(selectedFile);
             if (!Strings.isNullOrEmpty(templateName)) {
-                cellSizeInput.setText(preferences.getStringOrDefault(
+                cellSizeInput.setText(settings.getStringOrDefault(
                         "gridding_cellsize", templateName, Strings.empty()));
-                blankingDistanceInput.setText(preferences.getStringOrDefault(
+                blankingDistanceInput.setText(settings.getStringOrDefault(
                         "gridding_blankingdistance", templateName, Strings.empty()));
-                hillShading.setSelected(preferences.getBooleanOrDefault(
+                hillShading.setSelected(settings.getBooleanOrDefault(
                         "gridding_hillshading_enabled", templateName, false));
-                smoothing.setSelected(preferences.getBooleanOrDefault(
+                smoothing.setSelected(settings.getBooleanOrDefault(
                         "gridding_smoothing_enabled", templateName, false));
-                analyticSignal.setSelected(preferences.getBooleanOrDefault(
+                analyticSignal.setSelected(settings.getBooleanOrDefault(
                         "gridding_analytic_signal_enabled", templateName, false));
-                String paletteName = preferences.getStringOrDefault(
+                String paletteName = settings.getStringOrDefault(
                         "gridding_palette", templateName, Strings.empty());
                 paletteSelector.setValue(PaletteType.findByName(paletteName));
-                String spectrumName = preferences.getStringOrDefault(
+                String spectrumName = settings.getStringOrDefault(
                         "gridding_spectrum", templateName, Strings.empty());
                 spectrumSelector.setValue(SpectrumType.findByName(spectrumName));
             }
@@ -579,9 +579,9 @@ public class GriddingTool extends FilterToolView {
         Range range = null;
         if (!Strings.isNullOrEmpty(templateName) && !Strings.isNullOrEmpty(seriesName)) {
             // range
-            Double rangeMin = preferences.getDouble(
+            Double rangeMin = settings.getDouble(
                     "gridding_range_min", templateName + "." + seriesName);
-            Double rangeMax = preferences.getDouble(
+            Double rangeMax = settings.getDouble(
                     "gridding_range_max", templateName + "." + seriesName);
             if (rangeMin != null && rangeMax != null) {
                 range = new Range(rangeMin, rangeMax);
@@ -601,21 +601,21 @@ public class GriddingTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.setValue("gridding_cellsize", templateName,
+            settings.setValue("gridding_cellsize", templateName,
                     cellSizeInput.getText());
-            preferences.setValue("gridding_blankingdistance", templateName,
+            settings.setValue("gridding_blankingdistance", templateName,
                     blankingDistanceInput.getText());
-            preferences.setValue("gridding_hillshading_enabled", templateName,
+            settings.setValue("gridding_hillshading_enabled", templateName,
                     Boolean.toString(hillShading.isSelected()));
-            preferences.setValue("gridding_smoothing_enabled", templateName,
+            settings.setValue("gridding_smoothing_enabled", templateName,
                     Boolean.toString(smoothing.isSelected()));
-            preferences.setValue("gridding_analytic_signal_enabled", templateName,
+            settings.setValue("gridding_analytic_signal_enabled", templateName,
                     Boolean.toString(analyticSignal.isSelected()));
             PaletteType paletteType = paletteSelector.getValue();
-            preferences.setValue("gridding_palette", templateName,
+            settings.setValue("gridding_palette", templateName,
                     paletteType != null ? paletteType.name() : Strings.empty());
             SpectrumType spectrumType = spectrumSelector.getValue();
-            preferences.setValue("gridding_spectrum", templateName,
+            settings.setValue("gridding_spectrum", templateName,
                     spectrumType != null ? spectrumType.name() : Strings.empty());
         }
 
@@ -627,9 +627,9 @@ public class GriddingTool extends FilterToolView {
         String seriesName = model.getSelectedSeriesName(selectedFile);
 
         if (!Strings.isNullOrEmpty(templateName) && !Strings.isNullOrEmpty(seriesName)) {
-            preferences.setValue("gridding_range_min", templateName + "." + seriesName,
+            settings.setValue("gridding_range_min", templateName + "." + seriesName,
                     Text.formatNumber(rangeSlider.getLowValue()));
-            preferences.setValue("gridding_range_max", templateName + "." + seriesName,
+            settings.setValue("gridding_range_max", templateName + "." + seriesName,
                     Text.formatNumber(rangeSlider.getHighValue()));
         }
     }

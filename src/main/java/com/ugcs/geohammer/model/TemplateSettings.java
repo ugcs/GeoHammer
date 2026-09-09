@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.model;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.Nullable;
@@ -12,11 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class TemplateSettings {
 
-    private final PrefSettings settings;
+    private final Settings settings;
 
     private final Map<String, TraceUnit> traceUnits = new ConcurrentHashMap<>();
 
-    public TemplateSettings(PrefSettings settings) {
+    public TemplateSettings(Settings settings) {
         Check.notNull(settings);
         this.settings = settings;
     }

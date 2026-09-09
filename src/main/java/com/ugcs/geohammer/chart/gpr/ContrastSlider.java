@@ -1,29 +1,28 @@
 package com.ugcs.geohammer.chart.gpr;
 
-import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Unit;
 import com.ugcs.geohammer.view.control.BaseSlider;
 
 public class ContrastSlider extends BaseSlider {
 
-    private final Settings settings;
+    private final ProfileSettings profileSettings;
 
-    public ContrastSlider(Settings settings) {
-        super("Contrast", Unit.empty(), new Range(Settings.MIN_CONTRAST, Settings.MAX_CONTRAST), 25);
-        this.settings = settings;
+    public ContrastSlider(ProfileSettings profileSettings) {
+        super("Contrast", Unit.empty(), new Range(ProfileSettings.MIN_CONTRAST, ProfileSettings.MAX_CONTRAST), 25);
+        this.profileSettings = profileSettings;
         update();
     }
 
     @Override
     public void onValueChanged(Number value) {
         if (value != null) {
-            settings.setContrast(value.doubleValue());
+            profileSettings.setContrast(value.doubleValue());
         }
     }
 
     @Override
     public void update() {
-        slider.setValue(settings.getContrast());
+        slider.setValue(profileSettings.getContrast());
     }
 }

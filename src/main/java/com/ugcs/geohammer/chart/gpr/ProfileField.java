@@ -8,7 +8,6 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.Settings;
 
 public class ProfileField {
 
@@ -28,12 +27,11 @@ public class ProfileField {
 	private Rectangle clipTopMainRect = new Rectangle();
 	private Rectangle clipInfoRect = new Rectangle();
 
-	//
 	private int visibleStart;
-	//private int visibleFinish;
 
 	private int maxHeightInSamples = 0;
-	private final Settings profileSettings = new Settings();
+
+	private final ProfileSettings profileSettings = new ProfileSettings();
 
 	public int getMaxHeightInSamples() {
 		return maxHeightInSamples;
@@ -48,7 +46,6 @@ public class ProfileField {
 
 		this.maxHeightInSamples = maxHeight;
 
-		profileSettings.setMaxSamples(maxHeightInSamples);
 		if (profileSettings.getDepthStart() + profileSettings.getDepthHeight() > maxHeightInSamples) {
 			profileSettings.setDepthStart(maxHeightInSamples / 4);
 			profileSettings.setDepthHeight(maxHeightInSamples / 4);
@@ -69,7 +66,7 @@ public class ProfileField {
 		return new IndexRange(depthFrom, depthTo);
 	}
 
-	public Settings getSettings() {
+	public ProfileSettings getSettings() {
 		return profileSettings;
 	}
 

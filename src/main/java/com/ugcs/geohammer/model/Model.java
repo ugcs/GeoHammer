@@ -10,7 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.FileDataContainer;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
@@ -90,7 +90,7 @@ public class Model implements InitializingBean {
 
 	private final TemplateSettings templateSettings;
 
-	private final PrefSettings prefSettings;
+	private final Settings settings;
 
 	@Nullable
 	private Node selectedDataNode;
@@ -99,13 +99,13 @@ public class Model implements InitializingBean {
 	private SgyFile currentFile;
 
 	public Model(FileManager fileManager, ApplicationEventPublisher eventPublisher,
-			TemplateSettings templateSettings, PrefSettings prefSettings) {
+			TemplateSettings templateSettings, Settings settings) {
 		this.fileManager = fileManager;
 		this.auxEditHandler = new AuxElementEditHandler(this);
 		this.eventPublisher = eventPublisher;
 		this.templateSettings = templateSettings;
-		this.prefSettings = prefSettings;
-		this.traceLookupThreshold = prefSettings.getDoubleOrDefault(
+		this.settings = settings;
+		this.traceLookupThreshold = settings.getDoubleOrDefault(
 				PREF_TRACE, PREF_LOOKUP_THRESHOLD, DEFAULT_LOOKUP_THRESHOLD);
 	}
 
@@ -115,7 +115,7 @@ public class Model implements InitializingBean {
 
 	public void setTraceLookupThreshold(double threshold) {
 		this.traceLookupThreshold = threshold;
-		prefSettings.setValue(PREF_TRACE, PREF_LOOKUP_THRESHOLD, threshold);
+		settings.setValue(PREF_TRACE, PREF_LOOKUP_THRESHOLD, threshold);
 	}
 
 	public AuxElementEditHandler getAuxEditHandler() {

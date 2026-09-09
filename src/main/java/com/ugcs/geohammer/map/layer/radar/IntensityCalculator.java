@@ -73,16 +73,17 @@ public class IntensityCalculator {
         List<Peak> peaks = new ArrayList<>();
 
         int numSamples = trace.numSamples();
-        if (sampleRange.from() >= numSamples) {
+        int from = sampleRange.from();
+        int to = Math.min(sampleRange.to(), numSamples);
+        if (from >= to) {
             return peaks;
         }
 
-        float amplitude = trace.getSample(sampleRange.from()) - baseline;
-        int peakIndex = sampleRange.from();
+        float amplitude = trace.getSample(from) - baseline;
+        int peakIndex = from;
         float peakAmplitude = amplitude;
 
-        int to = Math.min(sampleRange.to(), numSamples);
-        for (int i = sampleRange.from() + 1; i < to; i++) {
+        for (int i = from + 1; i < to; i++) {
             float amplitudeBefore = amplitude;
             amplitude = trace.getSample(i) - baseline;
             boolean samePolarity = (amplitude > 0) == (amplitudeBefore > 0);

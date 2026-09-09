@@ -223,7 +223,9 @@ public class RadarMap extends BaseLayer {
 		int centerY = buffer.getHeight() / 2;
 
 		List<Trace> traces = file.getTraces();
-		for (int i = 0; i < file.numTraces(); i++) {
+		int numTraces = Math.min(traces.size(), intensity.length);
+
+		for (int i = 0; i < numTraces; i++) {
 			Trace trace = traces.get(i);
 			double alpha = intensity[i];
 

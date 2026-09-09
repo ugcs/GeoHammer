@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.status.Status;
@@ -49,7 +49,7 @@ public class McpServer {
 
     private final McpTools tools;
 
-    private final PrefSettings prefSettings;
+    private final Settings settings;
 
     private final Status status;
 
@@ -64,9 +64,9 @@ public class McpServer {
     @Nullable
     private ExecutorService executor;
 
-    public McpServer(McpTools tools, PrefSettings prefSettings, Status status) {
+    public McpServer(McpTools tools, Settings settings, Status status) {
         this.tools = tools;
-        this.prefSettings = prefSettings;
+        this.settings = settings;
         this.status = status;
     }
 
@@ -83,11 +83,11 @@ public class McpServer {
     }
 
     public boolean isEnabled() {
-        return prefSettings.getBooleanOrDefault(PREF_MCP, PREF_ENABLED, DEFAULT_ENABLED);
+        return settings.getBooleanOrDefault(PREF_MCP, PREF_ENABLED, DEFAULT_ENABLED);
     }
 
     public synchronized void setEnabled(boolean enabled) {
-        prefSettings.setValue(PREF_MCP, PREF_ENABLED, enabled);
+        settings.setValue(PREF_MCP, PREF_ENABLED, enabled);
         if (enabled) {
             start();
         } else {

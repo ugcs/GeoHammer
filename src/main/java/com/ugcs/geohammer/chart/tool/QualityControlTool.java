@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.map.layer.QualityLayer;
@@ -45,7 +45,7 @@ public class QualityControlTool extends FilterToolView {
 
     private final Model model;
 
-    private final PrefSettings preferences;
+    private final Settings settings;
 
     private final QualityLayer qualityLayer;
 
@@ -61,14 +61,14 @@ public class QualityControlTool extends FilterToolView {
 
     public QualityControlTool(
             Model model,
-            PrefSettings preferences,
+            Settings settings,
             ExecutorService executor,
             QualityLayer qualityLayer
     ) {
         super(executor);
 
         this.model = model;
-        this.preferences = preferences;
+        this.settings = settings;
         this.qualityLayer = qualityLayer;
 
         Label lineDistanceLabel = new Label("Max distance between lines");
@@ -147,13 +147,13 @@ public class QualityControlTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            maxLineDistanceInput.setText(preferences.getStringOrDefault(
+            maxLineDistanceInput.setText(settings.getStringOrDefault(
                     "quality_max_line_distance", templateName, Strings.empty()));
-            lineDistanceToleranceInput.setText(preferences.getStringOrDefault(
+            lineDistanceToleranceInput.setText(settings.getStringOrDefault(
                     "quality_line_distance_tolerance", templateName, Strings.empty()));
-            maxAltitudeInput.setText(preferences.getStringOrDefault(
+            maxAltitudeInput.setText(settings.getStringOrDefault(
                     "quality_max_altitude", templateName, Strings.empty()));
-            altitudeToleranceInput.setText(preferences.getStringOrDefault(
+            altitudeToleranceInput.setText(settings.getStringOrDefault(
                     "quality_altitude_tolerance", templateName, Strings.empty()));
         }
     }
@@ -162,13 +162,13 @@ public class QualityControlTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.setValue("quality_max_line_distance", templateName,
+            settings.setValue("quality_max_line_distance", templateName,
                     maxLineDistanceInput.getText());
-            preferences.setValue("quality_line_distance_tolerance", templateName,
+            settings.setValue("quality_line_distance_tolerance", templateName,
                     lineDistanceToleranceInput.getText());
-            preferences.setValue("quality_max_altitude", templateName,
+            settings.setValue("quality_max_altitude", templateName,
                     maxAltitudeInput.getText());
-            preferences.setValue("quality_altitude_tolerance", templateName,
+            settings.setValue("quality_altitude_tolerance", templateName,
                     altitudeToleranceInput.getText());
         }
     }

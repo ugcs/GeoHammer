@@ -1,50 +1,141 @@
 package com.ugcs.geohammer;
 
+import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Resources;
+import com.ugcs.geohammer.util.Strings;
+import jakarta.annotation.PreDestroy;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Properties;
+
+@Service
 public class Settings {
 
-	public static final double MIN_CONTRAST = 0;
+    private static final Logger log = LoggerFactory.getLogger(Settings.class);
 
-	public static final double MAX_CONTRAST = 100;
+    private static final String SETTINGS_FILE = "templates-settings.properties";
 
-	private int maxSamples = 400;
+    @Value("${settings.prefix:geohammer.settings.}")
+    private String prefix = "geohammer.settings.";
 
-	// top sample of the visible depth window
-	private int depthStart = 80;
+    private final Path path;
 
-	// window height in samples
-	private int depthHeight = 47;
+    private final Properties properties;
 
-	private double contrast = 50;
+    public Settings() {
+        path = Path.of(System.getProperty("user.home"), ".geohammer", SETTINGS_FILE);
+        Path legacyPath = Resources.resolvePath(Path.of(FileTemplates.TEMPLATES_FOLDER, SETTINGS_FILE));
+        properties = loadProperties(Files.exists(path) ? path : legacyPath);
+    }
 
-	public int getMaxSamples() {
-		return maxSamples;
-	}
+    private Properties loadProperties(Path path) {
+        Check.notNull(path);
 
-	public void setMaxSamples(int maxSamples) {
-		this.maxSamples = maxSamples;
-	}
+        Properties properties = new Properties();
+        if (Files.exists(path)) {
+            try (Reader r = Files.newBufferedReader(path)) {
+                properties.load(r);
+                log.info("Properties loaded from {}", path);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return properties;
+    }
 
-	public int getDepthStart() {
-		return depthStart;
-	}
+    private void saveProperties(Properties properties, Path path) {
+        Check.notNull(properties);
+        Check.notNull(path);
 
-	public void setDepthStart(int depthStart) {
-		this.depthStart = depthStart;
-	}
+        try {
+            Files.createDirectories(path.getParent());
+            try (Writer w = Files.newBufferedWriter(path)) {
+                properties.store(w, null);
+                log.info("Properties saved to {}", path);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	public int getDepthHeight() {
-		return depthHeight;
-	}
+    public void save() {
+        saveProperties(properties, path);
+    }
 
-	public void setDepthHeight(int depthHeight) {
-		this.depthHeight = depthHeight;
-	}
+    @PreDestroy
+    public void onShutdown() {
+        save();
+    }
 
-	public double getContrast() {
-		return contrast;
-	}
+    private String getPropertyKey(String group, String name) {
+        Check.notEmpty(name);
 
-	public void setContrast(double contrast) {
-		this.contrast = contrast;
-	}
+        String key = prefix;
+        if (!Strings.isNullOrEmpty(group)) {
+            key += group + ".";
+        }
+        key += name;
+        return key;
+    }
+
+    public @Nullable String getString(String group, String name) {
+        String propertyKey = getPropertyKey(group, name);
+        return properties.getProperty(propertyKey);
+    }
+
+    public String getStringOrDefault(String group, String name, String defaultValue) {
+        String value = getString(group, name);
+        return !Strings.isNullOrEmpty(value) ? value : defaultValue;
+    }
+
+    public @Nullable Integer getInt(String group, String name) {
+        String value = getString(group, name);
+        return !Strings.isNullOrEmpty(value) ? Integer.parseInt(value) : null;
+    }
+
+    public int getIntOrDefault(String group, String name, int defaultValue) {
+        Integer value = getInt(group, name);
+        return value != null ? value : defaultValue;
+    }
+
+    public @Nullable Double getDouble(String group, String name) {
+        String value = getString(group, name);
+        return !Strings.isNullOrEmpty(value) ? Double.parseDouble(value) : null;
+    }
+
+    public double getDoubleOrDefault(String group, String name, double defaultValue) {
+        Double value = getDouble(group, name);
+        return value != null ? value : defaultValue;
+    }
+
+    public @Nullable Boolean getBoolean(String group, String name) {
+        String value = getString(group, name);
+        return !Strings.isNullOrEmpty(value) ? Boolean.parseBoolean(value) : null;
+    }
+
+    public boolean getBooleanOrDefault(String group, String name, boolean defaultValue) {
+        Boolean value = getBoolean(group, name);
+        return value != null ? value : defaultValue;
+    }
+
+    public void setValue(String group, String name, @Nullable Object value) {
+        String propertyKey = getPropertyKey(group, name);
+        String propertyValue = value != null
+                ? value.toString()
+                : null;
+
+        if (Strings.isNullOrEmpty(propertyValue)) {
+            properties.remove(propertyKey);
+        } else {
+            properties.setProperty(propertyKey, propertyValue);
+        }
+    }
 }

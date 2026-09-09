@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -23,15 +23,15 @@ public class TimeLagTool extends FilterToolView {
 
     private final Model model;
 
-    private final PrefSettings preferences;
+    private final Settings settings;
 
     private final TextField shiftInput;
 
-    public TimeLagTool(Model model, PrefSettings preferences, ExecutorService executor) {
+    public TimeLagTool(Model model, Settings settings, ExecutorService executor) {
         super(executor);
 
         this.model = model;
-        this.preferences = preferences;
+        this.settings = settings;
 
         InputWithTopLabel shiftWithLabel = new InputWithTopLabel("Shift (measurements)");
         shiftInput = shiftWithLabel.getInput();
@@ -71,7 +71,7 @@ public class TimeLagTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            shiftInput.setText(preferences.getStringOrDefault(
+            shiftInput.setText(settings.getStringOrDefault(
                     "timelag", templateName, Strings.empty()));
         }
     }
@@ -80,7 +80,7 @@ public class TimeLagTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.setValue("timelag", templateName, shiftInput.getText());
+            settings.setValue("timelag", templateName, shiftInput.getText());
         }
     }
 

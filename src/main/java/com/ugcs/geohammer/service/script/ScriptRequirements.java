@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 
-import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -24,7 +23,7 @@ public class ScriptRequirements {
 
 	private static final String ANALYZER_MODULE = "pipreqs.pipreqs";
 
-	private static final String FILE_NAME = "requirements.txt";
+	private static final String FILE_SUFFIX = "_requirements.txt";
 
 	private final CommandExecutor commandExecutor;
 
@@ -40,70 +39,78 @@ public class ScriptRequirements {
 	}
 
 	@Nullable
-	public Requirements derive(File scriptFile, Consumer<String> onOutput)
-			throws IOException, InterruptedException {
+	public Path generateIfMissing(File scriptFile, Consumer<String> onOutput) throws InterruptedException {
+		Path path = getRequirementsFile(scriptFile);
+		if (Files.exists(path)) {
+			onOutput.accept("Using requirements file " + path.getFileName());
+			return path;
+		}
+		try {
+			return generate(scriptFile, onOutput);
+		} catch (IOException | RuntimeException e) {
+			log.warn("Failed to create requirements file for script {}", scriptFile.getName(), e);
+			onOutput.accept("Could not create requirements file for script " + scriptFile.getName());
+			return null;
+		}
+	}
+
+	@Nullable
+	public Path generate(File scriptFile, Consumer<String> onOutput) throws IOException, InterruptedException {
 		if (!packageInstaller.isInstalled(ANALYZER)) {
 			try {
 				packageInstaller.install(ANALYZER, onOutput);
 			} catch (Exception e) {
-				log.warn("Requirements analyzer library installation failed (possibly offline)."
-						+ " Continuing without dependency check.", e);
+				log.warn("Requirements analyzer library installation failed (possibly offline).", e);
+				onOutput.accept("Could not obtain " + ANALYZER + ", skipping dependency check");
 				return null;
 			}
 		}
+		Path path = getRequirementsFile(scriptFile);
+		runAnalyzer(scriptFile, path, onOutput);
+		return path;
+	}
 
+	private Path getRequirementsFile(File scriptFile) {
+		String filenameWithoutExtension = FileNames.removeExtension(scriptFile.getName());
+		return scriptFile.toPath().resolveSibling(filenameWithoutExtension + FILE_SUFFIX);
+	}
+
+	private void runAnalyzer(File scriptFile, Path requirementsPath, Consumer<String> onOutput)
+			throws IOException, InterruptedException {
 		String filename = scriptFile.getName();
-		Requirements requirements = new Requirements(
-				Files.createTempDirectory(FileNames.removeExtension(filename)));
+		Path tempDirectory = Files.createTempDirectory(FileNames.removeExtension(filename));
 		try {
-			Files.copy(scriptFile.toPath(), requirements.directory.resolve(filename));
+			Files.copy(scriptFile.toPath(), tempDirectory.resolve(filename));
 			List<String> command = List.of(
 					interpreter.getPath().toString(),
 					"-m",
 					ANALYZER_MODULE,
-					requirements.directory.toString(),
+					tempDirectory.toString(),
 					"--encoding",
 					"utf-8",
 					"--mode",
-					"no-pin"
+					"no-pin",
+					"--savepath",
+					requirementsPath.toString()
 			);
-			commandExecutor.executeCommand(command, requirements.directory.toFile(), onOutput);
-			return requirements;
-		} catch (IOException | InterruptedException | RuntimeException e) {
-			requirements.close();
-			throw e;
+			commandExecutor.executeCommand(command, tempDirectory.toFile(), onOutput);
+		} finally {
+			cleanupTempDirectory(tempDirectory, filename);
 		}
 	}
 
-	public static final class Requirements implements AutoCloseable {
-
-		private final Path directory;
-
-		private Requirements(Path directory) {
-			Check.notNull(directory);
-			this.directory = directory;
-		}
-
-		@Nullable
-		public Path path() {
-			Path path = directory.resolve(FILE_NAME);
-			return Files.exists(path) ? path : null;
-		}
-
-		@Override
-		public void close() {
-			try (var paths = Files.walk(directory)) {
-				paths.sorted(Comparator.reverseOrder())
-						.forEach(path -> {
-							try {
-								Files.delete(path);
-							} catch (IOException e) {
-								log.warn("Failed to delete {}: {}", path, e.getMessage());
-							}
-						});
-			} catch (IOException e) {
-				log.warn("Failed to cleanup temporary directory {}: {}", directory, e.getMessage());
-			}
+	private void cleanupTempDirectory(Path tempDirectory, String scriptFilename) {
+		try (var paths = Files.walk(tempDirectory)) {
+			paths.sorted(Comparator.reverseOrder())
+					.forEach(path -> {
+						try {
+							Files.delete(path);
+						} catch (IOException e) {
+							log.warn("Failed to delete {}: {}", path, e.getMessage());
+						}
+					});
+		} catch (IOException e) {
+			log.warn("Failed to cleanup temporary directory for script {}: {}", scriptFilename, e.getMessage());
 		}
 	}
 }

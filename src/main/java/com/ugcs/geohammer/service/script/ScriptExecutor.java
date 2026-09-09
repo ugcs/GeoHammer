@@ -64,7 +64,8 @@ public class ScriptExecutor {
 			copy(sgyFile, tempFile, lineRange);
 
 			List<String> command = buildCommand(scriptFile, metadata, params, tempFile);
-			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(metadata.filename()));
+			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(
+					metadata.filename(), pythonInterpreter.getVersion().toString()));
 			commandExecutor.executeCommand(command, output);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();

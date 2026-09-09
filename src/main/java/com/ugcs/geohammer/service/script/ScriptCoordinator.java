@@ -34,7 +34,9 @@ public class ScriptCoordinator {
 
 	private final UndoModel undoModel;
 
-	private final PythonService pythonService;
+	private final PythonInterpreter pythonInterpreter;
+
+	private final ScriptDependencies scriptDependencies;
 
 	private final ScriptPaths scriptPaths;
 
@@ -45,11 +47,12 @@ public class ScriptCoordinator {
 	private final Map<SgyFile, ScriptMetadata> executingScripts = new ConcurrentHashMap<>();
 
 	public ScriptCoordinator(ScriptExecutor scriptExecutor, UndoModel undoModel,
-	                         PythonService pythonService, ScriptPaths scriptPaths,
-	                         TaskService taskService, ExecutorService executor) {
+	                         PythonInterpreter pythonInterpreter, ScriptDependencies scriptDependencies,
+	                         ScriptPaths scriptPaths, TaskService taskService, ExecutorService executor) {
 		this.scriptExecutor = scriptExecutor;
 		this.undoModel = undoModel;
-		this.pythonService = pythonService;
+		this.pythonInterpreter = pythonInterpreter;
+		this.scriptDependencies = scriptDependencies;
 		this.scriptPaths = scriptPaths;
 		this.taskService = taskService;
 		this.executor = executor;
@@ -103,7 +106,7 @@ public class ScriptCoordinator {
 					+ "' is not supported on this operating system.");
 		}
 
-		pythonService.checkVersion();
+		pythonInterpreter.checkVersion();
 
 		File scriptFile = resolveScriptFile(metadata);
 
@@ -168,7 +171,7 @@ public class ScriptCoordinator {
 	                                   ScriptMetadata metadata, ScriptRunListener listener)
 			throws InterruptedException {
 		try {
-			pythonService.installDependencies(scriptFile, recent.capture());
+			scriptDependencies.install(scriptFile, recent.capture());
 			return true;
 		} catch (DependencyImportException e) {
 			if (!listener.confirmReinstallDependencies(e.getModuleName())) {
@@ -181,7 +184,7 @@ public class ScriptCoordinator {
 		}
 
 		try {
-			pythonService.reinstallDependencies(scriptFile, recent.capture());
+			scriptDependencies.reinstall(scriptFile, recent.capture());
 			return true;
 		} catch (IOException | DependencyImportException e) {
 			listener.onError(metadata, e, recent.drain());

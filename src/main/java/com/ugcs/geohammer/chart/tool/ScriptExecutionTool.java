@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
@@ -84,7 +84,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private final Status status;
 
-	private final PrefSettings preferences;
+	private final Settings settings;
 
 	private final VBox parametersBox;
 
@@ -95,14 +95,14 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	private final AtomicBoolean isUpdatingColumns = new AtomicBoolean(false);
 
 
-	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, PrefSettings preferences,
+	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, Settings settings,
 	                           ScriptCoordinator scriptCoordinator, ScriptPaths scriptPaths,
 	                           ScriptMetadataLoader scriptMetadataLoader) {
 		super(executor);
 
         this.model = model;
 		this.status = status;
-		this.preferences = preferences;
+		this.settings = settings;
 		this.scriptCoordinator = scriptCoordinator;
 		this.scriptPaths = scriptPaths;
 		this.scriptMetadataLoader = scriptMetadataLoader;
@@ -121,7 +121,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			updateParametersBox(scriptMetadata);
 			String templateName = Templates.getTemplateName(selectedFile);
 			if (scriptMetadata != null && templateName != null) {
-				preferences.setValue(
+				settings.setValue(
 						PREFS_NODE_NAME,
 						PREFS_LAST_SELECTED_SCRIPT_PREFIX + "_" + templateName,
 						scriptMetadata.filename());
@@ -249,7 +249,7 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private void restoreScriptSelection() {
 		String templateName = Templates.getTemplateName(selectedFile);
-		String selectedScriptFilename = preferences.getString(PREFS_NODE_NAME, PREFS_LAST_SELECTED_SCRIPT_PREFIX + "_" + templateName);
+		String selectedScriptFilename = settings.getString(PREFS_NODE_NAME, PREFS_LAST_SELECTED_SCRIPT_PREFIX + "_" + templateName);
 		ScriptMetadata selectedScriptMetadata = scriptsMetadata.stream()
 				.filter(scriptMetadata -> scriptMetadata.filename().equals(selectedScriptFilename))
 				.findAny()
@@ -425,13 +425,13 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 			return defaultValue;
 		}
 		String filename = FileNames.removeExtension(scriptFilename);
-		return preferences.getStringOrDefault(PREFS_NODE_NAME, filename + "." + paramName, defaultValue);
+		return settings.getStringOrDefault(PREFS_NODE_NAME, filename + "." + paramName, defaultValue);
 	}
 
 	private void storeParamValues(String scriptFilename, Map<String, String> params) {
 		String filename = FileNames.removeExtension(scriptFilename);
 		params.forEach((name, value) ->
-				preferences.setValue(PREFS_NODE_NAME, filename + "." + name, value));
+				settings.setValue(PREFS_NODE_NAME, filename + "." + name, value));
 	}
 
 	private void executeScript(@Nullable ScriptMetadata scriptMetadata, List<SgyFile> files) {

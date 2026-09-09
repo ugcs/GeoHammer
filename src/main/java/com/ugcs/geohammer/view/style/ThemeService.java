@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.view.style;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.model.event.ThemeSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.util.Check;
@@ -20,28 +20,28 @@ public class ThemeService {
 
     private final ApplicationEventPublisher eventPublisher;
 
-    private final PrefSettings preferences;
+    private final Settings settings;
 
     private final Set<Scene> scenes = new HashSet<>();
 
     private Theme theme = DEFAULT_THEME;
 
-    public ThemeService(ApplicationEventPublisher eventPublisher, PrefSettings preferences) {
+    public ThemeService(ApplicationEventPublisher eventPublisher, Settings settings) {
         this.eventPublisher = eventPublisher;
-        this.preferences = preferences;
+        this.settings = settings;
 
         loadPreferences();
     }
 
     private void loadPreferences() {
-        String themeTitle = preferences.getString("style", "theme");
+        String themeTitle = settings.getString("style", "theme");
         Theme theme = Theme.findByTitle(themeTitle);
         this.theme = theme != null ? theme : DEFAULT_THEME;
     }
 
     private void savePreferences() {
         String themeTitle = theme != null ? theme.title() : null;
-        preferences.setValue("style", "theme", themeTitle);
+        settings.setValue("style", "theme", themeTitle);
     }
 
     public Theme getTheme() {

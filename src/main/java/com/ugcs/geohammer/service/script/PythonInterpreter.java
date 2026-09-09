@@ -6,7 +6,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.List;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.util.OperatingSystemUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -26,15 +26,15 @@ public class PythonInterpreter {
 
 	private final CommandExecutor commandExecutor;
 
-	private final PrefSettings prefSettings;
+	private final Settings settings;
 
-	public PythonInterpreter(CommandExecutor commandExecutor, PrefSettings prefSettings) {
+	public PythonInterpreter(CommandExecutor commandExecutor, Settings settings) {
 		this.commandExecutor = commandExecutor;
-		this.prefSettings = prefSettings;
+		this.settings = settings;
 	}
 
 	public Path getPath() throws IOException {
-		String pythonPath = prefSettings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
+		String pythonPath = settings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
 		if (pythonPath == null || pythonPath.isEmpty()) {
 			String[] command;
 			if (OperatingSystemUtils.isWindows()) {
@@ -55,7 +55,7 @@ public class PythonInterpreter {
 
 	public void setPath(@Nullable String pythonPath) {
 		if (pythonPath != null && !pythonPath.isEmpty()) {
-			prefSettings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
+			settings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
 		}
 	}
 

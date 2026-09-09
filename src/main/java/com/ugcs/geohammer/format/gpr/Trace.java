@@ -20,16 +20,6 @@ public class Trace {
 
     private float[] samples;
 
-    /*
-     * 0
-     * 1 - 0 ('+' -> '-')
-     * 2 - 0 ('-' -> '+')
-     * 3 - min
-     * 4 - max
-     *
-     */
-    private byte[] edges;
-
     private LatLon latLon;
 
     private LatLon latLonOrigin;
@@ -53,7 +43,6 @@ public class Trace {
         this.header = header;
 
         this.samples = samples;
-        this.edges = new byte[samples.length];
 
         this.latLonOrigin = latLon;
         this.latLon = latLon;
@@ -135,14 +124,6 @@ public class Trace {
 
     public float[] getFileSamples() {
         return samples;
-    }
-
-    public byte getEdge(int index) {
-        return edges[localToGlobal(index)];
-    }
-
-    public void setEdge(int index, byte value) {
-        edges[localToGlobal(index)] = value;
     }
 
     public LatLon getLatLon() {

@@ -57,7 +57,7 @@ public class ReadTraces extends McpTool {
             TraceFile traceFile = resolveGprFile(fileName);
             List<Trace> traces = traceFile.getTraces();
             int numTraces = traces.size();
-            int numSamples = traceFile.getMaxSamples();
+            int numSamples = traceFile.maxSamples();
 
             int traceFrom = Math.min(traceStart, numTraces);
             int traceTo = Math.min(traceFrom + traceCount, numTraces);

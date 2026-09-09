@@ -6,6 +6,7 @@ import java.util.Objects;
 
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.chart.ProfileScroll;
+import com.ugcs.geohammer.chart.gpr.ProfileSettings;
 import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.chart.gpr.ProfileField;
 import com.ugcs.geohammer.format.MultiChannelFile;
@@ -153,7 +154,7 @@ public class ProfileView implements InitializingBean {
 			GPRChart chart = model.getGprChart(traceFile);
 			if (chart != null) {
 				ProfileField profileField = chart.getField();
-				Settings profileSettings = profileField.getSettings();
+				ProfileSettings profileSettings = profileField.getSettings();
 
 				int offset = profileSettings.getDepthStart();
 				int length = profileSettings.getDepthHeight();
@@ -250,7 +251,7 @@ public class ProfileView implements InitializingBean {
 		if (gprChart == null) {
 			return List.of();
 		}
-		var contrastNode = gprChart.getContrastSlider().produce();
+		var contrastNode = gprChart.getContrastSlider();
 		return List.of(contrastNode);
 	}
 

@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -23,15 +23,15 @@ public class RunningMedianTool extends FilterToolView {
 
     private final Model model;
 
-    private final PrefSettings preferences;
+    private final Settings settings;
 
     private final TextField windowInput;
 
-    public RunningMedianTool(Model model, PrefSettings preferences, ExecutorService executor) {
+    public RunningMedianTool(Model model, Settings settings, ExecutorService executor) {
         super(executor);
 
         this.model = model;
-        this.preferences = preferences;
+        this.settings = settings;
 
         InputWithTopLabel windowWithLabel = new InputWithTopLabel("Window length (measurements)");
         windowInput = windowWithLabel.getInput();
@@ -71,7 +71,7 @@ public class RunningMedianTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            windowInput.setText(preferences.getStringOrDefault(
+            windowInput.setText(settings.getStringOrDefault(
                     "median_correction", templateName, Strings.empty()));
         }
     }
@@ -80,7 +80,7 @@ public class RunningMedianTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.setValue("median_correction", templateName, windowInput.getText());
+            settings.setValue("median_correction", templateName, windowInput.getText());
         }
     }
 

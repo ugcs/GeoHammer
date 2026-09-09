@@ -5,13 +5,10 @@ import java.util.List;
 
 import com.ugcs.geohammer.format.Channel;
 import com.ugcs.geohammer.format.gpr.Trace;
-import com.ugcs.geohammer.math.MinMaxAvg;
 
 public class DztChannel extends Channel {
 
 	private final DztHeader header;
-
-	private final MinMaxAvg sampleAverage;
 
 	private final List<Trace> traces;
 
@@ -19,7 +16,6 @@ public class DztChannel extends Channel {
 		super(index, formatName(index, header));
 		this.header = header;
 		this.traces = new ArrayList<>(numTraces);
-		this.sampleAverage = new MinMaxAvg();
 	}
 
 	public DztHeader getHeader() {
@@ -27,9 +23,6 @@ public class DztChannel extends Channel {
 	}
 
 	public void addTrace(Trace trace) {
-		for (float sample : trace.getFileSamples()) {
-			sampleAverage.put(sample);
-		}
 		traces.add(trace);
 	}
 
@@ -38,31 +31,12 @@ public class DztChannel extends Channel {
 		for (Trace trace : traces) {
 			copy.traces.add(trace.copy());
 		}
-		copy.sampleAverage.copyFrom(sampleAverage);
 		return copy;
 	}
 
 	@Override
 	public List<Trace> getTraces() {
 		return traces;
-	}
-
-	public void normalize() {
-		float average = (float) sampleAverage.getAverage();
-		for (Trace trace : traces) {
-			for (int i = 0; i < trace.numSamples(); i++) {
-				trace.setSample(i, trace.getSample(i) - average);
-			}
-		}
-	}
-
-	public void denormalize() {
-		float average = (float) sampleAverage.getAverage();
-		for (Trace trace : traces) {
-			for (int i = 0; i < trace.numSamples(); i++) {
-				trace.setSample(i, trace.getSample(i) + average);
-			}
-		}
 	}
 
 	private static String formatName(int index, DztHeader header) {

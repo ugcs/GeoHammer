@@ -6,8 +6,8 @@ import java.util.List;
 
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.Settings;
 
 public class ProfileField {
 
@@ -27,12 +27,11 @@ public class ProfileField {
 	private Rectangle clipTopMainRect = new Rectangle();
 	private Rectangle clipInfoRect = new Rectangle();
 
-	//
 	private int visibleStart;
-	//private int visibleFinish;
 
 	private int maxHeightInSamples = 0;
-	private final Settings profileSettings = new Settings();
+
+	private final ProfileSettings profileSettings = new ProfileSettings();
 
 	public int getMaxHeightInSamples() {
 		return maxHeightInSamples;
@@ -46,15 +45,28 @@ public class ProfileField {
 		}
 
 		this.maxHeightInSamples = maxHeight;
-		getSettings().setMaxSamples(maxHeightInSamples);
 
-		if (getSettings().getDepthStart() + getSettings().getDepthHeight() > maxHeightInSamples) {
-			getSettings().setDepthStart(maxHeightInSamples / 4);
-			getSettings().setDepthHeight(maxHeightInSamples / 4);
+		if (profileSettings.getDepthStart() + profileSettings.getDepthHeight() > maxHeightInSamples) {
+			profileSettings.setDepthStart(maxHeightInSamples / 4);
+			profileSettings.setDepthHeight(maxHeightInSamples / 4);
 		}
 	}
 
-	public Settings getSettings() {
+	public IndexRange getDepthRange() {
+		if (maxHeightInSamples == 0) {
+			return new IndexRange(0, 0);
+		}
+
+		int depthFrom = profileSettings.getDepthStart();
+		depthFrom = Math.clamp(depthFrom, 0, maxHeightInSamples - 1);
+
+		int depthTo = profileSettings.getDepthStart() + profileSettings.getDepthHeight();
+		depthTo = Math.clamp(depthTo, depthFrom, maxHeightInSamples);
+
+		return new IndexRange(depthFrom, depthTo);
+	}
+
+	public ProfileSettings getSettings() {
 		return profileSettings;
 	}
 

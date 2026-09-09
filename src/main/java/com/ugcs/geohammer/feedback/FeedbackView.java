@@ -1,7 +1,7 @@
 package com.ugcs.geohammer.feedback;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import javafx.geometry.Pos;
@@ -57,8 +57,8 @@ public class FeedbackView extends VBox {
                 attachFiles
         );
 
-        PrefSettings preferences = AppContext.getInstance(PrefSettings.class);
-        loadPreferences(preferences);
+        Settings settings = AppContext.getInstance(Settings.class);
+        loadSettings(settings);
     }
 
     private Node createInputField(String labelText, TextField input) {
@@ -71,23 +71,23 @@ public class FeedbackView extends VBox {
         return container;
     }
 
-    private void loadPreferences(PrefSettings preferences) {
+    private void loadSettings(Settings settings) {
         if (Strings.isNullOrEmpty(name.getText())) {
-            name.setText(preferences.getStringOrDefault(
+            name.setText(settings.getStringOrDefault(
                     "feedback", "name", Strings.empty()));
         }
         if (Strings.isNullOrEmpty(email.getText())) {
-            email.setText(preferences.getStringOrDefault(
+            email.setText(settings.getStringOrDefault(
                     "feedback", "email", Strings.empty()));
         }
     }
 
-    private void savePreferences(PrefSettings preferences) {
+    private void saveSettings(Settings settings) {
         if (!Strings.isNullOrEmpty(name.getText())) {
-            preferences.setValue("feedback", "name", name.getText());
+            settings.setValue("feedback", "name", name.getText());
         }
         if (!Strings.isNullOrEmpty(email.getText())) {
-            preferences.setValue("feedback", "email", email.getText());
+            settings.setValue("feedback", "email", email.getText());
         }
     }
 
@@ -112,8 +112,8 @@ public class FeedbackView extends VBox {
     }
 
     public void submit(List<Attachment> attachments) {
-        PrefSettings preferences = AppContext.getInstance(PrefSettings.class);
-        savePreferences(preferences);
+        Settings settings = AppContext.getInstance(Settings.class);
+        saveSettings(settings);
 
         FeedbackService feedbackService = AppContext.getInstance(FeedbackService.class);
         Feedback feedback = new Feedback(

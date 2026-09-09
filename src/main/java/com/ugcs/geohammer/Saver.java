@@ -72,7 +72,7 @@ public class Saver implements ToolProducer, InitializingBean {
 	private Status status;
 
 	@Autowired
-	private PrefSettings prefSettings;
+	private Settings settings;
 
 
 	public Saver(Model model) {
@@ -261,7 +261,6 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		if (sgyFile instanceof TraceFile traceFile) {
 			TraceFile copy = traceFile.copy();
-			copy.denormalize();
 			copy.addLineBoundaryMarks();
 			copy.save(toFile);
 		}
@@ -296,7 +295,6 @@ public class Saver implements ToolProducer, InitializingBean {
 
 		if (sgyFile instanceof TraceFile traceFile) {
             TraceFile copy = traceFile.copy();
-			copy.denormalize();
             sgyFile = copy;
 		}
 
@@ -315,7 +313,7 @@ public class Saver implements ToolProducer, InitializingBean {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open file");
 
-		var lastOpenFolderPath = prefSettings.getString(
+		var lastOpenFolderPath = settings.getString(
 				SAVER_SETTINGS_GROUP_KEY,
 				LAST_OPEN_FOLDER_SETTING_KEY);
 
@@ -332,7 +330,7 @@ public class Saver implements ToolProducer, InitializingBean {
 				.showOpenMultipleDialog(AppContext.stage));
 		if (!selectedFiles.isEmpty()) {
 			lastOpenFolderPath = selectedFiles.getFirst().getParentFile().getAbsolutePath();
-			prefSettings.setValue(
+			settings.setValue(
 					SAVER_SETTINGS_GROUP_KEY,
 					LAST_OPEN_FOLDER_SETTING_KEY,
 					lastOpenFolderPath);

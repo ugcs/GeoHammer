@@ -5,12 +5,9 @@ import java.util.List;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.ProgressListener;
-import com.ugcs.geohammer.model.element.RulerTool;
 import com.ugcs.geohammer.model.event.WhatChanged;
 
 public class DistanceSmoother implements Command {
-
-	double smoothDist;
 
 	@Override
 	public String getButtonText() {	
@@ -19,14 +16,10 @@ public class DistanceSmoother implements Command {
 
 	@Override
 	public void execute(TraceFile file, ProgressListener listener) {
-		
-		smoothDist = RulerTool.distanceVCm(file, 0, 0, file.getMaxSamples() / 2) * 0.25 * 0.5;
-		
 		smoothDistances(file.getTraces());
 	}
 
 	private void smoothDistances(List<Trace> traces) {
-		
 		int lastindex = traces.size() - 1;
 		
 		double[] dst = new double[traces.size()]; 
@@ -61,30 +54,6 @@ public class DistanceSmoother implements Command {
 		return s / c;
 	}	
 	
-	protected double avgDst(double[] dst, int i, int lastindex) {
-		double sl = 0;
-		double c = 0;
-		
-		int index = i;
-		while (sl < smoothDist && index >= 0 && index <= lastindex) {
-			sl += dst[index];
-			c += 1;
-			
-			index--;
-		}
-		
-		double sr = 0;
-		index = i + 1;
-		while (sr < smoothDist && index >= 0 && index <= lastindex) {
-			sr += dst[index];
-			c += 1;
-			
-			index++;
-		}
-		
-		return (sl + sr) / c;
-	}
-
     @Override
     public WhatChanged.Change getChange() {
         return null;

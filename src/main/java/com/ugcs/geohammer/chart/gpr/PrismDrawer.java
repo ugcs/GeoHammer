@@ -5,16 +5,16 @@ import java.awt.Rectangle;
 import java.util.Arrays;
 import java.util.List;
 
+import com.ugcs.geohammer.format.SampleStatistics;
+import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.Settings;
 
 public class PrismDrawer {
 
 	static final int OPACITY_MASK = 0xff << 24;
 
 	private Model model;
-	private Tanh tanh = new Tanh();
 	
 	public PrismDrawer(Model model) {
 		this.model = model;
@@ -24,8 +24,7 @@ public class PrismDrawer {
 			int bytesInRow, 
 			GPRChart field,
 			Graphics2D g2,
-			int[] buffer,			
-			double threshold) {
+			int[] buffer) {
 		
 		if (model.isLoading() || !model.getFileManager().isActive()) {
 			return;
@@ -35,16 +34,17 @@ public class PrismDrawer {
 
 		List<Trace> traces = field.getField().getGprTraces();
 		
-		tanh.setThreshold((float) threshold);
+		TraceFile file = field.getField().getFile();
+		SampleStatistics stats = file.getStatistics();
+		double contrast = field.getField().getSettings().getContrast();
+		ContrastCurve curve = new ContrastCurve(stats.dispersion(), contrast);
+		float baseline = stats.baseline();
 		
 		int startTrace = field.getFirstVisibleTrace();
 		int finishTrace = field.getLastVisibleTrace();
 		int lastSample = field.getLastVisibleSample();
 
         int baseOffsetX = rect.x + rect.width / 2;
-
-		Settings profileSettings = field.getField().getSettings();
-		float middleAmp = profileSettings.getMiddleAmplitude();
 
 		for (int i = startTrace; i <= finishTrace; i++) {
 			if (i < 0 || i >= traces.size()) {
@@ -74,8 +74,7 @@ public class PrismDrawer {
 				if (j < 0 || j >= trace.numSamples()) {
 					continue;
 				}
-				float v = trace.getSample(j);
-				int color = tanh.trans(v - middleAmp);
+				int color = curve.mapToColor(trace.getSample(j) - baseline);
 				
                 int baseIndex = baseOffsetX + traceStartX + sampStart * bytesInRow;
                 for (int yt = 0; yt < vscale; yt++) {

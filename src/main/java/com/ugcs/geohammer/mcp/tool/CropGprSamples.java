@@ -50,7 +50,7 @@ public class CropGprSamples extends McpTool {
                 throw new IllegalArgumentException("File does not support sample cropping "
                         + "(it has no metadata sidecar)");
             }
-            int samples = traceFile.getMaxSamples();
+            int samples = traceFile.maxSamples();
             if (offset >= samples) {
                 throw new IllegalArgumentException("offset " + offset + " is out of bounds, "
                         + "traces have " + samples + " samples");

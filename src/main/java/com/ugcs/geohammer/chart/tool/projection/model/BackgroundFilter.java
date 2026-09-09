@@ -1,17 +1,22 @@
 package com.ugcs.geohammer.chart.tool.projection.model;
 
+import com.ugcs.geohammer.format.SampleStatistics;
+
 public class BackgroundFilter implements TraceSamples {
 
     private final TraceSamples source;
 
     private final float[] means;
 
+    private final SampleStatistics statistics;
+
     public BackgroundFilter(TraceSamples source) {
         this.source = source;
         this.means = getSampleMeans(source);
+        this.statistics = getStatistics(source, means);
     }
 
-    private float[] getSampleMeans(TraceSamples samples) {
+    private static float[] getSampleMeans(TraceSamples samples) {
         int numTraces = samples.numTraces();
         int numSamples = samples.maxSamples();
 
@@ -33,6 +38,34 @@ public class BackgroundFilter implements TraceSamples {
             means[j] = sum;
         }
         return means;
+    }
+
+    private static SampleStatistics getStatistics(TraceSamples samples, float[] means) {
+        int numTraces = samples.numTraces();
+        int numSamples = means.length;
+
+        double dispersion = 0;
+        long count = 0;
+        for (int i = 0; i < numTraces; i++) {
+            for (int j = 0; j < numSamples; j++) {
+                float value = samples.getValue(i, j);
+                if (Float.isNaN(value)) {
+                    continue;
+                }
+                dispersion += Math.abs(value - means[j]);
+                count++;
+            }
+        }
+        if (count > 0) {
+            dispersion /= count;
+        }
+        // removing the per-depth means centres every depth on zero
+        return new SampleStatistics(0f, (float) dispersion);
+    }
+
+    @Override
+    public SampleStatistics getStatistics() {
+        return statistics;
     }
 
     @Override

@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
-import com.ugcs.geohammer.PrefSettings;
+import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -25,15 +25,15 @@ public class LowPassTool extends FilterToolView {
 
     private final Model model;
 
-    private final PrefSettings preferences;
+    private final Settings settings;
 
     private final TextField orderInput;
 
-    public LowPassTool(Model model, PrefSettings preferences, ExecutorService executor) {
+    public LowPassTool(Model model, Settings settings, ExecutorService executor) {
         super(executor);
 
         this.model = model;
-        this.preferences = preferences;
+        this.settings = settings;
 
         InputWithTopLabel orderWithLabel = new InputWithTopLabel("Filter length (measurements)");
         orderInput = orderWithLabel.getInput();
@@ -73,7 +73,7 @@ public class LowPassTool extends FilterToolView {
     public void loadPreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            orderInput.setText(preferences.getStringOrDefault(
+            orderInput.setText(settings.getStringOrDefault(
                     "lowpass", templateName, Strings.empty()));
         }
     }
@@ -82,7 +82,7 @@ public class LowPassTool extends FilterToolView {
     public void savePreferences() {
         String templateName = Templates.getTemplateName(selectedFile);
         if (!Strings.isNullOrEmpty(templateName)) {
-            preferences.setValue("lowpass", templateName, orderInput.getText());
+            settings.setValue("lowpass", templateName, orderInput.getText());
         }
     }
 

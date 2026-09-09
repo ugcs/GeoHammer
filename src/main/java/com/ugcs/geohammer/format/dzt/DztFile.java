@@ -106,10 +106,6 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 			channels = r.read();
 		}
 
-		for (DztChannel channel : channels) {
-			channel.normalize();
-		}
-
 		selectChannel(0);
 		setUnsaved(false);
 	}
@@ -124,18 +120,9 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		Check.notNull(file);
 		Check.notNull(sourceFile);
 
-		// Lift in-memory invariant: writer expects raw samples on disk.
-		// finally restores the normalized state whatever happens below.
-		for (DztChannel channel : channels) {
-			channel.denormalize();
-		}
 		try (DztWriter w = new DztWriter(file)) {
 			w.write(channels, range);
 			dzg.save(getDzgFile(file), buildDzgMappings(range));
-		} finally {
-			for (DztChannel channel : channels) {
-				channel.normalize();
-			}
 		}
 	}
 
@@ -169,16 +156,6 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 			}
 		}
 		return mappings;
-	}
-
-	@Override
-	public void normalize() {
-		selectedChannel().normalize();
-	}
-
-	@Override
-	public void denormalize() {
-		selectedChannel().denormalize();
 	}
 
 	@Override

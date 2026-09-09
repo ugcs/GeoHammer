@@ -1,32 +1,28 @@
 package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.Settings;
+import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Unit;
-import javafx.beans.value.ChangeListener;
 
 public class ContrastSlider extends BaseSlider {
 
-    public ContrastSlider(Settings settings, ChangeListener<Number> listenerExt) {
-        super(settings, listenerExt);
+    private final Settings settings;
 
-        name = "Contrast";
-        unit = Unit.empty();
-        tickUnits = 25;
+    public ContrastSlider(Settings settings) {
+        super("Contrast", Unit.empty(), new Range(Settings.MIN_CONTRAST, Settings.MAX_CONTRAST));
+        this.settings = settings;
+        update();
     }
 
     @Override
-    public int updateModel() {
-        settings.setContrast(slider.getValue());
-        return (int) settings.getContrast();
-    }
-
-    @Override
-    public void updateUI() {
-        if (slider == null) {
-            return;
+    public void onValueChanged(Number value) {
+        if (value != null) {
+            settings.setContrast(value.doubleValue());
         }
-        slider.setMin(Settings.MIN_CONTRAST);
-        slider.setMax(Settings.MAX_CONTRAST);
+    }
+
+    @Override
+    public void update() {
         slider.setValue(settings.getContrast());
     }
 }

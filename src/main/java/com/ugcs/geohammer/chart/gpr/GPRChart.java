@@ -10,6 +10,7 @@ import com.ugcs.geohammer.chart.gpr.axis.VerticalRulerDrawer;
 import com.ugcs.geohammer.format.meta.MetaFile;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.view.Colors;
+import com.ugcs.geohammer.view.Listeners;
 import com.ugcs.geohammer.view.PaintLimiter;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.format.TraceFile;
@@ -139,11 +140,11 @@ public class GPRChart extends Chart {
         prismDrawer = new PrismDrawer(model);
         initCanvas();
 
-        ChangeListener<Number> contrastListener = (observable, oldValue, newValue) -> {
+        contrastSlider = new ContrastSlider(profileField.getSettings());
+        Listeners.onChange(contrastSlider.getSlider().valueProperty(), v -> {
             repaintEvent();
             setContrastToMeta();
-        };
-        contrastSlider = new ContrastSlider(profileField.getSettings(), contrastListener);
+        });
 
 		setContrastFromMeta(contrastSlider, traceFile);
 		setDepthRangeFromMeta(traceFile);
@@ -256,7 +257,7 @@ public class GPRChart extends Chart {
             double contrast = Math.clamp(contrastFromMeta, Settings.MIN_CONTRAST, Settings.MAX_CONTRAST);
             Settings settings = profileField.getSettings();
             settings.setContrast(contrast);
-			slider.updateUI();
+			slider.update();
 		}
 	}
 

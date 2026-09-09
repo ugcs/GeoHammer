@@ -5,6 +5,8 @@ import java.util.stream.IntStream;
 
 public class SampleNormalizer {
 
+    private static final boolean ON = false;
+
     private float avg;
 
     private float reduceFactor;
@@ -34,6 +36,9 @@ public class SampleNormalizer {
     }
 
     private void normalize(List<Trace> traces, float avg, float reduceFactor) {
+        if (!ON) {
+            return;
+        }
         for (Trace trace : traces) {
             for (int i = 0; i < trace.numSamples(); i++ ) {
                 float normalized = (trace.getSample(i) - avg) / reduceFactor;
@@ -43,6 +48,9 @@ public class SampleNormalizer {
     }
 
     public void back(List<Trace> traces) {
+        if (!ON) {
+            return;
+        }
         for (Trace trace : traces) {
             for (int i = 0; i < trace.numSamples(); i++ ) {
                 float restored = trace.getSample(i) * reduceFactor + avg;

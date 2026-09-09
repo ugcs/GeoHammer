@@ -20,8 +20,6 @@ public class Trace {
 
     private float[] samples;
 
-    private byte[] edges;
-
     private LatLon latLon;
 
     private LatLon latLonOrigin;
@@ -45,7 +43,6 @@ public class Trace {
         this.header = header;
 
         this.samples = samples;
-        this.edges = new byte[samples.length];
 
         this.latLonOrigin = latLon;
         this.latLon = latLon;
@@ -138,14 +135,6 @@ public class Trace {
             sum += getSample(i);
         }
         return from < numSamples ? (float) (sum / (numSamples - from)) : 0f;
-    }
-
-    public Edge getEdge(int index) {
-        return Edge.of(edges[localToGlobal(index)]);
-    }
-
-    public void setEdge(int index, Edge edge) {
-        edges[localToGlobal(index)] = edge.code();
     }
 
     public LatLon getLatLon() {

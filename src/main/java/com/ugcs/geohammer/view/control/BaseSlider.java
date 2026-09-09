@@ -1,82 +1,81 @@
 package com.ugcs.geohammer.view.control;
 
-import com.ugcs.geohammer.Settings;
-
+import com.ugcs.geohammer.model.Range;
+import com.ugcs.geohammer.util.Text;
+import com.ugcs.geohammer.util.Ticks;
 import com.ugcs.geohammer.util.Unit;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
+import com.ugcs.geohammer.view.Listeners;
+import com.ugcs.geohammer.view.Views;
 import javafx.geometry.Insets;
-import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 
-public abstract class BaseSlider {
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 
-	protected Settings settings;
+public abstract class BaseSlider extends HBox {
 
-    protected Slider slider;
+    protected final Slider slider;
 
-    protected String name;
+    protected final Label label;
 
-    protected Unit unit;
+    protected final String name;
 
-    protected Label label;
+    protected final Unit unit;
 
-    protected double tickUnits = 25;
+    private final DecimalFormat format = new DecimalFormat(
+            "0.#", DecimalFormatSymbols.getInstance(Locale.US));
 
-    protected ChangeListener<Number> listenerExt;
+    public BaseSlider(String name, Unit unit, Range range) {
+        this.name = name;
+        this.unit = unit;
 
-    protected ChangeListener<Number> listener = new ChangeListener<>() {
-        @Override
-        public void changed(ObservableValue<? extends Number> source, Number oldValue, Number newValue) {
-            int value = updateModel();
-            label.textProperty().setValue(name + ": " + (unit != null ? unit.format(value) : value));
-        }
-    };
-	
-	public BaseSlider(Settings settings, ChangeListener<Number> listenerExt) {
-		this.settings = settings;
-		this.listenerExt = listenerExt;
-	}
-	
-	public Node produce() {
-        slider = new Slider();
-        
-        updateUI();
-        
+        slider = new Slider(range.getMin(), range.getMax(), range.getMin());
+        double tickUnits = Ticks.getPrettyTick(range.getMin(), range.getMax(), 10);
+        slider.setMajorTickUnit(tickUnits);
         slider.setPrefWidth(200);
-        
-        slider.valueProperty().addListener(listener);
-        slider.valueProperty().addListener(listenerExt);
-        
         slider.setShowTickLabels(true);
         slider.setShowTickMarks(true);
-        slider.setMajorTickUnit(tickUnits);
         slider.setBlockIncrement(1);
 
+        Listeners.onChange(slider.valueProperty(), v -> {
+            updateText(v);
+            onValueChanged(v);
+        });
+
         label = new Label(name);
-        
-        listener.changed(null, null, null);
-        
-        HBox root = new HBox();
-        root.setPadding(new Insets(4, 8, 4, 0));
-        root.setSpacing(2.5);
-        root.setPrefWidth(Double.MAX_VALUE);
 
-        Region spacer = new Region();
-        spacer.setMinWidth(0);
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        setSpacing(2.5);
+        setPadding(new Insets(4, 8, 4, 0));
+        setPrefWidth(Double.MAX_VALUE);
 
-        root.getChildren().addAll(label, spacer, slider);
-        
-        updateUI();
-        return root;
-	}
-	
-	public abstract int updateModel();
-	
-	public abstract void updateUI();
+        getChildren().addAll(label, Views.createSpacer(), slider);
+
+        updateText(slider.getValue());
+    }
+
+    public Slider getSlider() {
+        return slider;
+    }
+
+    public Label getLabel() {
+        return label;
+    }
+
+    private void updateText(Number value) {
+        if (value == null) {
+            label.setText(name);
+        } else {
+            String valueString = unit != null
+                    ? unit.format(value, format::format)
+                    : value.toString();
+            label.setText(name + ":\n" + valueString);
+        }
+    }
+
+    public abstract void onValueChanged(Number value);
+
+	public abstract void update();
 }

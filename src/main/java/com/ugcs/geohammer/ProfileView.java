@@ -250,7 +250,7 @@ public class ProfileView implements InitializingBean {
 		if (gprChart == null) {
 			return List.of();
 		}
-		var contrastNode = gprChart.getContrastSlider().produce();
+		var contrastNode = gprChart.getContrastSlider();
 		return List.of(contrastNode);
 	}
 

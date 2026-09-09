@@ -152,6 +152,8 @@ public final class Views {
 
 	public static Region createSpacer() {
 		Region region = new Region();
+        region.setMinWidth(0);
+        region.setMinHeight(0);
 		HBox.setHgrow(region, Priority.ALWAYS);
         VBox.setVgrow(region, Priority.ALWAYS);
 		return region;

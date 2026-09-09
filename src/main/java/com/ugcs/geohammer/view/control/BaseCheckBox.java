@@ -1,51 +1,44 @@
 package com.ugcs.geohammer.view.control;
 
+import com.ugcs.geohammer.view.Listeners;
 import com.ugcs.geohammer.view.Views;
-import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 
-public abstract class BaseCheckBox {
+public abstract class BaseCheckBox extends HBox {
 	
-	protected CheckBox checkBox;
+	protected final CheckBox checkBox;
 
-	protected Label label;
+	protected final Label label;
 
-	protected String name;
+	protected final String name;
 
-	protected ChangeListener<Boolean> listenerExt;
-
-	protected Pos pos = Pos.CENTER_RIGHT;
-
-	protected ChangeListener<Boolean> listener = (source, oldValue, newValue) -> updateModel();
-	
-	public BaseCheckBox(ChangeListener<Boolean> listenerExt, String name) {
-		this.listenerExt = listenerExt;
+	public BaseCheckBox(String name) {
 		this.name = name;
-	}
-	
-	public Node produce() {
-		checkBox = new CheckBox();
-        
-        updateUI();
-        
-        checkBox.selectedProperty().addListener(listener);
-        checkBox.selectedProperty().addListener(listenerExt);
 
-        HBox root = new HBox();
-        root.setAlignment(Pos.CENTER_RIGHT);
-        root.setPadding(new Insets(Views.DEFAULT_SPACING));
-        root.setSpacing(Views.DEFAULT_SPACING);
-        root.getChildren().addAll(new Label(name), checkBox);
-        
-        return root;
+		checkBox = new CheckBox();
+		label = new Label(name);
+
+		Listeners.onChange(checkBox.selectedProperty(), this::onValueChanged);
+
+		setSpacing(Views.DEFAULT_SPACING);
+		setPadding(new Insets(Views.DEFAULT_SPACING));
+		setAlignment(Pos.CENTER_RIGHT);
+		getChildren().addAll(label, checkBox);
 	}
+
+	public CheckBox getCheckBox() {
+		return checkBox;
+	}
+
+	public Label getLabel() {
+		return label;
+	}
+
+	public abstract void onValueChanged(Boolean value);
 	
-	public abstract void updateUI();
-	
-	public abstract void updateModel();
+	public abstract void update();
 }

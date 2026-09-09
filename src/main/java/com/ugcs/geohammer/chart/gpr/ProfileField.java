@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.Settings;
 
@@ -46,12 +47,26 @@ public class ProfileField {
 		}
 
 		this.maxHeightInSamples = maxHeight;
-		getSettings().setMaxSamples(maxHeightInSamples);
 
-		if (getSettings().getDepthStart() + getSettings().getDepthHeight() > maxHeightInSamples) {
-			getSettings().setDepthStart(maxHeightInSamples / 4);
-			getSettings().setDepthHeight(maxHeightInSamples / 4);
+		profileSettings.setMaxSamples(maxHeightInSamples);
+		if (profileSettings.getDepthStart() + profileSettings.getDepthHeight() > maxHeightInSamples) {
+			profileSettings.setDepthStart(maxHeightInSamples / 4);
+			profileSettings.setDepthHeight(maxHeightInSamples / 4);
 		}
+	}
+
+	public IndexRange getDepthRange() {
+		if (maxHeightInSamples == 0) {
+			return new IndexRange(0, 0);
+		}
+
+		int depthFrom = profileSettings.getDepthStart();
+		depthFrom = Math.clamp(depthFrom, 0, maxHeightInSamples - 1);
+
+		int depthTo = profileSettings.getDepthStart() + profileSettings.getDepthHeight();
+		depthTo = Math.clamp(depthTo, depthFrom, maxHeightInSamples);
+
+		return new IndexRange(depthFrom, depthTo);
 	}
 
 	public Settings getSettings() {

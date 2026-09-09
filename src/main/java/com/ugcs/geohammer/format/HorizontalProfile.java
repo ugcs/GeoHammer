@@ -267,11 +267,11 @@ public class HorizontalProfile {
         if (removeAirGap && level > 0) {
             removeAirGap(traceFile, level);
         }
-        // warite syrface elevation
+        // write surface elevation
         updateElevations(traceFile, levelAltitude);
 
-        traceFile.updateEdges();
         traceFile.setGroundProfile(null);
+        traceFile.tracesChanged();
         traceFile.setUnsaved(true);
     }
 

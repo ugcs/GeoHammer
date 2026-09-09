@@ -18,7 +18,6 @@ import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.gpr.BackgroundNoiseRemover;
 import com.ugcs.geohammer.service.gpr.DistanceCalculator;
 import com.ugcs.geohammer.service.gpr.DistanceSmoother;
-import com.ugcs.geohammer.service.gpr.EdgeFinder;
 import com.ugcs.geohammer.service.gpr.SpreadCoordinates;
 import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
@@ -61,7 +60,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
     protected HorizontalProfile groundProfile;
 
     @Nullable
-    private ScanProfile amplitudeProfile;
+    private volatile Statistics statistics;
 
     protected void loadMeta(List<Trace> traces) throws IOException {
         File source = getFile();
@@ -175,14 +174,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
         return 100.0 / sampleDistance;
     }
 
-    public @Nullable ScanProfile getAmplitudeProfile() {
-        return amplitudeProfile;
-    }
-
-    public void setAmplitudeProfile(@Nullable ScanProfile amplitudeProfile) {
-        this.amplitudeProfile = amplitudeProfile;
-    }
-
     public boolean isSpreadCoordinatesNecessary() {
         return spreadCoordinatesNecessary;
     }
@@ -226,6 +217,22 @@ public abstract class TraceFile extends SgyFileWithMeta {
         this.groundProfile = groundProfile;
     }
 
+    public Statistics getStatistics() {
+        Statistics stats = statistics;
+        if (stats == null) {
+            stats = Statistics.compute(this);
+            statistics = stats;
+        }
+        return stats;
+    }
+
+    @Override
+    public void tracesChanged() {
+        super.tracesChanged();
+
+        statistics = null;
+    }
+
     public static double convertDegreeFraction(double org) {
         org = org / 100.0;
         int dgr = (int) org;
@@ -263,10 +270,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     public abstract void denormalize();
 
-    public void updateEdges() {
-        new EdgeFinder().execute(this, null);
-    }
-
     @Override
     public int numTraces() {
         return getTraces().size();
@@ -288,7 +291,7 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
     protected void setTraces(List<Trace> traces) {
         this.traces = traces;
-        updateEdges();
+        tracesChanged();
     }
 
     public void updateTraces() {
@@ -423,6 +426,42 @@ public abstract class TraceFile extends SgyFileWithMeta {
         @Override
         public void discard() {
             tracesEntry.close();
+        }
+    }
+
+    public record Statistics(double baseline, double dispersion) {
+
+        public static Statistics compute(TraceFile file) {
+            List<Trace> traces = Check.notNull(file).getTraces();
+
+            double baseline = 0;
+            long n = 0;
+            for (Trace trace : traces) {
+                int numSamples = trace.numSamples();
+                // only bottom half because top has big distortion
+                for (int i = numSamples / 2; i < numSamples; i++) {
+                    baseline += trace.getSample(i);
+                    n++;
+                }
+            }
+            if (n > 0) {
+                baseline /= n;
+            }
+
+            double dispersion = 0;
+            n = 0;
+            for (Trace trace : traces) {
+                int numSamples = trace.numSamples();
+                for (int i = 0; i < numSamples; i++) {
+                    dispersion += Math.abs(trace.getSample(i) - baseline);
+                    n++;
+                }
+            }
+            if (n > 0) {
+                dispersion /= n;
+            }
+
+            return new Statistics(baseline, dispersion);
         }
     }
 }

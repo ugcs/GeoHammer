@@ -7,7 +7,6 @@ import java.util.List;
 
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.Settings;
 
 public class PrismDrawer {
 
@@ -43,9 +42,6 @@ public class PrismDrawer {
 
         int baseOffsetX = rect.x + rect.width / 2;
 
-		Settings profileSettings = field.getField().getSettings();
-		float middleAmp = profileSettings.getMiddleAmplitude();
-
 		for (int i = startTrace; i <= finishTrace; i++) {
 			if (i < 0 || i >= traces.size()) {
 				continue;
@@ -75,7 +71,7 @@ public class PrismDrawer {
 					continue;
 				}
 				float v = trace.getSample(j);
-				int color = tanh.trans(v - middleAmp);
+				int color = tanh.trans(v);
 				
                 int baseIndex = baseOffsetX + traceStartX + sampStart * bytesInRow;
                 for (int yt = 0; yt < vscale; yt++) {

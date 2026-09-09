@@ -41,11 +41,10 @@ public class PackageInstaller {
 		commandExecutor.executeCommand(command, onOutput);
 	}
 
-	public void installFromRequirements(Path requirementsPath, Consumer<String> onOutput)
+	public boolean installFromRequirements(Path requirementsPath, Consumer<String> onOutput)
 			throws IOException, InterruptedException {
-		if (!Files.exists(requirementsPath)) {
-			log.warn("No requirements file at {}, skipping dependency installation.", requirementsPath);
-			return;
+		if (!hasEntries(requirementsPath)) {
+			return false;
 		}
 
 		List<String> command = List.of(
@@ -54,10 +53,15 @@ public class PackageInstaller {
 				"-r", requirementsPath.toString()
 		);
 		commandExecutor.executeCommand(command, onOutput);
+		return true;
 	}
 
-	public void reinstallFromRequirements(Path requirementsPath, Consumer<String> onOutput)
+	public boolean reinstallFromRequirements(Path requirementsPath, Consumer<String> onOutput)
 			throws IOException, InterruptedException {
+		if (!hasEntries(requirementsPath)) {
+			return false;
+		}
+
 		List<String> command = List.of(
 				interpreter.getPath().toString(),
 				"-m", "pip", "install",
@@ -66,5 +70,14 @@ public class PackageInstaller {
 				"-r", requirementsPath.toString()
 		);
 		commandExecutor.executeCommand(command, onOutput);
+		return true;
+	}
+
+	private static boolean hasEntries(Path requirementsPath) throws IOException {
+		if (!Files.exists(requirementsPath)) {
+			log.warn("No requirements file at {}, skipping dependency installation.", requirementsPath);
+			return false;
+		}
+		return !Files.readString(requirementsPath).isBlank();
 	}
 }

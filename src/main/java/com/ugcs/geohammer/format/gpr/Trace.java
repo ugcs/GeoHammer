@@ -126,17 +126,6 @@ public class Trace {
         return samples;
     }
 
-    public float getAmplitudeBaseline() {
-        int numSamples = numSamples();
-        // only bottom half because top has big distortion
-        int from = numSamples / 2;
-        double sum = 0;
-        for (int i = from; i < numSamples; i++) {
-            sum += getSample(i);
-        }
-        return from < numSamples ? (float) (sum / (numSamples - from)) : 0f;
-    }
-
     public LatLon getLatLon() {
         return latLon;
     }

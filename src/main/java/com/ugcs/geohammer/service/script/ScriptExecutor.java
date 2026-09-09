@@ -37,18 +37,18 @@ public class ScriptExecutor {
 
 	private final CommandExecutor commandExecutor;
 
-	private final PythonService pythonService;
+	private final PythonInterpreter pythonInterpreter;
 
 	public ScriptExecutor(Loader loader,
 	                      EventSender eventSender,
 	                      EventsFactory eventsFactory,
 	                      CommandExecutor commandExecutor,
-	                      PythonService pythonService) {
+	                      PythonInterpreter pythonInterpreter) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
 		this.commandExecutor = commandExecutor;
-		this.pythonService = pythonService;
+		this.pythonInterpreter = pythonInterpreter;
 	}
 
 	public void execute(SgyFile sgyFile, File scriptFile, ScriptMetadata metadata, Map<String, String> params,
@@ -120,7 +120,7 @@ public class ScriptExecutor {
 	private List<String> buildCommand(File scriptFile, ScriptMetadata metadata,
 	                                  Map<String, String> params, File tempFile) throws IOException {
 		List<String> command = new ArrayList<>();
-		command.add(pythonService.getPythonPath().toString());
+		command.add(pythonInterpreter.getPath().toString());
 		command.add(scriptFile.toPath().toString());
 		command.add(tempFile.toPath().toAbsolutePath().toString());
 		appendArgs(command, metadata, params);

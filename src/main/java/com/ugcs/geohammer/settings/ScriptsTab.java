@@ -1,7 +1,7 @@
 package com.ugcs.geohammer.settings;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.service.script.PythonService;
+import com.ugcs.geohammer.service.script.PythonInterpreter;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.ResourceImageHolder;
@@ -25,14 +25,14 @@ import java.nio.file.Path;
 @Component
 public class ScriptsTab implements SettingsTab {
 
-    private final PythonService pythonService;
+    private final PythonInterpreter pythonInterpreter;
 
     private final VBox content;
 
     private final TextField pythonPathInput;
 
-    public ScriptsTab(PythonService pythonService) {
-        this.pythonService = Check.notNull(pythonService);
+    public ScriptsTab(PythonInterpreter pythonInterpreter) {
+        this.pythonInterpreter = Check.notNull(pythonInterpreter);
 
         pythonPathInput = new TextField();
         pythonPathInput.setEditable(false);
@@ -83,7 +83,7 @@ public class ScriptsTab implements SettingsTab {
     public void load() {
         Path path = null;
         try {
-            path = pythonService.getPythonPath();
+            path = pythonInterpreter.getPath();
         } catch (IOException ignore) {
         }
         pythonPathInput.setText(path != null ? path.toString() : Strings.empty());
@@ -92,6 +92,6 @@ public class ScriptsTab implements SettingsTab {
     @Override
     public void save() {
         String path = pythonPathInput.getText();
-        pythonService.setPythonPath(path);
+        pythonInterpreter.setPath(path);
     }
 }

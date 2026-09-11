@@ -92,14 +92,14 @@ public abstract class Parser {
 	public List<GeoData> parse(File file) throws IOException {
         Check.notNull(file);
 
-        // set date from filename
-        dateFromFilename = null;
-        Date dateColumn = template.getDataMapping().getDate();
-        if (dateColumn != null && dateColumn.getSource() == Date.Source.FileName) {
-            dateFromFilename = parseDateFromFilename(file.getName());
-        }
-
         try {
+            // set date from filename
+            dateFromFilename = null;
+            Date dateColumn = template.getDataMapping().getDate();
+            if (dateColumn != null && dateColumn.getSource() == Date.Source.FileName) {
+                dateFromFilename = parseDateFromFilename(file.getName());
+            }
+
             // parse data lines
             List<GeoData> values = parseFile(file);
 

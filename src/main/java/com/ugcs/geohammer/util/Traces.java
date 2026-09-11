@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.util;
 
+import com.ugcs.geohammer.chart.tool.projection.math.Vectors;
+import com.ugcs.geohammer.math.SphericalMercator;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.format.SgyFile;
@@ -7,11 +9,15 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.TraceKey;
 import com.ugcs.geohammer.format.GeoData;
 
+import javafx.geometry.Point2D;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public final class Traces {
+
+    private static final double MIN_SEGMENT_LENGTH = 0.5;
 
     private Traces() {
     }
@@ -86,23 +92,50 @@ public final class Traces {
             return Optional.empty();
         }
 
-        TraceKey nearest = null;
+        Point2D target = SphericalMercator.project(latlon);
+		TraceKey nearest = null;
         double minDistance = Double.MAX_VALUE;
         for (SgyFile file : files) {
             List<GeoData> values = Nulls.toEmpty(file.getGeoData());
+
+            int fromIndex = -1;
+            Point2D from = null;
             for (int i = 0; i < values.size(); i++) {
-                GeoData value = values.get(i);
-                LatLon p = value.getLatLon();
-                if (p == null) {
+                LatLon valueLatLon = values.get(i).getLatLon();
+                if (valueLatLon == null) {
                     continue;
                 }
-                double d = latlon.getDistance(p);
-                if (d < minDistance && d <= distanceLimit) {
-                    nearest = new TraceKey(file, i);
-                    minDistance = d;
+                Point2D to = SphericalMercator.project(valueLatLon);
+
+                int index;
+                double distance;
+                if (from != null && from.distance(to) >= MIN_SEGMENT_LENGTH) {
+                    Point2D ab = to.subtract(from);
+					Point2D ap = target.subtract(from);
+                    double t = projection(ab, ap);
+                    distance = target.distance(from.add(ab.multiply(t)));
+                    // take a segment endpoint closest to the projection point
+                    index = t < 0.5 ? fromIndex : i;
+                } else {
+                    distance = target.distance(to);
+                    index = i;
                 }
+
+                if (distance < minDistance && distance <= distanceLimit) {
+                    nearest = new TraceKey(file, index);
+                    minDistance = distance;
+                }
+                from = to;
+                fromIndex = i;
             }
         }
         return Optional.ofNullable(nearest);
+    }
+
+    private static double projection(Point2D ab, Point2D ap) {
+        double ab2 = ab.dotProduct(ab);
+        return ab2 > Vectors.EPS
+                ? Math.clamp(ap.dotProduct(ab) / ab2, 0, 1)
+                : 0;
     }
 }

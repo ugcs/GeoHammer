@@ -98,26 +98,28 @@ public final class Traces {
         for (SgyFile file : files) {
             List<GeoData> values = Nulls.toEmpty(file.getGeoData());
 
-            int fromIndex = -1;
-            Point2D from = null;
             for (int i = 0; i < values.size(); i++) {
-                LatLon valueLatLon = values.get(i).getLatLon();
-                if (valueLatLon == null) {
-                    continue;
-                }
-                Point2D to = SphericalMercator.project(valueLatLon);
+				GeoData value = values.get(i);
+				GeoData prevValue = i > 0 ? values.get(i - 1) : null;
+
+				Point2D point = SphericalMercator.project(value.getLatLon());
+				if (point == null) {
+					continue;
+				}
+
+				Point2D prevPoint = prevValue != null ? SphericalMercator.project(prevValue.getLatLon()) : null;
 
                 int index;
                 double distance;
-                if (from != null && from.distance(to) >= MIN_SEGMENT_LENGTH) {
-                    Point2D ab = to.subtract(from);
-					Point2D ap = target.subtract(from);
+                if (prevPoint != null && prevPoint.distance(point) >= MIN_SEGMENT_LENGTH) {
+                    Point2D ab = point.subtract(prevPoint);
+					Point2D ap = target.subtract(prevPoint);
                     double t = projection(ab, ap);
-                    distance = target.distance(from.add(ab.multiply(t)));
+                    distance = target.distance(prevPoint.add(ab.multiply(t)));
                     // take a segment endpoint closest to the projection point
-                    index = t < 0.5 ? fromIndex : i;
+                    index = t < 0.5 ? i - 1 : i;
                 } else {
-                    distance = target.distance(to);
+                    distance = target.distance(point);
                     index = i;
                 }
 
@@ -125,8 +127,6 @@ public final class Traces {
                     nearest = new TraceKey(file, index);
                     minDistance = distance;
                 }
-                from = to;
-                fromIndex = i;
             }
         }
         return Optional.ofNullable(nearest);

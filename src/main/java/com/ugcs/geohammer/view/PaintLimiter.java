@@ -6,45 +6,49 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PaintLimiter {
 
-    private final long framePeriod;
+	private final long framePeriod;
 
-    private long lastPulse;
+	private long lastPulse;
 
-    private long accumulated;
+	private long accumulated;
 
-    private final Runnable paint;
+	private final Runnable paint;
 
-    private final AtomicBoolean paintRequested = new AtomicBoolean(false);
+	private final AtomicBoolean paintRequested = new AtomicBoolean(false);
 
-    private final AnimationTimer timer = new AnimationTimer() {
-        @Override
-        public void handle(long now) {
-            if (!paintRequested.get()) {
-                return;
-            }
+	private final AtomicBoolean paintPostponed = new AtomicBoolean(false);
 
-            accumulated += now - lastPulse;
-            lastPulse = now;
+	private final AnimationTimer timer = new AnimationTimer() {
+		@Override
+		public void handle(long now) {
+			if (!paintRequested.getAndSet(false) && !paintPostponed.get()) {
+				return;
+			}
 
-            if (accumulated >= framePeriod) {
-                accumulated %= framePeriod;
-                paintRequested.set(false);
-                paint.run();
-            }
-        }
-    };
+			accumulated += now - lastPulse;
+			lastPulse = now;
 
-    public PaintLimiter(int fps, Runnable paint) {
-        this.framePeriod = 1_000_000_000L / fps;
-        this.paint = paint;
-        timer.start();
-    }
+			if (accumulated >= framePeriod) {
+				accumulated %= framePeriod;
+				paint.run();
+				paintPostponed.set(false);
+			} else {
+				paintPostponed.set(true);
+			}
+		}
+	};
 
-    public void requestPaint() {
-        paintRequested.set(true);
-    }
+	public PaintLimiter(int fps, Runnable paint) {
+		this.framePeriod = 1_000_000_000L / fps;
+		this.paint = paint;
+		timer.start();
+	}
 
-    public void stop() {
-        timer.stop();
-    }
+	public void requestPaint() {
+		paintRequested.set(true);
+	}
+
+	public void stop() {
+		timer.stop();
+	}
 }

@@ -28,6 +28,7 @@ public class PaintLimiter {
 
             if (accumulated >= framePeriod) {
                 accumulated %= framePeriod;
+				// allows to ensure last request draw
                 paintRequested.set(false);
                 paint.run();
             }

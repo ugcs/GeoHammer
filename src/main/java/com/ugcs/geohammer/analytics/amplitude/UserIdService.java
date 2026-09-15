@@ -39,7 +39,11 @@ public class UserIdService {
         if (userId == null) {
             userId = UUID.randomUUID().toString();
             userPropertiesService.put(USER_ID_KEY, userId);
-            userPropertiesService.save();
+			try {
+				userPropertiesService.save();
+			} catch (Exception e) {
+				log.error("Can't save user id", e);
+			}
         }
         return userId;
     }
@@ -77,7 +81,11 @@ public class UserIdService {
         if (surrogateDeviceId == null) {
             surrogateDeviceId = Base64.getEncoder().encodeToString(uuidAsBytes());
             userPropertiesService.put(SURROGATE_DEVICE_ID_KEY, surrogateDeviceId);
-			userPropertiesService.save();
+			try {
+				userPropertiesService.save();
+			} catch (Exception e) {
+				log.error("Can't save surrogate device id", e);
+			}
         }
         return surrogateDeviceId;
     }

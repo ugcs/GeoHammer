@@ -23,6 +23,8 @@ public class UserIdService {
 
     private static final String USER_ID_KEY = "amplitudeUserId";
 
+    private static final String SURROGATE_DEVICE_ID_KEY = "amplitudeSurrogateDeviceId";
+
     private final UserPropertiesService userPropertiesService;
 
     private final String deviceId;
@@ -47,7 +49,6 @@ public class UserIdService {
     }
 
     private String generateDeviceId() {
-        byte[] idByteArray;
         try {
             List<byte[]> macs = Collections.list(NetworkInterface.getNetworkInterfaces())
                     .stream()
@@ -61,17 +62,24 @@ public class UserIdService {
             for (byte[] mac : macs) {
                 byteBuffer.put(mac);
             }
-            if (byteBuffer.position() != 0)
-                idByteArray = encodeMD5(byteBuffer.array());
-            else {
-                idByteArray = uuidAsBytes();
-                log.warn("No mac address found, generating UUID");
+            if (byteBuffer.position() != 0) {
+				byte[] encodedBytes = encodeMD5(byteBuffer.array());
+                return Base64.getEncoder().encodeToString(encodedBytes);
             }
         } catch (Exception e) {
-            log.error("Error while reading mac-address, generating UUID", e);
-            idByteArray = uuidAsBytes();
+            log.error("Error while reading mac-address, using surrogate device id", e);
         }
-        return Base64.getEncoder().encodeToString(idByteArray);
+        return getOrCreateSurrogateDeviceId();
+    }
+
+    private String getOrCreateSurrogateDeviceId() {
+        String surrogateDeviceId = userPropertiesService.get(SURROGATE_DEVICE_ID_KEY);
+        if (surrogateDeviceId == null) {
+            surrogateDeviceId = Base64.getEncoder().encodeToString(uuidAsBytes());
+            userPropertiesService.put(SURROGATE_DEVICE_ID_KEY, surrogateDeviceId);
+			userPropertiesService.save();
+        }
+        return surrogateDeviceId;
     }
 
     private byte[] getHardwareAddress(NetworkInterface networkInterface) {

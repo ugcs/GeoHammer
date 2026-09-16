@@ -7,7 +7,7 @@ import com.ugcs.geohammer.chart.gpr.axis.HorizontalRulerController;
 import com.ugcs.geohammer.chart.gpr.axis.HorizontalRulerDrawer;
 import com.ugcs.geohammer.chart.gpr.axis.LeftRulerController;
 import com.ugcs.geohammer.chart.gpr.axis.VerticalRulerDrawer;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.view.Colors;
 import com.ugcs.geohammer.view.Listeners;
@@ -216,7 +216,7 @@ public class GPRChart extends Chart {
 
 	private void setContrastToMeta() {
 		TraceFile traceFile = profileField.getFile();
-		MetaFile meta = traceFile.getMetaFile();
+		Meta meta = traceFile.getMeta();
 		if (meta != null) {
             ProfileSettings profileSettings = profileField.getSettings();
 			meta.setContrast(profileSettings.getContrast());
@@ -239,7 +239,7 @@ public class GPRChart extends Chart {
 
 	private void updateDepthRangeInMeta() {
 		TraceFile traceFile = profileField.getFile();
-		MetaFile meta = traceFile.getMetaFile();
+		Meta meta = traceFile.getMeta();
 		if (meta != null) {
             ProfileSettings profileSettings = profileField.getSettings();
 			int min = profileSettings.getDepthStart();
@@ -249,7 +249,7 @@ public class GPRChart extends Chart {
 	}
 
 	private void setContrastFromMeta(ContrastSlider slider, TraceFile traceFile) {
-		MetaFile meta = traceFile.getMetaFile();
+		Meta meta = traceFile.getMeta();
 		Double contrastFromMeta = meta != null ? meta.getContrast() : null;
 		if (slider != null && contrastFromMeta != null) {
             double contrast = Math.clamp(contrastFromMeta, ProfileSettings.MIN_CONTRAST, ProfileSettings.MAX_CONTRAST);
@@ -260,7 +260,7 @@ public class GPRChart extends Chart {
 	}
 
 	private void setDepthRangeFromMeta(TraceFile traceFile) {
-		MetaFile meta = traceFile.getMetaFile();
+		Meta meta = traceFile.getMeta();
 		IndexRange savedRange = meta != null ? meta.getDepthRange() : null;
 		if (savedRange != null) {
             ProfileSettings profileSettings = profileField.getSettings();

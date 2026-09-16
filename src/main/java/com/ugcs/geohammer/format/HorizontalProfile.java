@@ -1,7 +1,7 @@
 package com.ugcs.geohammer.format;
 
 import com.ugcs.geohammer.format.gpr.Trace;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.math.filter.LazyRunningMedian;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.util.Nulls;
@@ -105,20 +105,20 @@ public class HorizontalProfile {
     }
 
 	public int getSurfaceIndex(TraceFile traceFile, int traceIndex) {
-        MetaFile metaFile = null;
+        Meta meta = null;
         if (traceFile != null) {
-            metaFile = traceFile.getMetaFile();
+            meta = traceFile.getMeta();
         }
         // global trace index
-        int i = metaFile != null
-                ? metaFile.getTraceIndex(traceIndex)
+        int i = meta != null
+                ? meta.getTraceIndex(traceIndex)
                 : traceIndex;
 
 		int surfaceIndex = i >= 0 && i < surface.length ? surface[i] : 0;
-        if (metaFile == null) {
+        if (meta == null) {
             return surfaceIndex;
         }
-        IndexRange sampleRange = metaFile.getSampleRange();
+        IndexRange sampleRange = meta.getSampleRange();
         if (sampleRange == null) {
             return surfaceIndex;
         }
@@ -278,11 +278,11 @@ public class HorizontalProfile {
     }
 
     private void removeAirGap(TraceFile traceFile, int numSamples) {
-        MetaFile metaFile = traceFile.getMetaFile();
-        if (metaFile == null) {
+        Meta meta = traceFile.getMeta();
+        if (meta == null) {
             return; // operation requires meta
         }
-        IndexRange sampleRange = metaFile.getSampleRange();
+        IndexRange sampleRange = meta.getSampleRange();
         if (sampleRange == null) {
             int maxSamples = 0;
             for (Trace trace : Nulls.toEmpty(traceFile.getFileTraces())) {
@@ -293,7 +293,7 @@ public class HorizontalProfile {
         sampleRange = new IndexRange(
                 Math.max(sampleRange.from(), numSamples),
                 Math.max(sampleRange.to(), numSamples + 1));
-        metaFile.setSampleRange(sampleRange);
+        meta.setSampleRange(sampleRange);
         traceFile.syncMeta();
     }
 

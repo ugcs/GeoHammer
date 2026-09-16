@@ -9,7 +9,7 @@ import com.ugcs.geohammer.format.Channel;
 import com.ugcs.geohammer.format.MultiChannelFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.element.BaseObject;
@@ -63,19 +63,19 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		selectedChannelIndex = channelIndex;
 
 		DztChannel channel = selectedChannel();
-		IndexRange sampleRange = metaFile != null ? metaFile.getSampleRange() : null;
+		IndexRange sampleRange = meta != null ? meta.getSampleRange() : null;
 		setTraces(channel.getTraces());
-		if (metaFile == null) {
-			loadMeta(channel.getTraces());
+		updateTraces();
+		if (meta == null) {
+			loadMeta();
 		} else {
-			syncMeta(channel.getTraces());
+			syncMeta();
 		}
-		if (sampleRange != null && metaFile != null) {
-			metaFile.setSampleRange(sampleRange);
-			syncMeta(channel.getTraces());
+		if (sampleRange != null && meta != null) {
+			meta.setSampleRange(sampleRange);
+			syncMeta();
 		}
 
-		updateTraces();
 		copyMarkedTracesToAuxElements();
 		updateTraceDistances();
 	}
@@ -139,8 +139,8 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		int to = range.to();
 
 		List<DzgFile.IndexMapping> mappings = new ArrayList<>();
-		if (metaFile != null) {
-			List<TraceGeoData> values = metaFile.getValues();
+		if (meta != null) {
+			List<TraceGeoData> values = meta.getValues();
 			for (int i = from; i < to; i++) {
 				TraceGeoData value = values.get(i);
 				int traceIndex = value.getTraceIndex();
@@ -177,16 +177,12 @@ public class DztFile extends TraceFile implements MultiChannelFile {
 		// Invariant: DztFile.traces and selectedChannel.getTraces() are the
 		// same list reference. Take it from the freshly copied channel.
 		List<Trace> tracesCopy = copy.channels.get(copy.selectedChannelIndex).getTraces();
-		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
-
-		if (metaFile != null) {
-			copy.metaFile = new MetaFile();
-			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
-			copy.syncMeta(tracesCopy);
-		}
-
 		copy.setTraces(tracesCopy);
+
+		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
 		copy.setAuxElements(elementsCopy);
+
+		copy.meta = Meta.copy(meta);
 
 		return copy;
 	}

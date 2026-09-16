@@ -21,7 +21,7 @@ import com.github.thecoldwine.sigrun.serialization.TextHeaderReader;
 import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
@@ -135,9 +135,9 @@ public class GprFile extends TraceFile {
 			throw new IOException("File '" + file.getName() + "' has no valid GPS coordinates in any trace header.");
 		}
 
-		loadMeta(traces);
 		setTraces(traces);
 		updateTraces();
+		loadMeta();
 		copyMarkedTracesToAuxElements();
 		updateTraceDistances();
 		if (isBackgroundRemoved()) {
@@ -362,16 +362,12 @@ public class GprFile extends TraceFile {
 		copy.setUnsaved(isUnsaved());
 
 		List<Trace> tracesCopy = Traces.copy(traces);
-		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
-
-		if (metaFile != null) {
-			copy.metaFile = new MetaFile();
-			copy.metaFile.setMetaToState(metaFile.getMetaFromState());
-			copy.syncMeta(tracesCopy);
-		}
-
 		copy.setTraces(tracesCopy);
+
+		List<BaseObject> elementsCopy = AuxElements.copy(getAuxElements());
 		copy.setAuxElements(elementsCopy);
+
+		copy.meta = Meta.copy(meta);
 
 		return copy;
 	}

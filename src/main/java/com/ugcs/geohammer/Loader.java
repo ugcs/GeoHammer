@@ -218,33 +218,6 @@ public class Loader {
 		if (MetaFiles.isMeta(file)) {
 			return openMetaSource(file);
 		}
-		return openSourceFile(file);
-	}
-
-	private boolean openMetaSource(File metaFile) throws IOException {
-		IOException firstError = null;
-		for (File source : MetaFiles.getSources(metaFile)) {
-			if (Thread.currentThread().isInterrupted()) {
-				return false;
-			}
-			try {
-				if (openSourceFile(source)) {
-					return true;
-				}
-			} catch (IOException e) {
-				log.warn("Error opening {}", source, e);
-				if (firstError == null) {
-					firstError = e;
-				}
-			}
-		}
-		if (firstError != null) {
-			throw firstError;
-		}
-		return false;
-	}
-
-	private boolean openSourceFile(File file) throws IOException {
 		if (FileTypes.isCsvFile(file)) {
 			openCsvFile(file);
 			return true;
@@ -271,6 +244,37 @@ public class Loader {
 			return true;
 		}
 		throw new IOException("Unsupported file format: " + file.getName());
+	}
+
+	private boolean openMetaSource(File metaFile) throws IOException {
+		Check.notNull(metaFile);
+
+		List<File> sources = MetaFiles.resolveSources(metaFile);
+		if (Nulls.isNullOrEmpty(sources)) {
+			return false;
+		}
+
+		IOException firstError = null;
+		for (File source : sources) {
+			if (Thread.currentThread().isInterrupted()) {
+				return false;
+			}
+
+			try {
+				if (openFile(source)) {
+					return true;
+				}
+			} catch (IOException e) {
+				log.warn("Error opening {}", source, e);
+				if (firstError == null) {
+					firstError = e;
+				}
+			}
+		}
+		if (firstError != null) {
+			throw firstError;
+		}
+		return false;
 	}
 
 	private void openGprFile(File file) throws IOException {

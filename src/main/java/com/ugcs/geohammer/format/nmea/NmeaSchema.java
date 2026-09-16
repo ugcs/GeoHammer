@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.format.nmea;
 
-import com.ugcs.geohammer.format.meta.TraceGeoData;
+import com.ugcs.geohammer.format.meta.MetaSchema;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.util.Strings;
@@ -13,7 +13,7 @@ public final class NmeaSchema {
     }
 
     public static ColumnSchema createSchema() {
-        return ColumnSchema.copy(TraceGeoData.SCHEMA);
+        return MetaSchema.createSchema();
     }
 
     public static Column createColumn(String header, String unit) {

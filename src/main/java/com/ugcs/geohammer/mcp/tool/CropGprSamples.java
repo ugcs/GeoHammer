@@ -46,7 +46,7 @@ public class CropGprSamples extends McpTool {
         }
         return text(inFxThread(() -> {
             TraceFile traceFile = resolveGprFile(fileName);
-            if (traceFile.getMetaFile() == null) {
+            if (traceFile.getMeta() == null) {
                 throw new IllegalArgumentException("File does not support sample cropping "
                         + "(it has no metadata sidecar)");
             }

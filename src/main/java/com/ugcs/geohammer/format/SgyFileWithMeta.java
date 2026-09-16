@@ -1,86 +1,112 @@
 package com.ugcs.geohammer.format;
 
-import com.ugcs.geohammer.format.meta.MetaFile;
-import com.ugcs.geohammer.format.meta.TraceMeta;
+import com.ugcs.geohammer.format.meta.Meta;
+import com.ugcs.geohammer.format.meta.MetaDocument;
+import com.ugcs.geohammer.format.meta.MetaFiles;
+import com.ugcs.geohammer.format.meta.MetaSchema;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
+import com.ugcs.geohammer.util.Check;
 import org.jspecify.annotations.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
 public abstract class SgyFileWithMeta extends SgyFile {
 
-    protected @Nullable MetaFile metaFile;
+    protected @Nullable Meta meta;
 
-    public @Nullable MetaFile getMetaFile() {
-        return metaFile;
+    public @Nullable Meta getMeta() {
+        return meta;
     }
 
     @Override
     public List<GeoData> getGeoData() {
-        if (metaFile == null) {
+        if (meta == null) {
             return List.of();
         }
-        List<? extends GeoData> values = metaFile.getValues();
+        List<? extends GeoData> values = meta.getValues();
         return (List<GeoData>)values;
     }
 
-    abstract public void saveMeta() throws IOException;
+    protected ColumnSchema createMetaSchema() {
+        return MetaSchema.createSchema();
+    }
 
-    abstract public void syncMeta();
+    abstract protected Meta initMeta(ColumnSchema schema);
 
-    protected void loadMetaFrom(SgyFileWithMeta other, Runnable loadData) {
-        TraceMeta meta = other.metaFile != null
-                ? other.metaFile.getMetaFromState()
-                : null;
-        if (meta == null) {
-            return;
+    protected void loadMeta() throws IOException {
+        File source = getFile();
+        Check.notNull(source);
+
+        ColumnSchema schema = createMetaSchema();
+        Meta newMeta = MetaFiles.readMetaOf(source, schema);
+        if (newMeta == null) {
+            newMeta = initMeta(schema);
         }
-        if (metaFile == null) {
-            return;
-        }
 
-        loadData.run();
-        setUnsaved(true);
-
-        metaFile.setMetaToState(meta);
+        meta = newMeta;
         syncMeta();
     }
 
+    protected void loadFrom(SgyFileWithMeta other, Runnable load) {
+        Check.notNull(load);
+
+        load.run();
+        setUnsaved(true);
+
+        ColumnSchema schema = meta != null
+                ? meta.getSchema()
+                : createMetaSchema();
+        meta = other.meta != null
+                ? Meta.copy(other.meta, schema)
+                : initMeta(schema);
+        syncMeta();
+    }
+
+    abstract public void syncMeta();
+
+    abstract public void saveMeta() throws IOException;
+
     @Override
     public FileSnapshot<SgyFileWithMeta> createSnapshot() {
-        return new TraceFile.Snapshot<>(this);
+        return new Snapshot<>(this);
     }
 
     public static class Snapshot<T extends SgyFileWithMeta> extends FileSnapshot<T> {
 
-        private final TraceMeta meta;
+        private final MetaDocument metaDocument;
+
+        private final ColumnSchema metaSchema;
 
         public Snapshot(T file) {
             super(file);
 
-            this.meta = copyMeta(file);
+            metaDocument = copyMetaDocument(file);
+            metaSchema = copyMetaSchema(file);
         }
 
-        private static TraceMeta copyMeta(SgyFileWithMeta file) {
-            MetaFile metaFile = file.getMetaFile();
-            return metaFile != null
-                    ? metaFile.getMetaFromState()
+        private static MetaDocument copyMetaDocument(SgyFileWithMeta file) {
+            return file != null && file.getMeta() != null
+                    ? MetaDocument.of(file.getMeta())
+                    : null;
+        }
+
+        private static ColumnSchema copyMetaSchema(SgyFileWithMeta file) {
+            return file != null && file.getMeta() != null
+                    ? ColumnSchema.copy(file.getMeta().getSchema())
                     : null;
         }
 
         @Override
         public void restoreFile(Model model) throws IOException {
-            if (meta == null) {
+            if (metaDocument == null || metaSchema == null) {
                 return; // no meta
             }
-            MetaFile metaFile = file.getMetaFile();
-            if (metaFile == null) {
-                return; // no meta file
-            }
 
-            metaFile.setMetaToState(meta);
+            file.meta = metaDocument.toMeta(metaSchema);
             file.syncMeta();
         }
     }

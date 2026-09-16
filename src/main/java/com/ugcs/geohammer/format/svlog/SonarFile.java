@@ -2,11 +2,9 @@ package com.ugcs.geohammer.format.svlog;
 
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
-import com.ugcs.geohammer.format.meta.TraceLine;
-import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
@@ -35,51 +33,29 @@ public class SonarFile extends SgyFileWithMeta {
         return getGeoData().size();
     }
 
-    protected void loadMeta() throws IOException {
-        File source = getFile();
-        Check.notNull(source);
-
-        MetaFiles.migrateLegacyMeta(source);
-
-        metaFile = new MetaFile(SonarSchema.createSchema());
-        if (!metaFile.loadFor(source)) {
-            initMeta();
-        }
-
-        syncMeta();
+    @Override
+    protected ColumnSchema createMetaSchema() {
+        return SonarSchema.createSchema();
     }
 
-    private void initMeta() {
-        if (metaFile == null) {
-            return;
-        }
-
-        TraceMeta meta = new TraceMeta();
-
-        // lines
-        TraceLine line = new TraceLine();
-        line.setLineIndex(0);
-        line.setFrom(0);
-        line.setTo(packets.size());
-        meta.setLines(List.of(line));
-
-        metaFile.setMetaToState(meta);
+    @Override
+    protected Meta initMeta(ColumnSchema schema) {
+        return Meta.ofSingleLine(schema, packets.size());
     }
 
     @Override
     public void saveMeta() throws IOException {
-        Check.notNull(metaFile);
+        Check.notNull(meta);
 
         File source = getFile();
         Check.notNull(source);
 
-        metaFile.saveFor(source);
-        MetaFiles.deleteLegacyMeta(source);
+        MetaFiles.writeMetaOf(source, meta);
     }
 
     @Override
     public void syncMeta() {
-        if (metaFile == null) {
+        if (meta == null) {
             return;
         }
 
@@ -108,11 +84,11 @@ public class SonarFile extends SgyFileWithMeta {
         sonarState.setTimestamp(firstTimestamp);
 
         int valueIndex = 0;
-        for (int i = 0; i < packets.size() && valueIndex < metaFile.numValues(); i++) {
+        for (int i = 0; i < packets.size() && valueIndex < meta.numValues(); i++) {
             SvlogPacket packet = packets.get(i);
             parser.parseValues(packet, sonarState);
 
-            TraceGeoData value = metaFile.getValues().get(valueIndex);
+            TraceGeoData value = meta.getValues().get(valueIndex);
             if (value.getTraceIndex() == i) {
                 updateGeoData(value, sonarState);
                 valueIndex++;
@@ -202,13 +178,13 @@ public class SonarFile extends SgyFileWithMeta {
     }
 
 	public void save(File file, IndexRange range) throws IOException {
-		if (metaFile == null) {
+		if (meta == null) {
 			log.warn("Cannot save range: metaFile is null");
 			return;
 		}
 
 		Set<Integer> writeIndices = new HashSet<>();
-		List<TraceGeoData> values = metaFile.getValues();
+		List<TraceGeoData> values = meta.getValues();
 		for (int i = range.from(); i < range.to(); i++) {
 			writeIndices.add(values.get(i).getTraceIndex());
 		}
@@ -229,17 +205,12 @@ public class SonarFile extends SgyFileWithMeta {
         SonarFile copy = new SonarFile();
         copy.setFile(getFile());
         copy.setUnsaved(isUnsaved());
-
-        if (metaFile != null) {
-            copy.metaFile = new MetaFile(ColumnSchema.copy(metaFile.getSchema()));
-            copy.metaFile.setMetaToState(metaFile.getMetaFromState());
-        }
-
         copy.packets = packets;
+        copy.meta = Meta.copy(meta);
         return copy;
     }
 
     public void loadFrom(SonarFile other) {
-        loadMetaFrom(other, () -> packets = other.packets);
+        loadFrom(other, () -> packets = other.packets);
     }
 }

@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.format.meta;
 
+import com.ugcs.geohammer.model.IndexRange;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -11,6 +12,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -20,31 +22,70 @@ class MetaFilesTest {
     Path directory;
 
     @Test
-    void getMetaPath_keepsSourceExtension() {
-        File source = directory.resolve("data.csv").toFile();
+    void readMetaOf_withCurrentNaming_loadsMeta() throws IOException {
+        File source = createFile("data.sgy");
+        saveMeta(directory.resolve("data.sgy.geohammer"), new IndexRange(3, 11));
 
-        assertEquals(directory.resolve("data.csv.geohammer"), MetaFiles.getMetaPath(source));
+        Meta meta = MetaFiles.readMetaOf(source, MetaSchema.createSchema());
+
+        assertNotNull(meta);
+        assertEquals(new IndexRange(3, 11), meta.getSampleRange());
     }
 
     @Test
-    void getLegacyMetaPath_replacesSourceExtension() {
-        File source = directory.resolve("data.csv").toFile();
+    void readMetaOf_withLegacyNaming_loadsMeta() throws IOException {
+        File source = createFile("data.sgy");
+        saveMeta(directory.resolve("data.geohammer"), new IndexRange(3, 11));
 
-        assertEquals(directory.resolve("data.geohammer"), MetaFiles.getLegacyMetaPath(source));
+        Meta meta = MetaFiles.readMetaOf(source, MetaSchema.createSchema());
+
+        assertNotNull(meta);
+        assertEquals(new IndexRange(3, 11), meta.getSampleRange());
     }
 
     @Test
-    void getSources_withCurrentNaming_returnsSingleSource() throws IOException {
+    void readMetaOf_withBothNamings_prefersCurrent() throws IOException {
+        File source = createFile("data.sgy");
+        saveMeta(directory.resolve("data.sgy.geohammer"), new IndexRange(3, 11));
+        saveMeta(directory.resolve("data.geohammer"), new IndexRange(7, 9));
+
+        Meta meta = MetaFiles.readMetaOf(source, MetaSchema.createSchema());
+
+        assertNotNull(meta);
+        assertEquals(new IndexRange(3, 11), meta.getSampleRange());
+    }
+
+    @Test
+    void readMetaOf_withoutMetaFile_returnsNull() throws IOException {
+        File source = createFile("data.sgy");
+
+        assertNull(MetaFiles.readMetaOf(source, MetaSchema.createSchema()));
+    }
+
+    @Test
+    void writeMetaOf_writesCurrentNaming() throws IOException {
+        File source = createFile("data.sgy");
+
+        Meta meta = new Meta(MetaSchema.createSchema());
+        meta.setSampleRange(new IndexRange(3, 11));
+        MetaFiles.writeMetaOf(source, meta);
+
+        Meta saved = MetaFiles.readMetaOf(source, MetaSchema.createSchema());
+        assertEquals(new IndexRange(3, 11), saved.getSampleRange());
+    }
+
+    @Test
+    void resolveSources_withCurrentNaming_returnsSingleSource() throws IOException {
         createFile("data.csv");
         createFile("data.jpg");
         File metaFile = createFile("data.csv.geohammer");
 
         assertEquals(List.of(new File(directory.toFile(), "data.csv")),
-                MetaFiles.getSources(metaFile));
+                MetaFiles.resolveSources(metaFile));
     }
 
     @Test
-    void getSources_withLegacyNaming_ordersByKnownExtensions() throws IOException {
+    void resolveSources_withLegacyNaming_ordersByKnownExtensions() throws IOException {
         createFile("data.jpg");
         createFile("data.csv");
         createFile("data.sgy");
@@ -54,114 +95,100 @@ class MetaFilesTest {
                         new File(directory.toFile(), "data.sgy"),
                         new File(directory.toFile(), "data.csv"),
                         new File(directory.toFile(), "data.jpg")),
-                MetaFiles.getSources(metaFile));
+                MetaFiles.resolveSources(metaFile));
     }
 
     @Test
-    void getSources_withLegacyNaming_ignoresBaseNameCase() throws IOException {
+    void resolveSources_withLegacyNaming_ignoresBaseNameCase() throws IOException {
         createFile("DATA.sgy");
         File metaFile = createFile("data.geohammer");
 
         assertEquals(List.of(new File(directory.toFile(), "DATA.sgy")),
-                MetaFiles.getSources(metaFile));
+                MetaFiles.resolveSources(metaFile));
     }
 
     @Test
-    void getSources_withMetaFileAsBaseName_ignoresIt() throws IOException {
+    void resolveSources_withMetaFileAsBaseName_ignoresIt() throws IOException {
         createFile("data.geohammer");
         File metaFile = createFile("data.geohammer.geohammer");
 
-        assertTrue(MetaFiles.getSources(metaFile).isEmpty());
+        assertTrue(MetaFiles.resolveSources(metaFile).isEmpty());
     }
 
     @Test
-    void getSources_withMetaFileOnly_returnsEmpty() throws IOException {
+    void resolveSources_withMetaFileOnly_returnsEmpty() throws IOException {
         File metaFile = createFile("data.geohammer");
 
-        assertTrue(MetaFiles.getSources(metaFile).isEmpty());
+        assertTrue(MetaFiles.resolveSources(metaFile).isEmpty());
     }
 
     @Test
-    void findMetaPath_withBothNamings_prefersCurrent() throws IOException {
+    void resolveMetaPath_withBothNamings_prefersCurrent() throws IOException {
         File source = createFile("data.sgy");
         createFile("data.sgy.geohammer");
         createFile("data.geohammer");
 
-        assertEquals(MetaFiles.getMetaPath(source), MetaFiles.findMetaPath(source));
+        assertEquals(directory.resolve("data.sgy.geohammer"), MetaFiles.resolveMetaPath(source));
     }
 
     @Test
-    void findMetaPath_withLegacyNamingOnly_returnsLegacy() throws IOException {
+    void resolveMetaPath_withLegacyNamingOnly_moves() throws IOException {
         File source = createFile("data.sgy");
         createFile("data.geohammer");
 
-        assertEquals(MetaFiles.getLegacyMetaPath(source), MetaFiles.findMetaPath(source));
+        assertEquals(directory.resolve("data.sgy.geohammer"), MetaFiles.resolveMetaPath(source));
     }
 
     @Test
-    void findMetaPath_withoutMetaFile_returnsNull() throws IOException {
+    void resolveMetaPath_withoutMetaFile_returnsNull() throws IOException {
         File source = createFile("data.sgy");
 
-        assertNull(MetaFiles.findMetaPath(source));
+        assertNull(MetaFiles.resolveMetaPath(source));
     }
 
     @Test
-    void migrateLegacyMeta_renamesFileToCurrentNaming() throws IOException {
+    void moveMeta_renamesFileToCurrentNaming() throws IOException {
         File source = createFile("data.sgy");
         createFile("data.geohammer");
 
-        MetaFiles.migrateLegacyMeta(source);
+        MetaFiles.readMetaOf(source, MetaSchema.createSchema());
 
-        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
-        assertFalse(Files.exists(MetaFiles.getLegacyMetaPath(source)));
+        assertTrue(Files.exists(directory.resolve("data.sgy.geohammer")));
+        assertFalse(Files.exists(directory.resolve("data.geohammer")));
     }
 
     @Test
-    void migrateLegacyMeta_withCurrentMetaPresent_keepsBothFiles() throws IOException {
+    void moveMeta_withCurrentMetaPresent_keepsBothFiles() throws IOException {
         File source = createFile("data.sgy");
         createFile("data.sgy.geohammer");
         createFile("data.geohammer");
 
-        MetaFiles.migrateLegacyMeta(source);
+        MetaFiles.readMetaOf(source, MetaSchema.createSchema());
 
-        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
-        assertTrue(Files.exists(MetaFiles.getLegacyMetaPath(source)));
+        assertTrue(Files.exists(directory.resolve("data.sgy.geohammer")));
+        assertTrue(Files.exists(directory.resolve("data.geohammer")));
     }
 
     @Test
-    void migrateLegacyMeta_withExtensionlessSource_keepsMeta() throws IOException {
+    void moveMeta_withExtensionlessSource_keepsMeta() throws IOException {
         File source = createFile("data");
         createFile("data.geohammer");
 
-        MetaFiles.migrateLegacyMeta(source);
+        MetaFiles.readMetaOf(source, MetaSchema.createSchema());
 
-        assertEquals(MetaFiles.getLegacyMetaPath(source), MetaFiles.getMetaPath(source));
-        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
-    }
-
-    @Test
-    void deleteLegacyMeta_removesLegacyFile() throws IOException {
-        File source = createFile("data.sgy");
-        createFile("data.geohammer");
-
-        MetaFiles.deleteLegacyMeta(source);
-
-        assertFalse(Files.exists(MetaFiles.getLegacyMetaPath(source)));
-    }
-
-    @Test
-    void deleteLegacyMeta_withExtensionlessSource_keepsMeta() throws IOException {
-        File source = createFile("data");
-        createFile("data.geohammer");
-
-        MetaFiles.deleteLegacyMeta(source);
-
-        assertTrue(Files.exists(MetaFiles.getMetaPath(source)));
+        assertEquals(directory.resolve("data.geohammer"), MetaFiles.resolveMetaPath(source));
+        assertTrue(Files.exists(directory.resolve("data.geohammer")));
     }
 
     private File createFile(String name) throws IOException {
         Path path = directory.resolve(name);
         Files.createFile(path);
         return path.toFile();
+    }
+
+    private void saveMeta(Path path, IndexRange sampleRange) throws IOException {
+        Meta meta = new Meta(MetaSchema.createSchema());
+        meta.setSampleRange(sampleRange);
+        MetaFiles.writeMeta(meta, path);
     }
 }

@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.format.svlog;
 
+import com.ugcs.geohammer.format.meta.MetaSchema;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
@@ -77,7 +78,7 @@ public final class SonarSchema {
 
     public static ColumnSchema createSchema() {
         // basic (min) schema of sonar file
-        ColumnSchema schema = ColumnSchema.copy(TraceGeoData.SCHEMA);
+        ColumnSchema schema = MetaSchema.createSchema();
         schema.addColumn(DEPTH_COLUMN);
         return schema;
     }

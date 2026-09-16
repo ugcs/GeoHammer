@@ -3,15 +3,16 @@ package com.ugcs.geohammer.util;
 import com.ugcs.geohammer.format.nmea.NmeaContentProbe;
 
 import java.io.File;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 public final class FileTypes {
 
-	private static final List<String> KNOWN_EXTENSIONS = List.of(
-			"dzt", "nme", "nmea", "segy", "sgy", "svlog",
-			"asc", "csv", "log", "pos", "dat", "txt", "xyz");
+    private static final Map<String, Integer> EXTENSION_RANKS = rankExtensions(
+            "sgy", "segy", "dzt", "nme", "nmea", "svlog",
+            "asc", "csv", "log", "pos", "dat", "txt", "xyz");
 
 	private static final FileProbe TEXT_PROBE = new TextContentProbe();
 
@@ -60,14 +61,28 @@ public final class FileTypes {
         return NMEA_PROBE.matches(file) && NMEA_CONTENT_PROBE.matches(file);
     }
 
+    private static Map<String, Integer> rankExtensions(String... extensions) {
+        if (extensions == null) {
+            return Map.of();
+        }
+        Map<String, Integer> ranks = new HashMap<>(extensions.length);
+        for (String extension : extensions) {
+            if (Strings.isNullOrEmpty(extension)) {
+                continue;
+            }
+            ranks.put(extension.toLowerCase(Locale.ROOT), ranks.size());
+        }
+        return ranks;
+    }
+
     public static int getExtensionRank(File file) {
         if (file == null) {
-            return KNOWN_EXTENSIONS.size();
+            return EXTENSION_RANKS.size();
         }
         String extension = Strings.nullToEmpty(FileNames.getExtension(file.getName()))
                 .toLowerCase(Locale.ROOT);
-        int index = KNOWN_EXTENSIONS.indexOf(extension);
-        return index != -1 ? index : KNOWN_EXTENSIONS.size();
+        Integer rank = EXTENSION_RANKS.get(extension);
+        return rank != null ? rank : EXTENSION_RANKS.size();
     }
 
     public static boolean isPositionFile(File file) {

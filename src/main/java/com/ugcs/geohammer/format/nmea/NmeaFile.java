@@ -3,11 +3,10 @@ package com.ugcs.geohammer.format.nmea;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
-import com.ugcs.geohammer.format.meta.TraceLine;
-import com.ugcs.geohammer.format.meta.TraceMeta;
+import com.ugcs.geohammer.format.meta.MetaDocument;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
@@ -48,55 +47,33 @@ public class NmeaFile extends SgyFileWithMeta {
         return getGeoData().size();
     }
 
-    protected void loadMeta() throws IOException {
-        File source = getFile();
-        Check.notNull(source);
-
-        MetaFiles.migrateLegacyMeta(source);
-
-        metaFile = new MetaFile(NmeaSchema.createSchema());
-        if (!metaFile.loadFor(source)) {
-            initMeta();
-        }
-
-        syncMeta();
+    @Override
+    protected ColumnSchema createMetaSchema() {
+        return NmeaSchema.createSchema();
     }
 
-    private void initMeta() {
-        if (metaFile == null) {
-            return;
-        }
-
-        TraceMeta meta = new TraceMeta();
-
-        // lines
-        TraceLine line = new TraceLine();
-        line.setLineIndex(0);
-        line.setFrom(0);
-        line.setTo(sentenceGroups.size());
-        meta.setLines(List.of(line));
-
-        metaFile.setMetaToState(meta);
+    @Override
+    protected Meta initMeta(ColumnSchema schema) {
+        return Meta.ofSingleLine(schema, sentenceGroups.size());
     }
 
     @Override
     public void saveMeta() throws IOException {
-        Check.notNull(metaFile);
+        Check.notNull(meta);
 
         File source = getFile();
         Check.notNull(source);
 
-        metaFile.saveFor(source);
-        MetaFiles.deleteLegacyMeta(source);
+        MetaFiles.writeMetaOf(source, meta);
     }
 
     @Override
     public void syncMeta() {
-        if (metaFile == null) {
+        if (meta == null) {
             return;
         }
 
-        for (TraceGeoData value : Nulls.toEmpty(metaFile.getValues())) {
+        for (TraceGeoData value : Nulls.toEmpty(meta.getValues())) {
             // clear values, but keep line index
             Integer line = value.getLine();
             value.clearValues();
@@ -248,14 +225,14 @@ public class NmeaFile extends SgyFileWithMeta {
 
     @Override
     public void save(File file, IndexRange range) throws IOException {
-        if (metaFile == null) {
+        if (meta == null) {
             log.warn("Cannot save range: metaFile is null");
             return;
         }
 
         // writeIndices does not need to be deduplicated
         List<Integer> writeIndices = new ArrayList<>();
-        List<TraceGeoData> values = metaFile.getValues();
+        List<TraceGeoData> values = meta.getValues();
         for (int i = range.from(); i < range.to(); i++) {
             writeIndices.add(values.get(i).getTraceIndex());
         }
@@ -275,13 +252,8 @@ public class NmeaFile extends SgyFileWithMeta {
         NmeaFile copy = new NmeaFile();
         copy.setFile(getFile());
         copy.setUnsaved(isUnsaved());
-
-        if (metaFile != null) {
-            copy.metaFile = new MetaFile(ColumnSchema.copy(metaFile.getSchema()));
-            copy.metaFile.setMetaToState(metaFile.getMetaFromState());
-        }
-
         copy.sentenceGroups = sentenceGroups;
+        copy.meta = Meta.copy(meta);
         return copy;
     }
 }

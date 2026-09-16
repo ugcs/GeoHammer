@@ -2,7 +2,7 @@ package com.ugcs.geohammer.service;
 
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.SelectedTrace;
@@ -403,8 +403,8 @@ public class TraceTransform {
     public void cropGprSamples(TraceFile file, int offset, int length) {
         Check.notNull(file);
 
-        MetaFile metaFile = file.getMetaFile();
-        if (metaFile == null) {
+        Meta meta = file.getMeta();
+        if (meta == null) {
             // operation requires meta file
             return;
         }
@@ -413,12 +413,12 @@ public class TraceTransform {
 
         length = Math.max(1, length);
         IndexRange sampleRange = new IndexRange(offset, offset + length);
-        IndexRange currentSampleRange = metaFile.getSampleRange();
+        IndexRange currentSampleRange = meta.getSampleRange();
         if (currentSampleRange != null) {
             sampleRange = currentSampleRange.subRange(sampleRange);
         }
 
-        metaFile.setSampleRange(sampleRange);
+        meta.setSampleRange(sampleRange);
         file.syncMeta();
 
         onFileTracesUpdated(file);

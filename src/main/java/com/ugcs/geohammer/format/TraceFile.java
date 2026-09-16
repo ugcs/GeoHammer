@@ -1,11 +1,10 @@
 package com.ugcs.geohammer.format;
 
 import com.ugcs.geohammer.AppContext;
-import com.ugcs.geohammer.format.meta.MetaFile;
+import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
-import com.ugcs.geohammer.format.meta.TraceLine;
-import com.ugcs.geohammer.format.meta.TraceMark;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.format.gpr.Trace;
@@ -19,7 +18,6 @@ import com.ugcs.geohammer.service.gpr.BackgroundNoiseRemover;
 import com.ugcs.geohammer.service.gpr.DistanceCalculator;
 import com.ugcs.geohammer.service.gpr.DistanceSmoother;
 import com.ugcs.geohammer.service.gpr.SpreadCoordinates;
-import com.ugcs.geohammer.format.meta.TraceMeta;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Check;
@@ -36,6 +34,7 @@ import java.nio.ByteOrder;
 import java.time.Instant;
 import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -62,66 +61,49 @@ public abstract class TraceFile extends SgyFileWithMeta {
     @Nullable
     private volatile SampleStatistics statistics;
 
-    protected void loadMeta(List<Trace> traces) throws IOException {
-        File source = getFile();
-        Check.notNull(source);
-
-        MetaFiles.migrateLegacyMeta(source);
-
-        MetaFile newMeta = new MetaFile();
-        if (!newMeta.loadFor(source)) {
-            // init meta
-            TraceMeta meta = getMetaFromTraces(traces);
-            newMeta.setMetaToState(meta);
-        }
-
-        metaFile = newMeta;
-        syncMeta(traces);
-    }
-
-    private TraceMeta getMetaFromTraces(List<Trace> traces) {
-        traces = Nulls.toEmpty(traces);
-
-        TraceMeta meta = new TraceMeta();
-
+    @Override
+    protected Meta initMeta(ColumnSchema schema) {
+        Meta newMeta = Meta.ofSingleLine(schema, traces.size());
         // sample range
-        IndexRange maxSampleRange = Traces.maxSampleRange(traces);
-        meta.setSampleRange(maxSampleRange);
-
-        // lines
-        TraceLine line = new TraceLine();
-        line.setLineIndex(0);
-        line.setFrom(0);
-        line.setTo(traces.size());
-        meta.setLines(List.of(line));
-
+        newMeta.setSampleRange(Traces.maxSampleRange(traces));
         // marks
-        List<TraceMark> traceMarks = new ArrayList<>();
+        Set<Integer> metaMarks = new HashSet<>();
         for (int i = 0; i < traces.size(); i++) {
             Trace trace = traces.get(i);
             if (trace.isMarked()) {
-                TraceMark traceMark = new TraceMark();
-                traceMark.setTraceIndex(i);
-                traceMarks.add(traceMark);
+                metaMarks.add(i);
             }
         }
-        meta.setMarks(traceMarks);
+        newMeta.setMarks(metaMarks);
+        return newMeta;
+    }
 
-        return meta;
+    @Override
+    public void saveMeta() throws IOException {
+        Check.notNull(meta);
+
+        File source = getFile();
+        Check.notNull(source);
+
+        // update sample range
+        IndexRange sampleRange = Traces.maxSampleRange(getTraces());
+        meta.setSampleRange(sampleRange);
+
+        // update marks
+        Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements());
+        meta.setMarks(marks);
+
+        MetaFiles.writeMetaOf(source, meta);
     }
 
     @Override
     public void syncMeta() {
-        syncMeta(traces);
-    }
-
-    protected void syncMeta(List<Trace> traces) {
-        if (metaFile == null) {
+        if (meta == null) {
             return;
         }
 
         // copy location from traces to meta geodata
-        for (TraceGeoData value : metaFile.getValues()) {
+        for (TraceGeoData value : meta.getValues()) {
             int traceIndex = value.getTraceIndex();
             Trace trace = traces.get(traceIndex);
 
@@ -138,27 +120,8 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
         // init sample ranges
         for (Trace trace : Nulls.toEmpty(traces)) {
-            trace.setSampleRange(metaFile.getSampleRange());
+            trace.setSampleRange(meta.getSampleRange());
         }
-    }
-
-    @Override
-    public void saveMeta() throws IOException {
-        Check.notNull(metaFile);
-
-        File source = getFile();
-        Check.notNull(source);
-
-        // update sample range
-        IndexRange sampleRange = Traces.maxSampleRange(getTraces());
-        metaFile.setSampleRange(sampleRange);
-
-        // update marks
-        Set<Integer> marks = AuxElements.getMarkIndices(getAuxElements());
-        metaFile.setMarks(marks);
-
-        metaFile.saveFor(source);
-        MetaFiles.deleteLegacyMeta(source);
     }
 
     public abstract int getSampleInterval();
@@ -253,6 +216,13 @@ public abstract class TraceFile extends SgyFileWithMeta {
     @Override
     public abstract TraceFile copy();
 
+    public void loadFrom(TraceFile other) {
+        loadFrom(other, () -> {
+            setTraces(other.getTraces());
+            setGroundProfile(other.getGroundProfile());
+        });
+    }
+
     public FileSnapshot<TraceFile> createSnapshotWithTraces() {
         return createSnapshotWithTraces(ByteOrder.BIG_ENDIAN);
     }
@@ -280,8 +250,8 @@ public abstract class TraceFile extends SgyFileWithMeta {
     }
 
     public int getFileTraceIndex(int index) {
-        return metaFile != null
-                ? metaFile.getTraceIndex(index)
+        return meta != null
+                ? meta.getTraceIndex(index)
                 : index;
     }
 
@@ -304,8 +274,8 @@ public abstract class TraceFile extends SgyFileWithMeta {
     }
 
     public void copyMarkedTracesToAuxElements() {
-        if (metaFile != null) {
-            for (int markIndex : metaFile.getMarks()) {
+        if (meta != null) {
+            for (int markIndex : meta.getMarks()) {
                 TraceKey traceKey = new TraceKey(this, markIndex);
                 getAuxElements().add(new FoundPlace(traceKey, AppContext.model));
             }
@@ -346,45 +316,32 @@ public abstract class TraceFile extends SgyFileWithMeta {
 		}
 	}
 
-	public void loadFrom(TraceFile other) {
-		loadMetaFrom(other, () -> {
-			setTraces(other.getTraces());
-			setGroundProfile(other.getGroundProfile());
-		});
-	}
-
 	public void removeBackground(@Nullable UndoModel undoModel) {
 		BackgroundNoiseRemover filter = new BackgroundNoiseRemover(undoModel);
 		filter.execute(this, null);
-		if (metaFile != null && getTraces().size() > 1) {
-			metaFile.setBackgroundRemoved(true);
+		if (meta != null && getTraces().size() > 1) {
+			meta.setBackgroundRemoved(true);
 		}
 	}
 
 	public boolean isBackgroundRemoved() {
-		return metaFile != null && metaFile.isBackgroundRemoved();
-	}
-
-	public void setBackgroundRemoved(boolean backgroundRemoved) {
-		if (metaFile != null) {
-			metaFile.setBackgroundRemoved(backgroundRemoved);
-		}
+		return meta != null && meta.isBackgroundRemoved();
 	}
 
     public class TraceList extends AbstractList<Trace> {
 
         @Override
         public Trace get(int index) {
-            int traceIndex = metaFile != null
-                    ? metaFile.getTraceIndex(index)
+            int traceIndex = meta != null
+                    ? meta.getTraceIndex(index)
                     : index;
             return traces.get(traceIndex);
         }
 
         @Override
         public int size() {
-            return metaFile != null
-                    ? metaFile.numValues()
+            return meta != null
+                    ? meta.numValues()
                     : traces.size();
         }
     }
@@ -395,8 +352,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
 
         private final HorizontalProfile profile;
 
-        private final boolean backgroundRemoved;
-
         public SnapshotWithTraces(TraceFile file, ByteOrder byteOrder) throws IOException {
             super(file);
 
@@ -405,7 +360,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
             tracesEntry.write(out -> TraceCodec.write(out, file.traces, byteOrder));
 
             profile = file.getGroundProfile();
-            backgroundRemoved = file.isBackgroundRemoved();
         }
 
         @Override
@@ -414,7 +368,6 @@ public abstract class TraceFile extends SgyFileWithMeta {
             file.setTraces(traces);
 
             file.setGroundProfile(profile);
-            file.setBackgroundRemoved(backgroundRemoved);
 
             super.restoreFile(model);
         }

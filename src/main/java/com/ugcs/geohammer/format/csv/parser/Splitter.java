@@ -73,7 +73,7 @@ public record Splitter(String separator, boolean repeatable) {
         List<String> tokens = new ArrayList<>();
         int from = 0;
         while (i != -1) {
-            tokens.add(line.substring(from, i).trim());
+            tokens.add(Strings.trim(line, from, i));
             from = i + n;
             if (repeatable) {
                 while (line.startsWith(separator, from)) {
@@ -82,7 +82,7 @@ public record Splitter(String separator, boolean repeatable) {
             }
             i = line.indexOf(separator, from);
         }
-        tokens.add(line.substring(from).trim());
+        tokens.add(Strings.trim(line, from, line.length()));
         return tokens;
     }
 

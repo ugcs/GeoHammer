@@ -31,6 +31,20 @@ public final class Strings {
 		return str != null ? str.trim() : str;
 	}
 
+	// same as substring(from, to).trim() without the intermediate string
+	public static String trim(String str, int from, int to) {
+		if (str == null) {
+			return null;
+		}
+		while (from < to && str.charAt(from) <= ' ') {
+			from++;
+		}
+		while (to > from && str.charAt(to - 1) <= ' ') {
+			to--;
+		}
+		return str.substring(from, to);
+	}
+
 	public static String removeSpaces(String str) {
 		if (str == null)
 			return null;

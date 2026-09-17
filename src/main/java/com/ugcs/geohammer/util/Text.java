@@ -225,6 +225,9 @@ public final class Text {
 	}
 
     public static boolean isPrintable(char c) {
+        if (c >= 0x20 && c < 0x7f) {
+            return true; // fast path for printable ascii
+        }
         if (c == '\t' || c == '\n' || c == '\r' || c == '\f') {
             return true;
         }

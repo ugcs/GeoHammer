@@ -1532,8 +1532,9 @@ public class SensorLineChart extends Chart {
             this.unit = unit;
             this.color = ColorPalette.highContrast().getColor(this.seriesName);
             this.data = data;
-            this.dataRange = buildDataRange(data);
-            this.robustRange = buildRobustRange(data);
+            Ranges ranges = buildRanges(data);
+            this.dataRange = ranges.data();
+            this.robustRange = ranges.robust();
             this.displayRange = buildDisplayRange(this.dataRange);
         }
 
@@ -1557,33 +1558,13 @@ public class SensorLineChart extends Chart {
             return data;
         }
 
-        public static @Nullable Range buildDataRange(List<@Nullable Number> data) {
-            Double min = null;
-            Double max = null;
-            for (Number value : Nulls.toEmpty(data)) {
-                if (value == null) {
-                    continue;
-                }
-                double unboxed = value.doubleValue();
-                if (min == null || unboxed < min) {
-                    min = unboxed;
-                }
-                if (max == null || unboxed > max) {
-                    max = unboxed;
-                }
-            }
-            return min != null && max != null
-                    ? new Range(min, max)
-                    : null;
-        }
-
         public @Nullable Range getDataRange() {
             return dataRange;
         }
 
-        // outlier spikes trimmed by Tukey fences (q1/q3 +- 1.5 iqr);
-        // matches the full data range when there are no outliers
-        public static @Nullable Range buildRobustRange(List<@Nullable Number> data) {
+        // single pass over the series: full range of the finite values
+        // and the same range with outlier spikes trimmed
+        public static Ranges buildRanges(List<@Nullable Number> data) {
             List<@Nullable Number> values = Nulls.toEmpty(data);
             double[] finite = new double[values.size()];
             int n = 0;
@@ -1602,17 +1583,25 @@ public class SensorLineChart extends Chart {
                 max = Math.max(max, unboxed);
             }
             if (n == 0) {
-                return null;
+                return new Ranges(null, null);
             }
+            Range dataRange = new Range(min, max);
+            return new Ranges(dataRange, buildRobustRange(finite, n, dataRange));
+        }
+
+        // outlier spikes trimmed by Tukey fences (q1/q3 +- 1.5 iqr);
+        // matches the data range when there are no outliers;
+        // values get partially reordered by the selection
+        private static Range buildRobustRange(double[] values, int n, Range dataRange) {
             int r1 = (int)(0.25 * (n - 1));
             int r3 = (int)(0.75 * (n - 1));
-            double q1 = QuickSelect.select(finite, r1, new IndexRange(0, n));
+            double q1 = QuickSelect.select(values, r1, new IndexRange(0, n));
             // after the first select everything from index r1 on is >= q1
-            double q3 = QuickSelect.select(finite, r3, new IndexRange(r1, n));
+            double q3 = QuickSelect.select(values, r3, new IndexRange(r1, n));
             double iqr = q3 - q1;
             if (iqr < 1e-12) {
                 // iqr cannot separate outliers, keep the full range
-                return new Range(min, max);
+                return dataRange;
             }
             double lowFence = q1 - 1.5 * iqr;
             double highFence = q3 + 1.5 * iqr;
@@ -1620,7 +1609,7 @@ public class SensorLineChart extends Chart {
             double low = q1;
             double high = q3;
             for (int i = 0; i < n; i++) {
-                double v = finite[i];
+                double v = values[i];
                 if (v >= lowFence && v < low) {
                     low = v;
                 }
@@ -1657,6 +1646,9 @@ public class SensorLineChart extends Chart {
 
         public void setDisplayRange(Range displayRange) {
             this.displayRange = displayRange;
+        }
+
+        public record Ranges(@Nullable Range data, @Nullable Range robust) {
         }
     }
 }

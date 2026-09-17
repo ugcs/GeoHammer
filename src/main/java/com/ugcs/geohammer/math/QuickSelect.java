@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.math;
 
+import com.ugcs.geohammer.util.Check;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.function.ToDoubleFunction;
@@ -10,6 +12,9 @@ public class QuickSelect {
     }
 
     public static <T> T select(List<T> values, ToDoubleFunction<T> f, int rank) {
+        Check.notNull(values);
+        Check.indexInBounds(rank, values.size());
+
         int l = 0;
         int r = values.size() - 1;
         while (l < r) {
@@ -48,5 +53,19 @@ public class QuickSelect {
         double c = f.applyAsDouble(values.get(r));
         // do not change to clamp
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+
+    public static <T> double getMedian(List<T> values, ToDoubleFunction<T> f) {
+        Check.notEmpty(values); // median for an empty list is not defined
+
+        int n = values.size();
+        int m = n / 2;
+        double high = f.applyAsDouble(QuickSelect.select(values, f, m));
+        if (n % 2 == 1) {
+            return high;
+        }
+        // after select(m) everything before index m is <= high
+        double low = f.applyAsDouble(QuickSelect.select(values.subList(0, m), f, m - 1));
+        return (low + high) / 2.0;
     }
 }

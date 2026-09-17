@@ -176,23 +176,11 @@ public class IntensityCalculator {
     }
 
     private float getMedian(List<Float> peaks) {
-        ToDoubleFunction<Float> f = v -> v;
-
-        int n = peaks.size();
-        int m = n / 2;
-        if (n % 2 == 1) {
-            return QuickSelect.select(peaks, f, m);
-        } else {
-            // after select(m) everything before index m is <= it
-            float high = QuickSelect.select(peaks, f, m);
-            float low = QuickSelect.select(peaks.subList(0, m), f, m - 1);
-            return (low + high) / 2f;
-        }
+        return (float) QuickSelect.getMedian(peaks, v -> v);
     }
 
     private float getKthSmallest(List<Float> peaks, int k) {
-        ToDoubleFunction<Float> f = v -> v;
-        return QuickSelect.select(peaks, f, k);
+        return QuickSelect.select(peaks, v -> v, k);
     }
 
     record Peak(int index, float amplitude) {

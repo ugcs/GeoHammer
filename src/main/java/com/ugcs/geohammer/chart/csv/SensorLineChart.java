@@ -26,6 +26,7 @@ import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.chart.csv.axis.SensorLineChartXAxis;
 import com.ugcs.geohammer.chart.csv.axis.SensorLineChartYAxis;
+import com.ugcs.geohammer.math.QuickSelect;
 import com.ugcs.geohammer.math.filter.LowPassFilter;
 import com.ugcs.geohammer.math.filter.MedianCorrectionFilter;
 import com.ugcs.geohammer.math.filter.SequenceFilter;
@@ -1584,8 +1585,10 @@ public class SensorLineChart extends Chart {
         // matches the full data range when there are no outliers
         public static @Nullable Range buildRobustRange(List<@Nullable Number> data) {
             List<@Nullable Number> values = Nulls.toEmpty(data);
-            double[] sorted = new double[values.size()];
+            double[] finite = new double[values.size()];
             int n = 0;
+            double min = Double.POSITIVE_INFINITY;
+            double max = Double.NEGATIVE_INFINITY;
             for (Number value : values) {
                 if (value == null) {
                     continue;
@@ -1594,31 +1597,38 @@ public class SensorLineChart extends Chart {
                 if (!Double.isFinite(unboxed)) {
                     continue;
                 }
-                sorted[n++] = unboxed;
+                finite[n++] = unboxed;
+                min = Math.min(min, unboxed);
+                max = Math.max(max, unboxed);
             }
             if (n == 0) {
                 return null;
             }
-            Arrays.sort(sorted, 0, n);
-            double q1 = sorted[(int)(0.25 * (n - 1))];
-            double q3 = sorted[(int)(0.75 * (n - 1))];
+            int r1 = (int)(0.25 * (n - 1));
+            int r3 = (int)(0.75 * (n - 1));
+            double q1 = QuickSelect.select(finite, r1, new IndexRange(0, n));
+            // after the first select everything from index r1 on is >= q1
+            double q3 = QuickSelect.select(finite, r3, new IndexRange(r1, n));
             double iqr = q3 - q1;
             if (iqr < 1e-12) {
                 // iqr cannot separate outliers, keep the full range
-                return new Range(sorted[0], sorted[n - 1]);
+                return new Range(min, max);
             }
             double lowFence = q1 - 1.5 * iqr;
             double highFence = q3 + 1.5 * iqr;
             // snap fences to the nearest values within them
-            int low = 0;
-            while (sorted[low] < lowFence) {
-                low++;
+            double low = q1;
+            double high = q3;
+            for (int i = 0; i < n; i++) {
+                double v = finite[i];
+                if (v >= lowFence && v < low) {
+                    low = v;
+                }
+                if (v <= highFence && v > high) {
+                    high = v;
+                }
             }
-            int high = n - 1;
-            while (sorted[high] > highFence) {
-                high--;
-            }
-            return new Range(sorted[low], sorted[high]);
+            return new Range(low, high);
         }
 
         public @Nullable Range getRobustRange() {

@@ -360,7 +360,6 @@ public final class GridLayer extends BaseLayer {
 
             if (updateValues) {
                 values = result.grid();
-                range = filter.range();
                 if (filter.smoothing()) {
                     GaussianSmoothing smoothing = new GaussianSmoothing();
                     values = smoothing.apply(values);
@@ -370,11 +369,12 @@ public final class GridLayer extends BaseLayer {
                             values,
                             result.minLatLon(),
                             result.maxLatLon());
-                    AnalyticSignal signal = analyticSignalFilter.evaluate();
-                    values = signal.getMagnitudes();
-                    range = signal.getRange(0.02);
+                    values = analyticSignalFilter.evaluate().magnitudes();
                 }
                 sortedValues = sortGridValues(values);
+                range = filter.analyticSignal()
+                        ? AnalyticSignal.getRange(sortedValues, 0.02)
+                        : filter.range();
             } else {
                 values = grid.values();
                 sortedValues = grid.sortedValues();

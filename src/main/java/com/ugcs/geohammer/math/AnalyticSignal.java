@@ -3,63 +3,20 @@ package com.ugcs.geohammer.math;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.model.Range;
 
-import java.util.Collections;
-import java.util.PriorityQueue;
+public record AnalyticSignal(float[][] magnitudes) {
 
-public class AnalyticSignal {
-
-    private final float[][] magnitudes;
-
-    public AnalyticSignal(float[][] magnitudes) {
+    public AnalyticSignal {
         Check.notNull(magnitudes);
-        this.magnitudes = magnitudes;
     }
 
-    public float[][] getMagnitudes() {
-        return magnitudes;
-    }
-
-    public Range getRange(double percentile) {
-        int m = magnitudes.length;
-        int n = magnitudes[0].length;
-
-        int total = 0;
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                if (!Float.isNaN(magnitudes[i][j])) {
-                    total++;
-                }
-            }
+    public static Range getRange(float[] sortedValues, double percentile) {
+        Check.notNull(sortedValues);
+        int n = sortedValues.length;
+        if (n == 0) {
+            return new Range(0f, 0f);
         }
-
-        int k = Math.max(1, (int) (percentile * total));
-
-        // stores k min elements (max-heap of small values)
-        PriorityQueue<Float> minHeap = new PriorityQueue<>(Collections.reverseOrder());
-        // stores k max elements (min-heap of large values)
-        PriorityQueue<Float> maxHeap = new PriorityQueue<>();
-
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                float value = magnitudes[i][j];
-                if (Float.isNaN(value)) {
-                    continue;
-                }
-
-                minHeap.offer(value);
-                if (minHeap.size() > k) {
-                    minHeap.poll();
-                }
-
-                maxHeap.offer(value);
-                if (maxHeap.size() > k) {
-                    maxHeap.poll();
-                }
-            }
-        }
-
-        return minHeap.isEmpty() || maxHeap.isEmpty()
-                ? new Range(0f, 0f)
-                : new Range(minHeap.peek(), maxHeap.peek());
+        int k = (int) (percentile * n);
+        k = Math.clamp(k, 0, (n - 1) / 2);
+        return new Range(sortedValues[k], sortedValues[n - k - 1]);
     }
 }

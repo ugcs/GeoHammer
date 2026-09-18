@@ -30,7 +30,7 @@ public class Warnings {
 		addFormatError(key, column, e.getMessage());
 	}
 
-	private void addFormatError(String key, String column, String message) {
+	public void addFormatError(String key, String column, String message) {
 		formatErrors.compute(key, (k, group) -> {
 			if (group == null) {
 				return new FormatError(column, message);

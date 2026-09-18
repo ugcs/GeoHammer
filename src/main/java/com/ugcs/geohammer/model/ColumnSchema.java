@@ -23,6 +23,10 @@ public class ColumnSchema implements Iterable<Column> {
     // index: semantic -> header
     private Map<String, String> headersBySemantic;
 
+    // incremented on every change of the columns layout,
+    // lets column indices resolved earlier be validated cheaply
+    private int version;
+
     public static ColumnSchema copy(ColumnSchema schema) {
         if (schema == null) {
             return null;
@@ -37,6 +41,7 @@ public class ColumnSchema implements Iterable<Column> {
     private void invalidateIndex() {
         columnIndices = null;
         headersBySemantic = null;
+        version++;
     }
 
     public int getColumnIndex(String header) {
@@ -61,6 +66,10 @@ public class ColumnSchema implements Iterable<Column> {
             }
         }
         return headersBySemantic.get(semantic);
+    }
+
+    public int getVersion() {
+        return version;
     }
 
     public int numColumns() {

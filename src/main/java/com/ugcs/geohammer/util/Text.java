@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.util;
 
+import ch.randelshofer.fastdoubleparser.JavaDoubleParser;
+
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
@@ -86,7 +88,7 @@ public final class Text {
             return null;
         }
         try {
-            return Double.parseDouble(value);
+            return JavaDoubleParser.parseDouble(value);
         } catch (NumberFormatException e) {
 			throw new IncorrectFormatException(value, "number");
         }
@@ -121,9 +123,9 @@ public final class Text {
         Check.hasNonEmptyElement(formats, "Date format is not specified");
         return parse(value, formats, (v, format) -> {
             try {
-                return LocalDate.parse(value, formatterFor(format));
+                return LocalDate.parse(v, formatterFor(format));
             } catch (DateTimeParseException e) {
-                throw new IncorrectFormatException(value, format);
+                throw new IncorrectFormatException(v, format);
             }
         });
     }
@@ -135,9 +137,9 @@ public final class Text {
         Check.hasNonEmptyElement(formats, "Time format is not specified");
         return parse(value, formats, (v, format) -> {
             try {
-                return LocalTime.parse(value, formatterFor(format));
+                return LocalTime.parse(v, formatterFor(format));
             } catch (DateTimeParseException e) {
-                throw new IncorrectFormatException(value, format);
+                throw new IncorrectFormatException(v, format);
             }
         });
     }
@@ -149,12 +151,12 @@ public final class Text {
         Check.hasNonEmptyElement(formats, "DateTime format is not specified");
         return parse(value, formats, (v, format) -> {
             if (format.equals(GPST_FORMAT)) {
-                return parseGpsDateTime(value);
+                return parseGpsDateTime(v);
             }
             try {
-                return LocalDateTime.parse(value, formatterFor(format));
+                return LocalDateTime.parse(v, formatterFor(format));
             } catch (DateTimeParseException e) {
-                throw new IncorrectFormatException(value, format);
+                throw new IncorrectFormatException(v, format);
             }
         });
     }
@@ -225,6 +227,9 @@ public final class Text {
 	}
 
     public static boolean isPrintable(char c) {
+        if (c >= 0x20 && c < 0x7f) {
+            return true; // fast path for printable ascii
+        }
         if (c == '\t' || c == '\n' || c == '\r' || c == '\f') {
             return true;
         }

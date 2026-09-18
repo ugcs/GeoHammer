@@ -323,6 +323,11 @@ public class Loader {
 		CsvFile csvFile = new CsvFile(fileTemplates);
 		csvFile.open(file, template);
 
+		Platform.runLater(() -> {
+            model.initChart(csvFile);
+		});
+
+		// queued after the chart init so the dialog is not blocked by it
 		Parser parser = csvFile.getParser();
 		if (parser != null) {
 			Warnings warnings = parser.getWarnings();
@@ -330,10 +335,6 @@ public class Loader {
 				Dialogs.showWarning("Warnings in " + file.getName(), warnings.format());
 			}
 		}
-
-		Platform.runLater(() -> {
-            model.initChart(csvFile);
-		});
 	}
 
 	private void openSvlogFile(File file) throws IOException {

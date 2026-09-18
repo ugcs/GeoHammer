@@ -7,6 +7,9 @@ public class IncorrectFormatException extends RuntimeException {
 	private final String format;
 
     public IncorrectFormatException(String value, String format) {
+		// no stack trace: used as a control-flow signal in parsers
+		super(null, null, false, false);
+
 		this.value = value;
 		this.format = format;
     }

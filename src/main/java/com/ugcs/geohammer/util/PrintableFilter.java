@@ -42,7 +42,13 @@ public class PrintableFilter extends FilterReader {
             if (numRead == -1) {
                 return numKept > 0 ? numKept : -1;
             }
-            for (int i = 0; i < numRead; i++) {
+            // chars are already in place until the first rejected one
+            int i = 0;
+            while (i < numRead && Text.isPrintable(buffer[chunkOffset + i])) {
+                i++;
+            }
+            numKept += i;
+            for (; i < numRead; i++) {
                 char c = buffer[chunkOffset + i];
                 if (Text.isPrintable(c)) {
                     buffer[offset + numKept++] = c;

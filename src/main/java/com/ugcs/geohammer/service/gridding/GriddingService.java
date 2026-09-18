@@ -1,6 +1,7 @@
 package com.ugcs.geohammer.service.gridding;
 
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.math.QuickSelect;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.DataPoint;
 import edu.mines.jtk.interp.SplinesGridder2;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +30,6 @@ public class GriddingService {
         for (SgyFile file : files) {
             dataPoints.addAll(getDataPoints(file, seriesName));
         }
-
-        dataPoints = getMedianValues(dataPoints);
         if (dataPoints.isEmpty()) {
             return null;
         }
@@ -190,33 +188,8 @@ public class GriddingService {
                 .toList();
     }
 
-    private static List<DataPoint> getMedianValues(List<DataPoint> points) {
-        Map<String, List<Double>> dataMap = new HashMap<>();
-        for (DataPoint point : points) {
-            String key = point.latitude() + "," + point.longitude();
-            dataMap.computeIfAbsent(key, k -> new ArrayList<>()).add(point.value());
-        }
-
-        List<DataPoint> medianPoints = new ArrayList<>();
-        for (Map.Entry<String, List<Double>> entry : dataMap.entrySet()) {
-            String[] coords = entry.getKey().split(",");
-            double latitude = Double.parseDouble(coords[0]);
-            double longitude = Double.parseDouble(coords[1]);
-            double medianValue = calculateMedian(entry.getValue());
-            medianPoints.add(new DataPoint(latitude, longitude, medianValue));
-        }
-
-        return medianPoints;
-    }
-
     private static double calculateMedian(List<Double> values) {
-        Collections.sort(values);
-        int size = values.size();
-        if (size % 2 == 0) {
-            return (values.get(size / 2 - 1) + values.get(size / 2)) / 2.0;
-        } else {
-            return values.get(size / 2);
-        }
+        return QuickSelect.getMedian(values, Double::doubleValue);
     }
 
     /**

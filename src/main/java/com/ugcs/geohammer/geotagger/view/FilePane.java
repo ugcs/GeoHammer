@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -235,7 +234,7 @@ public abstract class FilePane extends VBox {
 	protected void selectAndAddFile(Consumer<List<File>> consumer) {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Select Files");
-		List<File> files = fileChooser.showOpenMultipleDialog(AppContext.stage);
+		List<File> files = fileChooser.showOpenMultipleDialog(getScene().getWindow());
 		if (files != null && !files.isEmpty())
 			consumer.accept(files);
 	}
@@ -243,7 +242,7 @@ public abstract class FilePane extends VBox {
 	protected void selectAndAddFolder(Consumer<List<File>> consumer) {
 		DirectoryChooser directoryChooser = new DirectoryChooser();
 		directoryChooser.setTitle("Select Folder");
-		File dir = directoryChooser.showDialog(AppContext.stage);
+		File dir = directoryChooser.showDialog(getScene().getWindow());
 		if (dir != null && dir.isDirectory()) {
 			File[] files = dir.listFiles(File::isFile);
 			if (files != null) {

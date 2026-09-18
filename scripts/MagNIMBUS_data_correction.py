@@ -9,6 +9,20 @@ from scipy.signal import butter, filtfilt, iirnotch
 from script_utils import detect_separator
 
 
+MAG_SAMPLE_RATE_HZ = 250  # frequency of data in Hz - need to change to measure real frequency (!)
+
+TOLLES_LAWSON_COMPONENTS = [
+    'TL_Px', 'TL_Py', 'TL_Pz',
+    'TL_Ixy', 'TL_Ixz', 'TL_Iyz', 'TL_Ixx', 'TL_Iyy',
+]
+
+MIN_PLATFORM_FIT_ROWS = 50
+
+# Heading error is a few nT (Magpie spec: ~3 nT). Measured on one flight: 4 nT from
+# survey lines alone, 62 nT once takeoff, landing and turns are left in the record.
+MAX_PLATFORM_ARTIFACT_NT = 20.0
+
+
 def add_constant(x):
     return np.column_stack([np.ones(len(x)), x])
 
@@ -74,7 +88,7 @@ def filter_magnetic(data):
 
     data.dropna(subset=['Bx', 'By', 'Bz'], inplace = True)
 
-    fq = 250  # frequency of data in Hz - need to change to measure real frequency (!)
+    fq = MAG_SAMPLE_RATE_HZ
     notch_high = fq // 2
     notch_low = 4
 
@@ -88,6 +102,73 @@ def filter_magnetic(data):
     data['Bx_F_norm'] = data['Bx_F'] / magnitude
     data['By_F_norm'] = data['By_F'] / magnitude
     data['Bz_F_norm'] = data['Bz_F'] / magnitude
+
+
+def add_tolles_lawson_terms(data):
+    # Magnitude is dropped on purpose: the vector channels see the same targets as
+    # the scalar (correlation 0.99 on survey data), so raw Bx/By/Bz regress geology away.
+    ux = data['Bx_F_norm']
+    uy = data['By_F_norm']
+    uz = data['Bz_F_norm']
+
+    data['TL_Px'] = ux
+    data['TL_Py'] = uy
+    data['TL_Pz'] = uz
+
+    data['TL_Ixy'] = ux * uy
+    data['TL_Ixz'] = ux * uz
+    data['TL_Iyz'] = uy * uz
+    data['TL_Ixx'] = ux * ux - uz * uz
+    data['TL_Iyy'] = uy * uy - uz * uz
+
+
+def platform_components(data):
+    components = list(TOLLES_LAWSON_COMPONENTS)
+    if (args.include_heading and 'Heading_sin' in data.columns):
+        components += ['Heading_sin', 'Heading_cos']
+    return components
+
+
+def fit_platform_model(data):
+    if not args.include_magnetic:
+        print("Platform fit: magnetic channels disabled, skipped")
+        return None
+
+    if not all(column in data.columns for column in ['Bx', 'By', 'Bz']):
+        print("Platform fit: no vector channels, skipped")
+        return None
+
+    frame = data.copy()
+    filter_magnetic(frame)
+    if (args.include_heading and 'Heading' in frame.columns):
+        filter_heading(frame)
+
+    if len(frame['TMI'].dropna()) < MIN_PLATFORM_FIT_ROWS:
+        print("Platform fit: record too short, skipped")
+        return None
+
+    add_tolles_lawson_terms(frame)
+
+    components = platform_components(frame)
+
+    selected = select_for_training(frame)
+    x_train = add_constant(selected[components].values)
+    coefficients = fit_least_squares(selected['TMI'].values, x_train)
+
+    x_full = add_constant(frame[components].values)
+    prediction = x_full @ coefficients
+
+    artifact = pd.Series(prediction - np.nanmean(prediction), index = frame.index)
+
+    magnitude = np.nanstd(artifact.values)
+    if not np.isfinite(magnitude) or magnitude > MAX_PLATFORM_ARTIFACT_NT:
+        print(f"Platform fit: estimate {magnitude:.1f} nT is above the {MAX_PLATFORM_ARTIFACT_NT:.0f} nT "
+              f"limit and was discarded. Trim takeoff, landing and turns, then run again.")
+        return None
+
+    print(f"Platform fit: {len(frame)} rows, {len(components)} terms, "
+          f"estimate {magnitude:.2f} nT")
+    return artifact.reindex(data.index).interpolate().bfill().ffill()
 
 
 def filter_positional(data):
@@ -142,7 +223,7 @@ def filter_accelerometer(data):
 
     data.dropna(subset = ['AccelX', 'AccelY', 'AccelZ'], inplace = True)
 
-    fq = 250  # frequency of data in Hz - need to change to measure real frequency (!)
+    fq = MAG_SAMPLE_RATE_HZ
     notch_high = fq // 2
     notch_low = 1
 
@@ -158,12 +239,8 @@ def filter_accelerometer(data):
 
 
 def filter_line(data):
-    if (args.include_magnetic):
-        filter_magnetic(data)
     if (args.include_position):
         filter_positional(data)
-    if (args.include_heading):
-        filter_heading(data)
     if (args.include_altitude_amsl):
         filter_altitude_amsl(data)
     if (args.include_altitude_agl):
@@ -229,10 +306,6 @@ def fix_line_tmi(data, tmi_mean, line_index):
     #   Altitude_F, Altitude AGL_F, Latitude_F, Longitude_F,
     #   normalized_Ax_F, normalized_Ay_F, normalized_Az_F
     first_order_components = []
-    if (args.include_magnetic):
-        first_order_components += ['Bx_F_norm', 'By_F_norm', 'Bz_F_norm']
-    if (args.include_heading):
-        first_order_components += ['Heading_sin', 'Heading_cos']
 
     high_order_components = []
     if (args.include_position):
@@ -312,12 +385,16 @@ def fix_tmi(data):
     # Fill missing line indices
     num_empty_next_wp = len(data['Next WP']) - len(data['Next WP'].dropna())
     print(f"Empty Next WP: {num_empty_next_wp}")
+    data = data.copy()
     if num_empty_next_wp > 0:
-        data = data.copy()
         data['Next WP'] = data['Next WP'].ffill().fillna(0)
 
     # Get global TMI mean for compensation adjustments
     tmi_mean = data['TMI'].dropna().mean()
+
+    artifact = fit_platform_model(data)
+    if artifact is not None:
+        data['TMI'] = data['TMI'] - artifact
 
     results = []
 

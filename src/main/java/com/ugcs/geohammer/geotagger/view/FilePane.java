@@ -135,11 +135,12 @@ public abstract class FilePane extends VBox {
 	}
 
 	public void addGeohammerFiles() {
-		List<File> files = model.getFileManager().getFiles().stream()
-				.filter(sgyFile -> sgyFile != null && sgyFile.getFile() != null)
-				.map(SgyFile::getFile)
-				.toList();
-		addFiles(files);
+		for (SgyFile sgyFile : model.getFileManager().getFiles()) {
+			File file = sgyFile != null ? sgyFile.getFile() : null;
+			if (file != null && canAutoAdd(file)) {
+				addFile(file);
+			}
+		}
 	}
 
 	private boolean containsFile(File file) {
@@ -177,6 +178,7 @@ public abstract class FilePane extends VBox {
 				sgyFile = openFile(file);
 			} catch (IOException e) {
 				statusBar.showMessage("Failed to open file: " + file.getName(), "Error");
+				return;
 			}
 		}
 		listView.getItems().add(sgyFile);
@@ -214,6 +216,10 @@ public abstract class FilePane extends VBox {
 	protected abstract HBox createDataRow(SgyFile file);
 
 	protected abstract boolean canAdd(File file);
+
+	protected boolean canAutoAdd(File file) {
+		return canAdd(file);
+	}
 
 	protected Node createPlaceholder() {
 		VBox box = new VBox(5);

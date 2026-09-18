@@ -16,6 +16,7 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.GpsTime;
 import com.ugcs.geohammer.util.IncorrectFormatException;
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Numbers;
 import com.ugcs.geohammer.util.PrintableFilter;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
@@ -125,8 +126,9 @@ public abstract class Parser {
 
         DataMapping mapping = template.getDataMapping();
 
-        ColumnSchema columns;
+        ColumnSchema valueSchema;
         List<GeoData> values = new ArrayList<>();
+		FileSchema fileSchema;
         PrintableFilter filter = new PrintableFilter(new FileReader(file));
         try (BufferedReader r = new BufferedReader(filter)) {
             // skip top lines
@@ -141,7 +143,8 @@ public abstract class Parser {
                 throw new ParseException("Column names for latitude and longitude are not matched");
             }
 
-            columns = buildColumnSchema();
+            valueSchema = buildValueSchema();
+			fileSchema = buildFileSchema(valueSchema);
 
             // read value lines
             String[] valueTokens;
@@ -149,7 +152,7 @@ public abstract class Parser {
                 if (Thread.currentThread().isInterrupted()) {
                     throw new CancellationException();
                 }
-                GeoData value = parseValues(valueTokens, columns);
+                GeoData value = parseValues(valueTokens, fileSchema, valueSchema);
                 values.add(value);
             }
 
@@ -157,12 +160,12 @@ public abstract class Parser {
 				throw new ParseException("File has no data.");
 			}
 
-			checkCoordinates(values);
+			checkCoordinates(values, fileSchema);
         }
 
-        // decide which columns to display
+		// decide which columns to display
         // based on loaded data values
-        setColumnDisplay(columns, values);
+        setColumnDisplay(fileSchema, valueSchema);
 
         // add rejected symbols warning
         if (filter.numRejected() > 0) {
@@ -173,17 +176,18 @@ public abstract class Parser {
         return values;
     }
 
-	private void checkCoordinates(List<GeoData> values) throws ParseException {
+	private void checkCoordinates(List<GeoData> values, FileSchema fileSchema) throws ParseException {
 		for (GeoData value : values) {
-			if (value.getLatitude() != null && value.getLongitude() != null) {
+			Number latitude = value.getNumber(fileSchema.latitudeColumn.valueIndex);
+			Number longitude = value.getNumber(fileSchema.longitudeColumn.valueIndex);
+			if (latitude != null && longitude != null) {
 				return;
 			}
 		}
-		DataMapping mapping = template.getDataMapping();
 		throw new ParseException(
 				"File contains data rows, but none have valid coordinates. "
-						+ "Check that the '" + mapping.getLatitude().getHeader()
-						+ "' and '" + mapping.getLongitude().getHeader()
+						+ "Check that the '" + fileSchema.latitudeColumn.header
+						+ "' and '" + fileSchema.longitudeColumn.header
 						+ "' columns contain non-empty latitude/longitude values.");
 	}
 
@@ -234,15 +238,23 @@ public abstract class Parser {
 
     protected abstract String[] readValues(BufferedReader r) throws IOException;
 
-    public boolean isBlankOrCommented(String line) {
-        if (Strings.isNullOrBlank(line)) {
-            return true;
-        }
-        String commentPrefix = template.getFileFormat().getCommentPrefix();
-        return !Strings.isNullOrBlank(commentPrefix) && line.trim().startsWith(commentPrefix);
-    }
+	public boolean isBlankOrCommented(String line) {
+		if (line == null) {
+			return true;
+		}
+		int i = 0;
+		while (i < line.length() && line.charAt(i) <= ' ') {
+			i++;
+		}
+		if (i == line.length()) {
+			return true;
+		}
 
-    private ColumnSchema buildColumnSchema() {
+		String commentPrefix = template.getFileFormat().getCommentPrefix();
+		return !Strings.isNullOrBlank(commentPrefix) && line.startsWith(commentPrefix, i);
+	}
+
+    private ColumnSchema buildValueSchema() {
         DataMapping mapping = template.getDataMapping();
 
         Map<String, BaseData> metaValues = mapping.getMetaValuesByHeader();
@@ -290,38 +302,68 @@ public abstract class Parser {
         return columns;
     }
 
-    private void setColumnDisplay(ColumnSchema columns, List<GeoData> values) {
-        DataMapping mapping = template.getDataMapping();
+	private FileSchema buildFileSchema(ColumnSchema valueSchema) {
+		DataMapping mapping = template.getDataMapping();
+		Map<String, BaseData> metaValues = mapping.getMetaValuesByHeader();
+		Map<String, SensorData> dataValues = mapping.getDataValuesByHeader();
 
-        Set<String> excludeHeaders = new HashSet<>();
-        for (BaseData metaValue : mapping.getMetaValues()) {
-            excludeHeaders.add(metaValue.getHeader());
-        }
-        // explicitly exclude mark column
-        String markHeader = mapping.getHeaderBySemantic(Semantic.MARK.getName());
-        if (markHeader != null) {
-            excludeHeaders.add(markHeader);
-        }
+		String latitudeHeader = valueSchema.getHeaderBySemantic(Semantic.LATITUDE.getName());
+		String longitudeHeader = valueSchema.getHeaderBySemantic(Semantic.LONGITUDE.getName());
 
-        for (Column column : columns) {
-            String header = column.getHeader();
-            // data column declared in template or having numeric values
-            boolean display = !excludeHeaders.contains(header)
-                    && (mapping.getDataValueByHeader(header) != null || hasNumbers(values, header));
-            column.setDisplay(display);
-        }
+		FileSchema fileSchema = new FileSchema();
+		fileSchema.columns = new ArrayList<>(headers.size());
+		for (Map.Entry<String, Integer> e : headers.entrySet()) {
+			String header = e.getKey();
+			FileColumn fileColumn = new FileColumn();
+			fileColumn.header = header;
+			fileColumn.index = e.getValue();
+			fileColumn.valueIndex = valueSchema.getColumnIndex(header);
+			if (fileColumn.valueIndex == -1) {
+				continue;
+			}
+			fileColumn.isMeta = metaValues.containsKey(header);
+			fileColumn.isTemplateValue = dataValues.containsKey(header);
+			fileSchema.columns.add(fileColumn);
+
+			if (header.equals(latitudeHeader)) {
+				fileSchema.latitudeColumn = fileColumn;
+			}
+			if (header.equals(longitudeHeader)) {
+				fileSchema.longitudeColumn = fileColumn;
+			}
+		}
+
+		if (fileSchema.latitudeColumn == null || fileSchema.longitudeColumn == null) {
+			throw new ParseException("Missing position headers: " + latitudeHeader + ", " + longitudeHeader + ".");
+		}
+
+		return fileSchema;
+	}
+
+    private void setColumnDisplay(FileSchema fileSchema, ColumnSchema valueSchema) {
+		Set<String> displayHeaders = new HashSet<>();
+		for (FileColumn fileColumn : fileSchema.columns) {
+			// data column declared in template or having numeric values
+			if (!fileColumn.isMeta && (fileColumn.isTemplateValue || fileColumn.hasNumbers)) {
+				displayHeaders.add(fileColumn.header);
+			}
+		}
+
+		for (Column column : valueSchema) {
+			boolean display = displayHeaders.contains(column.getHeader());
+			if (display) {
+				// explicitly exclude marks
+				String semantic = column.getSemantic();
+				if (Objects.equals(semantic, Semantic.MARK.getName())
+						|| Objects.equals(semantic, Semantic.LINE.getName())) {
+					display = false;
+				}
+			}
+			column.setDisplay(display);
+		}
     }
 
-    private boolean hasNumbers(List<GeoData> values, String header) {
-        for (GeoData value : values) {
-            if (value.getNumber(header) != null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private GeoData parseValues(String[] tokens, ColumnSchema columns) {
+    private GeoData parseValues(String[] tokens, FileSchema fileSchema, ColumnSchema valueSchema) {
 		LocalDateTime dateTime = null;
 		try {
 			 dateTime = parseDateTime(tokens);
@@ -332,42 +374,51 @@ public abstract class Parser {
             dateTime = GpsTime.gpsToUtc(dateTime);
         }
 
-        GeoData geoData = new GeoData(columns);
+        GeoData geoData = new GeoData(valueSchema);
         geoData.setDateTime(dateTime);
 
-        for (Column column : columns) {
-            String header = column.getHeader();
-            if (hasHeader(header)) {
-                String str = Strings.emptyToNull(getString(tokens, header));
-                if (str != null) {
-					Number number = null;
-					try {
-						number = parseNumber(str);
-					} catch (IncorrectFormatException e) {
-						// warn only for declared data values; meta columns (date, time, etc.)
-						// are parsed separately and aren't expected to be numeric
-						if (template.getDataMapping().getDataValueByHeader(header) != null) {
-							warnings.addFormatError(header, e);
-						}
+        for (FileColumn column : fileSchema.columns) {
+            String header = column.header;
+			String str = Strings.emptyToNull(getString(tokens, column.index));
+			if (str != null) {
+				Numbers.ParseResult parsed = Numbers.parseNumber(str);
+				if (!parsed.valid()) {
+					// warn only for declared data values; meta columns (date, time, etc.)
+					// are parsed separately and aren't expected to be numeric
+					if (column.isTemplateValue) {
+						warnings.addFormatError(header, header, "'" + str + "' is not a valid number");
 					}
-                    geoData.setValue(header, Objects.requireNonNullElse(number, str));
-                }
-            }
+				} else if (parsed.number() != null) {
+					column.hasNumbers = true;
+				}
+				geoData.setValue(column.valueIndex, Objects.requireNonNullElse(parsed.number(), str));
+			}
         }
 
         // treat (0, 0) as a missing fix so it gets interpolated later
-        Double latitude = geoData.getLatitude();
-        Double longitude = geoData.getLongitude();
-        if (latitude == null || longitude == null || latitude == 0.0 && longitude == 0.0) {
-            geoData.setLatitude(null);
-            geoData.setLongitude(null);
+        Number latitude = geoData.getNumber(fileSchema.latitudeColumn.valueIndex);
+		Number longitude = geoData.getNumber(fileSchema.longitudeColumn.valueIndex);
+        if (latitude == null || longitude == null
+				|| latitude.doubleValue() == 0.0 && longitude.doubleValue() == 0.0) {
+            geoData.setValue(fileSchema.latitudeColumn.valueIndex, null);
+            geoData.setValue(fileSchema.longitudeColumn.valueIndex, null);
         }
         return geoData;
     }
 
     // value parsers
 
-    public String getString(String[] values, String header) {
+	private String getString(String[] values, int tokenIndex) {
+		if (values == null) {
+			return null;
+		}
+		if (tokenIndex < 0 || tokenIndex >= values.length) {
+			return null;
+		}
+		return values[tokenIndex];
+	}
+
+    private String getString(String[] values, String header) {
         if (values == null || header == null) {
             return null;
         }
@@ -378,7 +429,7 @@ public abstract class Parser {
         return values[columnIndex];
     }
 
-    public String getString(String[] values, BaseData column) {
+    private String getString(String[] values, BaseData column) {
         if (column == null) {
             return null;
         }
@@ -389,19 +440,7 @@ public abstract class Parser {
         return value;
     }
 
-    public Number parseNumber(String value) {
-        if (Strings.isNullOrBlank(value)) {
-            return null;
-        }
-        String decimalSeparator = template.getFileFormat().getDecimalSeparator();
-        if (value.indexOf(decimalSeparator) > 0) {
-            return Text.parseDouble(value);
-        } else {
-            return Text.parseLong(value);
-        }
-    }
-
-    public LocalDate parseDateFromFilename(String filename) {
+    private LocalDate parseDateFromFilename(String filename) {
         Date dateColumn = template.getDataMapping().getDate();
         String value = Text.matchPattern(filename, dateColumn.getRegex(), false);
         if (Strings.isNullOrEmpty(value)) {
@@ -417,7 +456,7 @@ public abstract class Parser {
         return date;
     }
 
-	public LocalDateTime parseDateTime(String[] values) {
+	private LocalDateTime parseDateTime(String[] values) {
 		DataMapping mapping = template.getDataMapping();
 
 		LocalDateTime dateTime = null;
@@ -465,5 +504,31 @@ public abstract class Parser {
 		}
 
 		return dateTime;
+	}
+
+	static class FileColumn {
+
+		String header;
+
+		// column index within the line
+		int index;
+
+		// column index in the geoData value
+		int valueIndex;
+
+		boolean isMeta;
+
+		boolean isTemplateValue;
+
+		boolean hasNumbers;
+	}
+
+	static class FileSchema {
+
+		List<FileColumn> columns;
+
+		FileColumn latitudeColumn;
+
+		FileColumn longitudeColumn;
 	}
 }

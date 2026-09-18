@@ -3,6 +3,7 @@ package com.ugcs.geohammer.template;
 import com.ugcs.geohammer.template.model.ColumnModel;
 import com.ugcs.geohammer.template.model.ColumnType;
 import com.ugcs.geohammer.template.model.TemplateModel;
+import com.ugcs.geohammer.util.Numbers;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Text;
 import org.jspecify.annotations.Nullable;
@@ -46,15 +47,13 @@ public class ValueParser {
         if (Strings.isNullOrBlank(extracted)) {
             return Preview.error(value);
         }
-        Number number = extracted.indexOf('.') >= 0
-                ? (Number)Text.parseDouble(extracted)
-                : (Number)Text.parseLong(extracted);
-        if (number == null) {
+        Numbers.ParseResult parsed = Numbers.parseNumber(extracted);
+        if (!parsed.valid()) {
             return Preview.error(value);
         }
-        String text = number instanceof Double d && column.getType() == ColumnType.VALUE
+        String text = parsed.number() instanceof Double d && column.getType() == ColumnType.VALUE
                 ? Text.formatNumber(d, column.getDecimals())
-                : Text.formatNumber(number);
+                : Text.formatNumber(parsed.number());
         return Preview.parsed(text);
     }
 

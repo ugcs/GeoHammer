@@ -350,16 +350,15 @@ public abstract class Parser {
 		}
 
 		for (Column column : valueSchema) {
-			boolean display = displayHeaders.contains(column.getHeader());
-			if (display) {
-				// explicitly exclude marks
-				String semantic = column.getSemantic();
-				if (Objects.equals(semantic, Semantic.MARK.getName())
-						|| Objects.equals(semantic, Semantic.LINE.getName())) {
-					display = false;
-				}
+			// explicitly hide marks and show lines
+			String semantic = column.getSemantic();
+			if (Objects.equals(semantic, Semantic.MARK.getName())) {
+				column.setDisplay(false);
+			} else if (Objects.equals(semantic, Semantic.LINE.getName())) {
+				column.setDisplay(true);
+			} else {
+				column.setDisplay(displayHeaders.contains(column.getHeader()));
 			}
-			column.setDisplay(display);
 		}
     }
 

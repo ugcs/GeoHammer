@@ -28,10 +28,11 @@ public class ListScripts extends ScriptTool {
                 + "look for a shortcut for an ordinary request: normal tasks are done with the other "
                 + "tools, not with scripts. "
                 + "Scripts are Python programs stored in the GeoHammer scripts folder; they receive a "
-                + "copy of an open file as CSV, may modify it (the result is loaded back, with undo) "
+                + "temporary copy of an open file in its own format (CSV, SEG-Y or SVLOG), may modify "
+                + "it (the result is loaded back, with undo) "
                 + "and may print results to stdout. Each script declares typed parameters and the file "
-                + "templates it applies to (matched against the file's template from {{list_files}}; an "
-                + "empty list means any file).");
+                + "templates it applies to (matched against the file's template from {{list_files}}; "
+                + "\"csv\" means any CSV file).");
         ObjectNode schema = objectSchema();
         tool.set("inputSchema", schema);
         return tool;

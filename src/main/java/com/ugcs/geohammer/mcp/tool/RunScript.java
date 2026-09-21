@@ -3,6 +3,7 @@ package com.ugcs.geohammer.mcp.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
@@ -46,8 +47,9 @@ public class RunScript extends ScriptTool {
                 + "ONLY use when the user explicitly asked for a script to be run, either naming the "
                 + "script or asking to choose an appropriate one. Never replace the regular data tools "
                 + "with a script on your own initiative. "
-                + "The file is exported to a temporary CSV, the script runs on it with the given "
-                + "parameters, the modified file is loaded back (undoable, the file on disk is not "
+                + "The file is saved to a temporary copy in its own format (CSV for CSV files, SEG-Y "
+                + "for GPR files, SVLOG for sonar logs), the script runs on it with the given "
+                + "parameters, the modified copy is loaded back (undoable, the file on disk is not "
                 + "changed) and the captured script output (stdout) is returned. "
                 + "May take minutes on large files; missing Python dependencies are installed "
                 + "automatically on first use.");
@@ -57,7 +59,12 @@ public class RunScript extends ScriptTool {
         addFileProperty(schema);
         ObjectNode scriptParams = addProperty(schema, "params", "object",
                 "Script parameters as name-value pairs; see the script's parameter list "
-                + "in {{list_scripts}} for names, types and which are required.");
+                + "in {{list_scripts}} for names, types and which are required. Values by type: "
+                + "STRING any text; INTEGER a whole number, DOUBLE a number, both within min/max when "
+                + "given; BOOLEAN true or false; ENUM exactly one of the listed enumValues; "
+                + "COLUMN_NAME a series name of the file from {{list_series}}; LINE_INDEX a line "
+                + "number of the file from {{list_lines}}; FILE_PATH and FOLDER_PATH an absolute path "
+                + "on this machine.");
         scriptParams.putObject("additionalProperties");
         schema.putArray("required").add("script");
         tool.set("inputSchema", schema);
@@ -88,8 +95,7 @@ public class RunScript extends ScriptTool {
 
         SgyFile dataFile = inFxThread(() -> resolveFile(fileName));
         String template = Templates.getTemplateName(dataFile);
-        if (!Nulls.toEmpty(metadata.templates()).isEmpty()
-                && !containsIgnoreCase(metadata.templates(), template)) {
+        if (!appliesTo(metadata, dataFile, template)) {
             throw new IllegalArgumentException("Script does not apply to this file: it supports "
                     + "templates " + metadata.templates() + ", the file's template is " + template);
         }
@@ -140,6 +146,17 @@ public class RunScript extends ScriptTool {
             throw new IllegalStateException(cause.getMessage() + outputTail(output), cause);
         }
         return text(status + outputTail(output));
+    }
+
+    // mirrors the Scripts panel: a file without a template accepts any script,
+    // otherwise the template must be listed, with "csv" matching any CSV file
+    private static boolean appliesTo(ScriptMetadata metadata, SgyFile file, @Nullable String template) {
+        if (template == null) {
+            return true;
+        }
+        List<String> templates = Nulls.toEmpty(metadata.templates());
+        return containsIgnoreCase(templates, template)
+                || (file instanceof CsvFile && containsIgnoreCase(templates, "csv"));
     }
 
     private static boolean containsIgnoreCase(List<String> values, @Nullable String value) {

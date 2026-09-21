@@ -1,6 +1,8 @@
 package com.ugcs.geohammer.service.script;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Strings;
 
 import java.util.List;
 
@@ -19,11 +21,22 @@ public record ScriptParameter(
         @JsonProperty("max")
         Double max
 ) {
+    public ScriptParameter {
+		name = Strings.nullToEmpty(name);
+        if (Strings.isNullOrEmpty(displayName)) {
+            displayName = name;
+        }
+		defaultValue = Strings.nullToEmpty(defaultValue);
+    }
+
     public String getLabel(String hint) {
         return displayName + hint + (required ? " *" : "");
     }
 
     public void validate() {
+		Check.notEmpty(name, "Parameter name is missing or empty");
+		Check.condition(type != null, "Parameter '" + name + "' has no type");
+
 		switch (type) {
 			case ENUM -> validateEnum();
 			case INTEGER -> validateInteger();

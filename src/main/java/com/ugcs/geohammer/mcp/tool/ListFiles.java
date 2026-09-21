@@ -6,8 +6,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.util.Templates;
-import java.io.File;
 
 public class ListFiles extends McpTool {
 
@@ -39,14 +37,7 @@ public class ListFiles extends McpTool {
         return text(inFxThread(() -> {
             ArrayNode files = mapper.createArrayNode();
             for (SgyFile dataFile : dataFiles()) {
-                File file = dataFile.getFile();
-                ObjectNode node = files.addObject();
-                node.put("name", file != null ? file.getName() : null);
-                node.put("path", file != null ? file.getAbsolutePath() : null);
-                node.put("type", fileType(dataFile));
-                node.put("template", Templates.getTemplateName(dataFile));
-                node.put("points", dataFile.numTraces());
-                node.put("unsaved", dataFile.isUnsaved());
+                files.add(fileDescriptor(dataFile));
             }
             return toJson(files);
         }));

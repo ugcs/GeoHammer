@@ -227,6 +227,18 @@ public abstract class McpTool {
         };
     }
 
+    protected static ObjectNode fileDescriptor(SgyFile dataFile) {
+        File file = dataFile.getFile();
+        ObjectNode node = mapper.createObjectNode();
+        node.put("name", file != null ? file.getName() : null);
+        node.put("path", file != null ? file.getAbsolutePath() : null);
+        node.put("type", fileType(dataFile));
+        node.put("template", Templates.getTemplateName(dataFile));
+        node.put("points", dataFile.numTraces());
+        node.put("unsaved", dataFile.isUnsaved());
+        return node;
+    }
+
     private static String fileNames(List<SgyFile> dataFiles) {
         List<String> names = new ArrayList<>(dataFiles.size());
         for (SgyFile dataFile : dataFiles) {

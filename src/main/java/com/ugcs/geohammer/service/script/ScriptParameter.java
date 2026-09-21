@@ -66,7 +66,7 @@ public record ScriptParameter(
 			case INTEGER -> {
 				int parsed;
 				try {
-					parsed = Integer.parseInt(value.trim());
+					parsed = Integer.parseInt(value);
 				} catch (NumberFormatException e) {
 					throw new IllegalArgumentException(
 							"Parameter '" + displayName + "': '" + value + "' is not a valid integer");
@@ -83,7 +83,7 @@ public record ScriptParameter(
 			case DOUBLE -> {
 				double parsed;
 				try {
-					parsed = Double.parseDouble(value.trim());
+					parsed = Double.parseDouble(value);
 				} catch (NumberFormatException e) {
 					throw new IllegalArgumentException(
 							"Parameter '" + displayName + "': '" + value + "' is not a valid number");
@@ -97,6 +97,27 @@ public record ScriptParameter(
 							"Parameter '" + displayName + "': value " + parsed + " exceeds maximum " + formatBound(max));
 				}
 			}
+			case BOOLEAN -> {
+				if (!value.equalsIgnoreCase("true") && !value.equalsIgnoreCase("false")) {
+					throw new IllegalArgumentException(
+							"Parameter '" + displayName + "': '" + value + "' is not a boolean, expected true or false");
+				}
+			}
+			case ENUM -> {
+				if (enumValues == null || !enumValues.contains(value)) {
+					throw new IllegalArgumentException(
+							"Parameter '" + displayName + "': '" + value + "' is not one of " + enumValues);
+				}
+			}
+			case LINE_INDEX -> {
+				try {
+					Integer.parseInt(value);
+				} catch (NumberFormatException e) {
+					throw new IllegalArgumentException(
+							"Parameter '" + displayName + "': '" + value + "' is not a valid line index");
+				}
+			}
+			default -> { }
 		}
 	}
 

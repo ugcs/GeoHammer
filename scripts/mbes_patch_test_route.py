@@ -37,6 +37,8 @@ SIMPLIFY_TOLERANCE_M = 0.5
 # rule: the spacing samples the track, this one limits the route
 MIN_WAYPOINT_DISTANCE_M = 1.0
 
+MAX_TURN_DEG = 90.0
+
 MEDIAN_WINDOW = 5
 MIN_DEPTH_CHANGE = 2.0
 
@@ -250,8 +252,21 @@ def _distance(a, b):
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
+def _window_mean_depth(track):
+    prefix = [0.0]
+    for point in track:
+        prefix.append(prefix[-1] + point[2])
+    means = []
+    for i in range(len(track)):
+        low = max(0, i - TANGENT_HALF_WINDOW)
+        high = min(len(track), i + TANGENT_HALF_WINDOW + 1)
+        means.append((prefix[high] - prefix[low]) / (high - low))
+    return means
+
+
 def offset(track, sign):
     half_angle = math.radians(BEAM_WIDTH_DEG / 2.0)
+    depths = _window_mean_depth(track)
     shifted = []
     for i in range(len(track)):
         before = track[max(0, i - TANGENT_HALF_WINDOW)]
@@ -259,15 +274,45 @@ def offset(track, sign):
         tx, ty = after[0] - before[0], after[1] - before[1]
         norm = math.hypot(tx, ty)
         if norm == 0.0:
-            shifted.append(track[i])
             continue
         # normal to the right of the direction of travel
         nx, ny = ty / norm, -tx / norm
-        distance = track[i][2] * math.tan(half_angle)
+        distance = depths[i] * math.tan(half_angle)
         shifted.append((track[i][0] + sign * nx * distance,
                         track[i][1] + sign * ny * distance,
                         track[i][2]))
     return shifted
+
+
+def turn_angle(a, b, c):
+    ax, ay = b[0] - a[0], b[1] - a[1]
+    cx, cy = c[0] - b[0], c[1] - b[1]
+    if math.hypot(ax, ay) == 0.0 or math.hypot(cx, cy) == 0.0:
+        return 0.0
+    return abs(math.degrees(math.atan2(ax * cy - ay * cx, ax * cx + ay * cy)))
+
+
+def enforce_max_turn(track):
+    kept = list(track)
+    while len(kept) > 2:
+        worst_index, worst = -1, MAX_TURN_DEG
+        for i in range(1, len(kept) - 1):
+            turn = turn_angle(kept[i - 1], kept[i], kept[i + 1])
+            if turn > worst:
+                worst_index, worst = i, turn
+        if worst_index < 0:
+            break
+        kept.pop(worst_index)
+    return kept
+
+
+def build_route(track):
+    route = simplify(track)
+    length = 0
+    while len(route) != length:
+        length = len(route)
+        route = enforce_max_turn(thin(route))
+    return route
 
 
 def write_kml(lines, path, document_name):
@@ -328,9 +373,9 @@ def main():
 
     # offsets need the dense track for a stable tangent; the route does not
     resampled = resample(track)
-    l1 = thin(simplify(resampled))
-    l3 = thin(simplify(offset(resampled, 1.0)))
-    l5 = thin(simplify(offset(resampled, -1.0)))
+    l1 = build_route(resampled)
+    l3 = build_route(offset(resampled, 1.0))
+    l5 = build_route(offset(resampled, -1.0))
     lines = {
         "L1": to_geodetic(l1, latitude0, longitude0),
         "L2": to_geodetic(l1[::-1], latitude0, longitude0),

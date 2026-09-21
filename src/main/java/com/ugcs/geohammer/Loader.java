@@ -6,9 +6,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import com.ugcs.geohammer.format.FileOpenException;
 import com.ugcs.geohammer.format.csv.parser.Parser;
@@ -33,9 +37,11 @@ import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.Result;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,10 +113,19 @@ public class Loader {
         event.consume();
     };
 
-	public void load(List<File> files) {
+	public Future<Map<File, Result<File>>> load(List<File> files) {
+		return load(files, true);
+	}
+
+	// a non-interactive load never shows dialogs or waits for user input
+	public Future<Map<File, Result<File>>> load(List<File> files, boolean interactive) {
 		if (files.isEmpty()) {
-			return;
+			return CompletableFuture.completedFuture(Map.of());
 		}
+
+		// a result per processed file with the file actually opened (a meta file resolves
+		// to its data file); files skipped after a cancellation have no entry
+		Map<File, Result<File>> results = new LinkedHashMap<>();
 
 		ProgressTask loadTask = listener -> {
 			List<File> openedFiles = new ArrayList<>();
@@ -124,10 +139,13 @@ public class Loader {
 				try {
 					listener.progressMsg("Opening " + file);
 
-					boolean opened = openFile(file);
-					if (opened) {
-						listener.progressMsg("File opened: " + file);
-						openedFiles.add(file);
+					File openedFile = openFile(file, interactive);
+					if (openedFile != null) {
+						listener.progressMsg("File opened: " + openedFile);
+						openedFiles.add(openedFile);
+						results.put(file, Result.success(openedFile));
+					} else {
+						results.put(file, Result.error(new IOException("No data to open in " + file.getName())));
 					}
 				} catch (CancellationException e) {
 					// loading cancelled
@@ -136,11 +154,13 @@ public class Loader {
 				} catch (Exception e) {
 					log.error("Error", e);
 					listener.progressMsg("Error: " + e.getMessage());
+					results.put(file, Result.error(e));
 
 					eventPublisher.publishEvent(new FileOpenErrorEvent(this, file, e));
-					Dialogs.showError(
-							"Can't open file " + file.getName(),
-							new FileOpenException(file, e));
+					if (interactive) {
+						Dialogs.showError("Can't open file " + file.getName(),
+								new FileOpenException(file, e));
+					}
 				} finally {
 					model.setLoading(false);
 				}
@@ -163,10 +183,12 @@ public class Loader {
 				: "Loading " + files.size()	+ " files";
 
 		TaskRunner runner = new TaskRunner(status, loadTask);
-		var future = executor.submit(() -> {
+		Future<Map<File, Result<File>>> future = executor.submit(() -> {
 			runner.start(false);
+			return results;
 		});
 		taskService.registerTask(future, taskName);
+		return future;
 	}
 
 	private List<File> prepareOpenFiles(List<File> files) {
@@ -211,58 +233,60 @@ public class Loader {
 		return result;
 	}
 
-	private boolean openFile(File file) throws IOException {
+	// returns the opened file or null when nothing was opened
+	private @Nullable File openFile(File file, boolean interactive) throws IOException {
 		if (file == null) {
-			return false;
+			return null;
 		}
 		if (MetaFiles.isMeta(file)) {
-			return openMetaSource(file);
+			return openMetaSource(file, interactive);
 		}
 		if (FileTypes.isCsvFile(file)) {
-			openCsvFile(file);
-			return true;
+			openCsvFile(file, interactive);
+			return file;
 		}
 		if (FileTypes.isGprFile(file)) {
 			openGprFile(file);
-			return true;
+			return file;
 		}
 		if (FileTypes.isDztFile(file)) {
 			openDztFile(file);
-			return true;
+			return file;
 		}
 		if (FileTypes.isSvlogFile(file)) {
 			openSvlogFile(file);
-			return true;
+			return file;
 		}
 		if (FileTypes.isNmeaFile(file)) {
 			openNmeaFile(file);
-			return true;
+			return file;
 		}
 		// try csv as a fallback for text formats only
 		if (FileTypes.isTextFile(file)) {
-			openCsvFile(file);
-			return true;
+			openCsvFile(file, interactive);
+			return file;
 		}
 		throw new IOException("Unsupported file format: " + file.getName());
 	}
 
-	private boolean openMetaSource(File metaFile) throws IOException {
+	private @Nullable File openMetaSource(File metaFile, boolean interactive) throws IOException {
 		Check.notNull(metaFile);
 
 		List<File> sources = MetaFiles.resolveSources(metaFile);
 		if (Nulls.isNullOrEmpty(sources)) {
-			return false;
+			return null;
 		}
 
 		IOException firstError = null;
 		for (File source : sources) {
 			if (Thread.currentThread().isInterrupted()) {
-				return false;
+				return null;
 			}
 
 			try {
-				if (openFile(source)) {
-					return true;
+				File openedFile = openFile(source, interactive);
+				if (openedFile != null) {
+					return openedFile;
 				}
 			} catch (IOException e) {
 				log.warn("Error opening {}", source, e);
@@ -274,7 +298,7 @@ public class Loader {
 		if (firstError != null) {
 			throw firstError;
 		}
-		return false;
+		return null;
 	}
 
 	private void openGprFile(File file) throws IOException {
@@ -308,12 +332,16 @@ public class Loader {
 		});
 	}
 
-	private void openCsvFile(File file) throws IOException {
+	private void openCsvFile(File file, boolean interactive) throws IOException {
 		Check.notNull(file);
 
 		FileTemplates fileTemplates = model.getFileManager().getFileTemplates();
 		Template template = fileTemplates.findTemplate(file);
 		if (template == null) {
+			if (!interactive) {
+				throw new RuntimeException("Can't find template for file " + file.getName()
+						+ "; open the file manually in the app to create a template");
+			}
 			template = templateEditor.createTemplate(file);
 			if (template == null) {
 				throw new RuntimeException("Can't find template for file " + file.getName());
@@ -329,7 +357,7 @@ public class Loader {
 
 		// queued after the chart init so the dialog is not blocked by it
 		Parser parser = csvFile.getParser();
-		if (parser != null) {
+		if (interactive && parser != null) {
 			Warnings warnings = parser.getWarnings();
 			if (!warnings.isEmpty()) {
 				Dialogs.showWarning("Warnings in " + file.getName(), warnings.format());

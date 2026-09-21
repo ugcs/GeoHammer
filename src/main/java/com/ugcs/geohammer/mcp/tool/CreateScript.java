@@ -75,7 +75,9 @@ public class CreateScript extends ScriptTool {
                 + "--name option. In the UI, COLUMN_NAME is a dropdown of the file's data columns, "
                 + "ENUM a dropdown of enum_values, LINE_INDEX a survey line selector, FOLDER_PATH a "
                 + "folder chooser that defaults to the data file's folder (use it for export "
-                + "destinations), FILE_PATH and STRING a plain text field, BOOLEAN a checkbox.");
+                + "destinations), FILE_PATH a file chooser, STRING a plain text field, "
+                + "BOOLEAN a checkbox. FILE_PATH and FOLDER_PATH values must point to an existing "
+                + "file or folder, so do not use them for outputs the script creates itself.");
         createParams.set("items", parameterSchema());
         ObjectNode createTemplates = addProperty(schema, "templates", "array",
                 "File templates the script applies to; the script is offered in the UI only for files "

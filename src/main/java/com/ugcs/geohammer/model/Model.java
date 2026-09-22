@@ -313,7 +313,7 @@ public class Model implements InitializingBean {
         // to the same position as it was before
         int index = -1;
 
-        Chart chart = charts.get(file);
+        Chart chart = getChart(file);
         if (chart != null) {
             Node chartBox = chart.getRootNode();
             if (chartBox != null) {
@@ -355,7 +355,7 @@ public class Model implements InitializingBean {
     }
 
     public Chart initChart(SgyFile file) {
-        Chart chart = charts.get(file);
+        Chart chart = getChart(file);
         if (chart == null) {
             chart = createChart(file);
             fileManager.addFile(file);
@@ -427,7 +427,7 @@ public class Model implements InitializingBean {
     }
 
 	public void reloadChart(SgyFile file) {
-		Chart chart = charts.get(file);
+		Chart chart = getChart(file);
 		if (chart != null) {
             chart.reload();
 		}

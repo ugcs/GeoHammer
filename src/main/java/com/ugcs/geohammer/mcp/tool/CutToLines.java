@@ -41,7 +41,7 @@ public class CutToLines extends McpTool {
         ObjectNode rangeItem = ranges.putObject("items");
         rangeItem.put("type", "array");
         rangeItem.putObject("items").put("type", "integer");
-        schema.putArray("required").add("ranges");
+        schema.withArrayProperty("required").add("ranges");
         tool.set("inputSchema", schema);
         return tool;
     }

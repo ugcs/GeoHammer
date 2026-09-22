@@ -31,7 +31,7 @@ public class CropGprSamples extends McpTool {
         addFileProperty(schema);
         addProperty(schema, "offset", "integer", "First sample index to keep, 0-based.");
         addProperty(schema, "length", "integer", "Number of samples to keep.");
-        schema.putArray("required").add("offset").add("length");
+        schema.withArrayProperty("required").add("offset").add("length");
         tool.set("inputSchema", schema);
         return tool;
     }

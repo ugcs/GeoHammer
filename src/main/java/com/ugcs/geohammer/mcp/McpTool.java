@@ -92,8 +92,8 @@ public abstract class McpTool {
 
     protected static void addFileProperty(ObjectNode schema) {
         addProperty(schema, "file", "string", "Name or full path of a file open in GeoHammer, "
-                + "see {{list_files}}. Optional when a single file is open "
-                + "or a file is selected in the app.");
+                + "see {{list_files}}.");
+        schema.withArrayProperty("required").add("file");
     }
 
     // results
@@ -181,21 +181,16 @@ public abstract class McpTool {
         return new ArrayList<>(model.getFileManager().getFiles());
     }
 
+    // the open file list is read on the FX thread only, so the missing-argument
+    // error is raised here and not while parsing the arguments
     protected SgyFile resolveFile(@Nullable String name) {
         List<SgyFile> dataFiles = dataFiles();
         if (dataFiles.isEmpty()) {
             throw new IllegalArgumentException("No data files are open in GeoHammer");
         }
         if (Strings.isNullOrEmpty(name)) {
-            if (dataFiles.size() == 1) {
-                return dataFiles.getFirst();
-            }
-            SgyFile currentFile = model.getCurrentFile();
-            if (currentFile != null && dataFiles.contains(currentFile)) {
-                return currentFile;
-            }
-            throw new IllegalArgumentException("Multiple data files are open, "
-                    + "specify a file name; open files: " + fileNames(dataFiles));
+            throw new IllegalArgumentException("Missing required argument: file; "
+                    + "open files: " + fileNames(dataFiles));
         }
         for (SgyFile dataFile : dataFiles) {
             File file = dataFile.getFile();

@@ -41,7 +41,7 @@ public class ReadData extends McpTool {
         ObjectNode aggregate = addProperty(schema, "aggregate", "string",
                 "Bucket aggregate: mean (default), min, max or first.");
         aggregate.putArray("enum").add("mean").add("min").add("max").add("first");
-        schema.putArray("required").add("series");
+        schema.withArrayProperty("required").add("series");
         tool.set("inputSchema", schema);
         return tool;
     }

@@ -46,7 +46,7 @@ public class RunGridding extends McpTool {
         addProperty(schema, "cell_size", "number", "Grid cell size in meters.");
         addProperty(schema, "blanking_distance", "number",
                 "Blanking distance in meters: cells farther than this from any data point are left empty.");
-        schema.putArray("required").add("cell_size").add("blanking_distance");
+        schema.withArrayProperty("required").add("cell_size").add("blanking_distance");
         tool.set("inputSchema", schema);
         return tool;
     }

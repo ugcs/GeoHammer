@@ -28,7 +28,7 @@ public class SplitLine extends McpTool {
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
         addProperty(schema, "index", "integer", "Point index where the line is cut.");
-        schema.putArray("required").add("index");
+        schema.withArrayProperty("required").add("index");
         tool.set("inputSchema", schema);
         return tool;
     }

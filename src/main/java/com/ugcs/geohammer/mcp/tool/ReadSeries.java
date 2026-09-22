@@ -33,7 +33,7 @@ public class ReadSeries extends McpTool {
         addProperty(schema, "start", "integer", "Index of the first value to read, default 0.");
         addProperty(schema, "count", "integer", "Number of values to read, default "
                 + DEFAULT_READ_COUNT + ", maximum " + MAX_READ_COUNT + ".");
-        schema.putArray("required").add("series");
+        schema.withArrayProperty("required").add("series");
         tool.set("inputSchema", schema);
         return tool;
     }

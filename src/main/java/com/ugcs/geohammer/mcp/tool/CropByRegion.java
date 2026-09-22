@@ -39,7 +39,7 @@ public class CropByRegion extends McpTool {
         ObjectNode vertex = polygon.putObject("items");
         vertex.put("type", "array");
         vertex.putObject("items").put("type", "number");
-        schema.putArray("required").add("polygon");
+        schema.withArrayProperty("required").add("polygon");
         tool.set("inputSchema", schema);
         return tool;
     }

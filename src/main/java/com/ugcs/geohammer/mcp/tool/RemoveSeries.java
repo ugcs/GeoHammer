@@ -33,7 +33,7 @@ public class RemoveSeries extends McpTool {
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
         addProperty(schema, "series", "string", "Name of the series to delete.");
-        schema.putArray("required").add("series");
+        schema.withArrayProperty("required").add("series");
         tool.set("inputSchema", schema);
         return tool;
     }

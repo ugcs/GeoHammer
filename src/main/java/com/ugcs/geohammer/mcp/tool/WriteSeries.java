@@ -39,7 +39,7 @@ public class WriteSeries extends McpTool {
         addProperty(schema, "start", "integer", "Index of the first value to write, default 0.");
         ObjectNode values = addProperty(schema, "values", "array", "Values to write.");
         values.putObject("items").putArray("type").add("number").add("null");
-        schema.putArray("required").add("series").add("values");
+        schema.withArrayProperty("required").add("series").add("values");
         tool.set("inputSchema", schema);
         return tool;
     }

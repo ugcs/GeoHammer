@@ -66,7 +66,7 @@ public class RunScript extends ScriptTool {
                 + "number of the file from {{list_lines}}; FILE_PATH an absolute path of an existing "
                 + "file on this machine, FOLDER_PATH an absolute path of an existing folder.");
         scriptParams.putObject("additionalProperties");
-        schema.putArray("required").add("script");
+        schema.withArrayProperty("required").add("script");
         tool.set("inputSchema", schema);
         return tool;
     }

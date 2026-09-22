@@ -28,7 +28,7 @@ public class DeleteLine extends McpTool {
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
         addProperty(schema, "line", "integer", "Line index to delete, see {{list_lines}}.");
-        schema.putArray("required").add("line");
+        schema.withArrayProperty("required").add("line");
         tool.set("inputSchema", schema);
         return tool;
     }

@@ -42,7 +42,7 @@ public class CreateSeries extends McpTool {
         ObjectNode initValues = addProperty(schema, "values", "array",
                 "Optional initial values, set starting from index 0.");
         initValues.putObject("items").putArray("type").add("number").add("null");
-        schema.putArray("required").add("series");
+        schema.withArrayProperty("required").add("series");
         tool.set("inputSchema", schema);
         return tool;
     }

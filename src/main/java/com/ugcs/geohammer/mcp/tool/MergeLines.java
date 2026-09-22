@@ -29,7 +29,7 @@ public class MergeLines extends McpTool {
         addFileProperty(schema);
         addProperty(schema, "line", "integer",
                 "Line index to merge with the following line, see {{list_lines}}.");
-        schema.putArray("required").add("line");
+        schema.withArrayProperty("required").add("line");
         tool.set("inputSchema", schema);
         return tool;
     }

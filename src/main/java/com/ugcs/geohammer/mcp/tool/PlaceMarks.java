@@ -35,7 +35,7 @@ public class PlaceMarks extends McpTool {
         ObjectNode placeIndices = addProperty(schema, "indices", "array",
                 "Point indices to place marks at.");
         placeIndices.putObject("items").put("type", "integer");
-        schema.putArray("required").add("indices");
+        schema.withArrayProperty("required").add("indices");
         tool.set("inputSchema", schema);
         return tool;
     }

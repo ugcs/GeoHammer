@@ -40,7 +40,7 @@ public class ApplyFilter extends McpTool {
         addProperty(schema, "series", "string",
                 "Source series name; defaults to the series selected in the UI.");
         addProperty(schema, "value", "integer", "Filter parameter, see the filter list.");
-        schema.putArray("required").add("filter").add("value");
+        schema.withArrayProperty("required").add("filter").add("value");
         tool.set("inputSchema", schema);
         return tool;
     }

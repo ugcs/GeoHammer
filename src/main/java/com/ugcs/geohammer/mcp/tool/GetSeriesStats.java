@@ -35,7 +35,7 @@ public class GetSeriesStats extends McpTool {
         addProperty(schema, "count", "integer", "Number of points, default all.");
         addProperty(schema, "line", "integer",
                 "Line index to scope the stats to, overrides start and count.");
-        schema.putArray("required").add("series");
+        schema.withArrayProperty("required").add("series");
         tool.set("inputSchema", schema);
         return tool;
     }

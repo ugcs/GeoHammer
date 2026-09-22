@@ -211,6 +211,8 @@ public class McpServer {
         result.put("instructions", "GeoHammer is a desktop application for geophysical survey data "
                 + "processing, running on the user's machine. Files are opened and saved by the user "
                 + "in the application UI; these tools operate on the in-memory data of open files. "
+                + "Every tool that works on a file takes its name or path in the file argument: "
+                + "get it from list_files first and never assume which file the user is looking at. "
                 + "Data modifications are visible in the UI immediately, support undo (see the undo "
                 + "tool) and are NEVER written to the files on disk by these tools. "
                 + "Two kinds of files exist (see list_files): \"data\" files (CSV, SVLOG sonar, NMEA) "

@@ -53,54 +53,52 @@ public class ReadTraces extends McpTool {
         if (traceStart < 0 || traceCount < 0 || sampleStart < 0 || sampleCount < 0) {
             throw new IllegalArgumentException("Trace and sample ranges must be non-negative");
         }
-        return text(inFxThread(() -> {
-            TraceFile traceFile = resolveGprFile(fileName);
-            List<Trace> traces = traceFile.getTraces();
-            int numTraces = traces.size();
-            int numSamples = traceFile.maxSamples();
+        TraceFile traceFile = resolveGprFile(fileName);
+        List<Trace> traces = traceFile.getTraces();
+        int numTraces = traces.size();
+        int numSamples = traceFile.maxSamples();
 
-            int traceFrom = Math.min(traceStart, numTraces);
-            int traceTo = Math.min(traceFrom + traceCount, numTraces);
-            int sampleFrom = Math.min(sampleStart, numSamples);
-            int sampleTo = Math.min(sampleFrom + sampleCount, numSamples);
+        int traceFrom = Math.min(traceStart, numTraces);
+        int traceTo = Math.min(traceFrom + traceCount, numTraces);
+        int sampleFrom = Math.min(sampleStart, numSamples);
+        int sampleTo = Math.min(sampleFrom + sampleCount, numSamples);
 
-            int traceBucket = Math.max(1, (int) Math.ceil((double) (traceTo - traceFrom) / maxTraces));
-            int sampleBucket = Math.max(1, (int) Math.ceil((double) (sampleTo - sampleFrom) / maxSamples));
+        int traceBucket = Math.max(1, (int) Math.ceil((double) (traceTo - traceFrom) / maxTraces));
+        int sampleBucket = Math.max(1, (int) Math.ceil((double) (sampleTo - sampleFrom) / maxSamples));
 
-            ObjectNode result = mapper.createObjectNode();
-            result.put("traces", numTraces);
-            result.put("samplesPerTrace", numSamples);
-            result.put("trace_start", traceFrom);
-            result.put("trace_count", traceTo - traceFrom);
-            result.put("sample_start", sampleFrom);
-            result.put("sample_count", sampleTo - sampleFrom);
-            result.put("trace_bucket_size", traceBucket);
-            result.put("sample_bucket_size", sampleBucket);
+        ObjectNode result = mapper.createObjectNode();
+        result.put("traces", numTraces);
+        result.put("samplesPerTrace", numSamples);
+        result.put("trace_start", traceFrom);
+        result.put("trace_count", traceTo - traceFrom);
+        result.put("sample_start", sampleFrom);
+        result.put("sample_count", sampleTo - sampleFrom);
+        result.put("trace_bucket_size", traceBucket);
+        result.put("sample_bucket_size", sampleBucket);
 
-            ArrayNode rows = result.putArray("values");
-            for (int t = traceFrom; t < traceTo; t += traceBucket) {
-                ArrayNode row = rows.addArray();
-                int tTo = Math.min(t + traceBucket, traceTo);
-                for (int s = sampleFrom; s < sampleTo; s += sampleBucket) {
-                    int sTo = Math.min(s + sampleBucket, sampleTo);
-                    double sum = 0;
-                    int n = 0;
-                    for (int ti = t; ti < tTo; ti++) {
-                        Trace trace = traces.get(ti);
-                        int limit = Math.min(sTo, trace.numSamples());
-                        for (int si = s; si < limit; si++) {
-                            sum += trace.getSample(si);
-                            n++;
-                        }
-                    }
-                    if (n == 0) {
-                        row.addNull();
-                    } else {
-                        row.add(sum / n);
+        ArrayNode rows = result.putArray("values");
+        for (int t = traceFrom; t < traceTo; t += traceBucket) {
+            ArrayNode row = rows.addArray();
+            int tTo = Math.min(t + traceBucket, traceTo);
+            for (int s = sampleFrom; s < sampleTo; s += sampleBucket) {
+                int sTo = Math.min(s + sampleBucket, sampleTo);
+                double sum = 0;
+                int n = 0;
+                for (int ti = t; ti < tTo; ti++) {
+                    Trace trace = traces.get(ti);
+                    int limit = Math.min(sTo, trace.numSamples());
+                    for (int si = s; si < limit; si++) {
+                        sum += trace.getSample(si);
+                        n++;
                     }
                 }
+                if (n == 0) {
+                    row.addNull();
+                } else {
+                    row.add(sum / n);
+                }
             }
-            return toJson(result);
-        }));
+        }
+        return text(toJson(result));
     }
 }

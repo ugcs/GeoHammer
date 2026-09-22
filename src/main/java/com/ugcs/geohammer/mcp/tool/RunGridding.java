@@ -61,17 +61,15 @@ public class RunGridding extends McpTool {
             throw new IllegalArgumentException("cell_size and blanking_distance must be positive");
         }
 
-        GridTarget target = inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            String series = !Strings.isNullOrEmpty(seriesArg)
-                    ? seriesArg
-                    : model.getSelectedSeriesName(dataFile);
-            if (Strings.isNullOrEmpty(series)) {
-                throw new IllegalArgumentException("No series selected, specify a series name");
-            }
-            getColumn(dataFile, series);
-            return new GridTarget(dataFile, series);
-        });
+        SgyFile dataFile = resolveFile(fileName);
+        String series = !Strings.isNullOrEmpty(seriesArg)
+                ? seriesArg
+                : model.getSelectedSeriesName(dataFile);
+        if (Strings.isNullOrEmpty(series)) {
+            throw new IllegalArgumentException("No series selected, specify a series name");
+        }
+        getColumn(dataFile, series);
+        GridTarget target = new GridTarget(dataFile, series);
 
         // set a default display filter so that the grid gets rendered
         if (gridLayer.getFilter(target.file(), target.series()) == null) {

@@ -59,19 +59,19 @@ public class CropByRegion extends McpTool {
             }
             polygon.add(new LatLon(vertexNode.get(0).asDouble(), vertexNode.get(1).asDouble()));
         }
+        SgyFile dataFile = resolveFile(fileName);
+        int before = dataFile.numTraces();
+
+        // project polygon to screen coordinates at a fixed zoom,
+        // same as the trace cutter does
+        MapField field = new MapField(model.getMapField());
+        field.setZoom(28);
+        List<Point2D> area = new ArrayList<>(polygon.size());
+        for (LatLon vertex : polygon) {
+            area.add(field.latLonToScreen(vertex));
+        }
+
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            int before = dataFile.numTraces();
-
-            // project polygon to screen coordinates at a fixed zoom,
-            // same as the trace cutter does
-            MapField field = new MapField(model.getMapField());
-            field.setZoom(28);
-            List<Point2D> area = new ArrayList<>(polygon.size());
-            for (LatLon vertex : polygon) {
-                area.add(field.latLonToScreen(vertex));
-            }
-
             traceTransform.cropLines(List.of(dataFile), field, area);
 
             int after = dataFile.numTraces();

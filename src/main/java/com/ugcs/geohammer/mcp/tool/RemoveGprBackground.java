@@ -36,7 +36,7 @@ public class RemoveGprBackground extends McpTool {
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
-        TraceFile traceFile = inFxThread(() -> resolveGprFile(fileName));
+        TraceFile traceFile = resolveGprFile(fileName);
         if (traceFile.isBackgroundRemoved()) {
             return text("Background is already removed for this file");
         }

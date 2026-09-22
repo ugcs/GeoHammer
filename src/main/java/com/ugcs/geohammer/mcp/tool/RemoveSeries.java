@@ -42,15 +42,15 @@ public class RemoveSeries extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         String seriesName = requiredString(args, "series");
+        SgyFile dataFile = resolveFile(fileName);
+        SensorLineChart chart = getSensorChart(dataFile);
+        Column column = getColumn(dataFile, seriesName);
+        if (column.isReadOnly()) {
+            throw new IllegalArgumentException("Series is read-only and cannot be deleted: "
+                    + seriesName);
+        }
+        FileSnapshot<? extends SgyFile> snapshot = dataFile.createSnapshot();
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            SensorLineChart chart = getSensorChart(dataFile);
-            Column column = getColumn(dataFile, seriesName);
-            if (column.isReadOnly()) {
-                throw new IllegalArgumentException("Series is read-only and cannot be deleted: "
-                        + seriesName);
-            }
-            FileSnapshot<? extends SgyFile> snapshot = dataFile.createSnapshot();
             chart.removeFileColumn(seriesName);
             if (snapshot != null) {
                 undoModel.push(new UndoFrame(snapshot));

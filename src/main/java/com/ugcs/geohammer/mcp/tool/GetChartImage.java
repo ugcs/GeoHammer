@@ -32,15 +32,13 @@ public class GetChartImage extends McpTool {
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
-        return inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            Chart chart = model.getChart(dataFile);
-            if (chart == null) {
-                throw new IllegalArgumentException("File has no chart");
-            }
-            File file = dataFile.getFile();
-            String caption = "Chart of " + (file != null ? file.getName() : "file");
-            return image(snapshotNode(chart.getRootNode()), caption);
-        });
+        SgyFile dataFile = resolveFile(fileName);
+        Chart chart = model.getChart(dataFile);
+        if (chart == null) {
+            throw new IllegalArgumentException("File has no chart");
+        }
+        File file = dataFile.getFile();
+        String caption = "Chart of " + (file != null ? file.getName() : "file");
+        return inFxThread(() -> image(snapshotNode(chart.getRootNode()), caption));
     }
 }

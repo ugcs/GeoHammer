@@ -47,7 +47,7 @@ public class GetGridImage extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         int width = Math.clamp(args.path("width").asInt(800), 200, 2000);
-        SgyFile dataFile = inFxThread(() -> resolveFile(fileName));
+        SgyFile dataFile = resolveFile(fileName);
         GriddingResult result = gridLayer.getResult(dataFile);
         if (result == null) {
             throw new IllegalArgumentException("File has no grid, run run_gridding first");

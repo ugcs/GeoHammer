@@ -47,15 +47,15 @@ public class PlaceMarks extends McpTool {
         if (indices == null || indices.isEmpty()) {
             throw new IllegalArgumentException("indices must be a non-empty array of point indices");
         }
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            int numPoints = dataFile.numTraces();
-            for (int index : indices) {
-                if (index < 0 || index >= numPoints) {
-                    throw new IllegalArgumentException("Point index out of bounds: " + index
-                            + ", file has " + numPoints + " points");
-                }
+        SgyFile dataFile = resolveFile(fileName);
+        int numPoints = dataFile.numTraces();
+        for (int index : indices) {
+            if (index < 0 || index >= numPoints) {
+                throw new IllegalArgumentException("Point index out of bounds: " + index
+                        + ", file has " + numPoints + " points");
             }
+        }
+        return text(inFxThread(() -> {
             Set<Integer> markedIndices = new HashSet<>();
             for (BaseObject element : dataFile.getAuxElements()) {
                 if (element instanceof FoundPlace flag) {

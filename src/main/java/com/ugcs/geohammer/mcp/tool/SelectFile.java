@@ -32,12 +32,12 @@ public class SelectFile extends McpTool {
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
+        SgyFile dataFile = resolveFile(fileName);
+        Chart chart = model.getChart(dataFile);
+        if (chart == null) {
+            throw new IllegalArgumentException("File has no chart");
+        }
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            Chart chart = model.getChart(dataFile);
-            if (chart == null) {
-                throw new IllegalArgumentException("File has no chart");
-            }
             model.selectAndScrollToChart(chart);
             File file = dataFile.getFile();
             return "Selected file " + (file != null ? file.getName() : "");

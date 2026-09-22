@@ -23,6 +23,7 @@ import com.ugcs.geohammer.mcp.tool.GetGridImage;
 import com.ugcs.geohammer.mcp.tool.GetScreenshot;
 import com.ugcs.geohammer.mcp.tool.GetScript;
 import com.ugcs.geohammer.mcp.tool.GetSeriesStats;
+import com.ugcs.geohammer.mcp.tool.ImportCsv;
 import com.ugcs.geohammer.mcp.tool.ListFiles;
 import com.ugcs.geohammer.mcp.tool.ListLines;
 import com.ugcs.geohammer.mcp.tool.ListScripts;
@@ -100,6 +101,7 @@ public class McpTools {
         register(new CropByRegion(model, traceTransform));
         register(new ReadData(model));
         register(new ExportCsv(model));
+        register(new ImportCsv(model, undoModel));
         register(new GetSeriesStats(model));
         register(new GetFileInfo(model));
         register(new GetGridImage(model, gridLayer));

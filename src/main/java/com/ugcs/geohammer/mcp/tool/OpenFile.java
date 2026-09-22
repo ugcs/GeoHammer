@@ -64,19 +64,16 @@ public class OpenFile extends McpTool {
             throw new IllegalArgumentException("File not found: " + file);
         }
 
-        String alreadyOpen = inFxThread(() -> {
-            SgyFile openFile = model.getFileManager().getFile(file);
-            if (openFile == null) {
-                return null;
-            }
+        SgyFile openFile = model.getFileManager().getFile(file);
+        if (openFile != null) {
             Chart chart = model.getChart(openFile);
             if (chart != null) {
-                model.selectAndScrollToChart(chart);
+                inFxThread(() -> {
+                    model.selectAndScrollToChart(chart);
+                    return null;
+                });
             }
-            return "File is already open\n" + toJson(fileDescriptor(openFile));
-        });
-        if (alreadyOpen != null) {
-            return text(alreadyOpen);
+            return text("File is already open\n" + toJson(fileDescriptor(openFile)));
         }
 
         // the loader builds its progress UI, so it has to be started from the FX thread

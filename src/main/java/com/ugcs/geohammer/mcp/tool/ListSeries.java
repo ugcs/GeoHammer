@@ -38,30 +38,28 @@ public class ListSeries extends McpTool {
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            ArrayNode series = mapper.createArrayNode();
-            ColumnSchema schema = GeoData.getSchema(dataFile.getGeoData());
-            if (schema != null) {
-                DataMapping mapping = dataMapping(dataFile);
-                for (Column column : schema) {
-                    ObjectNode node = series.addObject();
-                    node.put("name", column.getHeader());
-                    if (!Strings.isNullOrEmpty(column.getSemantic())) {
-                        node.put("semantic", column.getSemantic());
-                    }
-                    if (!Strings.isNullOrEmpty(column.getUnit())) {
-                        node.put("unit", column.getUnit());
-                    }
-                    String description = seriesDescription(mapping, column.getHeader());
-                    if (description != null) {
-                        node.put("description", description);
-                    }
-                    node.put("visible", column.isDisplay());
-                    node.put("readOnly", column.isReadOnly());
+        SgyFile dataFile = resolveFile(fileName);
+        ArrayNode series = mapper.createArrayNode();
+        ColumnSchema schema = GeoData.getSchema(dataFile.getGeoData());
+        if (schema != null) {
+            DataMapping mapping = dataMapping(dataFile);
+            for (Column column : schema) {
+                ObjectNode node = series.addObject();
+                node.put("name", column.getHeader());
+                if (!Strings.isNullOrEmpty(column.getSemantic())) {
+                    node.put("semantic", column.getSemantic());
                 }
+                if (!Strings.isNullOrEmpty(column.getUnit())) {
+                    node.put("unit", column.getUnit());
+                }
+                String description = seriesDescription(mapping, column.getHeader());
+                if (description != null) {
+                    node.put("description", description);
+                }
+                node.put("visible", column.isDisplay());
+                node.put("readOnly", column.isReadOnly());
             }
-            return toJson(series);
-        }));
+        }
+        return text(toJson(series));
     }
 }

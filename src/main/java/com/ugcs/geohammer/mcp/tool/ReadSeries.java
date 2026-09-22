@@ -48,34 +48,32 @@ public class ReadSeries extends McpTool {
             throw new IllegalArgumentException("start and count must be non-negative");
         }
         int limit = Math.min(count, MAX_READ_COUNT);
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            List<GeoData> geoData = dataFile.getGeoData();
-            getColumn(dataFile, seriesName);
+        SgyFile dataFile = resolveFile(fileName);
+        List<GeoData> geoData = dataFile.getGeoData();
+        getColumn(dataFile, seriesName);
 
-            int total = geoData.size();
-            int from = Math.min(start, total);
-            int to = Math.min(from + limit, total);
+        int total = geoData.size();
+        int from = Math.min(start, total);
+        int to = Math.min(from + limit, total);
 
-            ObjectNode result = mapper.createObjectNode();
-            File file = dataFile.getFile();
-            result.put("file", file != null ? file.getName() : null);
-            result.put("series", seriesName);
-            result.put("total", total);
-            result.put("start", from);
-            result.put("count", to - from);
-            ArrayNode values = result.putArray("values");
-            for (int i = from; i < to; i++) {
-                Object value = geoData.get(i).getValue(seriesName);
-                if (value instanceof Number number) {
-                    values.add(number.doubleValue());
-                } else if (value instanceof String string) {
-                    values.add(string);
-                } else {
-                    values.addNull();
-                }
+        ObjectNode result = mapper.createObjectNode();
+        File file = dataFile.getFile();
+        result.put("file", file != null ? file.getName() : null);
+        result.put("series", seriesName);
+        result.put("total", total);
+        result.put("start", from);
+        result.put("count", to - from);
+        ArrayNode values = result.putArray("values");
+        for (int i = from; i < to; i++) {
+            Object value = geoData.get(i).getValue(seriesName);
+            if (value instanceof Number number) {
+                values.add(number.doubleValue());
+            } else if (value instanceof String string) {
+                values.add(string);
+            } else {
+                values.addNull();
             }
-            return toJson(result);
-        }));
+        }
+        return text(toJson(result));
     }
 }

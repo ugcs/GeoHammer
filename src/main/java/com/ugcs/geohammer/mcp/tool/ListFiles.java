@@ -34,12 +34,10 @@ public class ListFiles extends McpTool {
 
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
-        return text(inFxThread(() -> {
-            ArrayNode files = mapper.createArrayNode();
-            for (SgyFile dataFile : dataFiles()) {
-                files.add(fileDescriptor(dataFile));
-            }
-            return toJson(files);
-        }));
+        ArrayNode files = mapper.createArrayNode();
+        for (SgyFile dataFile : dataFiles()) {
+            files.add(fileDescriptor(dataFile));
+        }
+        return text(toJson(files));
     }
 }

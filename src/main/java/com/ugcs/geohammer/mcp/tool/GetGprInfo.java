@@ -36,22 +36,20 @@ public class GetGprInfo extends McpTool {
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
-        return text(inFxThread(() -> {
-            TraceFile traceFile = resolveGprFile(fileName);
-            ObjectNode result = mapper.createObjectNode();
-            File file = traceFile.getFile();
-            result.put("name", file != null ? file.getName() : null);
-            result.put("template", Templates.getTemplateName(traceFile));
-            result.put("traces", traceFile.numTraces());
-            result.put("samplesPerTrace", traceFile.maxSamples());
-            result.put("sampleInterval", traceFile.getSampleInterval());
-            result.put("cmPerSampleInAir", traceFile.getSamplesToCmAir());
-            result.put("cmPerSampleInGround", traceFile.getSamplesToCmGrn());
-            result.put("samplesPerMeter", traceFile.getSamplesPerMeter());
-            result.put("backgroundRemoved", traceFile.isBackgroundRemoved());
-            result.put("lines", traceFile.getLineRanges().size());
-            result.put("unsaved", traceFile.isUnsaved());
-            return toJson(result);
-        }));
+        TraceFile traceFile = resolveGprFile(fileName);
+        ObjectNode result = mapper.createObjectNode();
+        File file = traceFile.getFile();
+        result.put("name", file != null ? file.getName() : null);
+        result.put("template", Templates.getTemplateName(traceFile));
+        result.put("traces", traceFile.numTraces());
+        result.put("samplesPerTrace", traceFile.maxSamples());
+        result.put("sampleInterval", traceFile.getSampleInterval());
+        result.put("cmPerSampleInAir", traceFile.getSamplesToCmAir());
+        result.put("cmPerSampleInGround", traceFile.getSamplesToCmGrn());
+        result.put("samplesPerMeter", traceFile.getSamplesPerMeter());
+        result.put("backgroundRemoved", traceFile.isBackgroundRemoved());
+        result.put("lines", traceFile.getLineRanges().size());
+        result.put("unsaved", traceFile.isUnsaved());
+        return text(toJson(result));
     }
 }

@@ -36,57 +36,55 @@ public class GetFileInfo extends McpTool {
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            List<GeoData> geoData = dataFile.getGeoData();
-            ObjectNode result = mapper.createObjectNode();
-            File file = dataFile.getFile();
-            result.put("name", file != null ? file.getName() : null);
-            result.put("path", file != null ? file.getAbsolutePath() : null);
-            result.put("type", fileType(dataFile));
-            result.put("template", Templates.getTemplateName(dataFile));
-            result.put("points", geoData.size());
-            result.put("unsaved", dataFile.isUnsaved());
-            result.put("lines", dataFile.getLineRanges().size());
-            ColumnSchema schema = GeoData.getSchema(geoData);
-            result.put("series", schema != null ? schema.numColumns() : 0);
+        SgyFile dataFile = resolveFile(fileName);
+        List<GeoData> geoData = dataFile.getGeoData();
+        ObjectNode result = mapper.createObjectNode();
+        File file = dataFile.getFile();
+        result.put("name", file != null ? file.getName() : null);
+        result.put("path", file != null ? file.getAbsolutePath() : null);
+        result.put("type", fileType(dataFile));
+        result.put("template", Templates.getTemplateName(dataFile));
+        result.put("points", geoData.size());
+        result.put("unsaved", dataFile.isUnsaved());
+        result.put("lines", dataFile.getLineRanges().size());
+        ColumnSchema schema = GeoData.getSchema(geoData);
+        result.put("series", schema != null ? schema.numColumns() : 0);
 
-            Long first = null;
-            Long last = null;
-            int positionUpdates = 0;
-            Double prevLat = null;
-            Double prevLon = null;
-            for (GeoData value : geoData) {
-                Long timestamp = value.getTimestamp();
-                if (timestamp != null) {
-                    if (first == null) {
-                        first = timestamp;
-                    }
-                    last = timestamp;
+        Long first = null;
+        Long last = null;
+        int positionUpdates = 0;
+        Double prevLat = null;
+        Double prevLon = null;
+        for (GeoData value : geoData) {
+            Long timestamp = value.getTimestamp();
+            if (timestamp != null) {
+                if (first == null) {
+                    first = timestamp;
                 }
-                Double lat = value.getLatitude();
-                Double lon = value.getLongitude();
-                if (lat != null && lon != null
-                        && (!lat.equals(prevLat) || !lon.equals(prevLon))) {
-                    positionUpdates++;
-                    prevLat = lat;
-                    prevLon = lon;
-                }
+                last = timestamp;
             }
-            if (first != null && last > first) {
-                double duration = (last - first) / 1000.0;
-                result.put("startTime", Instant.ofEpochMilli(first).toString());
-                result.put("endTime", Instant.ofEpochMilli(last).toString());
-                result.put("durationSeconds", Math.round(duration * 1000.0) / 1000.0);
-                result.put("sampleRateHz", Math.round((geoData.size() - 1) / duration * 10.0) / 10.0);
-                if (positionUpdates > 1) {
-                    result.put("positionUpdateRateHz",
-                            Math.round((positionUpdates - 1) / duration * 10.0) / 10.0);
-                    result.put("samplesPerPositionUpdate",
-                            Math.round((double) geoData.size() / positionUpdates));
-                }
+            Double lat = value.getLatitude();
+            Double lon = value.getLongitude();
+            if (lat != null && lon != null
+                    && (!lat.equals(prevLat) || !lon.equals(prevLon))) {
+                positionUpdates++;
+                prevLat = lat;
+                prevLon = lon;
             }
-            return toJson(result);
-        }));
+        }
+        if (first != null && last > first) {
+            double duration = (last - first) / 1000.0;
+            result.put("startTime", Instant.ofEpochMilli(first).toString());
+            result.put("endTime", Instant.ofEpochMilli(last).toString());
+            result.put("durationSeconds", Math.round(duration * 1000.0) / 1000.0);
+            result.put("sampleRateHz", Math.round((geoData.size() - 1) / duration * 10.0) / 10.0);
+            if (positionUpdates > 1) {
+                result.put("positionUpdateRateHz",
+                        Math.round((positionUpdates - 1) / duration * 10.0) / 10.0);
+                result.put("samplesPerPositionUpdate",
+                        Math.round((double) geoData.size() / positionUpdates));
+            }
+        }
+        return text(toJson(result));
     }
 }

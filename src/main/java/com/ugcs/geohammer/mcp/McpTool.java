@@ -140,6 +140,24 @@ public abstract class McpTool {
         return value;
     }
 
+    protected static List<String> optionalStrings(JsonNode args, String name) {
+        JsonNode node = args.get(name);
+        if (node == null || node.isNull()) {
+            return List.of();
+        }
+        if (!node.isArray()) {
+            throw new IllegalArgumentException(name + " must be an array of strings");
+        }
+        List<String> values = new ArrayList<>(node.size());
+        for (JsonNode item : node) {
+            if (!item.isTextual() || item.asText().isEmpty()) {
+                throw new IllegalArgumentException(name + " must be an array of non-empty strings");
+            }
+            values.add(item.asText());
+        }
+        return values;
+    }
+
     @Nullable
     protected static List<Integer> readIndices(JsonNode args) {
         JsonNode indicesNode = args.get("indices");
@@ -181,8 +199,8 @@ public abstract class McpTool {
         return new ArrayList<>(model.getFileManager().getFiles());
     }
 
-    // the open file list is read on the FX thread only, so the missing-argument
-    // error is raised here and not while parsing the arguments
+    // the missing-argument error is raised here and not while parsing the arguments,
+    // so that the message can list the open files
     protected SgyFile resolveFile(@Nullable String name) {
         List<SgyFile> dataFiles = dataFiles();
         if (dataFiles.isEmpty()) {
@@ -310,6 +328,8 @@ public abstract class McpTool {
 
     // execution
 
+    // only UI updates, event publishing and undo stack changes need the FX thread;
+    // resolve files, validate arguments, take snapshots and edit data before entering it
     protected static <T> T inFxThread(Callable<T> action) throws Exception {
         if (Platform.isFxApplicationThread()) {
             return action.call();

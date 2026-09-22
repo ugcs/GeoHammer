@@ -93,7 +93,7 @@ public class RunScript extends ScriptTool {
             throw new IllegalArgumentException(e.getMessage());
         }
 
-        SgyFile dataFile = inFxThread(() -> resolveFile(fileName));
+        SgyFile dataFile = resolveFile(fileName);
         String template = Templates.getTemplateName(dataFile);
         if (!appliesTo(metadata, dataFile, template)) {
             throw new IllegalArgumentException("Script does not apply to this file: it supports "

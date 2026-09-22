@@ -34,6 +34,9 @@ public class CreateSeries extends McpTool {
     public ObjectNode buildSchema() {
         ObjectNode tool = descriptor("Create a new data series (column) in an open data file, "
                 + "optionally filling initial values starting from index 0. "
+                + "Pass initial values only for small series; to add a series computed from the full "
+                + "data, use {{export_csv}}, add a column locally and load it with {{import_csv}}, "
+                + "which creates the series. "
                 + "The series is shown on the chart and supports undo.");
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
@@ -56,36 +59,35 @@ public class CreateSeries extends McpTool {
         List<Object> values = valuesNode != null && valuesNode.isArray()
                 ? parseValues(valuesNode)
                 : List.of();
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            List<GeoData> geoData = dataFile.getGeoData();
-            ColumnSchema schema = GeoData.getSchema(geoData);
-            if (schema == null) {
-                throw new IllegalArgumentException("File has no data");
-            }
-            if (schema.getColumn(seriesName) != null) {
-                throw new IllegalArgumentException("Series already exists: " + seriesName);
-            }
-            if (values.size() > geoData.size()) {
-                throw new IllegalArgumentException("Too many values: " + values.size()
-                        + ", file has " + geoData.size() + " points");
-            }
+        SgyFile dataFile = resolveFile(fileName);
+        List<GeoData> geoData = dataFile.getGeoData();
+        ColumnSchema schema = GeoData.getSchema(geoData);
+        if (schema == null) {
+            throw new IllegalArgumentException("File has no data");
+        }
+        if (schema.getColumn(seriesName) != null) {
+            throw new IllegalArgumentException("Series already exists: " + seriesName);
+        }
+        if (values.size() > geoData.size()) {
+            throw new IllegalArgumentException("Too many values: " + values.size()
+                    + ", file has " + geoData.size() + " points");
+        }
 
-            FileSnapshot<? extends SgyFile> snapshot = dataFile.createSnapshot();
-            Column column = GeoData.addColumn(geoData, new Column(seriesName));
-            column.setDisplay(true);
-            if (!Strings.isNullOrEmpty(unit)) {
-                column.setUnit(unit);
-            }
-            for (int i = 0; i < values.size(); i++) {
-                geoData.get(i).setValue(seriesName, values.get(i));
-            }
+        FileSnapshot<? extends SgyFile> snapshot = dataFile.createSnapshot();
+        Column column = GeoData.addColumn(geoData, new Column(seriesName));
+        column.setDisplay(true);
+        if (!Strings.isNullOrEmpty(unit)) {
+            column.setUnit(unit);
+        }
+        for (int i = 0; i < values.size(); i++) {
+            geoData.get(i).setValue(seriesName, values.get(i));
+        }
+        dataFile.setUnsaved(true);
+        return text(inFxThread(() -> {
             if (snapshot != null) {
                 undoModel.push(new UndoFrame(snapshot));
             }
-            dataFile.setUnsaved(true);
             model.reload(dataFile);
-
             return "Created series " + seriesName
                     + (values.isEmpty() ? "" : " with " + values.size() + " initial values");
         }));

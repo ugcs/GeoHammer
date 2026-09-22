@@ -33,6 +33,10 @@ public class SegmentTree {
         }
     }
 
+    public int size() {
+        return n;
+    }
+
     // [left, right)
     public double queryMin(int left, int right) {
         double min = Double.POSITIVE_INFINITY;

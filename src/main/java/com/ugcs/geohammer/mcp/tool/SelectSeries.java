@@ -35,13 +35,13 @@ public class SelectSeries extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         String seriesName = requiredString(args, "series");
+        SgyFile dataFile = resolveFile(fileName);
+        SensorLineChart chart = getSensorChart(dataFile);
+        if (!chart.getSeriesNames().contains(seriesName)) {
+            throw new IllegalArgumentException("Series has no chart: " + seriesName
+                    + "; series with charts: " + String.join(", ", chart.getSeriesNames()));
+        }
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            SensorLineChart chart = getSensorChart(dataFile);
-            if (!chart.getSeriesNames().contains(seriesName)) {
-                throw new IllegalArgumentException("Series has no chart: " + seriesName
-                        + "; series with charts: " + String.join(", ", chart.getSeriesNames()));
-            }
             model.selectAndScrollToChart(chart);
             chart.selectChart(seriesName);
             return "Selected series " + seriesName;

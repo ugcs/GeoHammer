@@ -69,27 +69,28 @@ public class CutToLines extends McpTool {
             }
             ranges.add(new IndexRange(from, to));
         }
+        SgyFile dataFile = resolveFile(fileName);
+        List<GeoData> values = dataFile.getGeoData();
+        int total = values.size();
+        if (ranges.getLast().to() > total) {
+            throw new IllegalArgumentException("Range end " + ranges.getLast().to()
+                    + " is out of bounds, file has " + total + " points");
+        }
+        ColumnSchema schema = GeoData.getSchema(values);
+        if (schema == null || schema.getHeaderBySemantic(Semantic.LINE.getName()) == null) {
+            throw new IllegalArgumentException("File has no line column");
+        }
+
+        int kept = 0;
+        for (IndexRange range : ranges) {
+            kept += range.size();
+        }
+        int removed = total - kept;
+        String result = "Kept " + kept + " points in " + ranges.size() + " lines, removed "
+                + removed + " points";
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            List<GeoData> values = dataFile.getGeoData();
-            int total = values.size();
-            if (ranges.getLast().to() > total) {
-                throw new IllegalArgumentException("Range end " + ranges.getLast().to()
-                        + " is out of bounds, file has " + total + " points");
-            }
-            ColumnSchema schema = GeoData.getSchema(values);
-            if (schema == null || schema.getHeaderBySemantic(Semantic.LINE.getName()) == null) {
-                throw new IllegalArgumentException("File has no line column");
-            }
-
-            int kept = 0;
-            for (IndexRange range : ranges) {
-                kept += range.size();
-            }
             traceTransform.cropLinesToRanges(dataFile, ranges);
-
-            return "Kept " + kept + " points in " + ranges.size() + " lines, removed "
-                    + (total - kept) + " points";
+            return result;
         }));
     }
 }

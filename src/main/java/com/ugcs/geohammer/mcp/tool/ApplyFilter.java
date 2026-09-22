@@ -56,21 +56,19 @@ public class ApplyFilter extends McpTool {
         }
         int value = valueNode.asInt();
 
-        FilterTarget target = inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            SensorLineChart chart = getSensorChart(dataFile);
-            String series = !Strings.isNullOrEmpty(seriesArg)
-                    ? seriesArg
-                    : chart.getSelectedSeriesName();
-            if (Strings.isNullOrEmpty(series)) {
-                throw new IllegalArgumentException("No series selected, specify a series name");
-            }
-            if (!chart.getSeriesNames().contains(series)) {
-                throw new IllegalArgumentException("Series has no chart: " + series
-                        + "; series with charts: " + String.join(", ", chart.getSeriesNames()));
-            }
-            return new FilterTarget(chart, series);
-        });
+        SgyFile dataFile = resolveFile(fileName);
+        SensorLineChart chart = getSensorChart(dataFile);
+        String series = !Strings.isNullOrEmpty(seriesArg)
+                ? seriesArg
+                : chart.getSelectedSeriesName();
+        if (Strings.isNullOrEmpty(series)) {
+            throw new IllegalArgumentException("No series selected, specify a series name");
+        }
+        if (!chart.getSeriesNames().contains(series)) {
+            throw new IllegalArgumentException("Series has no chart: " + series
+                    + "; series with charts: " + String.join(", ", chart.getSeriesNames()));
+        }
+        FilterTarget target = new FilterTarget(chart, series);
 
         // filters run on a background thread, as filter tools do
         String suffix = switch (filter) {

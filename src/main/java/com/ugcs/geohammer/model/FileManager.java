@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 @Component
@@ -17,7 +18,7 @@ public class FileManager {
 
 	// Do not hash-based collection here (like HashSet)
 	// as files may be renamed and thus hashes would be invalidated
-	private final List<SgyFile> files = new ArrayList<>();
+	private final List<SgyFile> files = new CopyOnWriteArrayList<>();
 
 	private final FileTemplates fileTemplates;
 

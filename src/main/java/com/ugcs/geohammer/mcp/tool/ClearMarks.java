@@ -40,8 +40,8 @@ public class ClearMarks extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         List<Integer> indices = readIndices(args);
+        SgyFile dataFile = resolveFile(fileName);
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
             Chart chart = model.getChart(dataFile);
             int removed = 0;
             Iterator<BaseObject> it = dataFile.getAuxElements().iterator();

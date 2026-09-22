@@ -25,6 +25,10 @@ public class PrefixSum {
         }
     }
 
+    public int size() {
+        return prefixCount.length - 1;
+    }
+
     // [left, right)
     public double querySum(int left, int right) {
         return prefixSum[right] - prefixSum[left];

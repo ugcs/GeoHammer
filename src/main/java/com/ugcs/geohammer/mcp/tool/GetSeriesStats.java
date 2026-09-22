@@ -44,63 +44,61 @@ public class GetSeriesStats extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         String seriesName = requiredString(args, "series");
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            Column column = getColumn(dataFile, seriesName);
-            List<GeoData> geoData = dataFile.getGeoData();
-            int from;
-            int to;
-            if (args.has("line")) {
-                IndexRange range = getLineRange(dataFile, args.path("line").asInt(-1));
-                from = range.from();
-                to = range.to();
-            } else {
-                from = Math.max(0, args.path("start").asInt(0));
-                from = Math.min(from, geoData.size());
-                to = Math.min(from + args.path("count").asInt(Integer.MAX_VALUE), geoData.size());
+        SgyFile dataFile = resolveFile(fileName);
+        Column column = getColumn(dataFile, seriesName);
+        List<GeoData> geoData = dataFile.getGeoData();
+        int from;
+        int to;
+        if (args.has("line")) {
+            IndexRange range = getLineRange(dataFile, args.path("line").asInt(-1));
+            from = range.from();
+            to = range.to();
+        } else {
+            from = Math.max(0, args.path("start").asInt(0));
+            from = Math.min(from, geoData.size());
+            to = Math.min(from + args.path("count").asInt(Integer.MAX_VALUE), geoData.size());
+        }
+        List<Double> values = new ArrayList<>(to - from);
+        double sum = 0;
+        for (int i = from; i < to; i++) {
+            Number number = geoData.get(i).getNumber(seriesName);
+            if (number != null) {
+                double v = number.doubleValue();
+                values.add(v);
+                sum += v;
             }
-            List<Double> values = new ArrayList<>(to - from);
-            double sum = 0;
-            for (int i = from; i < to; i++) {
-                Number number = geoData.get(i).getNumber(seriesName);
-                if (number != null) {
-                    double v = number.doubleValue();
-                    values.add(v);
-                    sum += v;
-                }
-            }
-            ObjectNode result = mapper.createObjectNode();
-            result.put("series", seriesName);
-            if (!Strings.isNullOrEmpty(column.getUnit())) {
-                result.put("unit", column.getUnit());
-            }
-            String description = seriesDescription(dataMapping(dataFile), seriesName);
-            if (description != null) {
-                result.put("description", description);
-            }
-            result.put("start", from);
-            result.put("count", to - from);
-            result.put("nulls", to - from - values.size());
-            if (values.isEmpty()) {
-                return toJson(result);
-            }
-            values.sort(null);
-            int n = values.size();
-            double mean = sum / n;
-            double variance = 0;
-            for (double v : values) {
-                variance += (v - mean) * (v - mean);
-            }
-            result.put("min", values.getFirst());
-            result.put("max", values.getLast());
-            result.put("mean", mean);
-            result.put("std", Math.sqrt(variance / n));
-            result.put("median", values.get(n / 2));
-            ObjectNode percentiles = result.putObject("percentiles");
-            for (int p : new int[] {1, 5, 25, 75, 95, 99}) {
-                percentiles.put("p" + p, values.get(Math.min(n - 1, (int) (p / 100.0 * n))));
-            }
-            return toJson(result);
-        }));
+        }
+        ObjectNode result = mapper.createObjectNode();
+        result.put("series", seriesName);
+        if (!Strings.isNullOrEmpty(column.getUnit())) {
+            result.put("unit", column.getUnit());
+        }
+        String description = seriesDescription(dataMapping(dataFile), seriesName);
+        if (description != null) {
+            result.put("description", description);
+        }
+        result.put("start", from);
+        result.put("count", to - from);
+        result.put("nulls", to - from - values.size());
+        if (values.isEmpty()) {
+            return text(toJson(result));
+        }
+        values.sort(null);
+        int n = values.size();
+        double mean = sum / n;
+        double variance = 0;
+        for (double v : values) {
+            variance += (v - mean) * (v - mean);
+        }
+        result.put("min", values.getFirst());
+        result.put("max", values.getLast());
+        result.put("mean", mean);
+        result.put("std", Math.sqrt(variance / n));
+        result.put("median", values.get(n / 2));
+        ObjectNode percentiles = result.putObject("percentiles");
+        for (int p : new int[] {1, 5, 25, 75, 95, 99}) {
+            percentiles.put("p" + p, values.get(Math.min(n - 1, (int) (p / 100.0 * n))));
+        }
+        return text(toJson(result));
     }
 }

@@ -35,7 +35,7 @@ public class ScriptsTab implements SettingsTab {
         this.pythonInterpreter = Check.notNull(pythonInterpreter);
 
         pythonPathInput = new TextField();
-        pythonPathInput.setEditable(false);
+        pythonPathInput.setPromptText("Path to the Python executable");
 
         Button browse = new Button("Browse...");
         browse.setOnAction(event -> onPythonPathBrowse());
@@ -92,6 +92,6 @@ public class ScriptsTab implements SettingsTab {
     @Override
     public void save() {
         String path = pythonPathInput.getText();
-        pythonInterpreter.setPath(path);
+        pythonInterpreter.setPath(path != null ? path.trim() : null);
     }
 }

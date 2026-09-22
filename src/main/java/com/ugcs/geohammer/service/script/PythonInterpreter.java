@@ -54,9 +54,8 @@ public class PythonInterpreter {
 	}
 
 	public void setPath(@Nullable String pythonPath) {
-		if (pythonPath != null && !pythonPath.isEmpty()) {
-			settings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH, pythonPath);
-		}
+		settings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH,
+				pythonPath != null && !pythonPath.isEmpty() ? pythonPath : null);
 	}
 
 	public void checkVersion() throws InterruptedException {

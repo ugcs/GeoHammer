@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.IndexRange;
@@ -41,7 +42,7 @@ public class GetSeriesStats extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         String seriesName = requiredString(args, "series");
         SgyFile dataFile = resolveFile(fileName);

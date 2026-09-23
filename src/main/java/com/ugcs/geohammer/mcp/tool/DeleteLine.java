@@ -3,6 +3,7 @@ package com.ugcs.geohammer.mcp.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
@@ -34,7 +35,12 @@ public class DeleteLine extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    protected boolean modifiesFiles() {
+        return true;
+    }
+
+    @Override
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         int line = args.path("line").asInt(-1);
         SgyFile dataFile = resolveFile(fileName);

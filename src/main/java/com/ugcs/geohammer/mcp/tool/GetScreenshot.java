@@ -3,6 +3,7 @@ package com.ugcs.geohammer.mcp.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
 import javafx.scene.Node;
@@ -27,7 +28,7 @@ public class GetScreenshot extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         return inFxThread(() -> {
             if (AppContext.stage == null || AppContext.stage.getScene() == null) {
                 throw new IllegalStateException("Application window is not available");

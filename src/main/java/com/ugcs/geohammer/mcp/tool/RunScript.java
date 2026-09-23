@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class RunScript extends ScriptTool {
 
@@ -72,7 +74,12 @@ public class RunScript extends ScriptTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    protected boolean modifiesFiles() {
+        return true;
+    }
+
+    @Override
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String scriptName = requiredString(args, "script");
         String fileName = optionalString(args, "file");
         ScriptMetadata metadata = findScript(scriptName);
@@ -101,6 +108,9 @@ public class RunScript extends ScriptTool {
         }
 
         StringBuilder output = new StringBuilder();
+        // the default outcome when no per-file callback fired, e.g. the run was skipped or cancelled
+        AtomicReference<String> outcome = new AtomicReference<>("Script run finished");
+        AtomicReference<Exception> failure = new AtomicReference<>();
         CompletableFuture<String> completion = new CompletableFuture<>();
         scriptCoordinator.submit(List.of(dataFile), metadata, params,
                 line -> {
@@ -113,23 +123,27 @@ public class RunScript extends ScriptTool {
                     public void onRunStarted() {
                     }
 
+                    // completes after the undo frame of the run is pushed,
+                    // so that the frame is attributed to the session
                     @Override
                     public void onRunFinished() {
-                        // resolves the future when no per-file callback fired,
-                        // e.g. the run was skipped or cancelled
-                        completion.complete("Script run finished");
+                        Exception e = failure.get();
+                        if (e != null) {
+                            completion.completeExceptionally(e);
+                        } else {
+                            completion.complete(outcome.get());
+                        }
                     }
 
                     @Override
                     public void onSuccess(ScriptMetadata scriptMetadata) {
-                        completion.complete("Script completed");
+                        outcome.set("Script completed");
                     }
 
                     @Override
                     public void onError(ScriptMetadata scriptMetadata, Exception e, String scriptOutput) {
                         String message = e.getMessage() != null ? e.getMessage() : e.toString();
-                        completion.completeExceptionally(new IllegalStateException(
-                                "Script failed: " + message));
+                        failure.compareAndSet(null, new IllegalStateException("Script failed: " + message));
                     }
 
                     @Override

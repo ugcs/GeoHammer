@@ -8,6 +8,7 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.format.csv.parser.Warnings;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.Result;
@@ -54,7 +55,7 @@ public class OpenFile extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String path = requiredString(args, "path");
         File file = new File(path).getAbsoluteFile();
         if (file.isDirectory()) {

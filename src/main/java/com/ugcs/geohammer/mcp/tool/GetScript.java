@@ -2,6 +2,7 @@ package com.ugcs.geohammer.mcp.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
@@ -34,7 +35,7 @@ public class GetScript extends ScriptTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String scriptName = requiredString(args, "script");
         ScriptMetadata metadata = findScript(scriptName);
         Path scriptFile = scriptPaths.getScriptsPath().resolve(metadata.filename());

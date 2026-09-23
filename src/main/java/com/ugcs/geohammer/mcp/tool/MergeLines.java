@@ -29,7 +29,7 @@ public class MergeLines extends McpTool {
         addFileProperty(schema);
         addProperty(schema, "line", "integer",
                 "Line index to merge with the following line, see {{list_lines}}.");
-        schema.putArray("required").add("line");
+        schema.withArrayProperty("required").add("line");
         tool.set("inputSchema", schema);
         return tool;
     }
@@ -38,12 +38,12 @@ public class MergeLines extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         int line = args.path("line").asInt(-1);
+        SgyFile dataFile = resolveFile(fileName);
+        IndexRange range = getLineRange(dataFile, line);
+        if (!traceTransform.hasNextLine(dataFile, range.from())) {
+            throw new IllegalArgumentException("Line " + line + " has no following line to merge with");
+        }
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            IndexRange range = getLineRange(dataFile, line);
-            if (!traceTransform.hasNextLine(dataFile, range.from())) {
-                throw new IllegalArgumentException("Line " + line + " has no following line to merge with");
-            }
             traceTransform.mergeLineWithNext(dataFile, range.from());
             return "Merged line " + line + " with the following line";
         }));

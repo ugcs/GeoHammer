@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 
+import java.io.File;
 import java.util.List;
 
 public record ScriptParameter(
@@ -107,6 +108,18 @@ public record ScriptParameter(
 				if (enumValues == null || !enumValues.contains(value)) {
 					throw new IllegalArgumentException(
 							"Parameter '" + displayName + "': '" + value + "' is not one of " + enumValues);
+				}
+			}
+			case FILE_PATH -> {
+				if (!new File(value).isFile()) {
+					throw new IllegalArgumentException(
+							"Parameter '" + displayName + "': file '" + value + "' does not exist");
+				}
+			}
+			case FOLDER_PATH -> {
+				if (!new File(value).isDirectory()) {
+					throw new IllegalArgumentException(
+							"Parameter '" + displayName + "': folder '" + value + "' does not exist");
 				}
 			}
 			case LINE_INDEX -> {

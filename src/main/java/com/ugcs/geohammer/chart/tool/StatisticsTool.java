@@ -343,8 +343,11 @@ public class StatisticsTool extends ToolView {
             String series = chart != null
                     ? chart.getSelectedSeriesName()
                     : null;
+            // the index may be queried before the invalidation queued by a data change runs,
+            // so a size mismatch with the current data also forces a rebuild
             if (Objects.equals(indexedChart, chart)
-                    && Objects.equals(indexedSeries, series)) {
+                    && Objects.equals(indexedSeries, series)
+                    && (chart == null || isIndexSize(chart.numTraces()))) {
                 return;
             }
 
@@ -362,6 +365,11 @@ public class StatisticsTool extends ToolView {
 
             indexedChart = chart;
             indexedSeries = series;
+        }
+
+        boolean isIndexSize(int size) {
+            return minMaxIndex != null && minMaxIndex.size() == size
+                    && avgIndex != null && avgIndex.size() == size;
         }
 
         void invalidateIndex() {

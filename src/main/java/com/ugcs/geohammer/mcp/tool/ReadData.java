@@ -41,7 +41,7 @@ public class ReadData extends McpTool {
         ObjectNode aggregate = addProperty(schema, "aggregate", "string",
                 "Bucket aggregate: mean (default), min, max or first.");
         aggregate.putArray("enum").add("mean").add("min").add("max").add("first");
-        schema.putArray("required").add("series");
+        schema.withArrayProperty("required").add("series");
         tool.set("inputSchema", schema);
         return tool;
     }
@@ -67,55 +67,53 @@ public class ReadData extends McpTool {
             throw new IllegalArgumentException("start, count and max_points must be non-negative");
         }
         String aggregate = args.path("aggregate").asText("mean");
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            List<GeoData> geoData = dataFile.getGeoData();
-            for (String seriesName : seriesNames) {
-                getColumn(dataFile, seriesName);
-            }
-            int total = geoData.size();
-            int from = Math.min(start, total);
-            int to = Math.min(from + count, total);
-            int span = to - from;
-            int bucketSize = Math.max(1, (int) Math.ceil((double) span / maxPoints));
-            int numBuckets = (span + bucketSize - 1) / bucketSize;
+        SgyFile dataFile = resolveFile(fileName);
+        List<GeoData> geoData = dataFile.getGeoData();
+        for (String seriesName : seriesNames) {
+            getColumn(dataFile, seriesName);
+        }
+        int total = geoData.size();
+        int from = Math.min(start, total);
+        int to = Math.min(from + count, total);
+        int span = to - from;
+        int bucketSize = Math.max(1, (int) Math.ceil((double) span / maxPoints));
+        int numBuckets = (span + bucketSize - 1) / bucketSize;
 
-            ObjectNode result = mapper.createObjectNode();
-            File file = dataFile.getFile();
-            result.put("file", file != null ? file.getName() : null);
-            result.put("total", total);
-            result.put("start", from);
-            result.put("count", span);
-            result.put("bucket_size", bucketSize);
-            result.put("aggregate", aggregate);
-            ObjectNode values = result.putObject("values");
-            for (String seriesName : seriesNames) {
-                ArrayNode array = values.putArray(seriesName);
-                for (int b = 0; b < numBuckets; b++) {
-                    int bFrom = from + b * bucketSize;
-                    int bTo = Math.min(bFrom + bucketSize, to);
-                    double acc = 0;
-                    int n = 0;
-                    for (int i = bFrom; i < bTo; i++) {
-                        if (geoData.get(i).getNumber(seriesName) instanceof Number number) {
-                            double v = number.doubleValue();
-                            n++;
-                            switch (aggregate) {
-                                case "min" -> acc = n == 1 ? v : Math.min(acc, v);
-                                case "max" -> acc = n == 1 ? v : Math.max(acc, v);
-                                case "first" -> acc = n == 1 ? v : acc;
-                                default -> acc += v;
-                            }
+        ObjectNode result = mapper.createObjectNode();
+        File file = dataFile.getFile();
+        result.put("file", file != null ? file.getName() : null);
+        result.put("total", total);
+        result.put("start", from);
+        result.put("count", span);
+        result.put("bucket_size", bucketSize);
+        result.put("aggregate", aggregate);
+        ObjectNode values = result.putObject("values");
+        for (String seriesName : seriesNames) {
+            ArrayNode array = values.putArray(seriesName);
+            for (int b = 0; b < numBuckets; b++) {
+                int bFrom = from + b * bucketSize;
+                int bTo = Math.min(bFrom + bucketSize, to);
+                double acc = 0;
+                int n = 0;
+                for (int i = bFrom; i < bTo; i++) {
+                    if (geoData.get(i).getNumber(seriesName) instanceof Number number) {
+                        double v = number.doubleValue();
+                        n++;
+                        switch (aggregate) {
+                            case "min" -> acc = n == 1 ? v : Math.min(acc, v);
+                            case "max" -> acc = n == 1 ? v : Math.max(acc, v);
+                            case "first" -> acc = n == 1 ? v : acc;
+                            default -> acc += v;
                         }
                     }
-                    if (n == 0) {
-                        array.addNull();
-                    } else {
-                        array.add("mean".equals(aggregate) ? acc / n : acc);
-                    }
+                }
+                if (n == 0) {
+                    array.addNull();
+                } else {
+                    array.add("mean".equals(aggregate) ? acc / n : acc);
                 }
             }
-            return toJson(result);
-        }));
+        }
+        return text(toJson(result));
     }
 }

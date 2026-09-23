@@ -63,10 +63,10 @@ public class RunScript extends ScriptTool {
                 + "STRING any text; INTEGER a whole number, DOUBLE a number, both within min/max when "
                 + "given; BOOLEAN true or false; ENUM exactly one of the listed enumValues; "
                 + "COLUMN_NAME a series name of the file from {{list_series}}; LINE_INDEX a line "
-                + "number of the file from {{list_lines}}; FILE_PATH and FOLDER_PATH an absolute path "
-                + "on this machine.");
+                + "number of the file from {{list_lines}}; FILE_PATH an absolute path of an existing "
+                + "file on this machine, FOLDER_PATH an absolute path of an existing folder.");
         scriptParams.putObject("additionalProperties");
-        schema.putArray("required").add("script");
+        schema.withArrayProperty("required").add("script");
         tool.set("inputSchema", schema);
         return tool;
     }
@@ -93,7 +93,7 @@ public class RunScript extends ScriptTool {
             throw new IllegalArgumentException(e.getMessage());
         }
 
-        SgyFile dataFile = inFxThread(() -> resolveFile(fileName));
+        SgyFile dataFile = resolveFile(fileName);
         String template = Templates.getTemplateName(dataFile);
         if (!appliesTo(metadata, dataFile, template)) {
             throw new IllegalArgumentException("Script does not apply to this file: it supports "

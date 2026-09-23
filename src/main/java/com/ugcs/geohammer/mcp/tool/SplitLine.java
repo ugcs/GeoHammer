@@ -28,7 +28,7 @@ public class SplitLine extends McpTool {
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
         addProperty(schema, "index", "integer", "Point index where the line is cut.");
-        schema.putArray("required").add("index");
+        schema.withArrayProperty("required").add("index");
         tool.set("inputSchema", schema);
         return tool;
     }
@@ -37,15 +37,15 @@ public class SplitLine extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         int index = args.path("index").asInt(-1);
+        SgyFile dataFile = resolveFile(fileName);
+        if (index < 0 || index >= dataFile.numTraces()) {
+            throw new IllegalArgumentException("Point index out of bounds: " + index
+                    + ", file has " + dataFile.numTraces() + " points");
+        }
+        if (traceTransform.isStartOfLine(dataFile, index)) {
+            throw new IllegalArgumentException("Point " + index + " is already a start of a line");
+        }
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            if (index < 0 || index >= dataFile.numTraces()) {
-                throw new IllegalArgumentException("Point index out of bounds: " + index
-                        + ", file has " + dataFile.numTraces() + " points");
-            }
-            if (traceTransform.isStartOfLine(dataFile, index)) {
-                throw new IllegalArgumentException("Point " + index + " is already a start of a line");
-            }
             traceTransform.splitLine(dataFile, index);
             return "Split line at point " + index;
         }));

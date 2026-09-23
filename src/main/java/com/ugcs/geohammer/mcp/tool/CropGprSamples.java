@@ -31,7 +31,7 @@ public class CropGprSamples extends McpTool {
         addFileProperty(schema);
         addProperty(schema, "offset", "integer", "First sample index to keep, 0-based.");
         addProperty(schema, "length", "integer", "Number of samples to keep.");
-        schema.putArray("required").add("offset").add("length");
+        schema.withArrayProperty("required").add("offset").add("length");
         tool.set("inputSchema", schema);
         return tool;
     }
@@ -44,17 +44,17 @@ public class CropGprSamples extends McpTool {
         if (offset < 0 || length < 1) {
             throw new IllegalArgumentException("offset must be non-negative and length positive");
         }
+        TraceFile traceFile = resolveGprFile(fileName);
+        if (traceFile.getMeta() == null) {
+            throw new IllegalArgumentException("File does not support sample cropping "
+                    + "(it has no metadata sidecar)");
+        }
+        int samples = traceFile.maxSamples();
+        if (offset >= samples) {
+            throw new IllegalArgumentException("offset " + offset + " is out of bounds, "
+                    + "traces have " + samples + " samples");
+        }
         return text(inFxThread(() -> {
-            TraceFile traceFile = resolveGprFile(fileName);
-            if (traceFile.getMeta() == null) {
-                throw new IllegalArgumentException("File does not support sample cropping "
-                        + "(it has no metadata sidecar)");
-            }
-            int samples = traceFile.maxSamples();
-            if (offset >= samples) {
-                throw new IllegalArgumentException("offset " + offset + " is out of bounds, "
-                        + "traces have " + samples + " samples");
-            }
             traceTransform.cropGprSamples(traceFile, offset, length);
             return "Cropped traces to samples [" + offset + ", "
                     + Math.min(offset + length, samples) + ")";

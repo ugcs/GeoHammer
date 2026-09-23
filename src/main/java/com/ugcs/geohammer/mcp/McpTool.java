@@ -92,8 +92,8 @@ public abstract class McpTool {
 
     protected static void addFileProperty(ObjectNode schema) {
         addProperty(schema, "file", "string", "Name or full path of a file open in GeoHammer, "
-                + "see {{list_files}}. Optional when a single file is open "
-                + "or a file is selected in the app.");
+                + "see {{list_files}}.");
+        schema.withArrayProperty("required").add("file");
     }
 
     // results
@@ -140,6 +140,24 @@ public abstract class McpTool {
         return value;
     }
 
+    protected static List<String> optionalStrings(JsonNode args, String name) {
+        JsonNode node = args.get(name);
+        if (node == null || node.isNull()) {
+            return List.of();
+        }
+        if (!node.isArray()) {
+            throw new IllegalArgumentException(name + " must be an array of strings");
+        }
+        List<String> values = new ArrayList<>(node.size());
+        for (JsonNode item : node) {
+            if (!item.isTextual() || item.asText().isEmpty()) {
+                throw new IllegalArgumentException(name + " must be an array of non-empty strings");
+            }
+            values.add(item.asText());
+        }
+        return values;
+    }
+
     @Nullable
     protected static List<Integer> readIndices(JsonNode args) {
         JsonNode indicesNode = args.get("indices");
@@ -181,21 +199,16 @@ public abstract class McpTool {
         return new ArrayList<>(model.getFileManager().getFiles());
     }
 
+    // the missing-argument error is raised here and not while parsing the arguments,
+    // so that the message can list the open files
     protected SgyFile resolveFile(@Nullable String name) {
         List<SgyFile> dataFiles = dataFiles();
         if (dataFiles.isEmpty()) {
             throw new IllegalArgumentException("No data files are open in GeoHammer");
         }
         if (Strings.isNullOrEmpty(name)) {
-            if (dataFiles.size() == 1) {
-                return dataFiles.getFirst();
-            }
-            SgyFile currentFile = model.getCurrentFile();
-            if (currentFile != null && dataFiles.contains(currentFile)) {
-                return currentFile;
-            }
-            throw new IllegalArgumentException("Multiple data files are open, "
-                    + "specify a file name; open files: " + fileNames(dataFiles));
+            throw new IllegalArgumentException("Missing required argument: file; "
+                    + "open files: " + fileNames(dataFiles));
         }
         for (SgyFile dataFile : dataFiles) {
             File file = dataFile.getFile();
@@ -225,6 +238,18 @@ public abstract class McpTool {
             case NmeaFile nmeaFile -> "nmea";
             default -> "unknown";
         };
+    }
+
+    protected static ObjectNode fileDescriptor(SgyFile dataFile) {
+        File file = dataFile.getFile();
+        ObjectNode node = mapper.createObjectNode();
+        node.put("name", file != null ? file.getName() : null);
+        node.put("path", file != null ? file.getAbsolutePath() : null);
+        node.put("type", fileType(dataFile));
+        node.put("template", Templates.getTemplateName(dataFile));
+        node.put("points", dataFile.numTraces());
+        node.put("unsaved", dataFile.isUnsaved());
+        return node;
     }
 
     private static String fileNames(List<SgyFile> dataFiles) {
@@ -303,6 +328,8 @@ public abstract class McpTool {
 
     // execution
 
+    // only UI updates, event publishing and undo stack changes need the FX thread;
+    // resolve files, validate arguments, take snapshots and edit data before entering it
     protected static <T> T inFxThread(Callable<T> action) throws Exception {
         if (Platform.isFxApplicationThread()) {
             return action.call();

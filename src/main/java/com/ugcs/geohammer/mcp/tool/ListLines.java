@@ -34,18 +34,16 @@ public class ListLines extends McpTool {
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            ArrayNode lines = mapper.createArrayNode();
-            for (Map.Entry<Integer, IndexRange> entry : dataFile.getLineRanges().entrySet()) {
-                IndexRange range = entry.getValue();
-                ObjectNode node = lines.addObject();
-                node.put("line", entry.getKey());
-                node.put("from", range.from());
-                node.put("to", range.to());
-                node.put("points", range.to() - range.from());
-            }
-            return toJson(lines);
-        }));
+        SgyFile dataFile = resolveFile(fileName);
+        ArrayNode lines = mapper.createArrayNode();
+        for (Map.Entry<Integer, IndexRange> entry : dataFile.getLineRanges().entrySet()) {
+            IndexRange range = entry.getValue();
+            ObjectNode node = lines.addObject();
+            node.put("line", entry.getKey());
+            node.put("from", range.from());
+            node.put("to", range.to());
+            node.put("points", range.to() - range.from());
+        }
+        return text(toJson(lines));
     }
 }

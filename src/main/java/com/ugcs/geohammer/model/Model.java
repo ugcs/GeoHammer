@@ -3,11 +3,11 @@ package com.ugcs.geohammer.model;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.Settings;
@@ -84,7 +84,7 @@ public class Model implements InitializingBean {
 
 	private final VBox chartsContainer = new VBox();
 
-    private final Map<SgyFile, Chart> charts = new HashMap<>();
+    private final Map<SgyFile, Chart> charts = new ConcurrentHashMap<>();
 
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -254,16 +254,16 @@ public class Model implements InitializingBean {
 
     @Nullable
     public Chart getChart(@Nullable SgyFile file) {
-        return charts.get(file);
+        return file != null ? charts.get(file) : null;
     }
 
     @Nullable
     public GPRChart getGprChart(TraceFile file) {
-        return charts.get(file) instanceof GPRChart gprChart ? gprChart : null;
+        return getChart(file) instanceof GPRChart gprChart ? gprChart : null;
     }
 
     public SensorLineChart getCsvChart(CsvFile file) {
-        return charts.get(file) instanceof SensorLineChart csvChart ? csvChart : null;
+        return getChart(file) instanceof SensorLineChart csvChart ? csvChart : null;
     }
 
     public List<SensorLineChart> getSensorCharts() {
@@ -313,7 +313,7 @@ public class Model implements InitializingBean {
         // to the same position as it was before
         int index = -1;
 
-        Chart chart = charts.get(file);
+        Chart chart = getChart(file);
         if (chart != null) {
             Node chartBox = chart.getRootNode();
             if (chartBox != null) {
@@ -355,7 +355,7 @@ public class Model implements InitializingBean {
     }
 
     public Chart initChart(SgyFile file) {
-        Chart chart = charts.get(file);
+        Chart chart = getChart(file);
         if (chart == null) {
             chart = createChart(file);
             fileManager.addFile(file);
@@ -427,7 +427,7 @@ public class Model implements InitializingBean {
     }
 
 	public void reloadChart(SgyFile file) {
-		Chart chart = charts.get(file);
+		Chart chart = getChart(file);
 		if (chart != null) {
             chart.reload();
 		}

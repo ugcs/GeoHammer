@@ -22,24 +22,22 @@ public class SelectFile extends McpTool {
     @Override
     public ObjectNode buildSchema() {
         ObjectNode tool = descriptor("Select a file in the GeoHammer UI: scrolls its chart into view "
-                + "and makes it the active file. The active file is the default target of all tools "
-                + "when their file argument is omitted.");
+                + "and makes it the active file.");
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
-        schema.putArray("required").add("file");
         tool.set("inputSchema", schema);
         return tool;
     }
 
     @Override
     public ObjectNode invoke(JsonNode args) throws Exception {
-        String fileName = requiredString(args, "file");
+        String fileName = optionalString(args, "file");
+        SgyFile dataFile = resolveFile(fileName);
+        Chart chart = model.getChart(dataFile);
+        if (chart == null) {
+            throw new IllegalArgumentException("File has no chart");
+        }
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            Chart chart = model.getChart(dataFile);
-            if (chart == null) {
-                throw new IllegalArgumentException("File has no chart");
-            }
             model.selectAndScrollToChart(chart);
             File file = dataFile.getFile();
             return "Selected file " + (file != null ? file.getName() : "");

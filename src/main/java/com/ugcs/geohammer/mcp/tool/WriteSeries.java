@@ -31,6 +31,9 @@ public class WriteSeries extends McpTool {
     public ObjectNode buildSchema() {
         ObjectNode tool = descriptor("Write values into a data series of an open data file "
                 + "starting at the given index. Values must be numbers or nulls. "
+                + "Meant for small edits of up to a few hundred values; for whole-series or whole-file "
+                + "results use {{export_csv}}, process the CSV locally and load it back with {{import_csv}} "
+                + "instead of passing values through this tool. "
                 + "The change is shown in the app immediately, supports undo "
                 + "and marks the file as unsaved.");
         ObjectNode schema = objectSchema();
@@ -39,7 +42,7 @@ public class WriteSeries extends McpTool {
         addProperty(schema, "start", "integer", "Index of the first value to write, default 0.");
         ObjectNode values = addProperty(schema, "values", "array", "Values to write.");
         values.putObject("items").putArray("type").add("number").add("null");
-        schema.putArray("required").add("series").add("values");
+        schema.withArrayProperty("required").add("series").add("values");
         tool.set("inputSchema", schema);
         return tool;
     }
@@ -54,29 +57,28 @@ public class WriteSeries extends McpTool {
             throw new IllegalArgumentException("values must be a non-empty array of numbers or nulls");
         }
         List<Object> values = parseValues(valuesNode);
-        return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            List<GeoData> geoData = dataFile.getGeoData();
-            Column column = getColumn(dataFile, seriesName);
-            if (column.isReadOnly()) {
-                throw new IllegalArgumentException("Series is read-only: " + seriesName);
-            }
-            if (start < 0 || start + values.size() > geoData.size()) {
-                throw new IllegalArgumentException("Value range [" + start + ", "
-                        + (start + values.size()) + ") is out of bounds, file has "
-                        + geoData.size() + " points");
-            }
+        SgyFile dataFile = resolveFile(fileName);
+        List<GeoData> geoData = dataFile.getGeoData();
+        Column column = getColumn(dataFile, seriesName);
+        if (column.isReadOnly()) {
+            throw new IllegalArgumentException("Series is read-only: " + seriesName);
+        }
+        if (start < 0 || start + values.size() > geoData.size()) {
+            throw new IllegalArgumentException("Value range [" + start + ", "
+                    + (start + values.size()) + ") is out of bounds, file has "
+                    + geoData.size() + " points");
+        }
 
-            FileSnapshot<? extends SgyFile> snapshot = dataFile.createSnapshot();
-            for (int i = 0; i < values.size(); i++) {
-                geoData.get(start + i).setValue(seriesName, values.get(i));
-            }
+        FileSnapshot<? extends SgyFile> snapshot = dataFile.createSnapshot();
+        for (int i = 0; i < values.size(); i++) {
+            geoData.get(start + i).setValue(seriesName, values.get(i));
+        }
+        dataFile.setUnsaved(true);
+        return text(inFxThread(() -> {
             if (snapshot != null) {
                 undoModel.push(new UndoFrame(snapshot));
             }
-            dataFile.setUnsaved(true);
             model.reload(dataFile);
-
             return "Wrote " + values.size() + " values to series " + seriesName
                     + " starting at index " + start;
         }));

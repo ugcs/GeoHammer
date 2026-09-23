@@ -28,7 +28,7 @@ public class DeleteLine extends McpTool {
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
         addProperty(schema, "line", "integer", "Line index to delete, see {{list_lines}}.");
-        schema.putArray("required").add("line");
+        schema.withArrayProperty("required").add("line");
         tool.set("inputSchema", schema);
         return tool;
     }
@@ -37,10 +37,10 @@ public class DeleteLine extends McpTool {
     public ObjectNode invoke(JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         int line = args.path("line").asInt(-1);
+        SgyFile dataFile = resolveFile(fileName);
+        IndexRange range = getLineRange(dataFile, line);
+        int points = range.to() - range.from();
         return text(inFxThread(() -> {
-            SgyFile dataFile = resolveFile(fileName);
-            IndexRange range = getLineRange(dataFile, line);
-            int points = range.to() - range.from();
             traceTransform.removeLine(dataFile, line);
             return "Deleted line " + line + " with " + points + " points";
         }));

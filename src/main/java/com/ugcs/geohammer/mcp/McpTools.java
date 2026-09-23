@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import com.ugcs.geohammer.Loader;
 import com.ugcs.geohammer.map.layer.GridLayer;
 import com.ugcs.geohammer.mcp.tool.ApplyFilter;
 import com.ugcs.geohammer.mcp.tool.ClearMarks;
@@ -22,11 +23,13 @@ import com.ugcs.geohammer.mcp.tool.GetGridImage;
 import com.ugcs.geohammer.mcp.tool.GetScreenshot;
 import com.ugcs.geohammer.mcp.tool.GetScript;
 import com.ugcs.geohammer.mcp.tool.GetSeriesStats;
+import com.ugcs.geohammer.mcp.tool.ImportCsv;
 import com.ugcs.geohammer.mcp.tool.ListFiles;
 import com.ugcs.geohammer.mcp.tool.ListLines;
 import com.ugcs.geohammer.mcp.tool.ListScripts;
 import com.ugcs.geohammer.mcp.tool.ListSeries;
 import com.ugcs.geohammer.mcp.tool.MergeLines;
+import com.ugcs.geohammer.mcp.tool.OpenFile;
 import com.ugcs.geohammer.mcp.tool.PlaceMarks;
 import com.ugcs.geohammer.mcp.tool.ReadData;
 import com.ugcs.geohammer.mcp.tool.ReadSeries;
@@ -74,11 +77,12 @@ public class McpTools {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public McpTools(Model model, UndoModel undoModel, TraceTransform traceTransform,
+    public McpTools(Model model, Loader loader, UndoModel undoModel, TraceTransform traceTransform,
                     GriddingService griddingService, GridLayer gridLayer,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
                     ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter) {
         register(new ListFiles(model));
+        register(new OpenFile(model, loader));
         register(new ListSeries(model));
         register(new ReadSeries(model));
         register(new WriteSeries(model, undoModel));
@@ -97,6 +101,7 @@ public class McpTools {
         register(new CropByRegion(model, traceTransform));
         register(new ReadData(model));
         register(new ExportCsv(model));
+        register(new ImportCsv(model, undoModel));
         register(new GetSeriesStats(model));
         register(new GetFileInfo(model));
         register(new GetGridImage(model, gridLayer));

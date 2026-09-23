@@ -60,6 +60,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -312,12 +313,13 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private Node getInputNode(ScriptParameter param, String initialValue, String labelText) {
 		return switch (param.type()) {
-			case STRING, FILE_PATH -> createTextField(param, initialValue);
+			case STRING -> createTextField(param, initialValue);
 			case INTEGER -> createIntegerField(initialValue);
 			case DOUBLE -> createDoubleField(initialValue);
 			case BOOLEAN -> createCheckBox(initialValue, labelText);
 			case COLUMN_NAME -> createColumnSelector(param, initialValue);
 			case LINE_INDEX -> new LineSelector(param, selectedFile, this::getChartLineIndex);
+			case FILE_PATH -> createFilePathSelector(initialValue);
 			case FOLDER_PATH -> createFolderPathSelector(initialValue);
 			case ENUM -> createEnumSelector(param, initialValue);
 		};
@@ -368,6 +370,28 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		return selector;
 	}
 
+	private HBox createFilePathSelector(String initialValue) {
+		HBox container = new HBox(Views.DEFAULT_SPACING);
+
+		TextField pathField = new TextField(initialValue);
+		pathField.setPromptText("Select file...");
+		HBox.setHgrow(pathField, Priority.ALWAYS);
+
+		Button selectButton = new Button("Select");
+		selectButton.setOnAction(e -> {
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Select File");
+			fileChooser.setInitialDirectory(getParentFolder(pathField.getText()));
+			File selectedFilePath = fileChooser.showOpenDialog(selectButton.getScene().getWindow());
+			if (selectedFilePath != null) {
+				pathField.setText(selectedFilePath.getAbsolutePath());
+			}
+		});
+
+		container.getChildren().addAll(pathField, selectButton);
+		return container;
+	}
+
 	private HBox createFolderPathSelector(String initialValue) {
 		HBox container = new HBox(Views.DEFAULT_SPACING);
 
@@ -402,6 +426,15 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 		container.getChildren().addAll(pathField, selectButton);
 		return container;
+	}
+
+	@Nullable
+	private static File getParentFolder(String filePath) {
+		if (Strings.isNullOrEmpty(filePath)) {
+			return null;
+		}
+		File folder = new File(filePath).getParentFile();
+		return folder != null && folder.isDirectory() ? folder : null;
 	}
 
 	@Nullable

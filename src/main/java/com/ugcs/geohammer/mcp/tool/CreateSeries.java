@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
@@ -13,7 +14,6 @@ import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.util.Strings;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class CreateSeries extends McpTool {
@@ -51,7 +51,12 @@ public class CreateSeries extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    protected boolean modifiesFiles() {
+        return true;
+    }
+
+    @Override
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         String seriesName = requiredString(args, "series");
         String unit = optionalString(args, "unit");

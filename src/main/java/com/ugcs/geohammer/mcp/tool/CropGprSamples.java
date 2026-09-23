@@ -3,6 +3,7 @@ package com.ugcs.geohammer.mcp.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.TraceTransform;
@@ -37,7 +38,12 @@ public class CropGprSamples extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    protected boolean modifiesFiles() {
+        return true;
+    }
+
+    @Override
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         int offset = args.path("offset").asInt(-1);
         int length = args.path("length").asInt(-1);

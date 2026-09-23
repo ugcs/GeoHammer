@@ -15,9 +15,11 @@ import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.template.DataMapping;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.model.template.data.SensorData;
+import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import javafx.application.Platform;
@@ -36,10 +38,12 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 // Base of a single MCP tool: it declares its own name and schema and executes calls.
 // Tool descriptions may reference other tools as {{tool_name}}; McpTools resolves
@@ -65,7 +69,7 @@ public abstract class McpTool {
     // full tool descriptor: name, description and inputSchema
     public abstract ObjectNode buildSchema();
 
-    public abstract ObjectNode invoke(JsonNode args) throws Exception;
+    public abstract ObjectNode invoke(McpSession session, JsonNode args) throws Exception;
 
     // schema
 
@@ -229,6 +233,22 @@ public abstract class McpTool {
                 + "(its type in {{list_files}} is not \"gpr\")");
     }
 
+    protected List<SgyFile> getFilesToLock(McpSession session, JsonNode args) {
+        String name = optionalString(args, "file");
+        return name != null ? List.of(resolveFile(name)) : List.of();
+    }
+
+    // whether the tool modifies the files it locks, otherwise it only reads them
+    protected boolean modifiesFiles() {
+        return false;
+    }
+
+    // whether the tool sets the versions of the modified files itself,
+    // otherwise new versions are assigned after the call
+    protected boolean restoresVersions() {
+        return false;
+    }
+
     protected static String fileType(SgyFile file) {
         return switch (file) {
             // trace files first: GprFile and DztFile both extend TraceFile
@@ -249,6 +269,7 @@ public abstract class McpTool {
         node.put("template", Templates.getTemplateName(dataFile));
         node.put("points", dataFile.numTraces());
         node.put("unsaved", dataFile.isUnsaved());
+        node.put("busy", dataFile.isLocked());
         return node;
     }
 
@@ -272,6 +293,17 @@ public abstract class McpTool {
             throw new IllegalArgumentException("Series not found: " + seriesName);
         }
         return column;
+    }
+
+    // marks live in aux elements, the mark series is synced with them only on save:
+    // indices of the marked points if the series is the mark series, null otherwise
+    @Nullable
+    protected static Set<Integer> getMarks(SgyFile dataFile, String seriesName) {
+        ColumnSchema schema = GeoData.getSchema(dataFile.getGeoData());
+        String markHeader = schema != null ? schema.getHeaderBySemantic(Semantic.MARK.getName()) : null;
+        return seriesName.equals(markHeader)
+                ? AuxElements.getMarkIndices(dataFile.getAuxElements())
+                : null;
     }
 
     protected static IndexRange getLineRange(SgyFile dataFile, int line) {
@@ -346,6 +378,10 @@ public abstract class McpTool {
             return future.get(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw e.getCause() instanceof Exception cause ? cause : e;
+        } catch (TimeoutException e) {
+            // the queued action is not cancelled and may still be applied
+            throw new IllegalStateException("GeoHammer did not respond in " + CALL_TIMEOUT_SECONDS
+                    + " seconds; the operation may still complete, check the file state before retrying", e);
         }
     }
 }

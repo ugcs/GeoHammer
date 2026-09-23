@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.ugcs.geohammer.Loader;
+import com.ugcs.geohammer.format.FileLockedException;
+import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.layer.GridLayer;
 import com.ugcs.geohammer.mcp.tool.ApplyFilter;
 import com.ugcs.geohammer.mcp.tool.ClearMarks;
@@ -45,6 +47,7 @@ import com.ugcs.geohammer.mcp.tool.SplitLine;
 import com.ugcs.geohammer.mcp.tool.Undo;
 import com.ugcs.geohammer.mcp.tool.WriteSeries;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.service.gridding.GriddingService;
@@ -53,11 +56,13 @@ import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptPaths;
 import com.ugcs.geohammer.util.Strings;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -73,6 +78,8 @@ public class McpTools {
 
     private static final Pattern TOOL_NAME = Pattern.compile("[a-zA-Z0-9_-]{1,64}");
 
+    private final UndoModel undoModel;
+
     private final Map<String, McpTool> tools = new LinkedHashMap<>();
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -81,6 +88,8 @@ public class McpTools {
                     GriddingService griddingService, GridLayer gridLayer,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
                     ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter) {
+        this.undoModel = undoModel;
+
         register(new ListFiles(model));
         register(new OpenFile(model, loader));
         register(new ListSeries(model));
@@ -142,7 +151,7 @@ public class McpTools {
         return list;
     }
 
-    public ObjectNode callTool(JsonNode params) {
+    public ObjectNode callTool(McpSession session, JsonNode params) {
         String name = params.path("name").asText(Strings.empty());
         JsonNode args = params.path("arguments");
         McpTool tool = tools.get(name);
@@ -150,13 +159,47 @@ public class McpTools {
             return toolResult("Unknown tool: " + name, true);
         }
         try {
-            return tool.invoke(args);
-        } catch (IllegalArgumentException e) {
-            // invalid tool arguments, report back to the client
+            List<SgyFile> files = tool.getFilesToLock(session, args);
+            return SgyFile.withLock(files, () -> invoke(tool, session, args, files));
+        } catch (IllegalArgumentException | FileLockedException | FileModifiedException e) {
             return toolResult(resolveReferences(name, message(e)), true);
         } catch (Exception e) {
             log.error("MCP tool call failed: " + name, e);
             return toolResult(resolveReferences(name, message(e)), true);
+        }
+    }
+
+    // optimistic check of the locked files: a write is rejected if a file
+    // was modified since the session last read it
+    private ObjectNode invoke(McpTool tool, McpSession session, JsonNode args, List<SgyFile> files) throws Exception {
+        boolean write = tool.modifiesFiles();
+        if (write) {
+            for (SgyFile file : files) {
+                session.checkWrite(file);
+            }
+        }
+        UndoFrame lastFrame = undoModel.peek();
+
+        ObjectNode result = tool.invoke(session, args);
+
+        if (write) {
+            captureUndoFrame(session, lastFrame, files);
+        }
+        for (SgyFile file : files) {
+            if (write && !tool.restoresVersions()) {
+                file.updateVersion();
+            }
+            session.trackRead(file);
+        }
+        return result;
+    }
+
+    // a frame pushed during the call belongs to the session if it holds only the files
+    // locked by the call; frames of other files are pushed by concurrent calls
+    private void captureUndoFrame(McpSession session, @Nullable UndoFrame lastFrame, List<SgyFile> files) {
+        UndoFrame frame = undoModel.peekPushedAfter(lastFrame);
+        if (frame != null && files.containsAll(undoModel.getFiles(frame))) {
+            session.pushUndoFrame(frame, undoModel);
         }
     }
 

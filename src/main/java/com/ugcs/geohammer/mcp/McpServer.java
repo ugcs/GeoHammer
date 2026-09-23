@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.ugcs.geohammer.Settings;
+import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.model.event.FileClosedEvent;
+import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.status.Status;
@@ -14,6 +17,7 @@ import jakarta.annotation.PreDestroy;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -22,7 +26,12 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -47,13 +56,21 @@ public class McpServer {
 
     private static final String PREF_ENABLED = "enabled";
 
+    private static final String SESSION_ID_HEADER = "Mcp-Session-Id";
+
+    private static final Duration SESSION_IDLE_TIMEOUT = Duration.ofHours(1);
+
     private final McpTools tools;
 
     private final Settings settings;
 
     private final Status status;
 
+    private final UndoModel undoModel;
+
     private final ObjectMapper mapper = new ObjectMapper();
+
+    private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
 
     @Nullable
     private HttpServer server;
@@ -64,10 +81,11 @@ public class McpServer {
     @Nullable
     private ExecutorService executor;
 
-    public McpServer(McpTools tools, Settings settings, Status status) {
+    public McpServer(McpTools tools, Settings settings, Status status, UndoModel undoModel) {
         this.tools = tools;
         this.settings = settings;
         this.status = status;
+        this.undoModel = undoModel;
     }
 
     private InetSocketAddress getServerAddress() {
@@ -144,6 +162,7 @@ public class McpServer {
             executor.shutdownNow();
             executor = null;
         }
+        sessions.clear();
     }
 
     private void handle(HttpExchange exchange) throws IOException {
@@ -183,16 +202,43 @@ public class McpServer {
         String method = message.path("method").asText(Strings.empty());
         JsonNode params = message.path("params");
         switch (method) {
-            case "initialize" -> sendResult(exchange, id, initialize(params));
+            case "initialize" -> {
+                McpSession session = createSession();
+                exchange.getResponseHeaders().set(SESSION_ID_HEADER, session.getId());
+                sendResult(exchange, id, initialize(params));
+            }
             case "ping" -> sendResult(exchange, id, mapper.createObjectNode());
             case "tools/list" -> {
                 ObjectNode result = mapper.createObjectNode();
                 result.set("tools", tools.listTools());
                 sendResult(exchange, id, result);
             }
-            case "tools/call" -> sendResult(exchange, id, tools.callTool(params));
+            case "tools/call" -> {
+                McpSession session = getSession(exchange.getRequestHeaders().getFirst(SESSION_ID_HEADER));
+                sendResult(exchange, id, tools.callTool(session, params));
+            }
             default -> sendError(exchange, id, -32601, "Method not found: " + method);
         }
+    }
+
+    private McpSession createSession() {
+        McpSession session = new McpSession(UUID.randomUUID().toString(), Instant.now());
+        sessions.put(session.getId(), session);
+        return session;
+    }
+
+    // an unknown id is adopted as a new session instead of rejecting the request,
+    // so that clients keep working after the session expired or the server restarted
+    private McpSession getSession(@Nullable String id) {
+        Instant now = Instant.now();
+        sessions.values().removeIf(session -> session.isIdle(now, SESSION_IDLE_TIMEOUT));
+        if (Strings.isNullOrEmpty(id)) {
+            // client without session support: the session lasts for a single call
+            return new McpSession(UUID.randomUUID().toString(), now);
+        }
+        McpSession session = sessions.computeIfAbsent(id, key -> new McpSession(key, now));
+        session.touch(now);
+        return session;
     }
 
     private ObjectNode initialize(JsonNode params) {
@@ -213,8 +259,13 @@ public class McpServer {
                 + "in the application UI; these tools operate on the in-memory data of open files. "
                 + "Every tool that works on a file takes its name or path in the file argument: "
                 + "get it from list_files first and never assume which file the user is looking at. "
-                + "Data modifications are visible in the UI immediately, support undo (see the undo "
-                + "tool) and are NEVER written to the files on disk by these tools. "
+                + "Data modifications are visible in the UI immediately and are NEVER written to the "
+                + "files on disk by these tools. "
+                + "Other clients may work on the same files: a modification is rejected with a "
+                + "\"modified\" error if the file was changed by another client or in the app since "
+                + "you last read it; read the file again and redo the change on the current data. "
+                + "The undo tool reverts only your own modifications, newest first, and is rejected "
+                + "when a later modification of another client or in the app follows yours. "
                 + "Two kinds of files exist (see list_files): \"data\" files (CSV, SVLOG sonar, NMEA) "
                 + "hold a sequence of points; each point has values in named columns called series "
                 + "(e.g. magnetic field, depth, latitude); points belong to survey lines (list_lines). "
@@ -275,6 +326,17 @@ public class McpServer {
             return "localhost".equals(host) || "127.0.0.1".equals(host) || "[::1]".equals(host);
         } catch (IllegalArgumentException e) {
             return false;
+        }
+    }
+
+    @EventListener
+    private void onFileClosed(FileClosedEvent event) {
+        SgyFile file = event.getFile();
+        if (file != null) {
+            for (McpSession session : sessions.values()) {
+                session.untrack(file);
+                session.removeStaleUndoFrames(undoModel);
+            }
         }
     }
 

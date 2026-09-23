@@ -2,6 +2,7 @@ package com.ugcs.geohammer.mcp.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.PythonInterpreter;
@@ -36,7 +37,7 @@ public class SetPythonPath extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String path = optionalString(args, "path");
         if (!Strings.isNullOrEmpty(path)) {
             File executable = new File(path);

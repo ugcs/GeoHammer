@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.element.BaseObject;
@@ -37,7 +38,12 @@ public class ClearMarks extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    protected boolean modifiesFiles() {
+        return true;
+    }
+
+    @Override
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         List<Integer> indices = readIndices(args);
         SgyFile dataFile = resolveFile(fileName);

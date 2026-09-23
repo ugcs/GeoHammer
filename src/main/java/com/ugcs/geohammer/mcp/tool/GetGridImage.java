@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.layer.GridLayer;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
@@ -44,7 +45,7 @@ public class GetGridImage extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         int width = Math.clamp(args.path("width").asInt(800), 200, 2000);
         SgyFile dataFile = resolveFile(fileName);

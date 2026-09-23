@@ -29,8 +29,10 @@ public class PlaceMarks extends McpTool {
     @Override
     public ObjectNode buildSchema() {
         ObjectNode tool = descriptor("Place marks (flags) at the given point indices of an open data file. "
-                + "Marks are shown as flags on the chart and map, and are stored in the Mark column "
-                + "when the file is saved. Indices where a mark already exists are skipped.");
+                + "Marks are shown as flags on the chart and map, and the Mark series returned by "
+                + "the read tools reflects them immediately (1 for a marked point, 0 otherwise); they "
+                + "are written to the Mark column of the file when it is saved. "
+                + "Indices where a mark already exists are skipped.");
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
         ObjectNode placeIndices = addProperty(schema, "indices", "array",

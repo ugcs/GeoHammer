@@ -11,6 +11,7 @@ import com.ugcs.geohammer.model.Model;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class ReadData extends McpTool {
 
@@ -91,13 +92,17 @@ public class ReadData extends McpTool {
         ObjectNode values = result.putObject("values");
         for (String seriesName : seriesNames) {
             ArrayNode array = values.putArray(seriesName);
+            Set<Integer> marks = getMarks(dataFile, seriesName);
             for (int b = 0; b < numBuckets; b++) {
                 int bFrom = from + b * bucketSize;
                 int bTo = Math.min(bFrom + bucketSize, to);
                 double acc = 0;
                 int n = 0;
                 for (int i = bFrom; i < bTo; i++) {
-                    if (geoData.get(i).getNumber(seriesName) instanceof Number number) {
+                    Number number = marks != null
+                            ? Integer.valueOf(marks.contains(i) ? 1 : 0)
+                            : geoData.get(i).getNumber(seriesName);
+                    if (number != null) {
                         double v = number.doubleValue();
                         n++;
                         switch (aggregate) {

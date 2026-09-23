@@ -15,9 +15,11 @@ import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.template.DataMapping;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.model.template.data.SensorData;
+import com.ugcs.geohammer.util.AuxElements;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import javafx.application.Platform;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -290,6 +293,17 @@ public abstract class McpTool {
             throw new IllegalArgumentException("Series not found: " + seriesName);
         }
         return column;
+    }
+
+    // marks live in aux elements, the mark series is synced with them only on save:
+    // indices of the marked points if the series is the mark series, null otherwise
+    @Nullable
+    protected static Set<Integer> getMarks(SgyFile dataFile, String seriesName) {
+        ColumnSchema schema = GeoData.getSchema(dataFile.getGeoData());
+        String markHeader = schema != null ? schema.getHeaderBySemantic(Semantic.MARK.getName()) : null;
+        return seriesName.equals(markHeader)
+                ? AuxElements.getMarkIndices(dataFile.getAuxElements())
+                : null;
     }
 
     protected static IndexRange getLineRange(SgyFile dataFile, int line) {

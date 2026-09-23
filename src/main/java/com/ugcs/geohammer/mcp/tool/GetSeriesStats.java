@@ -12,6 +12,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.Strings;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class GetSeriesStats extends McpTool {
 
@@ -61,8 +62,11 @@ public class GetSeriesStats extends McpTool {
         }
         List<Double> values = new ArrayList<>(to - from);
         double sum = 0;
+        Set<Integer> marks = getMarks(dataFile, seriesName);
         for (int i = from; i < to; i++) {
-            Number number = geoData.get(i).getNumber(seriesName);
+            Number number = marks != null
+                    ? Integer.valueOf(marks.contains(i) ? 1 : 0)
+                    : geoData.get(i).getNumber(seriesName);
             if (number != null) {
                 double v = number.doubleValue();
                 values.add(v);

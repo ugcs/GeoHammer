@@ -10,6 +10,7 @@ import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
 import java.io.File;
 import java.util.List;
+import java.util.Set;
 
 public class ReadSeries extends McpTool {
 
@@ -65,8 +66,11 @@ public class ReadSeries extends McpTool {
         result.put("start", from);
         result.put("count", to - from);
         ArrayNode values = result.putArray("values");
+        Set<Integer> marks = getMarks(dataFile, seriesName);
         for (int i = from; i < to; i++) {
-            Object value = geoData.get(i).getValue(seriesName);
+            Object value = marks != null
+                    ? Integer.valueOf(marks.contains(i) ? 1 : 0)
+                    : geoData.get(i).getValue(seriesName);
             if (value instanceof Number number) {
                 values.add(number.doubleValue());
             } else if (value instanceof String string) {

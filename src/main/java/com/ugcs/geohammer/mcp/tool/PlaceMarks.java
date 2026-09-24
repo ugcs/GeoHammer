@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.TraceKey;
@@ -28,8 +29,10 @@ public class PlaceMarks extends McpTool {
     @Override
     public ObjectNode buildSchema() {
         ObjectNode tool = descriptor("Place marks (flags) at the given point indices of an open data file. "
-                + "Marks are shown as flags on the chart and map, and are stored in the Mark column "
-                + "when the file is saved. Indices where a mark already exists are skipped.");
+                + "Marks are shown as flags on the chart and map, and the Mark series returned by "
+                + "the read tools reflects them immediately (1 for a marked point, 0 otherwise); they "
+                + "are written to the Mark column of the file when it is saved. "
+                + "Indices where a mark already exists are skipped.");
         ObjectNode schema = objectSchema();
         addFileProperty(schema);
         ObjectNode placeIndices = addProperty(schema, "indices", "array",
@@ -41,7 +44,12 @@ public class PlaceMarks extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    protected boolean modifiesFiles() {
+        return true;
+    }
+
+    @Override
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         List<Integer> indices = readIndices(args);
         if (indices == null || indices.isEmpty()) {

@@ -22,10 +22,13 @@ public abstract class FileSnapshot<T extends SgyFile> implements UndoSnapshot {
 
     protected final List<BaseObject> elements;
 
+    private final long version;
+
     public FileSnapshot(T file) {
         this.file = file;
 
         this.elements = AuxElements.copy(file.getAuxElements());
+        this.version = file.getVersion();
     }
 
     public T getFile() {
@@ -46,6 +49,7 @@ public abstract class FileSnapshot<T extends SgyFile> implements UndoSnapshot {
             return;
         }
         file.setAuxElements(elements);
+        file.setVersion(version);
         onFileChanged(model);
     }
 

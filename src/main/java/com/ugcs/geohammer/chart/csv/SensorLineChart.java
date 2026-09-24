@@ -1384,9 +1384,11 @@ public class SensorLineChart extends Chart {
             VBox markerBox = new VBox();
             markerBox.setAlignment(Pos.TOP_CENTER);
             markerBox.setMouseTransparent(mouseTransparent);
+            markerBox.setPickOnBounds(false);
 
             VBox imageContainer = new VBox();
             imageContainer.setAlignment(Pos.TOP_CENTER);
+            imageContainer.setPickOnBounds(false);
             if (imageView != null) {
                 imageContainer.getChildren().add(imageView);
             }

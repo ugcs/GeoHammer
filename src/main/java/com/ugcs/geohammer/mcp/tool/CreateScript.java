@@ -3,6 +3,7 @@ package com.ugcs.geohammer.mcp.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
@@ -118,7 +119,7 @@ public class CreateScript extends ScriptTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String name = requiredString(args, "name");
         if (!name.matches("[A-Za-z0-9_-]+")) {
             throw new IllegalArgumentException("Script name may contain only letters, digits, "

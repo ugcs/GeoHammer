@@ -3,6 +3,7 @@ package com.ugcs.geohammer.mcp.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
@@ -39,7 +40,7 @@ public class ListScripts extends ScriptTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         List<ScriptMetadata> scripts = scriptMetadataLoader
                 .loadScriptMetadata(scriptPaths.getScriptsPath());
         ArrayNode result = mapper.createArrayNode();

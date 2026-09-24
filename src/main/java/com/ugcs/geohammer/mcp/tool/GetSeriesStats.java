@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.IndexRange;
@@ -11,6 +12,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.Strings;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class GetSeriesStats extends McpTool {
 
@@ -41,7 +43,7 @@ public class GetSeriesStats extends McpTool {
     }
 
     @Override
-    public ObjectNode invoke(JsonNode args) throws Exception {
+    public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String fileName = optionalString(args, "file");
         String seriesName = requiredString(args, "series");
         SgyFile dataFile = resolveFile(fileName);
@@ -60,8 +62,11 @@ public class GetSeriesStats extends McpTool {
         }
         List<Double> values = new ArrayList<>(to - from);
         double sum = 0;
+        Set<Integer> marks = getMarks(dataFile, seriesName);
         for (int i = from; i < to; i++) {
-            Number number = geoData.get(i).getNumber(seriesName);
+            Number number = marks != null
+                    ? Integer.valueOf(marks.contains(i) ? 1 : 0)
+                    : geoData.get(i).getNumber(seriesName);
             if (number != null) {
                 double v = number.doubleValue();
                 values.add(v);

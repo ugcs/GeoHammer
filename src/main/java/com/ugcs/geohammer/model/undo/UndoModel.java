@@ -5,11 +5,13 @@ import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.UndoStackChanged;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.Check;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.Iterator;
@@ -38,7 +40,7 @@ public class UndoModel {
         push(frame);
     }
 
-    public void removeSnapshots(SgyFile file) {
+    public synchronized void removeSnapshots(SgyFile file) {
         Check.notNull(file);
 
         Iterator<UndoFrame> it = frames.iterator();
@@ -52,7 +54,7 @@ public class UndoModel {
         }
     }
 
-    public void push(UndoFrame frame) {
+    public synchronized void push(UndoFrame frame) {
         if (frame == null) {
             return;
         }
@@ -66,22 +68,68 @@ public class UndoModel {
         model.publishEvent(new UndoStackChanged(this));
     }
 
-    public boolean canUndo() {
+    public synchronized boolean canUndo() {
         return !frames.isEmpty();
     }
 
-    public void undo() {
-        if (!canUndo()) {
-            return;
-        }
+    public synchronized @Nullable UndoFrame peek() {
+        return frames.peekFirst();
+    }
 
-        // peek top frame
-        UndoFrame frame = frames.removeFirst();
-        // restore frame state
+    // top frame if it was pushed after the given frame, which is then still below it;
+    // null if nothing was pushed since or the given frame was removed from the stack
+    public synchronized @Nullable UndoFrame peekPushedAfter(@Nullable UndoFrame frame) {
+        UndoFrame top = frames.peekFirst();
+        if (top == null || top == frame) {
+            return null;
+        }
+        return frame == null || frames.contains(frame) ? top : null;
+    }
+
+    public synchronized boolean contains(UndoFrame frame) {
+        return frames.contains(frame);
+    }
+
+    // files of the frame; snapshots of closed files are removed from frames under the same monitor
+    public synchronized List<SgyFile> getFiles(UndoFrame frame) {
+        Check.notNull(frame);
+
+        List<SgyFile> files = new ArrayList<>();
+        for (UndoSnapshot snapshot : frame.getSnapshots()) {
+            if (snapshot instanceof FileSnapshot<?> fileSnapshot) {
+                files.add(fileSnapshot.getFile());
+            }
+        }
+        return files;
+    }
+
+    public void undo() {
+        UndoFrame frame = peek();
+        if (frame != null) {
+            undo(frame);
+        }
+    }
+
+    // undoes the frame only if it is still on top of the stack
+    public boolean undo(UndoFrame frame) {
+        Check.notNull(frame);
+        if (!removeFirst(frame)) {
+            return false;
+        }
+        // restore frame state outside the monitor
         frame.restore(model);
         frame.discard();
 
         model.publishEvent(new UndoStackChanged(this));
+        return true;
+    }
+
+    private synchronized boolean removeFirst(UndoFrame frame) {
+        if (frames.peekFirst() != frame) {
+            return false;
+        }
+        frames.removeFirst();
+        return true;
     }
 
     @EventListener

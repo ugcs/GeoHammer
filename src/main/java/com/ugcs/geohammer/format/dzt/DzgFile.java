@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
+import ch.randelshofer.fastdoubleparser.JavaDoubleParser;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.util.Check;
@@ -115,8 +116,8 @@ public class DzgFile {
         double northSouth = ("N".equals(tokens[3]) ? 1 : -1);
         double westEast = ("E".equals(tokens[5]) ? 1 : -1);
 
-        double lat = Double.parseDouble(tokens[2]) * northSouth;
-        double lon = Double.parseDouble(tokens[4]) * westEast;
+        double lat = JavaDoubleParser.parseDouble(tokens[2]) * northSouth;
+        double lon = JavaDoubleParser.parseDouble(tokens[4]) * westEast;
 
         double rlon = TraceFile.convertDegreeFraction(lon);
         double rlat = TraceFile.convertDegreeFraction(lat);

@@ -171,7 +171,7 @@ public final class Text {
         }
         try {
             int weeks = Integer.parseInt(tokens[0]);
-            double seconds = Double.parseDouble(tokens[1]);
+            double seconds = JavaDoubleParser.parseDouble(tokens[1]);
             LocalDateTime gpsEpoch = LocalDateTime.of(1980, 1, 6, 0, 0, 0);
             return gpsEpoch
                     .plusDays(weeks * 7L)

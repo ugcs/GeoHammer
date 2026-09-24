@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.settings;
 
+import ch.randelshofer.fastdoubleparser.JavaDoubleParser;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.view.Views;
@@ -52,7 +53,7 @@ public class GeneralTab implements SettingsTab {
     @Override
     public ValidationResult validate() {
         try {
-            double threshold = Double.parseDouble(traceLookupThresholdInput.getText());
+            double threshold = JavaDoubleParser.parseDouble(traceLookupThresholdInput.getText());
             if (threshold < 0) {
                 return ValidationResult.fromError(
                         traceLookupThresholdInput,
@@ -77,7 +78,7 @@ public class GeneralTab implements SettingsTab {
         Theme theme = themeSelector.getValue();
         themeService.setTheme(theme);
         try {
-            double threshold = Double.parseDouble(traceLookupThresholdInput.getText());
+            double threshold = JavaDoubleParser.parseDouble(traceLookupThresholdInput.getText());
             model.setTraceLookupThreshold(threshold);
         } catch (NumberFormatException ignore) {
         }

@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.service.palette;
 
+import ch.randelshofer.fastdoubleparser.JavaDoubleParser;
 import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.Strings;
 import org.jspecify.annotations.NonNull;
@@ -61,7 +62,7 @@ public final class GeosoftTable {
     }
 
     private static int parseChannel(String s) {
-        int v = (int)Math.round(Double.parseDouble(s));
+        int v = (int)Math.round(JavaDoubleParser.parseDouble(s));
         return Math.clamp(v, 0, 255);
     }
 }

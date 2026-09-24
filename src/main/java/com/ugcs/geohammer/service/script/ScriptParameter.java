@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.service.script;
 
+import ch.randelshofer.fastdoubleparser.JavaDoubleParser;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
@@ -84,7 +85,7 @@ public record ScriptParameter(
 			case DOUBLE -> {
 				double parsed;
 				try {
-					parsed = Double.parseDouble(value);
+					parsed = JavaDoubleParser.parseDouble(value);
 				} catch (NumberFormatException e) {
 					throw new IllegalArgumentException(
 							"Parameter '" + displayName + "': '" + value + "' is not a valid number");

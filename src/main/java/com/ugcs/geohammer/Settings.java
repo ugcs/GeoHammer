@@ -1,5 +1,6 @@
 package com.ugcs.geohammer;
 
+import ch.randelshofer.fastdoubleparser.JavaDoubleParser;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Resources;
@@ -108,7 +109,7 @@ public class Settings {
 
     public @Nullable Double getDouble(String group, String name) {
         String value = getString(group, name);
-        return !Strings.isNullOrEmpty(value) ? Double.parseDouble(value) : null;
+        return !Strings.isNullOrEmpty(value) ? JavaDoubleParser.parseDouble(value) : null;
     }
 
     public double getDoubleOrDefault(String group, String name, double defaultValue) {

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.ugcs.geohammer.Loader;
+import com.ugcs.geohammer.analytics.EventSender;
+import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.FileLockedException;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.map.layer.GridLayer;
@@ -87,7 +89,8 @@ public class McpTools {
     public McpTools(Model model, Loader loader, UndoModel undoModel, TraceTransform traceTransform,
                     GriddingService griddingService, GridLayer gridLayer,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
-                    ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter) {
+                    ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter,
+                    EventSender eventSender, EventsFactory eventsFactory) {
         this.undoModel = undoModel;
 
         register(new ListFiles(model));
@@ -125,7 +128,7 @@ public class McpTools {
         register(new ListScripts(model, scriptMetadataLoader, scriptPaths));
         register(new GetScript(model, scriptMetadataLoader, scriptPaths));
         register(new RunScript(model, scriptMetadataLoader, scriptPaths, scriptCoordinator));
-        register(new CreateScript(model, scriptMetadataLoader, scriptPaths));
+        register(new CreateScript(model, scriptMetadataLoader, scriptPaths, eventSender, eventsFactory));
         register(new SetPythonPath(model, pythonInterpreter));
     }
 

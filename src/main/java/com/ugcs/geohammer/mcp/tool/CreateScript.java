@@ -3,6 +3,8 @@ package com.ugcs.geohammer.mcp.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ugcs.geohammer.analytics.EventSender;
+import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
@@ -19,8 +21,15 @@ public class CreateScript extends ScriptTool {
 
     private static final String DEFAULT_TEMPLATE = "csv";
 
-    public CreateScript(Model model, ScriptMetadataLoader scriptMetadataLoader, ScriptPaths scriptPaths) {
+    private final EventSender eventSender;
+
+    private final EventsFactory eventsFactory;
+
+    public CreateScript(Model model, ScriptMetadataLoader scriptMetadataLoader, ScriptPaths scriptPaths,
+                        EventSender eventSender, EventsFactory eventsFactory) {
         super(model, scriptMetadataLoader, scriptPaths);
+        this.eventSender = eventSender;
+        this.eventsFactory = eventsFactory;
     }
 
     @Override
@@ -175,6 +184,7 @@ public class CreateScript extends ScriptTool {
         Files.writeString(scriptFile, code);
         Files.writeString(metadataFile,
                 mapper.writerWithDefaultPrettyPrinter().writeValueAsString(metadataNode));
+        eventSender.send(eventsFactory.createMcpScriptCreatedEvent(metadata.filename()));
         return text("Script created: " + scriptFile
                 + "; run it with run_script \"" + name + ".py\"");
     }

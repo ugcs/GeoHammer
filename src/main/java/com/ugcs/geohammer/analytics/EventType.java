@@ -5,7 +5,9 @@ public enum EventType {
     FILE_OPENED("geohammer-file-opened"),
     FILE_OPEN_ERROR("geohammer-file-open-error"),
     LICENSE_VALIDATED("geohammer-license-validated"),
-    SCRIPT_EXECUTION_STARTED("geohammer-script-execution-started");
+    SCRIPT_EXECUTION_STARTED("geohammer-script-execution-started"),
+    MCP_SESSION_INIT("geohammer-mcp-session-init"),
+    MCP_SCRIPT_CREATED("geohammer-mcp-script-created");
 
     private final String code;
 

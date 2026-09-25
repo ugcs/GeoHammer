@@ -5,10 +5,13 @@ import java.awt.Rectangle;
 import java.util.Arrays;
 import java.util.List;
 
+import com.ugcs.geohammer.chart.tool.projection.math.DbGain;
 import com.ugcs.geohammer.format.SampleStatistics;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.service.palette.Palettes;
+import com.ugcs.geohammer.service.palette.Spectrum;
 
 public class PrismDrawer {
 
@@ -36,8 +39,14 @@ public class PrismDrawer {
 		
 		TraceFile file = field.getField().getFile();
 		SampleStatistics stats = file.getStatistics();
-		double contrast = field.getField().getSettings().getContrast();
-		ContrastCurve curve = new ContrastCurve(stats.dispersion(), contrast);
+		ProfileSettings profileSettings = field.getField().getSettings();
+
+		Spectrum spectrum = Palettes.createSpectrum(profileSettings.getColorScale());
+		int[] colorTable = ContrastCurve.createColorTable(spectrum);
+		ContrastCurve curve = new ContrastCurve(stats.dispersion(), profileSettings.getContrast());
+		DbGain gainFunction = new DbGain(0, profileSettings.getMaxGain());
+		float depthStep = field.numSamples() > 0 ? 1f / field.numSamples() : 0f;
+
 		float baseline = stats.baseline();
 		
 		int startTrace = field.getFirstVisibleTrace();
@@ -74,7 +83,9 @@ public class PrismDrawer {
 				if (j < 0 || j >= trace.numSamples()) {
 					continue;
 				}
-				int color = curve.mapToColor(trace.getSample(j) - baseline);
+				float value = trace.getSample(j) - baseline;
+				value *= gainFunction.getGain(depthStep * j);
+				int color = curve.mapToColor(value, colorTable);
 				
                 int baseIndex = baseOffsetX + traceStartX + sampStart * bytesInRow;
                 for (int yt = 0; yt < vscale; yt++) {

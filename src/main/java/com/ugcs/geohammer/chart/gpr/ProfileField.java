@@ -8,6 +8,7 @@ import com.ugcs.geohammer.format.gpr.Trace;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.util.Check;
 
 public class ProfileField {
 
@@ -79,8 +80,9 @@ public class ProfileField {
 	}
 
 	public ProfileField(TraceFile traceFile) {
-		this.traceFile = traceFile;
+		this.traceFile = Check.notNull(traceFile);
 
+		profileSettings.readFromMeta(traceFile.getMeta());
 		updateMaxHeightInSamples();
 	}
 

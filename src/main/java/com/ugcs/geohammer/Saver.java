@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
+import com.ugcs.geohammer.chart.gpr.GPRChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.TraceFile;
@@ -149,7 +150,14 @@ public class Saver implements ToolProducer, InitializingBean {
         log.info("Saving file {}", file);
 
         if (sgyFile instanceof SgyFileWithMeta sgyFileWithMeta) {
-            sgyFileWithMeta.saveMeta();
+			// write chart settings to meta
+			if (sgyFile instanceof TraceFile traceFile) {
+				GPRChart chart = model.getGprChart(traceFile);
+				if (chart != null) {
+					chart.getField().getSettings().writeToMeta(traceFile.getMeta());
+				}
+			}
+			sgyFileWithMeta.saveMeta();
         } else {
             sgyFile.save(file);
         }

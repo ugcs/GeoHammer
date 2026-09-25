@@ -5,6 +5,7 @@ import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LineSchema;
 import com.ugcs.geohammer.model.Range;
+import com.ugcs.geohammer.service.palette.SpectrumType;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import org.jspecify.annotations.Nullable;
@@ -29,7 +30,13 @@ public class MetaDocument {
     private List<Mark> marks;
 
     @Expose
+    private SpectrumType colorScale;
+
+    @Expose
     private Double contrast;
+
+    @Expose
+    private Double maxGain;
 
     @Expose
     private Boolean backgroundRemoved;
@@ -65,12 +72,28 @@ public class MetaDocument {
         this.marks = marks;
     }
 
+    public SpectrumType getColorScale() {
+        return colorScale;
+    }
+
+    public void setColorScale(SpectrumType colorScale) {
+        this.colorScale = colorScale;
+    }
+
     public Double getContrast() {
         return contrast;
     }
 
     public void setContrast(Double contrast) {
         this.contrast = contrast;
+    }
+
+    public Double getMaxGain() {
+        return maxGain;
+    }
+
+    public void setMaxGain(Double maxGain) {
+        this.maxGain = maxGain;
     }
 
     public Boolean getBackgroundRemoved() {
@@ -102,7 +125,9 @@ public class MetaDocument {
 
         MetaDocument metaDocument = new MetaDocument();
         metaDocument.setSampleRange(meta.getSampleRange());
+        metaDocument.setColorScale(meta.getColorScale());
         metaDocument.setContrast(meta.getContrast());
+        metaDocument.setMaxGain(meta.getMaxGain());
         metaDocument.setBackgroundRemoved(meta.getBackgroundRemoved());
         metaDocument.setDepthRange(meta.getDepthRange());
         metaDocument.setLines(linesOf(meta));
@@ -162,7 +187,9 @@ public class MetaDocument {
 
         Meta meta = new Meta(columnSchema);
         meta.setSampleRange(sampleRange);
+        meta.setColorScale(colorScale);
         meta.setContrast(contrast);
+        meta.setMaxGain(maxGain);
         meta.setBackgroundRemoved(backgroundRemoved);
         meta.setDepthRange(getDepthRange());
 

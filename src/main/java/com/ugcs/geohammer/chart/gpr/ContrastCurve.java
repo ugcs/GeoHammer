@@ -1,5 +1,7 @@
 package com.ugcs.geohammer.chart.gpr;
 
+import com.ugcs.geohammer.service.palette.Spectrum;
+
 public final class ContrastCurve {
 
 	// tanh is saturated beyond this many contrast units
@@ -38,8 +40,25 @@ public final class ContrastCurve {
 		return BANDS[band + HALF_BANDS];
 	}
 
-	public int mapToColor(float value) {
+	public int mapToGrayscale(float value) {
 		int c = (int) (255 * map(value));
-		return (c << 16) + (c << 8) + c;
+		return 0xff000000 | (c << 16) | (c << 8) | c;
+	}
+
+	public int mapToColor(float value, Spectrum spectrum) {
+		return spectrum.getColor(map(value)).getRGB();
+	}
+
+	public int mapToColor(float value, int[] colorTable) {
+		int band = Math.clamp((int) (value * scale), -HALF_BANDS, HALF_BANDS);
+		return colorTable[band + HALF_BANDS];
+	}
+
+	public static int[] createColorTable(Spectrum spectrum) {
+		int[] colors = new int[BANDS.length];
+		for (int i = 0; i < BANDS.length; i++) {
+			colors[i] = spectrum.getColor(BANDS[i]).getRGB();
+		}
+		return colors;
 	}
 }

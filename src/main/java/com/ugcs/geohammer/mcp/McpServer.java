@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.ugcs.geohammer.Settings;
+import com.ugcs.geohammer.analytics.EventSender;
+import com.ugcs.geohammer.analytics.EventsFactory;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.undo.UndoModel;
@@ -68,6 +70,10 @@ public class McpServer {
 
     private final UndoModel undoModel;
 
+    private final EventSender eventSender;
+
+    private final EventsFactory eventsFactory;
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
@@ -81,11 +87,14 @@ public class McpServer {
     @Nullable
     private ExecutorService executor;
 
-    public McpServer(McpTools tools, Settings settings, Status status, UndoModel undoModel) {
+    public McpServer(McpTools tools, Settings settings, Status status, UndoModel undoModel,
+                     EventSender eventSender, EventsFactory eventsFactory) {
         this.tools = tools;
         this.settings = settings;
         this.status = status;
         this.undoModel = undoModel;
+        this.eventSender = eventSender;
+        this.eventsFactory = eventsFactory;
     }
 
     private InetSocketAddress getServerAddress() {
@@ -206,6 +215,10 @@ public class McpServer {
                 McpSession session = createSession();
                 exchange.getResponseHeaders().set(SESSION_ID_HEADER, session.getId());
                 sendResult(exchange, id, initialize(params));
+                JsonNode clientInfo = params.path("clientInfo");
+                eventSender.send(eventsFactory.createMcpSessionInitEvent(
+                        clientInfo.path("name").asText(Strings.empty()),
+                        clientInfo.path("version").asText(Strings.empty())));
             }
             case "ping" -> sendResult(exchange, id, mapper.createObjectNode());
             case "tools/list" -> {

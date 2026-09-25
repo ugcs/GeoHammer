@@ -44,4 +44,15 @@ public class EventsFactory {
                 .withProperty("script_name", scriptName)
                 .withProperty("python_version", pythonVersion);
     }
+
+    public Event createMcpSessionInitEvent(String clientName, String clientVersion) {
+        return new Event(EventType.MCP_SESSION_INIT, null, null, null)
+                .withProperty("client_name", clientName)
+                .withProperty("client_version", clientVersion);
+    }
+
+    public Event createMcpScriptCreatedEvent(String scriptName) {
+        return new Event(EventType.MCP_SCRIPT_CREATED, null, null, null)
+                .withProperty("script_name", scriptName);
+    }
 }

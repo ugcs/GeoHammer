@@ -71,6 +71,11 @@ public abstract class McpTool {
 
     public abstract ObjectNode invoke(McpSession session, JsonNode args) throws Exception;
 
+    // overridden by long-running tools that report progress and stop on cancellation
+    public ObjectNode invoke(McpSession session, JsonNode args, McpCall call) throws Exception {
+        return invoke(session, args);
+    }
+
     // schema
 
     protected ObjectNode descriptor(String description) {

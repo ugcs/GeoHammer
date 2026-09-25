@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.mcp.McpCall;
 import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
@@ -15,20 +16,25 @@ import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Templates;
 import org.jspecify.annotations.Nullable;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class RunScript extends ScriptTool {
 
-    private static final int SCRIPT_TIMEOUT_MINUTES = 15;
+    // a client aborts a call that stays silent for a few minutes
+    private static final int PROGRESS_INTERVAL_SECONDS = 10;
 
     private static final int MAX_SCRIPT_OUTPUT_CHARS = 20000;
+
+    private static final int MAX_PROGRESS_LINE_CHARS = 200;
 
     private final ScriptCoordinator scriptCoordinator;
 
@@ -80,6 +86,11 @@ public class RunScript extends ScriptTool {
 
     @Override
     public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
+        return invoke(session, args, new McpCall(null));
+    }
+
+    @Override
+    public ObjectNode invoke(McpSession session, JsonNode args, McpCall call) throws Exception {
         String scriptName = requiredString(args, "script");
         String fileName = optionalString(args, "file");
         ScriptMetadata metadata = findScript(scriptName);
@@ -107,59 +118,51 @@ public class RunScript extends ScriptTool {
                     + "templates " + metadata.templates() + ", the file's template is " + template);
         }
 
-        StringBuilder output = new StringBuilder();
-        // the default outcome when no per-file callback fired, e.g. the run was skipped or cancelled
-        AtomicReference<String> outcome = new AtomicReference<>("Script run finished");
-        AtomicReference<Exception> failure = new AtomicReference<>();
-        CompletableFuture<String> completion = new CompletableFuture<>();
-        scriptCoordinator.submit(List.of(dataFile), metadata, params,
-                line -> {
-                    synchronized (output) {
-                        output.append(line).append('\n');
-                    }
-                },
-                new ScriptRunListener() {
-                    @Override
-                    public void onRunStarted() {
-                    }
-
-                    // completes after the undo frame of the run is pushed,
-                    // so that the frame is attributed to the session
-                    @Override
-                    public void onRunFinished() {
-                        Exception e = failure.get();
-                        if (e != null) {
-                            completion.completeExceptionally(e);
-                        } else {
-                            completion.complete(outcome.get());
-                        }
-                    }
-
-                    @Override
-                    public void onSuccess(ScriptMetadata scriptMetadata) {
-                        outcome.set("Script completed");
-                    }
-
-                    @Override
-                    public void onError(ScriptMetadata scriptMetadata, Exception e, String scriptOutput) {
-                        String message = e.getMessage() != null ? e.getMessage() : e.toString();
-                        failure.compareAndSet(null, new IllegalStateException("Script failed: " + message));
-                    }
-
-                    @Override
-                    public boolean confirmReinstallDependencies(String moduleName) {
-                        return true;
-                    }
-                });
-
-        String status;
-        try {
-            status = completion.get(SCRIPT_TIMEOUT_MINUTES, TimeUnit.MINUTES);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause() != null ? e.getCause() : e;
-            throw new IllegalStateException(cause.getMessage() + outputTail(output), cause);
+        if (scriptCoordinator.isExecuting(dataFile)) {
+            throw new IllegalStateException(alreadyRunning(dataFile));
         }
-        return text(status + outputTail(output));
+
+        Run run = new Run();
+        Future<Void> future = scriptCoordinator.submit(List.of(dataFile), metadata, params,
+                run::appendOutput, run);
+        call.onCancel(() -> run.cancel(future));
+
+        // the file stays locked until the run finishes, also when it is cancelled
+        long startTime = System.nanoTime();
+        try {
+            while (!run.awaitFinish(PROGRESS_INTERVAL_SECONDS)) {
+                // a run cancelled in the app before it started never finishes
+                if (future.isCancelled()) {
+                    run.cancel(future);
+                }
+                Duration elapsed = Duration.ofNanos(System.nanoTime() - startTime);
+                call.reportProgress(elapsed.toSeconds(), progressMessage(elapsed, run.lastLine));
+            }
+        } catch (InterruptedException e) {
+            run.cancel(future);
+            throw e;
+        }
+
+        String outputTail = outputTail(run.output);
+        // a result applied before the cancellation took effect is kept
+        if (run.succeeded.get()) {
+            return text("Script completed" + outputTail);
+        }
+        if (future.isCancelled()) {
+            throw new IllegalStateException("Script run was cancelled" + outputTail);
+        }
+        String error = run.error.get();
+        if (error != null) {
+            throw new IllegalStateException(error + outputTail);
+        }
+        // the coordinator skips a file with a running script
+        throw new IllegalStateException(alreadyRunning(dataFile));
+    }
+
+    private String alreadyRunning(SgyFile file) {
+        ScriptMetadata running = scriptCoordinator.getExecutingScriptMetadata(file);
+        return "Another script" + (running != null ? " (" + running.filename() + ")" : "")
+                + " is running on this file; run again when it finishes";
     }
 
     // mirrors the Scripts panel: a file without a template accepts any script,
@@ -182,6 +185,16 @@ public class RunScript extends ScriptTool {
         return false;
     }
 
+    private static String progressMessage(Duration elapsed, @Nullable String lastLine) {
+        String message = "Running for " + elapsed.toMinutes() + " min " + elapsed.toSecondsPart() + " s";
+        if (lastLine != null) {
+            message += ": " + (lastLine.length() > MAX_PROGRESS_LINE_CHARS
+                    ? lastLine.substring(0, MAX_PROGRESS_LINE_CHARS) + "..."
+                    : lastLine);
+        }
+        return message;
+    }
+
     private static String outputTail(StringBuilder output) {
         String text;
         synchronized (output) {
@@ -194,5 +207,76 @@ public class RunScript extends ScriptTool {
             text = "..." + text.substring(text.length() - MAX_SCRIPT_OUTPUT_CHARS);
         }
         return "\n\nScript output:\n" + text;
+    }
+
+    // a script run on a single file as seen by the call
+    private static final class Run implements ScriptRunListener {
+
+        private final StringBuilder output = new StringBuilder();
+
+        private final AtomicBoolean started = new AtomicBoolean();
+
+        private final AtomicBoolean succeeded = new AtomicBoolean();
+
+        private final AtomicReference<String> error = new AtomicReference<>();
+
+        private final CountDownLatch finished = new CountDownLatch(1);
+
+        @Nullable
+        private volatile String lastLine;
+
+        void appendOutput(String line) {
+            synchronized (output) {
+                output.append(line).append('\n');
+                // only the tail is returned
+                if (output.length() > 2 * MAX_SCRIPT_OUTPUT_CHARS) {
+                    output.delete(0, output.length() - MAX_SCRIPT_OUTPUT_CHARS);
+                }
+            }
+            if (!line.isBlank()) {
+                lastLine = line.strip();
+            }
+        }
+
+        boolean awaitFinish(int seconds) throws InterruptedException {
+            return finished.await(seconds, TimeUnit.SECONDS);
+        }
+
+        // a run cancelled before it started never finishes, and one starting
+        // at this moment is interrupted and stops before it touches the file
+        void cancel(Future<Void> future) {
+            future.cancel(true);
+            if (!started.get()) {
+                finished.countDown();
+            }
+        }
+
+        @Override
+        public void onRunStarted() {
+            started.set(true);
+        }
+
+        // finishes after the undo frame of the run is pushed,
+        // so that the frame is attributed to the session
+        @Override
+        public void onRunFinished() {
+            finished.countDown();
+        }
+
+        @Override
+        public void onSuccess(ScriptMetadata scriptMetadata) {
+            succeeded.set(true);
+        }
+
+        @Override
+        public void onError(ScriptMetadata scriptMetadata, Exception e, String scriptOutput) {
+            String message = e.getMessage() != null ? e.getMessage() : e.toString();
+            error.compareAndSet(null, "Script failed: " + message);
+        }
+
+        @Override
+        public boolean confirmReinstallDependencies(String moduleName) {
+            return true;
+        }
     }
 }

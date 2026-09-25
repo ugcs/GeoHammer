@@ -12,6 +12,7 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.status.Status;
 import jakarta.annotation.PostConstruct;
@@ -28,6 +29,7 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -202,14 +204,17 @@ public class McpServer {
             sendError(exchange, null, -32600, "Batch requests are not supported");
             return;
         }
+        String method = message.path("method").asText(Strings.empty());
+        JsonNode params = message.path("params");
         JsonNode id = message.get("id");
         if (id == null || id.isNull()) {
             // notification, no response required
+            if ("notifications/cancelled".equals(method)) {
+                cancelCall(exchange, params);
+            }
             exchange.sendResponseHeaders(202, -1);
             return;
         }
-        String method = message.path("method").asText(Strings.empty());
-        JsonNode params = message.path("params");
         switch (method) {
             case "initialize" -> {
                 McpSession session = createSession();
@@ -226,11 +231,56 @@ public class McpServer {
                 result.set("tools", tools.listTools());
                 sendResult(exchange, id, result);
             }
-            case "tools/call" -> {
-                McpSession session = getSession(exchange.getRequestHeaders().getFirst(SESSION_ID_HEADER));
-                sendResult(exchange, id, tools.callTool(session, params));
-            }
+            case "tools/call" -> callTool(exchange, id, params);
             default -> sendError(exchange, id, -32601, "Method not found: " + method);
+        }
+    }
+
+    private void callTool(HttpExchange exchange, JsonNode id, JsonNode params) throws IOException {
+        McpSession session = getSession(exchange.getRequestHeaders().getFirst(SESSION_ID_HEADER));
+        ToolCallResponse response = new ToolCallResponse(exchange, id);
+        JsonNode progressToken = getProgressToken(exchange, params);
+        McpCall.ProgressListener progressListener = progressToken != null
+                ? (progress, message) -> response.sendProgress(progressToken, progress, message)
+                : null;
+        McpCall call = new McpCall(progressListener);
+        String requestId = id.toString();
+        session.startCall(requestId, call);
+        ObjectNode result;
+        try {
+            result = tools.callTool(session, params, call);
+        } finally {
+            session.finishCall(requestId);
+        }
+        if (call.isCancelled()) {
+            response.sendCancelled();
+        } else {
+            response.sendResult(result);
+        }
+    }
+
+    // progress notifications are sent in an event stream,
+    // so only to a client that asked for them and accepts the stream
+    private static @Nullable JsonNode getProgressToken(HttpExchange exchange, JsonNode params) {
+        JsonNode token = params.path("_meta").path("progressToken");
+        if (!token.isTextual() && !token.isIntegralNumber()) {
+            return null;
+        }
+        // the accepted types may come in one header or in several
+        for (String accept : Nulls.toEmpty(exchange.getRequestHeaders().get("Accept"))) {
+            if (accept.contains("text/event-stream")) {
+                return token;
+            }
+        }
+        return null;
+    }
+
+    private void cancelCall(HttpExchange exchange, JsonNode params) {
+        String sessionId = exchange.getRequestHeaders().getFirst(SESSION_ID_HEADER);
+        McpSession session = sessionId != null ? sessions.get(sessionId) : null;
+        JsonNode requestId = params.get("requestId");
+        if (session != null && requestId != null) {
+            session.cancelCall(requestId.toString());
         }
     }
 
@@ -296,12 +346,16 @@ public class McpServer {
         return result;
     }
 
-    private void sendResult(HttpExchange exchange, JsonNode id, ObjectNode result) throws IOException {
+    private ObjectNode response(JsonNode id, ObjectNode result) {
         ObjectNode response = mapper.createObjectNode();
         response.put("jsonrpc", "2.0");
         response.set("id", id);
         response.set("result", result);
-        sendJson(exchange, response);
+        return response;
+    }
+
+    private void sendResult(HttpExchange exchange, JsonNode id, ObjectNode result) throws IOException {
+        sendJson(exchange, response(id, result));
     }
 
     private void sendError(HttpExchange exchange, @Nullable JsonNode id, int code, String message)
@@ -350,6 +404,62 @@ public class McpServer {
                 session.untrack(file);
                 session.removeStaleUndoFrames(undoModel);
             }
+        }
+    }
+
+    // a tools/call response: plain JSON, unless the tool reports progress, which turns
+    // the response into an event stream of progress notifications ended by the result
+    private final class ToolCallResponse {
+
+        private final HttpExchange exchange;
+
+        private final JsonNode id;
+
+        @Nullable
+        private OutputStream events;
+
+        ToolCallResponse(HttpExchange exchange, JsonNode id) {
+            this.exchange = exchange;
+            this.id = id;
+        }
+
+        synchronized void sendProgress(JsonNode progressToken, double progress, String message)
+                throws IOException {
+            ObjectNode notification = mapper.createObjectNode();
+            notification.put("jsonrpc", "2.0");
+            notification.put("method", "notifications/progress");
+            ObjectNode params = notification.putObject("params");
+            params.set("progressToken", progressToken);
+            params.put("progress", progress);
+            params.put("message", message);
+            sendEvent(notification);
+        }
+
+        synchronized void sendResult(ObjectNode result) throws IOException {
+            if (events == null) {
+                McpServer.this.sendResult(exchange, id, result);
+            } else {
+                sendEvent(response(id, result));
+            }
+        }
+
+        // a cancelled request gets no response
+        synchronized void sendCancelled() throws IOException {
+            if (events == null) {
+                exchange.sendResponseHeaders(202, -1);
+            }
+        }
+
+        private void sendEvent(JsonNode message) throws IOException {
+            if (events == null) {
+                exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+                exchange.getResponseHeaders().set("Cache-Control", "no-cache");
+                exchange.sendResponseHeaders(200, 0);
+                events = exchange.getResponseBody();
+            }
+            String event = "event: message\ndata: " + mapper.writeValueAsString(message) + "\n\n";
+            events.write(event.getBytes(StandardCharsets.UTF_8));
+            events.flush();
         }
     }
 

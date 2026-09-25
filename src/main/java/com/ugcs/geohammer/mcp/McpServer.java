@@ -15,7 +15,6 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.status.Status;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -132,7 +131,8 @@ public class McpServer {
         return startFailure;
     }
 
-    @PostConstruct
+    // started by the application once the stage is shown: tool calls work on the UI,
+    // and on macOS they may initialize AWT, which deadlocks while the stage is being built
     public synchronized void startIfEnabled() {
         if (isEnabled()) {
             start();

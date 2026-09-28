@@ -9,6 +9,7 @@ import com.ugcs.geohammer.geotagger.domain.Position;
 import com.ugcs.geohammer.geotagger.domain.SplineStencil;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.Semantic;
+import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.util.Nulls;
 import javafx.application.Platform;
 import org.jspecify.annotations.Nullable;
@@ -29,8 +30,11 @@ public class Geotagger {
 
 	private final Model model;
 
-	public Geotagger(Model model) {
+	private final UndoModel undoModel;
+
+	public Geotagger(Model model, UndoModel undoModel) {
 		this.model = model;
+		this.undoModel = undoModel;
 	}
 
     private boolean isOpenedInGeohammer(SgyFile file) {
@@ -68,12 +72,22 @@ public class Geotagger {
 				.sum();
 		Progress progress = new Progress(totalValues, onProgress);
 		for (SgyFile dataFile : dataFiles) {
-			if (dataFile instanceof CsvFile csvFile) {
-                interpolateAndUpdatePositions(csvFile, positions, progress);
-            } else if (dataFile instanceof TraceFile traceFile) {
-                interpolateAndUpdatePositions(traceFile, positions, progress);
-            }
-            if (isOpenedInGeohammer(dataFile)) {
+			boolean isOpened = isOpenedInGeohammer(dataFile);
+			if (isOpened) {
+				undoModel.removeSnapshots(dataFile);
+			}
+			try {
+				if (dataFile instanceof CsvFile csvFile) {
+					interpolateAndUpdatePositions(csvFile, positions, progress);
+				} else if (dataFile instanceof TraceFile traceFile) {
+					interpolateAndUpdatePositions(traceFile, positions, progress);
+				}
+			} finally {
+				if (isOpened) {
+					dataFile.setUnsaved(true);
+				}
+			}
+            if (isOpened) {
                 reload(dataFile);
             } else {
                 save(dataFile);
@@ -156,7 +170,6 @@ public class Geotagger {
 	}
 
 	private void reload(SgyFile sgyFile) {
-        sgyFile.setUnsaved(true);
         Platform.runLater(() -> model.reload(sgyFile));
 	}
 }

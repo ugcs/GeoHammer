@@ -59,7 +59,7 @@ import com.ugcs.geohammer.model.Model;
 public final class GridLayer extends BaseLayer {
 
     // light source direction in radians, counterclockwise from West
-    private static final double HILLSHADING_AZIMUTH = Math.toRadians(180.0);
+    private static final double HILLSHADING_AZIMUTH = Math.toRadians(315.0);
 
     // light source height in radians (0 - PI/2, 0 = horizon, PI/2 = zenith)
     private static final double HILLSHADING_ALTITUDE = Math.toRadians(45.0);

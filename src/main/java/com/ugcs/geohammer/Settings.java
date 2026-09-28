@@ -99,7 +99,11 @@ public class Settings {
 
     public @Nullable Integer getInt(String group, String name) {
         String value = getString(group, name);
-        return !Strings.isNullOrEmpty(value) ? Integer.parseInt(value) : null;
+        try {
+            return !Strings.isNullOrEmpty(value) ? Integer.parseInt(value) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public int getIntOrDefault(String group, String name, int defaultValue) {
@@ -109,7 +113,11 @@ public class Settings {
 
     public @Nullable Double getDouble(String group, String name) {
         String value = getString(group, name);
-        return !Strings.isNullOrEmpty(value) ? JavaDoubleParser.parseDouble(value) : null;
+        try {
+            return !Strings.isNullOrEmpty(value) ? JavaDoubleParser.parseDouble(value) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public double getDoubleOrDefault(String group, String name, double defaultValue) {

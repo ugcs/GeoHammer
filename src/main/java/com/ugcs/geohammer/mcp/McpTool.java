@@ -248,12 +248,6 @@ public abstract class McpTool {
         return false;
     }
 
-    // whether the tool sets the versions of the modified files itself,
-    // otherwise new versions are assigned after the call
-    protected boolean restoresVersions() {
-        return false;
-    }
-
     protected static String fileType(SgyFile file) {
         return switch (file) {
             // trace files first: GprFile and DztFile both extend TraceFile

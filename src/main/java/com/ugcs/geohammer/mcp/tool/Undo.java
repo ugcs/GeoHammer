@@ -50,13 +50,6 @@ public class Undo extends McpTool {
         return true;
     }
 
-    // file snapshots restore the versions of the files
-    @Override
-    protected boolean restoresVersions() {
-        return true;
-    }
-
-    // a rejected undo throws, so that the versions of the files stay unchanged
     @Override
     public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         UndoFrame frame = session.peekUndoFrame(undoModel);

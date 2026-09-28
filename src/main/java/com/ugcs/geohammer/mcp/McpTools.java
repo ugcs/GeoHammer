@@ -193,10 +193,9 @@ public class McpTools {
         if (write) {
             captureUndoFrame(session, lastFrame, files);
         }
+        // modifications update file versions themselves: setUnsaved(true) assigns
+        // a new version, undo restores the version of a snapshot
         for (SgyFile file : files) {
-            if (write && !tool.restoresVersions()) {
-                file.updateVersion();
-            }
             session.trackRead(file);
         }
         return result;

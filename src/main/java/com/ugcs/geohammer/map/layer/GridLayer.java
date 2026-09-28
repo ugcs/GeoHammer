@@ -58,11 +58,16 @@ import com.ugcs.geohammer.model.Model;
 @Component
 public final class GridLayer extends BaseLayer {
 
-    private static final double HILLSHADING_AZIMUTH = 180.0;
+    // light source direction in radians, counterclockwise from West
+    private static final double HILLSHADING_AZIMUTH = Math.toRadians(180.0);
 
-    private static final double HILLSHADING_ALTITUDE = 45.0;
+    // light source height in radians (0 - PI/2, 0 = horizon, PI/2 = zenith)
+    private static final double HILLSHADING_ALTITUDE = Math.toRadians(45.0);
 
+    // intensity of the hill-shading effect (0.0 - 1.0)
     private static final double HILLSHADING_INTENSITY = 0.5;
+
+    private static final double HILLSHADING_MEAN_SLOPE = Math.toRadians(60.0);
 
     private static final Logger log = LoggerFactory.getLogger(GridLayer.class);
 
@@ -226,15 +231,13 @@ public final class GridLayer extends BaseLayer {
                                 grid.values,
                                 i,
                                 j,
-                                HILLSHADING_AZIMUTH,
-                                HILLSHADING_ALTITUDE
+                                grid.zFactor
                         );
 
                         // Apply hill-shading to the color
                         color = applyHillShading(
                                 color,
-                                illumination,
-                                HILLSHADING_INTENSITY
+                                illumination
                         );
                     }
 
@@ -250,17 +253,41 @@ public final class GridLayer extends BaseLayer {
         }
     }
 
+    private static double getZFactor(float[][] grid, double meanSlope) {
+        int width = grid.length;
+        int height = width > 0 ? grid[0].length : 0;
+        // geometric mean, unlike arithmetic, is not dominated by steep anomalies
+        double logSum = 0;
+        int n = 0;
+        for (int x = 1; x < width - 1; x++) {
+            for (int y = 1; y < height - 1; y++) {
+                double dzdx = (grid[x + 1][y] - grid[x - 1][y]) / 2.0;
+                double dzdy = (grid[x][y + 1] - grid[x][y - 1]) / 2.0;
+                double gradient = Math.sqrt(dzdx * dzdx + dzdy * dzdy);
+                // skips flat cells and NaN neighborhoods
+                if (gradient > 0) {
+                    logSum += Math.log(gradient);
+                    n++;
+                }
+            }
+        }
+        if (n == 0) {
+            return 1.0;
+        }
+        double meanGradient = Math.exp(logSum / n);
+        return Math.tan(meanSlope) / meanGradient;
+    }
+
     /**
      * Calculates hill-shading illumination value for a given point in the grid.
      *
      * @param gridData The grid data
      * @param x        X coordinate in the grid
      * @param y        Y coordinate in the grid
-     * @param azimuth  Light source direction in degrees (0-360, 0=North, 90=East)
-     * @param altitude Light source height in degrees (0-90, 0=horizon, 90=zenith)
+     * @param zFactor  Vertical scale applied to the grid values before the slope calculation
      * @return Illumination value between 0.0 (dark) and 1.0 (bright)
      */
-    private static double calculateHillShading(float[][] gridData, int x, int y, double azimuth, double altitude) {
+    private static double calculateHillShading(float[][] gridData, int x, int y, double zFactor) {
         // Skip edge cells
         if (x <= 0 || y <= 0 || x >= gridData.length - 1 || y >= gridData[0].length - 1) {
             return 1.0; // Default illumination for edges
@@ -273,23 +300,17 @@ public final class GridLayer extends BaseLayer {
         }
 
         // Calculate slope components using central difference method
-        double dzdx = (gridData[x + 1][y] - gridData[x - 1][y]) / 2.0;
-        double dzdy = (gridData[x][y + 1] - gridData[x][y - 1]) / 2.0;
+        double dzdx = zFactor * (gridData[x + 1][y] - gridData[x - 1][y]) / 2.0;
+        double dzdy = zFactor * (gridData[x][y + 1] - gridData[x][y - 1]) / 2.0;
 
         // Calculate slope and aspect
         double slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
         double aspect = Math.atan2(dzdy, dzdx);
 
-        // Convert azimuth to radians and adjust to match aspect definition
-        double azimuthRad = Math.toRadians(azimuth);
-
-        // Convert altitude to radians
-        double altitudeRad = Math.toRadians(altitude);
-
         // Calculate illumination using the hillshade formula
-        double illumination = Math.cos(slope) * Math.sin(altitudeRad) +
-                Math.sin(slope) * Math.cos(altitudeRad) *
-                        Math.cos(azimuthRad - aspect);
+        double illumination = Math.cos(slope) * Math.sin(HILLSHADING_ALTITUDE) +
+                Math.sin(slope) * Math.cos(HILLSHADING_ALTITUDE) *
+                        Math.cos(HILLSHADING_AZIMUTH - aspect);
 
         // Normalize illumination to [0, 1] range
         illumination = Math.max(0.0, illumination);
@@ -302,12 +323,11 @@ public final class GridLayer extends BaseLayer {
      *
      * @param baseColor    The original color
      * @param illumination Illumination value between 0.0 (dark) and 1.0 (bright)
-     * @param intensity    Intensity of the hill-shading effect (0.0-1.0)
      * @return The shaded color
      */
-    private static Color applyHillShading(Color baseColor, double illumination, double intensity) {
+    private static Color applyHillShading(Color baseColor, double illumination) {
         // Blend between original color and shaded color based on intensity
-        float shadeFactor = (float) (1.0 - (1.0 - illumination) * intensity);
+        float shadeFactor = (float) (1.0 - (1.0 - illumination) * HILLSHADING_INTENSITY);
 
         // Convert int RGB values (0-255) to float (0.0-1.0), apply shading, and clamp to valid range
         float r = Math.max(0.0f, Math.min(1.0f, (baseColor.getRed() / 255.0f) * shadeFactor));
@@ -356,6 +376,7 @@ public final class GridLayer extends BaseLayer {
             float[][] values;
             float[] sortedValues;
             Range range;
+            double zFactor;
             boolean updateValues = ignoreCached || shouldUpdateValues(grid, filter);
 
             if (updateValues) {
@@ -375,9 +396,11 @@ public final class GridLayer extends BaseLayer {
                 range = filter.analyticSignal()
                         ? AnalyticSignal.getRange(sortedValues, 0.02)
                         : filter.range();
+                zFactor = getZFactor(values, HILLSHADING_MEAN_SLOPE);
             } else {
                 values = grid.values();
                 sortedValues = grid.sortedValues();
+                zFactor = grid.zFactor();
                 if (filter.analyticSignal()) {
                     range = grid.range();
                 } else {
@@ -406,6 +429,7 @@ public final class GridLayer extends BaseLayer {
                     result.maxLatLon(),
                     range,
                     palette,
+                    zFactor,
                     filter
             );
             gridCache.put(file, grid);
@@ -509,6 +533,7 @@ public final class GridLayer extends BaseLayer {
             LatLon maxLatLon,
             Range range,
             Palette palette,
+            double zFactor,
             GriddingFilter filter
     ) {
     }

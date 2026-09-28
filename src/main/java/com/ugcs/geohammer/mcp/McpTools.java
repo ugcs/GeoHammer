@@ -52,6 +52,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.TraceTransform;
+import com.ugcs.geohammer.service.gridding.GriddingSettings;
 import com.ugcs.geohammer.service.gridding.GriddingService;
 import com.ugcs.geohammer.service.script.PythonInterpreter;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
@@ -87,7 +88,7 @@ public class McpTools {
     private final ObjectMapper mapper = new ObjectMapper();
 
     public McpTools(Model model, Loader loader, UndoModel undoModel, TraceTransform traceTransform,
-                    GriddingService griddingService, GridLayer gridLayer,
+                    GriddingService griddingService, GriddingSettings griddingSettings, GridLayer gridLayer,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
                     ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter,
                     EventSender eventSender, EventsFactory eventsFactory) {
@@ -105,7 +106,7 @@ public class McpTools {
         register(new SelectSeries(model));
         register(new CreateSeries(model, undoModel));
         register(new ApplyFilter(model));
-        register(new RunGridding(model, griddingService, gridLayer));
+        register(new RunGridding(model, griddingService, gridLayer, griddingSettings));
         register(new ListLines(model));
         register(new SplitLine(model, traceTransform));
         register(new MergeLines(model, traceTransform));

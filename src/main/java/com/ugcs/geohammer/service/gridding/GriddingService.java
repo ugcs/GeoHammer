@@ -24,7 +24,7 @@ public class GriddingService {
     }
 
     public GriddingResult runGridding(Collection<SgyFile> files, String seriesName, GriddingParams params) {
-        var startFiltering = System.currentTimeMillis();
+        long startFiltering = System.currentTimeMillis();
 
         List<DataPoint> dataPoints = new ArrayList<>();
         for (SgyFile file : files) {
@@ -39,11 +39,11 @@ public class GriddingService {
         double minLat = dataPoints.stream().mapToDouble(DataPoint::latitude).min().orElseThrow();
         double maxLat = dataPoints.stream().mapToDouble(DataPoint::latitude).max().orElseThrow();
 
-        var minLatLon = new LatLon(minLat, minLon);
-        var maxLatLon = new LatLon(maxLat, maxLon);
+        LatLon minLatLon = new LatLon(minLat, minLon);
+        LatLon maxLatLon = new LatLon(maxLat, maxLon);
 
         List<Double> valuesList = new ArrayList<>(dataPoints.stream().map(p -> p.value()).toList());
-        var median = calculateMedian(valuesList);
+        float median = (float) calculateMedian(valuesList);
 
         double width = Math.max(
                 new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
@@ -61,7 +61,7 @@ public class GriddingService {
         double lonStep = (maxLon - minLon) / gridWidth;
         double latStep = (maxLat - minLat) / gridHeight;
 
-        var grid = new float[gridWidth][gridHeight];
+        float[][] grid = new float[gridWidth][gridHeight];
 
         boolean[][] m = new boolean[gridWidth][gridHeight];
         for (int i = 0; i < gridWidth; i++) {
@@ -82,14 +82,13 @@ public class GriddingService {
         }
 
         int blankingRadius = (int) (params.blankingDistance() / params.cellSize());
-        var visiblePoints = new boolean[gridWidth][gridHeight];
+        boolean[][] visiblePoints = new boolean[gridWidth][gridHeight];
 
         for (Map.Entry<CellIndex, List<Double>> entry : points.entrySet()) {
             CellIndex cellIndex = entry.getKey();
             int xIndex = cellIndex.x();
             int yIndex = cellIndex.y();
-            double medianValue = calculateMedian(entry.getValue());
-            grid[xIndex][yIndex] = (float) medianValue;
+            grid[xIndex][yIndex] = (float) calculateMedian(entry.getValue());
             m[xIndex][yIndex] = false;
 
             for (int dx = -blankingRadius; dx <= blankingRadius; dx++) {
@@ -109,10 +108,9 @@ public class GriddingService {
         for (int i = 0; i < grid.length; i++) {
             for (int j = 0; j < grid[0].length; j++) {
                 if (!m[i][j]) {
+                    grid[i][j] -= median;
                     continue;
                 }
-
-                grid[i][j] = (float) median;
 
                 if (!visiblePoints[i][j]) {
                     m[i][j] = false;
@@ -130,14 +128,14 @@ public class GriddingService {
         }
 
         log.info("Splines interpolation");
-        var start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
         // Use original splines interpolation
-        var gridder = new SplinesGridder2();
-        var maxIterations = 100;
-        var tension = 0f;
+        SplinesGridder2 gridder = new SplinesGridder2();
+        int maxIterations = 100;
+        float tension = 0f;
 
         gridder.setMaxIterations(maxIterations); // 200 if the anomaly
-        gridder.setTension(tension); //0.9999999f); - maximum
+        gridder.setTension(tension); // 0.9999999f - maximum
         gridder.gridMissing(m, grid);
 
         if (Thread.currentThread().isInterrupted()) {
@@ -168,6 +166,8 @@ public class GriddingService {
             for (int j = 0; j < grid[0].length; j++) {
                 if (!visiblePoints[i][j]) {
                     grid[i][j] = Float.NaN;
+                } else {
+                    grid[i][j] += median;
                 }
             }
         }

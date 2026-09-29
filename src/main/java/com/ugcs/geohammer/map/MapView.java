@@ -123,7 +123,7 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	private final BorderPane root = new BorderPane();
 
-	@Nullable private DistanceLabelPane distanceLabelPane;
+	@Nullable private RulerMeasurementView rulerMeasurementView;
 
 	private RepaintListener listener = this::updateUI;
 
@@ -218,7 +218,7 @@ public class MapView implements InitializingBean, DisposableBean {
 		traceCutter.setListener(listener);
 		layers.add(traceCutter);
 
-		mapRuler.setRepaintCallback(() -> listener.repaint());
+		mapRuler.setRepaintCallback(this::onRulerChanged);
 		layers.add(mapRuler);
 
 		setLayerSizes();
@@ -345,8 +345,8 @@ public class MapView implements InitializingBean, DisposableBean {
 
 		Pane mainPane = createMainPane();
 
-		distanceLabelPane = new DistanceLabelPane(mapRuler, this::updateUI, this::updateDistanceLabelPaneVisibility);
-		updateDistanceLabelPaneVisibility();
+		rulerMeasurementView = new RulerMeasurementView(mapRuler);
+		updateRulerMeasurementViewVisibility();
 
 		initZoomControls(mainPane);
 
@@ -416,9 +416,17 @@ public class MapView implements InitializingBean, DisposableBean {
 		pane.getChildren().add(zoomControlsView.getNode());
 	}
 
-	private void updateDistanceLabelPaneVisibility() {
+	private void onRulerChanged() {
+		updateUI();
+		if (rulerMeasurementView != null) {
+			rulerMeasurementView.update();
+		}
+		updateRulerMeasurementViewVisibility();
+	}
+
+	private void updateRulerMeasurementViewVisibility() {
 		if (mapRuler.isVisible()) {
-			root.setBottom(distanceLabelPane);
+			root.setBottom(rulerMeasurementView);
 		} else {
 			root.setBottom(null);
 		}

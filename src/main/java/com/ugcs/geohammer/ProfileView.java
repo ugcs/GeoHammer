@@ -246,15 +246,6 @@ public class ProfileView implements InitializingBean {
 		return center;
 	}
 
-	public List<Node> getRight(TraceFile file) {
-		GPRChart gprChart = model.getGprChart(file);
-		if (gprChart == null) {
-			return List.of();
-		}
-		var contrastNode = gprChart.getContrastSlider();
-		return List.of(contrastNode);
-	}
-
 	@EventListener
 	private void somethingChanged(WhatChanged changed) {
 		if ((changed.isJustdraw() || changed.isTraceCut()) && currentFile instanceof TraceFile traceFile) {

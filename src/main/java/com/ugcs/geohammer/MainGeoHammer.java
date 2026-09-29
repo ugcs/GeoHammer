@@ -120,6 +120,7 @@ public class MainGeoHammer extends Application {
 			"There are no templates for the csv files loaded, so you could not open any csv");
 		}
 
+		mcpServer.startIfEnabled();
 		McpServer.StartFailure mcpStartFailure = mcpServer.getStartFailure();
 		if (mcpStartFailure != null) {
 			Dialogs.showWarning("MCP server was not started", mcpStartFailure.getMessage());

@@ -52,6 +52,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.TraceTransform;
+import com.ugcs.geohammer.service.gridding.GriddingSettings;
 import com.ugcs.geohammer.service.gridding.GriddingService;
 import com.ugcs.geohammer.service.script.PythonInterpreter;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
@@ -87,7 +88,7 @@ public class McpTools {
     private final ObjectMapper mapper = new ObjectMapper();
 
     public McpTools(Model model, Loader loader, UndoModel undoModel, TraceTransform traceTransform,
-                    GriddingService griddingService, GridLayer gridLayer,
+                    GriddingService griddingService, GriddingSettings griddingSettings, GridLayer gridLayer,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
                     ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter,
                     EventSender eventSender, EventsFactory eventsFactory) {
@@ -105,7 +106,7 @@ public class McpTools {
         register(new SelectSeries(model));
         register(new CreateSeries(model, undoModel));
         register(new ApplyFilter(model));
-        register(new RunGridding(model, griddingService, gridLayer));
+        register(new RunGridding(model, griddingService, gridLayer, griddingSettings));
         register(new ListLines(model));
         register(new SplitLine(model, traceTransform));
         register(new MergeLines(model, traceTransform));
@@ -154,7 +155,7 @@ public class McpTools {
         return list;
     }
 
-    public ObjectNode callTool(McpSession session, JsonNode params) {
+    public ObjectNode callTool(McpSession session, JsonNode params, McpCall call) {
         String name = params.path("name").asText(Strings.empty());
         JsonNode args = params.path("arguments");
         McpTool tool = tools.get(name);
@@ -163,18 +164,22 @@ public class McpTools {
         }
         try {
             List<SgyFile> files = tool.getFilesToLock(session, args);
-            return SgyFile.withLock(files, () -> invoke(tool, session, args, files));
+            return SgyFile.withLock(files, () -> invoke(tool, session, args, files, call));
         } catch (IllegalArgumentException | FileLockedException | FileModifiedException e) {
             return toolResult(resolveReferences(name, message(e)), true);
         } catch (Exception e) {
-            log.error("MCP tool call failed: " + name, e);
+            // nobody waits for the result of a cancelled call
+            if (!call.isCancelled()) {
+                log.error("MCP tool call failed: " + name, e);
+            }
             return toolResult(resolveReferences(name, message(e)), true);
         }
     }
 
     // optimistic check of the locked files: a write is rejected if a file
     // was modified since the session last read it
-    private ObjectNode invoke(McpTool tool, McpSession session, JsonNode args, List<SgyFile> files) throws Exception {
+    private ObjectNode invoke(McpTool tool, McpSession session, JsonNode args, List<SgyFile> files,
+                              McpCall call) throws Exception {
         boolean write = tool.modifiesFiles();
         if (write) {
             for (SgyFile file : files) {
@@ -183,15 +188,14 @@ public class McpTools {
         }
         UndoFrame lastFrame = undoModel.peek();
 
-        ObjectNode result = tool.invoke(session, args);
+        ObjectNode result = tool.invoke(session, args, call);
 
         if (write) {
             captureUndoFrame(session, lastFrame, files);
         }
+        // modifications update file versions themselves: setUnsaved(true) assigns
+        // a new version, undo restores the version of a snapshot
         for (SgyFile file : files) {
-            if (write && !tool.restoresVersions()) {
-                file.updateVersion();
-            }
             session.trackRead(file);
         }
         return result;

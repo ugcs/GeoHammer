@@ -11,6 +11,8 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class McpSession {
 
@@ -25,6 +27,9 @@ public class McpSession {
     // undo frames of the modifications made by the session, latest last
     private final Deque<UndoFrame> undoFrames = new ArrayDeque<>();
 
+    // tools/call requests in progress by request id
+    private final Map<String, McpCall> calls = new ConcurrentHashMap<>();
+
     public McpSession(String id, Instant now) {
         this.id = Check.notNull(id);
         this.lastActive = Check.notNull(now);
@@ -38,8 +43,26 @@ public class McpSession {
         lastActive = now;
     }
 
+    // a session is never idle while its calls run, however long they take
     public boolean isIdle(Instant now, Duration timeout) {
-        return Duration.between(lastActive, now).compareTo(timeout) > 0;
+        return calls.isEmpty() && Duration.between(lastActive, now).compareTo(timeout) > 0;
+    }
+
+    public void startCall(String requestId, McpCall call) {
+        calls.put(requestId, call);
+    }
+
+    public void finishCall(String requestId) {
+        calls.remove(requestId);
+        touch(Instant.now());
+    }
+
+    // a request that is unknown or already finished is ignored
+    public void cancelCall(String requestId) {
+        McpCall call = calls.get(requestId);
+        if (call != null) {
+            call.cancel();
+        }
     }
 
     public synchronized void trackRead(SgyFile file) {

@@ -34,10 +34,10 @@ public abstract class SgyFile {
 
 	private volatile long version = lastVersion.incrementAndGet();
 
+	private volatile long savedVersion;
+
 	@Nullable
 	private File file;
-
-	private boolean unsaved = true;
 
 	private List<BaseObject> auxElements = new ArrayList<>();
 
@@ -170,11 +170,15 @@ public abstract class SgyFile {
 	}
 
 	public boolean isUnsaved() {
-		return unsaved;
+		return version != savedVersion;
 	}
 
 	public void setUnsaved(boolean unsaved) {
-		this.unsaved = unsaved;
+		if (unsaved) {
+			updateVersion();
+		} else {
+			savedVersion = version;
+		}
 	}
 
 	public List<BaseObject> getAuxElements() {

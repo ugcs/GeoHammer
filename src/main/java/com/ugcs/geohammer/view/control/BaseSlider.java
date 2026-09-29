@@ -1,8 +1,6 @@
 package com.ugcs.geohammer.view.control;
 
 import com.ugcs.geohammer.model.Range;
-import com.ugcs.geohammer.util.Text;
-import com.ugcs.geohammer.util.Ticks;
 import com.ugcs.geohammer.util.Unit;
 import com.ugcs.geohammer.view.Listeners;
 import com.ugcs.geohammer.view.Views;
@@ -71,7 +69,7 @@ public abstract class BaseSlider extends HBox {
             String valueString = unit != null
                     ? unit.format(value, format::format)
                     : value.toString();
-            label.setText(name + ":\n" + valueString);
+            label.setText(name + "\n" + valueString);
         }
     }
 

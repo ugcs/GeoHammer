@@ -2,6 +2,7 @@ package com.ugcs.geohammer.format.meta;
 
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.service.palette.SpectrumType;
 import com.ugcs.geohammer.util.Check;
 import org.jspecify.annotations.Nullable;
 
@@ -14,7 +15,11 @@ public class Meta {
 
     private @Nullable IndexRange sampleRange;
 
+    private @Nullable SpectrumType colorScale;
+
 	private @Nullable Double contrast;
+
+    private @Nullable Double maxGain;
 
 	private @Nullable Boolean backgroundRemoved;
 
@@ -83,12 +88,28 @@ public class Meta {
         this.sampleRange = sampleRange;
     }
 
+    public @Nullable SpectrumType getColorScale() {
+        return colorScale;
+    }
+
+    public void setColorScale(@Nullable SpectrumType colorScale) {
+        this.colorScale = colorScale;
+    }
+
     public @Nullable Double getContrast() {
         return contrast;
     }
 
     public void setContrast(@Nullable Double contrast) {
         this.contrast = contrast;
+    }
+
+    public @Nullable Double getMaxGain() {
+        return maxGain;
+    }
+
+    public void setMaxGain(@Nullable Double maxGain) {
+        this.maxGain = maxGain;
     }
 
     public @Nullable Boolean getBackgroundRemoved() {

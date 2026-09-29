@@ -4,9 +4,9 @@ import com.ugcs.geohammer.model.Range;
 
 public final class Palettes {
 
-    // gray scale with slightly reduced contrast
-    public static final Spectrum CET_L02
-            = GeosoftTable.loadSpectrum("colormaps/CET-L02.tbl");
+    // gray scale uniform in lightness, black to white
+    public static final Spectrum CET_L01
+            = GeosoftTable.loadSpectrum("colormaps/CET-L01.tbl");
 
     // blue-magenta-yellow highly saturated
     public static final Spectrum CET_L08
@@ -62,7 +62,7 @@ public final class Palettes {
             case VIRIDIS -> VIRIDIS;
             case MAGMA -> MAGMA;
             case ISOLUMINANT -> CET_I2;
-            case GRAYSCALE -> CET_L02;
+            case GRAYSCALE -> CET_L01;
         };
     }
 

@@ -1,6 +1,5 @@
 package com.ugcs.geohammer.chart.tool;
 
-import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
@@ -17,6 +16,7 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TaskService;
 import com.ugcs.geohammer.service.gridding.GriddingFilter;
 import com.ugcs.geohammer.service.gridding.GriddingParams;
+import com.ugcs.geohammer.service.gridding.GriddingSettings;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
 import com.ugcs.geohammer.service.gridding.GriddingService;
 import com.ugcs.geohammer.service.palette.PaletteType;
@@ -65,8 +65,6 @@ public class GriddingTool extends FilterToolView {
 
     private final Model model;
 
-    private final Settings settings;
-
     private final GridLayer gridLayer;
 
     private final GriddingService griddingService;
@@ -75,11 +73,11 @@ public class GriddingTool extends FilterToolView {
 
     private final PaletteView paletteView;
 
-    // shows that input events from the filter
-    // controls should be ignored;
-    // alternative to this flag is disabling listeners
-    // during the preference loading stage which makes
-    // code messier
+    private final GriddingSettings griddingSettings;
+
+    // shows that input events from the filter controls should be ignored;
+    // alternative to this flag is disabling listeners during the preference
+    // loading stage which makes code messier
     private final AtomicBoolean ignoreFilterEvents = new AtomicBoolean(false);
 
     // view
@@ -104,20 +102,20 @@ public class GriddingTool extends FilterToolView {
 
     public GriddingTool(
             Model model,
-            Settings settings,
             GridLayer gridLayer,
             PaletteView paletteView,
             GriddingService griddingService,
+            GriddingSettings griddingSettings,
             TaskService taskService,
             ExecutorService executor
     ) {
         super(executor);
 
         this.model = model;
-        this.settings = settings;
         this.gridLayer = gridLayer;
         this.paletteView = paletteView;
         this.griddingService = griddingService;
+        this.griddingSettings = griddingSettings;
         this.taskService = taskService;
 
         warning = new Label("Warning: Grid needs to be recalculated.");
@@ -415,11 +413,11 @@ public class GriddingTool extends FilterToolView {
 
     private @Nullable Range getSelectedSeriesRange() {
         SgyFile file = selectedFile;
-        if (file == null) {
-            return null;
-        }
-        String seriesName = model.getSelectedSeriesName(file);
-        if (Strings.isNullOrEmpty(seriesName)) {
+        return getSeriesRange(file, model.getSelectedSeriesName(file));
+    }
+
+    private @Nullable Range getSeriesRange(SgyFile file, String seriesName) {
+        if (file == null || Strings.isNullOrEmpty(seriesName)) {
             return null;
         }
 
@@ -475,6 +473,10 @@ public class GriddingTool extends FilterToolView {
     }
 
     private void updateRangeSlider(Range range) {
+        if (range == null) {
+            return;
+        }
+
         rangeSlider.setMin(range.getMin());
         rangeSlider.setMax(range.getMax());
 
@@ -544,94 +546,74 @@ public class GriddingTool extends FilterToolView {
 
     @Override
     public void loadPreferences() {
+        SgyFile file = selectedFile;
+        String seriesName = model.getSelectedSeriesName(file);
+
+        GriddingParams params = loadParams(file);
+        updateParamInputs(params);
+
+        GriddingFilter filter = loadFilter(file, seriesName);
+        updateFilterInputs(filter);
+    }
+
+    private GriddingParams loadParams(SgyFile file) {
+        GriddingResult result = gridLayer.getResult(file);
+        GriddingParams params = result != null ? result.params() : null;
+        if (params != null) {
+            return params;
+        }
+        return griddingSettings.loadParams(file);
+    }
+
+    // filter of the grid layer takes precedence over the saved one,
+    // as it can be changed outside of this tool (e.g. over MCP)
+    private GriddingFilter loadFilter(SgyFile file, String seriesName) {
+        GriddingFilter filter = gridLayer.getFilter(file, seriesName);
+        if (filter != null) {
+            return filter;
+        }
+        Range seriesRange = getSeriesRange(file, seriesName);
+        if (seriesRange == null) {
+            // keep current input
+            seriesRange = getFilter().range();
+        }
+        return griddingSettings.loadFilter(file, seriesName, seriesRange);
+    }
+
+    private void updateParamInputs(GriddingParams params) {
+        if (params == null) {
+            return;
+        }
+
+        cellSizeInput.setText(String.valueOf(params.cellSize()));
+        blankingDistanceInput.setText(String.valueOf(params.blankingDistance()));
+    }
+
+    private void updateFilterInputs(GriddingFilter filter) {
+        if (filter == null || Objects.equals(filter, getFilter())) {
+            return;
+        }
+
         ignoreFilterEvents.set(true);
         try {
-            String templateName = Templates.getTemplateName(selectedFile);
-            if (!Strings.isNullOrEmpty(templateName)) {
-                cellSizeInput.setText(settings.getStringOrDefault(
-                        "gridding_cellsize", templateName, Strings.empty()));
-                blankingDistanceInput.setText(settings.getStringOrDefault(
-                        "gridding_blankingdistance", templateName, Strings.empty()));
-                hillShading.setSelected(settings.getBooleanOrDefault(
-                        "gridding_hillshading_enabled", templateName, false));
-                smoothing.setSelected(settings.getBooleanOrDefault(
-                        "gridding_smoothing_enabled", templateName, false));
-                analyticSignal.setSelected(settings.getBooleanOrDefault(
-                        "gridding_analytic_signal_enabled", templateName, false));
-                String paletteName = settings.getStringOrDefault(
-                        "gridding_palette", templateName, Strings.empty());
-                paletteSelector.setValue(PaletteType.findByName(paletteName));
-                String spectrumName = settings.getStringOrDefault(
-                        "gridding_spectrum", templateName, Strings.empty());
-                spectrumSelector.setValue(SpectrumType.findByName(spectrumName));
-            }
-
-            loadRangePreferences();
+            analyticSignal.setSelected(filter.analyticSignal());
+            hillShading.setSelected(filter.hillShading());
+            smoothing.setSelected(filter.smoothing());
+            paletteSelector.setValue(filter.paletteType());
+            spectrumSelector.setValue(filter.spectrumType());
+            updateRangeSlider(filter.range());
         } finally {
             ignoreFilterEvents.set(false);
         }
     }
 
-    private void loadRangePreferences() {
-        String templateName = Templates.getTemplateName(selectedFile);
-        String seriesName = model.getSelectedSeriesName(selectedFile);
-
-        Range range = null;
-        if (!Strings.isNullOrEmpty(templateName) && !Strings.isNullOrEmpty(seriesName)) {
-            // range
-            Double rangeMin = settings.getDouble(
-                    "gridding_range_min", templateName + "." + seriesName);
-            Double rangeMax = settings.getDouble(
-                    "gridding_range_max", templateName + "." + seriesName);
-            if (rangeMin != null && rangeMax != null) {
-                range = new Range(rangeMin, rangeMax);
-            }
-        }
-        // use default series range if no persisted values found
-        if (range == null) {
-            range = getSelectedSeriesRange();
-        }
-        // apply range
-        if (range != null) {
-            updateRangeSlider(range);
-        }
-    }
-
     @Override
     public void savePreferences() {
-        String templateName = Templates.getTemplateName(selectedFile);
-        if (!Strings.isNullOrEmpty(templateName)) {
-            settings.setValue("gridding_cellsize", templateName,
-                    cellSizeInput.getText());
-            settings.setValue("gridding_blankingdistance", templateName,
-                    blankingDistanceInput.getText());
-            settings.setValue("gridding_hillshading_enabled", templateName,
-                    Boolean.toString(hillShading.isSelected()));
-            settings.setValue("gridding_smoothing_enabled", templateName,
-                    Boolean.toString(smoothing.isSelected()));
-            settings.setValue("gridding_analytic_signal_enabled", templateName,
-                    Boolean.toString(analyticSignal.isSelected()));
-            PaletteType paletteType = paletteSelector.getValue();
-            settings.setValue("gridding_palette", templateName,
-                    paletteType != null ? paletteType.name() : Strings.empty());
-            SpectrumType spectrumType = spectrumSelector.getValue();
-            settings.setValue("gridding_spectrum", templateName,
-                    spectrumType != null ? spectrumType.name() : Strings.empty());
-        }
+        SgyFile file = selectedFile;
+        String seriesName = model.getSelectedSeriesName(file);
 
-        saveRangePreferences();
-    }
-
-    private void saveRangePreferences() {
-        String templateName = Templates.getTemplateName(selectedFile);
-        String seriesName = model.getSelectedSeriesName(selectedFile);
-
-        if (!Strings.isNullOrEmpty(templateName) && !Strings.isNullOrEmpty(seriesName)) {
-            settings.setValue("gridding_range_min", templateName + "." + seriesName,
-                    Text.formatNumber(rangeSlider.getLowValue()));
-            settings.setValue("gridding_range_max", templateName + "." + seriesName,
-                    Text.formatNumber(rangeSlider.getHighValue()));
-        }
+        griddingSettings.saveParams(file, getParams());
+        griddingSettings.saveFilter(file, seriesName, getFilter());
     }
 
     @Override
@@ -736,9 +718,11 @@ public class GriddingTool extends FilterToolView {
 
     @EventListener
     private void onSeriesSelected(SeriesSelectedEvent event) {
-        if (Objects.equals(selectedFile, event.getFile())) {
+        SgyFile file = event.getFile();
+        if (Objects.equals(selectedFile, file)) {
             Platform.runLater(() -> {
-                loadRangePreferences();
+                GriddingFilter filter = loadFilter(file, model.getSelectedSeriesName(file));
+                updateFilterInputs(filter);
                 onInputChange();
             });
         }
@@ -753,19 +737,21 @@ public class GriddingTool extends FilterToolView {
 
     @EventListener
     private void onGridUpdated(GridUpdatedEvent event) {
-        // sync param inputs with the actual grid state, so that grids
+        // sync inputs with the actual grid state, so that grids
         // built outside of this tool (e.g. over MCP) are reflected
-        if (event.getGrid() == null || !Objects.equals(event.getFile(), selectedFile)) {
+        SgyFile file = event.getFile();
+        if (event.getGrid() == null || !Objects.equals(file, selectedFile)) {
             return;
         }
-        GriddingResult result = gridLayer.getResult(event.getFile());
-        if (result == null || result.params() == null) {
-            return;
-        }
-        GriddingParams params = result.params();
+        // grid state is read in the FX thread, where filters
+        // published by this tool always match its inputs
         Platform.runLater(() -> {
-            cellSizeInput.setText(String.valueOf(params.cellSize()));
-            blankingDistanceInput.setText(String.valueOf(params.blankingDistance()));
+            if (!Objects.equals(file, selectedFile)) {
+                return;
+            }
+            GriddingResult result = gridLayer.getResult(file);
+            updateParamInputs(result != null ? result.params() : null);
+            updateFilterInputs(gridLayer.getFilter(file, model.getSelectedSeriesName(file)));
         });
     }
 

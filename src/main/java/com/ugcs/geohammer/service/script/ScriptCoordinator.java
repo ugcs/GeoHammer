@@ -58,8 +58,8 @@ public class ScriptCoordinator {
 		this.executor = executor;
 	}
 
-	public void submit(List<SgyFile> sgyFiles, ScriptMetadata metadata, Map<String, String> params,
-	                   Consumer<String> onOutput, ScriptRunListener listener) {
+	public Future<Void> submit(List<SgyFile> sgyFiles, ScriptMetadata metadata, Map<String, String> params,
+	                           Consumer<String> onOutput, ScriptRunListener listener) {
 		RecentOutput recent = new RecentOutput(onOutput, MAX_RECENT_OUTPUT_LINES);
 		Future<Void> future = executor.submit(() -> {
 			listener.onRunStarted();
@@ -78,6 +78,7 @@ public class ScriptCoordinator {
 			return null;
 		});
 		taskService.registerTask(future, buildTaskName(metadata, sgyFiles));
+		return future;
 	}
 
 	private static String formatErrorOutput(RecentOutput recent, Throwable t) {

@@ -64,6 +64,17 @@ public class LatLon {
 
 	}
 
+	public double getBearing(LatLon another) {
+		double lat1 = Math.toRadians(latDgr);
+		double lat2 = Math.toRadians(another.getLatDgr());
+		double dLon = Math.toRadians(another.getLonDgr() - lonDgr);
+
+		double y = Math.sin(dLon) * Math.cos(lat2);
+		double x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+		double bearing = Math.toDegrees(Math.atan2(y, x));
+		return (bearing + 360) % 360;
+	}
+
 	/**
 	 * Calculates the midpoint between this LatLon and another LatLon.
 	 * Uses spherical coordinates to find the midpoint on the surface of the Earth.

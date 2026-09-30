@@ -1,0 +1,14 @@
+{
+  "filename": "auto_time_lag_correction.py",
+  "display_name": "Auto Time Lag Correction",
+  "parameters": [
+    {
+      "name": "column",
+      "display_name": "Column",
+      "type": "COLUMN_NAME",
+      "default_value": "TMI",
+      "required": true
+    }
+  ],
+  "templates": ["csv"]
+}

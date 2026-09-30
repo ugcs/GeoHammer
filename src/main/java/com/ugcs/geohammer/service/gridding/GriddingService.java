@@ -1,15 +1,21 @@
 package com.ugcs.geohammer.service.gridding;
 
+import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.math.QuickSelect;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.DataPoint;
+import com.ugcs.geohammer.model.Semantic;
+import com.ugcs.geohammer.util.Check;
+import com.ugcs.geohammer.util.Nulls;
 import edu.mines.jtk.interp.SplinesGridder2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -20,37 +26,26 @@ public class GriddingService {
 
     private static final Logger log = LoggerFactory.getLogger(GriddingService.class);
 
+    // test showed that 200 is the point where extra iterations stop paying off
+    private static final int SPLINES_MAX_ITERATIONS = 200;
+
+    // 0 overshoots near strong anomalies, and 0.999999 becomes unstable with more iterations
+    private static final double SPLINES_TENSION = 0.9999;
+
     public GriddingService() {
     }
 
     public GriddingResult runGridding(Collection<SgyFile> files, String seriesName, GriddingParams params) {
-        long startFiltering = System.currentTimeMillis();
+        long filteringStart = System.nanoTime();
 
-        List<DataPoint> dataPoints = new ArrayList<>();
-        for (SgyFile file : files) {
-            dataPoints.addAll(getDataPoints(file, seriesName));
-        }
+        List<DataPoint> dataPoints = getDataPoints(files, seriesName);
         if (dataPoints.isEmpty()) {
             return null;
         }
 
-        double minLon = dataPoints.stream().mapToDouble(DataPoint::longitude).min().orElseThrow();
-        double maxLon = dataPoints.stream().mapToDouble(DataPoint::longitude).max().orElseThrow();
-        double minLat = dataPoints.stream().mapToDouble(DataPoint::latitude).min().orElseThrow();
-        double maxLat = dataPoints.stream().mapToDouble(DataPoint::latitude).max().orElseThrow();
-
-        LatLon minLatLon = new LatLon(minLat, minLon);
-        LatLon maxLatLon = new LatLon(maxLat, maxLon);
-
-        List<Double> valuesList = new ArrayList<>(dataPoints.stream().map(p -> p.value()).toList());
-        float median = (float) calculateMedian(valuesList);
-
-        double width = Math.max(
-                new LatLon(minLat, minLon).getDistance(new LatLon(minLat, maxLon)),
-                new LatLon(maxLat, minLon).getDistance(new LatLon(maxLat, maxLon)));
-        double height = (int) Math.max(
-                new LatLon(minLat, minLon).getDistance(new LatLon(maxLat, minLon)),
-                new LatLon(minLat, maxLon).getDistance(new LatLon(maxLat, maxLon)));
+        Envelope envelope = Envelope.of(dataPoints);
+        double width = envelope.width();
+        double height = envelope.height();
 
         int gridWidth = (int) (width / params.cellSize());
         int gridHeight = (int) (height / params.cellSize());
@@ -58,43 +53,56 @@ public class GriddingService {
             return null;
         }
 
-        double lonStep = (maxLon - minLon) / gridWidth;
-        double latStep = (maxLat - minLat) / gridHeight;
-
-        float[][] grid = new float[gridWidth][gridHeight];
-
-        boolean[][] m = new boolean[gridWidth][gridHeight];
-        for (int i = 0; i < gridWidth; i++) {
-            for (int j = 0; j < gridHeight; j++) {
-                m[i][j] = true;
-            }
-        }
-
-        Map<CellIndex, List<Double>> points = new HashMap<>();
+        Map<CellIndex, List<Double>> cellValues = new HashMap<>();
         for (DataPoint point : dataPoints) {
-            int xIndex = (int) ((point.longitude() - minLon) / lonStep);
-            xIndex = Math.min(xIndex, gridWidth - 1);
-            int yIndex = (int) ((point.latitude() - minLat) / latStep);
-            yIndex = Math.min(yIndex, gridHeight - 1);
-
-            points.computeIfAbsent(new CellIndex(xIndex, yIndex), (k -> new ArrayList<>()))
+            CellIndex cellIndex = envelope.cellIndex(point, gridWidth, gridHeight);
+            cellValues.computeIfAbsent(cellIndex, (k -> new ArrayList<>()))
                     .add(point.value());
         }
 
+        float[][] grid = new float[gridWidth][gridHeight];
+        boolean[][] mask = new boolean[gridWidth][gridHeight];
+        for (int i = 0; i < gridWidth; i++) {
+            Arrays.fill(mask[i], true);
+        }
+
+        float median = (float) QuickSelect.getMedian(dataPoints, DataPoint::value);
+
+        for (Map.Entry<CellIndex, List<Double>> entry : cellValues.entrySet()) {
+            CellIndex cellIndex = entry.getKey();
+            int x = cellIndex.x();
+            int y = cellIndex.y();
+            // subtract global median from the value
+            grid[x][y] = (float) calculateMedian(entry.getValue()) - median;
+            mask[x][y] = false;
+        }
+
+        log.info("Filtering complete in {} ms", (int) ((System.nanoTime() - filteringStart) * 1e-6));
+
+        if (Thread.currentThread().isInterrupted()) {
+            log.info("Gridding interrupted");
+            return null;
+        }
+
+        interpolateSplines(grid, mask);
+
+        if (Thread.currentThread().isInterrupted()) {
+            log.info("Gridding interrupted");
+            return null;
+        }
+
+        // visibility mask
         int blankingRadius = (int) (params.blankingDistance() / params.cellSize());
         boolean[][] visiblePoints = new boolean[gridWidth][gridHeight];
-
-        for (Map.Entry<CellIndex, List<Double>> entry : points.entrySet()) {
+        for (Map.Entry<CellIndex, List<Double>> entry : cellValues.entrySet()) {
             CellIndex cellIndex = entry.getKey();
-            int xIndex = cellIndex.x();
-            int yIndex = cellIndex.y();
-            grid[xIndex][yIndex] = (float) calculateMedian(entry.getValue());
-            m[xIndex][yIndex] = false;
+            int x = cellIndex.x();
+            int y = cellIndex.y();
 
             for (int dx = -blankingRadius; dx <= blankingRadius; dx++) {
                 for (int dy = -blankingRadius; dy <= blankingRadius; dy++) {
-                    int nx = xIndex + dx;
-                    int ny = yIndex + dy;
+                    int nx = x + dx;
+                    int ny = y + dy;
                     if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
                         visiblePoints[nx][ny] = true;
                     }
@@ -102,46 +110,8 @@ public class GriddingService {
             }
         }
 
-        for (int i = 0; i < grid.length; i++) {
-            for (int j = 0; j < grid[0].length; j++) {
-                if (!m[i][j]) {
-                    grid[i][j] -= median;
-                }
-            }
-        }
-
-        log.info("Filtering complete in {} s", (System.currentTimeMillis() - startFiltering) / 1000);
-
-        if (Thread.currentThread().isInterrupted()) {
-            log.info("Gridding interrupted");
-            return null;
-        }
-
-        log.info("Splines interpolation");
-        long start = System.currentTimeMillis();
-
-        // splines interpolation
-        SplinesGridder2 gridder = new SplinesGridder2();
-        int maxIterations = 200;
-        double tension = 0.9999;
-        gridder.setMaxIterations(maxIterations);
-        gridder.setTension(tension);
-        gridder.gridMissing(m, grid);
-
-        log.info("Iterations: {}, time: {} s, tension: {}, maxIterations: {}",
-                gridder.getIterationCount(),
-                (System.currentTimeMillis() - start) / 1000,
-                tension,
-                maxIterations);
-        log.info("Interpolation complete");
-
-        if (Thread.currentThread().isInterrupted()) {
-            log.info("Gridding interrupted");
-            return null;
-        }
-
-        for (int i = 0; i < grid.length; i++) {
-            for (int j = 0; j < grid[0].length; j++) {
+        for (int i = 0; i < gridWidth; i++) {
+            for (int j = 0; j < gridHeight; j++) {
                 if (!visiblePoints[i][j]) {
                     grid[i][j] = Float.NaN;
                 } else {
@@ -153,21 +123,114 @@ public class GriddingService {
         return new GriddingResult(
                 seriesName,
                 grid,
-                minLatLon,
-                maxLatLon,
+                envelope.min(),
+                envelope.max(),
                 params
         );
     }
 
+    private void interpolateSplines(float[][] grid, boolean[][] mask) {
+        log.info("Splines interpolation");
+        long interpolationStart = System.nanoTime();
+
+        SplinesGridder2 gridder = new SplinesGridder2();
+        gridder.setMaxIterations(SPLINES_MAX_ITERATIONS);
+        gridder.setTension(SPLINES_TENSION);
+        gridder.gridMissing(mask, grid);
+
+        log.info("Iterations: {}/{}, tension: {}, time: {} ms",
+                gridder.getIterationCount(),
+                SPLINES_MAX_ITERATIONS,
+                SPLINES_TENSION,
+                (int) ((System.nanoTime() - interpolationStart) * 1e-6));
+        log.info("Interpolation complete");
+    }
+
+    private List<DataPoint> getDataPoints(Collection<SgyFile> files, String seriesName) {
+        List<DataPoint> points = new ArrayList<>();
+        for (SgyFile file : files) {
+            points.addAll(getDataPoints(file, seriesName));
+        }
+        return points;
+    }
+
     private List<DataPoint> getDataPoints(SgyFile file, String seriesName) {
-        return file.getGeoData().stream()
-                .filter(gd -> gd.getNumber(seriesName) != null)
-                .map(gd -> new DataPoint(gd.getLatitude(), gd.getLongitude(), gd.getNumber(seriesName).doubleValue()))
-                .toList();
+        if (file == null) {
+            return List.of();
+        }
+
+        List<GeoData> values = Nulls.toEmpty(file.getGeoData());
+        ColumnSchema schema = GeoData.getSchema(values);
+        if (schema == null) {
+            return List.of();
+        }
+
+        int latitudeIndex = schema.getColumnIndex(schema.getHeaderBySemantic(Semantic.LATITUDE.getName()));
+        int longitudeIndex = schema.getColumnIndex(schema.getHeaderBySemantic(Semantic.LONGITUDE.getName()));
+        int valueIndex = schema.getColumnIndex(seriesName);
+        if (latitudeIndex == -1 || longitudeIndex == -1 || valueIndex == -1) {
+            return List.of();
+        }
+
+        List<DataPoint> points = new ArrayList<>(values.size());
+        for (GeoData value : values) {
+            Number latitude = value.getNumber(latitudeIndex);
+            Number longitude = value.getNumber(longitudeIndex);
+            Number pointValue = value.getNumber(valueIndex);
+            if (latitude == null || longitude == null || pointValue == null) {
+                continue;
+            }
+            points.add(new DataPoint(
+                    latitude.doubleValue(),
+                    longitude.doubleValue(),
+                    pointValue.doubleValue()));
+        }
+        return points;
     }
 
     private static double calculateMedian(List<Double> values) {
         return QuickSelect.getMedian(values, Double::doubleValue);
+    }
+
+    private record Envelope(LatLon min, LatLon max) {
+
+        public double width() {
+            return Math.max(
+                    new LatLon(min.getLatDgr(), min.getLonDgr()).getDistance(new LatLon(min.getLatDgr(), max.getLonDgr())),
+                    new LatLon(max.getLatDgr(), min.getLonDgr()).getDistance(new LatLon(max.getLatDgr(), max.getLonDgr())));
+        }
+
+        public double height() {
+            return Math.max(
+                    new LatLon(min.getLatDgr(), min.getLonDgr()).getDistance(new LatLon(max.getLatDgr(), min.getLonDgr())),
+                    new LatLon(min.getLatDgr(), max.getLonDgr()).getDistance(new LatLon(max.getLatDgr(), max.getLonDgr())));
+        }
+
+        public CellIndex cellIndex(DataPoint point, int gridWidth, int gridHeight) {
+            int x = (int) (gridWidth * (point.longitude() - min.getLonDgr()) / (max.getLonDgr() - min.getLonDgr()));
+            int y = (int) (gridHeight * (point.latitude() - min.getLatDgr()) / (max.getLatDgr() - min.getLatDgr()));
+            return new CellIndex(
+                    Math.clamp(x, 0, gridWidth - 1),
+                    Math.clamp(y, 0, gridHeight - 1));
+        }
+
+        public static Envelope of(List<DataPoint> points) {
+            Check.notEmpty(points);
+
+            double minLatitude = Double.POSITIVE_INFINITY;
+            double minLongitude = Double.POSITIVE_INFINITY;
+            double maxLatitude = Double.NEGATIVE_INFINITY;
+            double maxLongitude = Double.NEGATIVE_INFINITY;
+            for (DataPoint point : points) {
+                minLatitude = Math.min(minLatitude, point.latitude());
+                minLongitude = Math.min(minLongitude, point.longitude());
+                maxLatitude = Math.max(maxLatitude, point.latitude());
+                maxLongitude = Math.max(maxLongitude, point.longitude());
+            }
+            return new Envelope(
+                    new LatLon(minLatitude, minLongitude),
+                    new LatLon(maxLatitude, maxLongitude));
+        }
     }
 
     private record CellIndex(int x, int y) {}

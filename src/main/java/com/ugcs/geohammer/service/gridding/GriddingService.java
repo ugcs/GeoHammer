@@ -102,25 +102,15 @@ public class GriddingService {
             }
         }
 
-        int count = 0;
-        m = thinOutBooleanGrid(m);
-
         for (int i = 0; i < grid.length; i++) {
             for (int j = 0; j < grid[0].length; j++) {
                 if (!m[i][j]) {
                     grid[i][j] -= median;
-                    continue;
-                }
-
-                if (!visiblePoints[i][j]) {
-                    m[i][j] = false;
-                    count++;
                 }
             }
         }
 
         log.info("Filtering complete in {} s", (System.currentTimeMillis() - startFiltering) / 1000);
-        log.info("Additional points: {}", count);
 
         if (Thread.currentThread().isInterrupted()) {
             log.info("Gridding interrupted");
@@ -190,124 +180,6 @@ public class GriddingService {
 
     private static double calculateMedian(List<Double> values) {
         return QuickSelect.getMedian(values, Double::doubleValue);
-    }
-
-    /**
-     * Thin out the matrix by rows and columns so that the minimum density is not reduced.
-     * If almost all cells are filled, the array is returned unchanged.
-     */
-    public static boolean[][] thinOutBooleanGrid(boolean[][] grid) {
-        int rows = grid.length;
-        int cols = rows > 0 ? grid[0].length : 0;
-
-        int[] minValues = computeRowColMin(grid);
-        int minRowTrue = minValues[0];
-        int minColTrue = minValues[1];
-
-        if (minRowTrue >= cols * 0.9 && minColTrue >= rows * 0.9 || minRowTrue == 0 && minColTrue == 0) {
-            return grid;
-        }
-
-        double avg = Math.min(0.22, Math.min((double) minRowTrue / cols, (double) minColTrue / rows));
-
-        if (avg < 0.05) {
-            return grid;
-        }
-
-        boolean[][] result = new boolean[rows][cols];
-        for (int i = 0; i < rows; i++) {
-            System.arraycopy(grid[i], 0, result[i], 0, cols);
-        }
-
-        for (int i = 0; i < rows; i++) {
-            List<Integer> trueIndices = new ArrayList<>();
-            for (int j = 0; j < cols; j++) {
-                if (!result[i][j]) {
-                    trueIndices.add(j);
-                }
-            }
-            int count = trueIndices.size();
-            minRowTrue = (int) (avg * cols);
-            if (count > minRowTrue && minRowTrue > 0) {
-                List<Integer> keepIndices = new ArrayList<>();
-                double step = (double) (count - 1) / (minRowTrue - 1);
-                for (int k = 0; k < minRowTrue; k++) {
-                    int index = trueIndices.get((int) Math.round(k * step));
-                    keepIndices.add(index);
-                }
-                for (int j = 0; j < cols; j++) {
-                    result[i][j] = true;
-                }
-                for (int j : keepIndices) {
-                    result[i][j] = false;
-                }
-            }
-        }
-
-        for (int j = 0; j < cols; j++) {
-            List<Integer> trueIndices = new ArrayList<>();
-            for (int i = 0; i < rows; i++) {
-                if (!result[i][j]) {
-                    trueIndices.add(i);
-                }
-            }
-            int count = trueIndices.size();
-            minColTrue = (int) (avg * rows);
-            if (count > minColTrue && minColTrue > 0) {
-                List<Integer> keepIndices = new ArrayList<>();
-                double step = (double) (count - 1) / (minColTrue - 1);
-                for (int k = 0; k < minColTrue; k++) {
-                    int index = trueIndices.get((int) Math.round(k * step));
-                    keepIndices.add(index);
-                }
-                for (int i = 0; i < rows; i++) {
-                    result[i][j] = true;
-                }
-                for (int i : keepIndices) {
-                    result[i][j] = false;
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Before thinning, determine the minimum number of true values per row and column.
-     */
-    private static int[] computeRowColMin(boolean[][] grid) {
-        int rows = grid.length;
-        int cols = rows > 0 ? grid[0].length : 0;
-        int[] rowCounts = new int[rows];
-        int[] colCounts = new int[cols];
-
-        for (int i = 0; i < rows; i++) {
-            int countRow = 0;
-            for (int j = 0; j < cols; j++) {
-                if (!grid[i][j]) {
-                    countRow++;
-                    colCounts[j]++;
-                }
-            }
-            rowCounts[i] = countRow;
-        }
-        int rowsum = 0;
-        int rowcount = 0;
-        for (int i = 0; i < rows; i++) {
-            if (rowCounts[i] > cols * 0.01) {
-                rowsum += rowCounts[i];
-                rowcount++;
-            }
-        }
-
-        int colsum = 0;
-        int colcount = 0;
-        for (int j = 0; j < cols; j++) {
-            if (colCounts[j] > rows * 0.01) {
-                colsum += colCounts[j];
-                colcount++;
-            }
-        }
-        return new int[]{rowsum / (rowcount != 0 ? rowcount : 1), colsum / (colcount != 0 ? colcount : 1)};
     }
 
     private record CellIndex(int x, int y) {}

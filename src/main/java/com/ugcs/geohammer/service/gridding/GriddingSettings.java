@@ -26,7 +26,13 @@ public class GriddingSettings {
         String templateName = Templates.getTemplateName(file);
         if (!Strings.isNullOrEmpty(templateName)) {
             cellSize = settings.getDoubleOrDefault("gridding_cellsize", templateName, cellSize);
+            if (cellSize <= 0.0) {
+                cellSize = 0.1;
+            }
             blankingDistance = settings.getDoubleOrDefault("gridding_blankingdistance", templateName, blankingDistance);
+            if (blankingDistance <= 0.0) {
+                blankingDistance = 1.0;
+            }
         }
 
         return new GriddingParams(cellSize, blankingDistance);

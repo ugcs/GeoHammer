@@ -21,6 +21,7 @@ import com.ugcs.geohammer.model.event.FileRenameEvent;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.GridUpdatedEvent;
 import com.ugcs.geohammer.service.gridding.GriddingFilter;
+import com.ugcs.geohammer.service.gridding.GriddingParams;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
 import com.ugcs.geohammer.service.palette.Palette;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
@@ -59,6 +60,10 @@ import com.ugcs.geohammer.model.Model;
 public final class GridLayer extends BaseLayer {
 
     private static final Logger log = LoggerFactory.getLogger(GridLayer.class);
+
+    // smoothing sigma relative to the blanking distance, keeps smoothing
+    // the same in meters for any cell size
+    private static final double SMOOTHING_SIGMA_FACTOR = 0.38;
 
     private final Model model;
 
@@ -286,7 +291,9 @@ public final class GridLayer extends BaseLayer {
             if (updateValues) {
                 values = result.grid();
                 if (filter.smoothing()) {
-                    GaussianSmoothing smoothing = new GaussianSmoothing();
+                    GriddingParams params = result.params();
+                    GaussianSmoothing smoothing = new GaussianSmoothing(
+                            SMOOTHING_SIGMA_FACTOR * params.blankingDistance() / params.cellSize());
                     values = smoothing.apply(values);
                 }
                 if (filter.analyticSignal()) {

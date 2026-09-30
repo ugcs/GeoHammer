@@ -364,11 +364,7 @@ public class GriddingTool extends FilterToolView {
     private void onInputChange() {
         // validate input
         GriddingParams params = getParams();
-        boolean disable = params == null
-                || params.cellSize() <= 0
-                || params.cellSize() > 100
-                || params.blankingDistance() <= 0
-                || params.blankingDistance() > 100;
+        boolean disable = params == null;
         disableActions(disable);
 
         // show/hide params change warning
@@ -650,7 +646,8 @@ public class GriddingTool extends FilterToolView {
     private GriddingParams getParams() {
         Double cellSize = (Double)cellSizeInput.getUserData();
         Double blankingDistance = (Double)blankingDistanceInput.getUserData();
-        if (cellSize == null || blankingDistance == null) {
+        if (cellSize == null || cellSize <= 0.0
+                || blankingDistance == null || blankingDistance <= 0.0) {
             return null;
         }
         return new GriddingParams(

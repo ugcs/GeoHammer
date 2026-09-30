@@ -119,27 +119,15 @@ public class GriddingService {
 
         log.info("Splines interpolation");
         long start = System.currentTimeMillis();
-        // Use original splines interpolation
-        SplinesGridder2 gridder = new SplinesGridder2();
-        int maxIterations = 100;
-        float tension = 0f;
 
-        gridder.setMaxIterations(maxIterations); // 200 if the anomaly
-        gridder.setTension(tension); // 0.9999999f - maximum
+        // splines interpolation
+        SplinesGridder2 gridder = new SplinesGridder2();
+        int maxIterations = 200;
+        double tension = 0.9999;
+        gridder.setMaxIterations(maxIterations);
+        gridder.setTension(tension);
         gridder.gridMissing(m, grid);
 
-        if (Thread.currentThread().isInterrupted()) {
-            log.info("Gridding interrupted");
-            return null;
-        }
-
-        if (gridder.getIterationCount() >= maxIterations) {
-            tension = 0.999999f;
-            maxIterations = 200;
-            gridder.setTension(tension);
-            gridder.setMaxIterations(maxIterations);
-            gridder.gridMissing(m, grid);
-        }
         log.info("Iterations: {}, time: {} s, tension: {}, maxIterations: {}",
                 gridder.getIterationCount(),
                 (System.currentTimeMillis() - start) / 1000,

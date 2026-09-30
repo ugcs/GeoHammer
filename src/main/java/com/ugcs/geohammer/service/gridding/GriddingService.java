@@ -3,6 +3,7 @@ package com.ugcs.geohammer.service.gridding;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.math.QuickSelect;
+import com.ugcs.geohammer.math.SphericalMercator;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.DataPoint;
@@ -44,6 +45,10 @@ public class GriddingService {
         }
 
         Envelope envelope = Envelope.of(dataPoints);
+        // add padding of blanking distance to envelope
+        double padding = ((int) Math.ceil(params.blankingDistance() / params.cellSize()) + 1) * params.cellSize();
+        envelope = envelope.expand(padding);
+
         double width = envelope.width();
         double height = envelope.height();
 
@@ -214,6 +219,27 @@ public class GriddingService {
                     Math.clamp(y, 0, gridHeight - 1));
         }
 
+        public Envelope expand(double distance) {
+            Check.condition(distance >= 0);
+
+            double latitudeOffset = Math.toDegrees(distance / SphericalMercator.R);
+            double minLatitude = Math.max(min.getLatDgr() - latitudeOffset, -90);
+            double maxLatitude = Math.min(max.getLatDgr() + latitudeOffset, 90);
+
+            // a degree of longitude is shortest on the edge farthest from the equator,
+            // offsetting by it keeps both edges at least the distance away
+            double cos = Math.cos(Math.toRadians(Math.max(Math.abs(minLatitude), Math.abs(maxLatitude))));
+            double longitudeOffset = cos > 0
+                    ? Math.toDegrees(distance / (SphericalMercator.R * cos))
+                    : 180;
+            double minLongitude = Math.max(min.getLonDgr() - longitudeOffset, -180);
+            double maxLongitude = Math.min(max.getLonDgr() + longitudeOffset, 180);
+
+            return new Envelope(
+                    new LatLon(minLatitude, minLongitude),
+                    new LatLon(maxLatitude, maxLongitude));
+        }
+        
         public static Envelope of(List<DataPoint> points) {
             Check.notEmpty(points);
 

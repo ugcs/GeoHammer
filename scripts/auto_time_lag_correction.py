@@ -26,8 +26,9 @@ SMOOTH_LENGTH = 0.5
 # search range along track in meters: covers the lag plus the offset
 # oblique anomalies add to single pairs
 MAX_LAG_DISTANCE = 6.0
-# minimum relative depth of the cost minimum to trust the estimate
-# (noise only reaches ~0.3)
+# minimum relative depth of the cost minimum to trust the estimate of a single
+# pair; noise averages out over pairs, so n pairs need MIN_CONTRAST / sqrt(n)
+# (noise only reaches ~0.35 / sqrt(n))
 MIN_CONTRAST = 0.5
 
 
@@ -142,14 +143,16 @@ class SegmentPair:
         self.bins_b = np.floor((b.axis_pos - lo) / bin_size).astype(np.int64)
         self.window = max(3, int(round(SMOOTH_LENGTH / bin_size)))
 
-    def misfit_terms(self, values, shift):
-        # mean (gA - gB)^2 and mean (gA^2 + gB^2) of the gradient profiles
+    def correlation_terms(self, values, shift):
+        # mean gA * gB and sqrt(mean gA^2 * mean gB^2) of the gradient profiles;
+        # their ratio is the correlation, insensitive to the amplitude difference
+        # of an anomaly seen from lines at different distances
         ga = binned_gradient(self.bins_a, self.bin_count, self.a.shifted_values(values, shift), self.window)
         gb = binned_gradient(self.bins_b, self.bin_count, self.b.shifted_values(values, shift), self.window)
         ok = np.isfinite(ga) & np.isfinite(gb)
         if not np.any(ok):
             return 0.0, 0.0
-        return np.mean((ga[ok] - gb[ok]) ** 2), np.mean(ga[ok] ** 2 + gb[ok] ** 2)
+        return np.mean(ga[ok] * gb[ok]), np.sqrt(np.mean(ga[ok] ** 2) * np.mean(gb[ok] ** 2))
 
 
 def headings(px, py, dist):
@@ -271,15 +274,15 @@ def binned_gradient(bins, bin_count, vals, window):
 
 
 def total_cost(pairs, values, shift):
-    # C(k) = sum mean (gA - gB)^2 / sum mean (gA^2 + gB^2): 0 is a perfect match,
-    # ~1 is unrelated; pairs with strong anomalies weigh more than noise
-    misfit = 0.0
-    energy = 0.0
+    # C(k) = 1 - sum covariance / sum norm: 0 is a perfect match, ~1 is unrelated;
+    # pairs with strong anomalies weigh more than noise
+    covariance = 0.0
+    norm = 0.0
     for pair in pairs:
-        pair_misfit, pair_energy = pair.misfit_terms(values, shift)
-        misfit += pair_misfit
-        energy += pair_energy
-    return misfit / energy if energy > 0 else np.nan
+        pair_covariance, pair_norm = pair.correlation_terms(values, shift)
+        covariance += pair_covariance
+        norm += pair_norm
+    return 1.0 - covariance / norm if norm > 0 else np.nan
 
 
 def search_shift(pairs, values, max_shift, coarse_step):
@@ -296,7 +299,7 @@ def search_shift(pairs, values, max_shift, coarse_step):
     best_index = int(np.nanargmin(fine_costs))
     best = int(fine[best_index])
     contrast = (median - fine_costs[best_index]) / median if median > 0 else 0.0
-    if contrast < MIN_CONTRAST or abs(best) >= max_shift:
+    if contrast < MIN_CONTRAST / np.sqrt(len(pairs)) or abs(best) >= max_shift:
         return None
     return best
 

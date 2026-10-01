@@ -290,6 +290,11 @@ public final class GridLayer extends BaseLayer {
 
             if (updateValues) {
                 values = result.grid();
+                if (filter.analyticSignal()) {
+                    // center values before smoothing, as both smoothing and the filter
+                    // lose float precision near the base level
+                    values = AnalyticSignalFilter.center(values);
+                }
                 if (filter.smoothing()) {
                     GriddingParams params = result.params();
                     GaussianSmoothing smoothing = new GaussianSmoothing(

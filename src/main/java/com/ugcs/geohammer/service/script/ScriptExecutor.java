@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -12,10 +13,13 @@ import java.util.function.Consumer;
 import com.ugcs.geohammer.Loader;
 import com.ugcs.geohammer.analytics.EventSender;
 import com.ugcs.geohammer.analytics.EventsFactory;
+import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
+import com.ugcs.geohammer.model.Semantic;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
@@ -28,6 +32,9 @@ import org.springframework.stereotype.Service;
 public class ScriptExecutor {
 
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutor.class);
+
+	// must match COLUMN_VARIABLE_PREFIX in scripts/script_utils.py
+	public static final String COLUMN_VARIABLE_PREFIX = "GEOHAMMER_COLUMN_";
 
 	private final Loader loader;
 
@@ -66,7 +73,7 @@ public class ScriptExecutor {
 			List<String> command = buildCommand(scriptFile, metadata, params, tempFile);
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(
 					metadata.filename(), pythonInterpreter.getVersion().toString()));
-			commandExecutor.executeCommand(command, output);
+			commandExecutor.executeCommand(command, null, createColumnVariables(sgyFile), output);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}
@@ -126,6 +133,24 @@ public class ScriptExecutor {
 		command.add(tempFile.toPath().toAbsolutePath().toString());
 		appendArgs(command, metadata, params);
 		return command;
+	}
+
+	public static Map<String, String> createColumnVariables(SgyFile sgyFile) {
+		Map<String, String> variables = new HashMap<>();
+		if (sgyFile instanceof TraceFile) {
+			return variables;
+		}
+		ColumnSchema schema = GeoData.getSchema(sgyFile.getGeoData());
+		if (schema == null) {
+			return variables;
+		}
+		for (Semantic semantic : Semantic.values()) {
+			String header = schema.getHeaderBySemantic(semantic.getName());
+			if (header != null) {
+				variables.put(COLUMN_VARIABLE_PREFIX + semantic.name(), header);
+			}
+		}
+		return variables;
 	}
 
 	public void appendArgs(List<String> command, ScriptMetadata metadata, Map<String, String> values) {

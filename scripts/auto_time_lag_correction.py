@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import pandas as pd
 
-from script_utils import detect_separator
+from script_utils import detect_separator, semantic_column, LATITUDE, LONGITUDE, LINE
 
 LAG_SUFFIX = "_LAG"
 EARTH_RADIUS = 6371000.0
@@ -97,7 +97,7 @@ def source_rows(rows, shift, line_starts, line_ends):
 
 
 def file_line_ranges(data):
-    line_col = resolve_column(data, "Line")
+    line_col = resolve_column(data, semantic_column(LINE))
     if line_col is None:
         return [(0, len(data))]
     return split_runs(data[line_col].to_numpy())
@@ -335,8 +335,8 @@ def main():
 
     value_col = require_column(data, args.column)
     values = pd.to_numeric(data[value_col], errors="coerce").to_numpy(dtype=float)
-    lat = pd.to_numeric(data[require_column(data, "Latitude")], errors="coerce").to_numpy(dtype=float)
-    lon = pd.to_numeric(data[require_column(data, "Longitude")], errors="coerce").to_numpy(dtype=float)
+    lat = pd.to_numeric(data[require_column(data, semantic_column(LATITUDE))], errors="coerce").to_numpy(dtype=float)
+    lon = pd.to_numeric(data[require_column(data, semantic_column(LONGITUDE))], errors="coerce").to_numpy(dtype=float)
     x, y = fill_repeated_positions(*to_local_meters(lat, lon))
 
     line_ranges = file_line_ranges(data)

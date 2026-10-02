@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -33,13 +34,20 @@ public class CommandExecutor {
 
 	public void executeCommand(List<String> command, @Nullable File workingDirectory, @Nullable Consumer<String> onOutput)
 			throws IOException, InterruptedException {
+		executeCommand(command, workingDirectory, Map.of(), onOutput);
+	}
+
+	public void executeCommand(List<String> command, @Nullable File workingDirectory, Map<String, String> environment,
+	                           @Nullable Consumer<String> onOutput) throws IOException, InterruptedException {
 		Check.notEmpty(command);
+		Check.notNull(environment);
 
 		log.debug("Executing command: {}", String.join(" ", command));
 		ProcessBuilder processBuilder = new ProcessBuilder(command);
 		if (workingDirectory != null) {
 			processBuilder.directory(workingDirectory);
 		}
+		processBuilder.environment().putAll(environment);
 		processBuilder.redirectErrorStream(true);
 		if (onOutput == null) {
 			// output nobody reads must not fill the pipe and block the process

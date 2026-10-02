@@ -10,7 +10,7 @@ from pyproj import Transformer
 import geosoft.gxpy as gxpy
 import geosoft.gxpy.gdb as gxdb
 
-from script_utils import normalize_input_stem
+from script_utils import normalize_input_stem, semantic_column, LATITUDE, LONGITUDE
 
 
 _CHANNEL_NAME_RE = re.compile(r"[^A-Za-z0-9_]")
@@ -149,8 +149,10 @@ def main():
         print("Error: no numeric columns to export")
         sys.exit(1)
 
-    x_col = "Longitude" if "Longitude" in numeric_columns else None
-    y_col = "Latitude" if "Latitude" in numeric_columns else None
+    lon_col = semantic_column(LONGITUDE)
+    lat_col = semantic_column(LATITUDE)
+    x_col = lon_col if lon_col in numeric_columns else None
+    y_col = lat_col if lat_col in numeric_columns else None
     if x_col and y_col:
         print(f"Using X = '{x_col}', Y = '{y_col}'")
 
@@ -162,7 +164,7 @@ def main():
             center_lat = float(np.nanmean(data[y_col].to_numpy(dtype=np.float64)))
             center_lon = float(np.nanmean(data[x_col].to_numpy(dtype=np.float64)))
         if not (np.isfinite(center_lat) and np.isfinite(center_lon)):
-            print("Error: Latitude/Longitude columns contain no valid values")
+            print(f"Error: {y_col}/{x_col} columns contain no valid values")
             sys.exit(1)
         target_epsg = utm_epsg(center_lat, center_lon)
         zone = utm_zone(center_lat, center_lon)

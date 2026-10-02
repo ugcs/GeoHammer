@@ -9,7 +9,7 @@ import pandas as pd
 from scipy.interpolate import griddata, RBFInterpolator
 from scipy.spatial import cKDTree
 from scipy.signal import butter, filtfilt
-from script_utils import normalize_input_stem, detect_separator
+from script_utils import normalize_input_stem, detect_separator, semantic_column, LATITUDE, LONGITUDE
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -799,16 +799,16 @@ def main():
     data = data[original_cols]
 
     mag_col = resolve_column(data, mag_col) or mag_col
-    lat_col = resolve_column(data, "Latitude")
-    lon_col = resolve_column(data, "Longitude")
+    lat_col = resolve_column(data, semantic_column(LATITUDE))
+    lon_col = resolve_column(data, semantic_column(LONGITUDE))
 
     missing = []
     if mag_col not in data.columns:
         missing.append(mag_col)
     if lat_col is None:
-        missing.append("Latitude")
+        missing.append(semantic_column(LATITUDE))
     if lon_col is None:
-        missing.append("Longitude")
+        missing.append(semantic_column(LONGITUDE))
     if missing:
         print(f"Error: Missing required columns: {', '.join(missing)}")
         sys.exit(1)
@@ -880,8 +880,8 @@ def main():
             reason = (f"The selected data column '{mag_col}' contains no numeric values. "
                       f"Select the correct field column for this dataset and try again.")
         elif n_lat == 0 or n_lon == 0:
-            reason = ("The file has no valid coordinates (Latitude/Longitude are empty), "
-                      "so a map cannot be built.")
+            reason = (f"The file has no valid coordinates ('{lat_col}'/'{lon_col}' are empty), "
+                      f"so a map cannot be built.")
         elif n_dt == 0:
             reason = (f"Could not compute a background trend for '{mag_col}' - "
                       f"its values may be constant or the track is too short.")

@@ -6,7 +6,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import butter, filtfilt, iirnotch
 
-from script_utils import detect_separator
+from script_utils import detect_separator, semantic_column, LATITUDE, LONGITUDE
 
 
 MAG_SAMPLE_RATE_HZ = 250  # frequency of data in Hz - need to change to measure real frequency (!)
@@ -172,16 +172,19 @@ def fit_platform_model(data):
 
 
 def filter_positional(data):
-    data['Latitude'] = data['Latitude'].mask(data['Latitude'].shift() == data['Latitude'])
-    data['Longitude'] = data['Longitude'].mask(data['Longitude'].shift() == data['Longitude'])
+    lat_col = semantic_column(LATITUDE)
+    lon_col = semantic_column(LONGITUDE)
 
-    data['Latitude'] = data['Latitude'].interpolate()
-    data['Longitude'] = data['Longitude'].interpolate()
+    data[lat_col] = data[lat_col].mask(data[lat_col].shift() == data[lat_col])
+    data[lon_col] = data[lon_col].mask(data[lon_col].shift() == data[lon_col])
 
-    data.dropna(subset = ['Latitude', 'Longitude'], inplace = True)
+    data[lat_col] = data[lat_col].interpolate()
+    data[lon_col] = data[lon_col].interpolate()
 
-    data['Latitude_F'] = data['Latitude']
-    data['Longitude_F'] = data['Longitude']
+    data.dropna(subset = [lat_col, lon_col], inplace = True)
+
+    data['Latitude_F'] = data[lat_col]
+    data['Longitude_F'] = data[lon_col]
 
 
 def filter_altitude_amsl(data):

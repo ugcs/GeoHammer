@@ -14,7 +14,7 @@ import javafx.scene.text.Text;
 
 public class RulerMeasurementView extends BorderPane {
 
-  	private static final String DISTANCE_VALUE_SAMPLE = "000.00";
+  	private static final String DISTANCE_VALUE_SAMPLE = "00.00";
 	private static final String HEADING_VALUE_SAMPLE = "000.0°";
 
 	private final MapRuler mapRuler;

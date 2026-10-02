@@ -7,107 +7,85 @@ public class GaussianSmoothing {
 
     private static final Logger log = LoggerFactory.getLogger(GaussianSmoothing.class);
 
-    private final int kernelSize;
+    // smaller kernels have no visible effect
+    private static final double MIN_SIGMA = 0.5;
 
-    private final int kernelRadius;
+    // standard deviation of the kernel in cells
+    private final double sigma;
 
-    public GaussianSmoothing() {
-        this(15, 7);
+    public GaussianSmoothing(double sigma) {
+        this.sigma = sigma;
     }
 
-    public GaussianSmoothing(int kernelSize, int kernelRadius) {
-        this.kernelSize = kernelSize;
-        this.kernelRadius = kernelRadius;
-    }
-
-    /**
-     * Applies a low-pass filter to the grid data to smooth out high-frequency variations.
-     * Uses a Gaussian kernel for the convolution.
-     *
-     * @param grid The grid data to filter
-     */
+    // NaN cells are skipped and stay NaN
     public float[][] apply(float[][] grid) {
-        if (grid == null || grid.length == 0 || grid[0].length == 0) {
+        if (grid == null || grid.length == 0 || grid[0].length == 0 || sigma < MIN_SIGMA) {
             return grid;
         }
 
-        log.info("Applying low-pass filter with {}x{} kernel",
-                kernelSize,
-                kernelSize);
-        long startTime = System.currentTimeMillis();
-
-        float[][] kernel = new float[kernelSize][kernelSize];
-
-        // Initialize kernel with Gaussian values
-        double sigma = 5.0;
-        double sum = 0.0;
-
-        for (int x = -kernelRadius; x <= kernelRadius; x++) {
-            for (int y = -kernelRadius; y <= kernelRadius; y++) {
-                double value = Math.exp(-(x * x + y * y) / (2 * sigma * sigma));
-                kernel[x + kernelRadius][y + kernelRadius] = (float) value;
-                sum += value;
-            }
-        }
-
-        // Normalize kernel
-        for (int i = 0; i < kernelSize; i++) {
-            for (int j = 0; j < kernelSize; j++) {
-                kernel[i][j] /= sum;
-            }
-        }
+        float[] kernel = createKernel(sigma);
+        int radius = kernel.length / 2;
+        log.info("Applying low-pass filter with sigma {} cells", sigma);
+        long start = System.nanoTime();
 
         int width = grid.length;
         int height = grid[0].length;
 
-        var filtered = copyGrid(grid);
-
-        // Apply convolution
+        // normalized convolution: values and weights of the non-NaN cells are convolved separately,
+        // the kernel is separable, so both are convolved along y and then along x
+        float[][] sums = new float[width][height];
+        float[][] weights = new float[width][height];
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
-                // Skip NaN values
-                if (Float.isNaN(grid[i][j])) {
-                    continue;
-                }
-
-                float sum2 = 0;
+                float sum = 0;
                 float weightSum = 0;
-
-                // Apply kernel
-                for (int ki = -kernelRadius; ki <= kernelRadius; ki++) {
-                    for (int kj = -kernelRadius; kj <= kernelRadius; kj++) {
-                        int ni = i + ki;
-                        int nj = j + kj;
-
-                        // Skip out of bounds or NaN values
-                        if (ni < 0 || ni >= width || nj < 0 || nj >= height || Float.isNaN(grid[ni][nj])) {
-                            continue;
-                        }
-
-                        float weight = kernel[ki + kernelRadius][kj + kernelRadius];
-                        sum2 += grid[ni][nj] * weight;
-                        weightSum += weight;
+                for (int k = -radius; k <= radius; k++) {
+                    int nj = j + k;
+                    if (nj < 0 || nj >= height || Float.isNaN(grid[i][nj])) {
+                        continue;
                     }
+                    float weight = kernel[k + radius];
+                    sum += weight * grid[i][nj];
+                    weightSum += weight;
                 }
-
-                // Normalize by the sum of weights
-                if (weightSum > 0) {
-                    filtered[i][j] = sum2 / weightSum;
-                }
+                sums[i][j] = sum;
+                weights[i][j] = weightSum;
             }
         }
 
-        log.info("Low-pass filter applied in {} ms",
-                System.currentTimeMillis() - startTime);
+        float[][] filtered = new float[width][height];
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < height; j++) {
+                if (Float.isNaN(grid[i][j])) {
+                    filtered[i][j] = Float.NaN;
+                    continue;
+                }
+                float sum = 0;
+                float weightSum = 0;
+                for (int k = -radius; k <= radius; k++) {
+                    int ni = i + k;
+                    if (ni < 0 || ni >= width) {
+                        continue;
+                    }
+                    float weight = kernel[k + radius];
+                    sum += weight * sums[ni][j];
+                    weightSum += weight * weights[ni][j];
+                }
+                // positive, as the cell itself is not NaN
+                filtered[i][j] = sum / weightSum;
+            }
+        }
+
+        log.info("Low-pass filter applied in {} ms", (int) ((System.nanoTime() - start) * 1e-6));
         return filtered;
     }
 
-
-    private static float[][] copyGrid(float[][] grid) {
-        var copy = new float[grid.length][];
-        for (int i = 0; i < grid.length; i++) {
-            copy[i] = grid[i].clone();
+    private static float[] createKernel(double sigma) {
+        int radius = (int) Math.ceil(3 * sigma);
+        float[] kernel = new float[2 * radius + 1];
+        for (int k = -radius; k <= radius; k++) {
+            kernel[k + radius] = (float) Math.exp(-(k * k) / (2 * sigma * sigma));
         }
-        return copy;
+        return kernel;
     }
 }

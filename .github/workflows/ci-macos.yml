@@ -1,18 +1,19 @@
-name: GeoHammer build for MS Windows
+name: GeoHammer build for MacOS
 on: [push, workflow_dispatch]
 jobs:
-  GeoHammer-Windows-Build:
-    runs-on: windows-latest
+  GeoHammer-MacOS-Build:
+    # verification CI for the public repository; Pro builds via release.yml
+    if: github.repository == 'ugcs/GeoHammer'
+    runs-on: macos-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: Set JDK version and download it
+      - name: Set JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '22'
+          java-version: '21'
           distribution: 'liberica'
           java-package: 'jdk+fx'
-          architecture: 'x64'
       - name: Cache local Maven repository
         uses: actions/cache@v4
         with:
@@ -21,4 +22,4 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
       - name: Build with Maven
-        run: mvn --batch-mode package -P windows-build
+        run: mvn --batch-mode package -P macos-build

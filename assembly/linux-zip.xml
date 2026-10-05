@@ -36,5 +36,32 @@
             <outputDirectory>/</outputDirectory>
             <fileMode>777</fileMode>
         </file>
+
+        <file>
+            <source>${project.basedir}/assembly/linux/install-file-associations.sh</source>
+            <outputDirectory>/</outputDirectory>
+            <fileMode>777</fileMode>
+        </file>
+
+        <file>
+            <source>${project.basedir}/assembly/linux/uninstall-file-associations.sh</source>
+            <outputDirectory>/</outputDirectory>
+            <fileMode>777</fileMode>
+        </file>
+
+        <file>
+            <source>${project.basedir}/assembly/linux/geohammer.desktop</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+
+        <file>
+            <source>${project.basedir}/assembly/linux/geohammer-mime.xml</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+
+        <file>
+            <source>${project.basedir}/src/main/resources/logo32.png</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
     </files>
 </assembly>

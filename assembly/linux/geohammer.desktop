@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=GeoHammer
+Comment=Geophysical data processing and visualization
+Exec="@INSTALL_DIR@/start.sh" %f
+Icon=geohammer
+Terminal=false
+Categories=Science;Geoscience;
+MimeType=application/x-geohammer;
+StartupWMClass=com.ugcs.geohammer.MainGeoHammer

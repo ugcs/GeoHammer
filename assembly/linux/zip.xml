@@ -63,5 +63,10 @@
             <source>${project.basedir}/src/main/resources/logo32.png</source>
             <outputDirectory>/</outputDirectory>
         </file>
+
+        <file>
+            <source>${project.basedir}/NOTICE.txt</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
     </files>
 </assembly>

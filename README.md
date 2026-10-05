@@ -1,15 +1,21 @@
 SPH Engineering's GeoHammer is a simple to use tool to quickly assess and process GPR (ground penetrating radar) and CSV data from various sensors (magnetometers, metal detectors, gamma-radiation spectrometers, etc.).
 
-User manual - https://github.com/ugcs/GeoHammer/wiki
+[User manual](https://github.com/ugcs/GeoHammer/wiki) · [Latest release](https://github.com/ugcs/GeoHammer/releases/latest) 
 
-To download latest release please navigate here - https://github.com/ugcs/GeoHammer/releases/latest, download ZIP file and extract it to any folder.
+### Getting Started
 
-For support:
-- For free GeoHammer version please register issue here and wait for the reaction: https://github.com/ugcs/GeoHammer/issues
-- For GeoHammer Pro paid license: if you suspect software bug, or have feature request, please register issue here https://github.com/ugcs/GeoHammer/issues, and/or write to SPH Engineering support (support@sphengeneering.com) 
+- *Windows (x64):* run the installer, then start GeoHammer from the Start menu.
+- *macOS (Apple Silicon):* open the DMG and drag GeoHammer.app to Applications.
+- *Linux (x86_64):* extract the ZIP and run `./start.sh`.
 
-To run the application:
-- On Windows - run geohammer.exe
-- On macOS - open GeoHammer.app
+### Support and Feedback
+
+Report bugs and request features in [GitHub Issues](https://github.com/ugcs/GeoHammer/issues). GeoHammer Pro customers can also contact [support@sphengineering.com](mailto:support@sphengineering.com).
+
+---
 
 This software may collect anonymous usage statistics to improve its functionality and performance. By using GeoHammer, you consent to this data collection. No personally identifiable information is collected.
+
+---
+
+Third-party notices: see [NOTICE.txt](NOTICE.txt).

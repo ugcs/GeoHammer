@@ -6,6 +6,7 @@ import java.util.Objects;
 
 public enum SpectrumType {
     HUE("Hue"),
+    VIVID_RAINBOW("Vivid Rainbow"),
     RAINBOW("Rainbow"),
     DIVERGING_RAINBOW("Diverging Rainbow"),
     BLUE_WHITE_RED("Blue-White-Red"),

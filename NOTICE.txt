@@ -1,0 +1,21 @@
+GeoHammer
+
+This product includes the following third-party material.
+
+CET Perceptually Uniform Color Maps
+  Used by the Rainbow, Diverging Rainbow, Blue-White-Red, Thermal, Terrain,
+  Water Depth, Isoluminant and Grayscale color scales
+  (CET-R1, CET-R3, CET-D01, CET-L08, CET-L11, CET-L12, CET-I2, CET-L01).
+  Author: Peter Kovesi
+  Source: https://colorcet.com
+  License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+           https://creativecommons.org/licenses/by/4.0/
+  Reference: Peter Kovesi. Good Colour Maps: How to Design Them.
+             arXiv:1509.03700 [cs.GR] 2015. https://arxiv.org/abs/1509.03700
+
+Material Icons
+  Used by some of the application's SVG icons.
+  Author: Google LLC
+  Source: https://github.com/google/material-design-icons
+  License: Apache License, Version 2.0
+           https://www.apache.org/licenses/LICENSE-2.0

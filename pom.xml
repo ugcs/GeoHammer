@@ -601,6 +601,12 @@
 												<include>splash_screen.jpg</include>
 											</includes>
 										</resource>
+										<resource>
+											<directory>${project.basedir}</directory>
+											<includes>
+												<include>NOTICE.txt</include>
+											</includes>
+										</resource>
 									</resources>
 								</configuration>
 							</execution>
@@ -741,6 +747,17 @@
 									<executable>cp</executable>
 									<arguments>
 										<argument>src/main/resources/splash_screen.jpg</argument><argument>${installer.input}</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>copy-notice</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>cp</executable>
+									<arguments>
+										<argument>NOTICE.txt</argument><argument>${installer.input}</argument>
 									</arguments>
 								</configuration>
 							</execution>

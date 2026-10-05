@@ -1,7 +1,7 @@
 #define AppName "GeoHammer"
 #define AppPublisher "SPH Engeneering"
 #define AppExeName "GeoHammer.exe"
-#define AppURL "https://github.com/ugcs/UgCS-GeoHammer"
+#define AppURL "https://github.com/ugcs/GeoHammer"
 #define AppProgId "GeoHammer.Data"
 #define AppFileExt ".geohammer"
 
@@ -9,10 +9,10 @@
   #define AppVersion "0.0.0"
 #endif
 #ifndef AppDir
-  #define AppDir "..\target\installer\GeoHammer"
+  #define AppDir "..\..\target\installer\GeoHammer"
 #endif
 #ifndef OutputDir
-  #define OutputDir "..\target"
+  #define OutputDir "..\..\target"
 #endif
 #ifndef OutputBaseName
   #define OutputBaseName AppName + "-" + AppVersion

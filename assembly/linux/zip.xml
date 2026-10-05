@@ -32,7 +32,7 @@
         </file>
 
         <file>
-            <source> ${project.basedir}/assembly/start.sh</source>
+            <source> ${project.basedir}/assembly/linux/start.sh</source>
             <outputDirectory>/</outputDirectory>
             <fileMode>777</fileMode>
         </file>

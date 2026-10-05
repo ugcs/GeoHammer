@@ -78,7 +78,7 @@ jobs:
             --app-version ${{ steps.ver.outputs.app }} \
             --vendor "SPH Engeneering" \
             --copyright "© SPH Engeneering, 2024" \
-            --icon assembly/logo.ico
+            --icon assembly/windows/logo.ico
         shell: bash
 
       - name: Setup certificate
@@ -108,7 +108,7 @@ jobs:
         shell: cmd
 
       - name: Build installer
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.app }} "/DAppDir=%GITHUB_WORKSPACE%\target\installer\GeoHammer" "/DOutputDir=%GITHUB_WORKSPACE%\target" /DOutputBaseName=${{ steps.ver.outputs.base }} assembly\windows.iss'
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.app }} "/DAppDir=%GITHUB_WORKSPACE%\target\installer\GeoHammer" "/DOutputDir=%GITHUB_WORKSPACE%\target" /DOutputBaseName=${{ steps.ver.outputs.base }} assembly\windows\installer.iss'
         shell: cmd
 
       - name: Sign installer

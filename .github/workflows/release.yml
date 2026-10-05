@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-version:
+    # signing secrets exist only in the Pro repository; other jobs are skipped via needs
+    if: github.repository == 'ugcs/UgCS-GeoHammer-Pro'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      timestamp: ${{ steps.v.outputs.timestamp }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: v
+        run: |
+          # Get version from pom.xml (first occurrence)
+          version=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
+          # Get the ISO timestamp (or use your preferred format)
+          timestamp=$(date +%Y%m%d%H%M%S)
+          # If version ends with -SNAPSHOT, replace it with -timestamp
+          if [[ "$version" =~ -SNAPSHOT$ ]]; then
+            version="${version/-SNAPSHOT/}-${timestamp}"
+          fi
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "timestamp=$timestamp" >> $GITHUB_OUTPUT
+          echo "tag=v$version" >> $GITHUB_OUTPUT
+
+  build-windows:
+    needs: generate-version
+    uses: ./.github/workflows/release-windows.yml
+    with:
+      version: ${{ needs.generate-version.outputs.version }}
+      timestamp: ${{ needs.generate-version.outputs.timestamp }}
+    secrets:
+      SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
+      SM_HOST: ${{ secrets.SM_HOST }}
+      SM_API_KEY: ${{ secrets.SM_API_KEY }}
+      SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+
+  build-macos:
+    needs: generate-version
+    uses: ./.github/workflows/release-macos.yml
+    with:
+      version: ${{ needs.generate-version.outputs.version }}
+      timestamp: ${{ needs.generate-version.outputs.timestamp }}
+    secrets:
+      SIGNING_CERTIFICATE_P12: ${{ secrets.SIGNING_CERTIFICATE_P12 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      CERT_NAME: ${{ secrets.CERT_NAME }}
+      NOTARIZATION_KEY: ${{ secrets.NOTARIZATION_KEY }}
+      NOTARIZATION_KEY_ID: ${{ secrets.NOTARIZATION_KEY_ID }}
+      NOTARIZATION_ISSUER_ID: ${{ secrets.NOTARIZATION_ISSUER_ID }}
+
+  build-linux:
+    needs: generate-version
+    uses: ./.github/workflows/release-linux.yml
+    with:
+      version: ${{ needs.generate-version.outputs.version }}
+      timestamp: ${{ needs.generate-version.outputs.timestamp }}
+
+  publish:
+    needs: [generate-version, build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: staging/windows
+
+      - name: Download macos artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: staging/macos
+
+      - name: Download linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: staging/linux
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_RELEASE_PAT }}
+        run: |
+          gh release create \
+            "${{ needs.generate-version.outputs.tag }}" \
+            staging/windows/* staging/macos/* staging/linux/* \
+            --repo ugcs/GeoHammer \
+            --title "Release ${{ needs.generate-version.outputs.version }}" \
+            --prerelease

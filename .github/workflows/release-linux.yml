@@ -1,0 +1,59 @@
+name: Linux Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      timestamp:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+          java-package: 'jdk+fx'
+          architecture: 'x64'
+
+      - name: Cache local maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Set maven project version
+        run: mvn versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
+
+      - name: Resolve artifact name
+        id: name
+        run: |
+          app=$(echo '${{ inputs.version }}' | sed -E 's/-.*$//')
+          echo "base=GeoHammer-$app.${{ inputs.timestamp }}-linux-x86_64" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          run: mvn --batch-mode install -P linux-build -Dbuild.timestamp=${{ inputs.timestamp }} -Dassembly.timestamp=${{ inputs.timestamp }} -Ddist.basename=${{ steps.name.outputs.base }}
+
+      - name: Stage artifacts
+        run: mkdir staging && cp target/*.zip staging
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: staging/
+          retention-days: 5

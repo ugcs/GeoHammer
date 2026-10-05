@@ -2,6 +2,8 @@ name: GeoHammer build for Ubuntu Linux
 on: [push, workflow_dispatch]
 jobs:
   GeoHammer-Linux-Build:
+    # verification CI for the public repository; Pro builds via release.yml
+    if: github.repository == 'ugcs/GeoHammer'
     runs-on: ubuntu-22.04
     steps:
       - name: Check out repository code

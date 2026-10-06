@@ -5,6 +5,7 @@ import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
+import com.ugcs.geohammer.format.nmea.NmeaFormatter;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -25,6 +27,8 @@ import java.util.Set;
 public class SonarFile extends SgyFileWithMeta {
 
     private static final Logger log = LoggerFactory.getLogger(SonarFile.class);
+
+    private final NmeaFormatter nmeaFormatter = new NmeaFormatter();
 
     private List<SvlogPacket> packets = List.of();
 
@@ -94,6 +98,35 @@ public class SonarFile extends SgyFileWithMeta {
                 valueIndex++;
             }
         }
+    }
+
+    @Override
+    public void copyPositionsFromMeta() {
+        if (meta == null) {
+            return;
+        }
+
+        List<SvlogPacket> packetsWithMetaPositions = new ArrayList<>(packets);
+        for (TraceGeoData value : meta.getValues()) {
+            LatLon latLon = value.getLatLon();
+            if (latLon != null) {
+                int packetIndex = value.getTraceIndex();
+                packetsWithMetaPositions.set(packetIndex, replaceLocation(packets.get(packetIndex), latLon));
+            }
+        }
+        packets = packetsWithMetaPositions;
+        syncMeta();
+    }
+
+    private SvlogPacket replaceLocation(SvlogPacket packet, LatLon latLon) {
+        if (packet.getPacketId() != SvlogPacketId.NMEA_WRAPPER) {
+            return packet;
+        }
+        String nmea = new String(packet.getPayload(), StandardCharsets.US_ASCII);
+        String nmeaWithPosition = nmeaFormatter.replaceLocation(nmea, latLon);
+        return nmeaWithPosition != null
+                ? new SvlogPacket(packet.getPacketId(), nmeaWithPosition.getBytes(StandardCharsets.US_ASCII))
+                : packet;
     }
 
 	private void updateGeoData(TraceGeoData value, SonarState sonarState) {

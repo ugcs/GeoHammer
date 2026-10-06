@@ -6,7 +6,6 @@ import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.format.meta.Meta;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.meta.TraceGeoData;
-import com.ugcs.geohammer.format.meta.MetaDocument;
 import com.ugcs.geohammer.model.Column;
 import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.IndexRange;
@@ -87,6 +86,11 @@ public class NmeaFile extends SgyFileWithMeta {
                 }
             }
         }
+    }
+
+    @Override
+    public void copyPositionsFromMeta() {
+        throw new UnsupportedOperationException("Geotagging of NMEA files is not supported");
     }
 
     private void setTime(GeoData geoData, Instant time) {

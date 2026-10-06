@@ -124,6 +124,19 @@ public abstract class TraceFile extends SgyFileWithMeta {
         }
     }
 
+    @Override
+    public void copyPositionsFromMeta() {
+        if (meta == null) {
+            return;
+        }
+        for (TraceGeoData value : meta.getValues()) {
+            LatLon latLon = value.getLatLon();
+            if (latLon != null) {
+                traces.get(value.getTraceIndex()).setLatLon(latLon);
+            }
+        }
+    }
+
     public abstract int getSampleInterval();
 
     public abstract double getSamplesToCmGrn();

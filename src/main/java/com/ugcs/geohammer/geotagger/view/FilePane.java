@@ -10,6 +10,7 @@ import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.gpr.GprFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.view.ResourceImageHolder;
@@ -156,6 +157,11 @@ public abstract class FilePane extends VBox {
 	private SgyFile openFile(File file) throws IOException {
 		if (FileTypes.isGprFile(file)) {
 			GprFile sgyFile = new GprFile();
+			sgyFile.open(file);
+			return sgyFile;
+		}
+		if (FileTypes.isSvlogFile(file)) {
+			SonarFile sgyFile = new SonarFile();
 			sgyFile.open(file);
 			return sgyFile;
 		}

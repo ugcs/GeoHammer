@@ -4,6 +4,14 @@ import com.ugcs.geohammer.model.Range;
 
 public final class Palettes {
 
+    // Anchors blue, cyan, green, yellow, red, magenta and pink (255,170,255) are placed
+    // at 0, 1/6, 2/6, 3/6, 5/6, 17/18 and 1 of the 256-entry range,
+    // rounded to the nearest entry (halves up): 0, 43, 85, 128, 213, 241, 255.
+    // Interior entries are linear RGB blends of the neighboring anchors, each positioned
+    // midway between equal-RGB and equal-CIEDE2000 spacing.
+    public static final Spectrum VIVID_RAINBOW
+            = GeosoftTable.loadSpectrum("colormaps/vivid-rainbow.tbl");
+
     // gray scale uniform in lightness, black to white
     public static final Spectrum CET_L01
             = GeosoftTable.loadSpectrum("colormaps/CET-L01.tbl");
@@ -53,6 +61,7 @@ public final class Palettes {
         }
         return switch (spectrumType) {
             case HUE -> new HueGradient();
+            case VIVID_RAINBOW -> VIVID_RAINBOW;
             case RAINBOW -> CET_R1;
             case DIVERGING_RAINBOW -> CET_R3;
             case BLUE_WHITE_RED -> CET_D01;

@@ -1,0 +1,128 @@
+name: Windows Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      timestamp:
+        required: true
+        type: string
+    secrets:
+      SM_CLIENT_CERT_FILE_B64:
+        required: true
+      SM_HOST:
+        required: true
+      SM_API_KEY:
+        required: true
+      SM_CLIENT_CERT_PASSWORD:
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '22'
+          distribution: 'liberica'
+          java-package: 'jdk+fx'
+          architecture: 'x64'
+
+      - name: Cache local maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Set maven project version
+        run: mvn "versions:set" "-DnewVersion=${{ inputs.version }}" "-DgenerateBackupPoms=false"
+        shell: bash
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build and stage installer input
+        run: mvn --batch-mode verify -P windows-build "-Dbuild.timestamp=${{ inputs.timestamp }}" -Dassembly.timestamp=${{ inputs.timestamp }}
+        shell: bash
+
+      - name: Resolve artifact name
+        id: ver
+        run: |
+          app=$(echo '${{ inputs.version }}' | sed -E 's/-.*$//')
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "base=GeoHammer-$app.${{ inputs.timestamp }}-windows-x86_64" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Build app image
+        run: |
+          jpackage \
+            --verbose \
+            --type app-image \
+            --dest target/installer \
+            --input target/installer/input \
+            --name GeoHammer \
+            --main-class com.ugcs.geohammer.MainGeoHammer \
+            --main-jar geohammer-jar-with-dependencies.jar \
+            --java-options -Xmx16384m \
+            --java-options '-splash:$APPDIR\splash_screen.jpg' \
+            --java-options '-Djava.library.path=$ROOTDIR/runtime/bin' \
+            --runtime-image target/jre21 \
+            --app-version ${{ steps.ver.outputs.app }} \
+            --vendor "SPH Engeneering" \
+            --copyright "© SPH Engeneering, 2024" \
+            --icon assembly/windows/logo.ico
+        shell: bash
+
+      - name: Setup certificate
+        run: |
+          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > /d/Certificate_pkcs12.p12
+        shell: bash
+
+      - name: Set signing variables
+        run: |
+          echo "SM_HOST=${{ secrets.SM_HOST }}" >> "$GITHUB_ENV"
+          echo "SM_API_KEY=${{ secrets.SM_API_KEY }}" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.SM_CLIENT_CERT_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
+          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
+          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Install digicert client tools
+        uses: digicert/ssm-code-signing@v1.0.1
+
+      - name: Sign application executable
+        run: |
+          attrib -R target\installer\GeoHammer\GeoHammer.exe
+          smctl sign --keypair-alias key_1469160819 --input target\installer\GeoHammer\GeoHammer.exe -v --config-file C:\Users\RUNNER~1\AppData\Local\Temp\smtools-windows-x64\pkcs11properties.cfg
+          signtool verify /pa /v target\installer\GeoHammer\GeoHammer.exe
+        shell: cmd
+
+      - name: Build installer
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.app }} "/DAppDir=%GITHUB_WORKSPACE%\target\installer\GeoHammer" "/DOutputDir=%GITHUB_WORKSPACE%\target" /DOutputBaseName=${{ steps.ver.outputs.base }} assembly\windows\installer.iss'
+        shell: cmd
+
+      - name: Sign installer
+        run: |
+          smctl sign --keypair-alias key_1469160819 --input target\${{ steps.ver.outputs.base }}.exe -v --config-file C:\Users\RUNNER~1\AppData\Local\Temp\smtools-windows-x64\pkcs11properties.cfg
+          signtool verify /pa /v target\${{ steps.ver.outputs.base }}.exe
+        shell: cmd
+
+      - name: Stage artifacts
+        run: mkdir staging && copy target\${{ steps.ver.outputs.base }}.exe staging
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: staging/
+          retention-days: 5

@@ -20,10 +20,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 
 public class NmeaParser {
 
     private static final SentenceFactory sf = SentenceFactory.getInstance();
+
+    private static final Duration HALF_DAY = Duration.ofHours(12);
 
     public static boolean isNmeaSentence(String s) {
         return SentenceValidator.isSentence(s);
@@ -89,6 +92,23 @@ public class NmeaParser {
             time = timeSentence.getTime();
         }
         return parseTime(date, time);
+    }
+
+    // nearest moment to the reference with the time of day of the sentence
+    public Instant parseTimeOfDay(Sentence sentence, Instant reference) {
+        if (reference == null || !(sentence instanceof TimeSentence timeSentence)) {
+            return null;
+        }
+        Instant time = reference.truncatedTo(ChronoUnit.DAYS)
+                .plusMillis(timeSentence.getTime().getMilliseconds());
+        // near midnight the time of day belongs to the adjacent day
+        if (time.isBefore(reference.minus(HALF_DAY))) {
+            return time.plus(Duration.ofDays(1));
+        }
+        if (time.isAfter(reference.plus(HALF_DAY))) {
+            return time.minus(Duration.ofDays(1));
+        }
+        return time;
     }
 
     public Instant parseTime(Date date, Time time) {

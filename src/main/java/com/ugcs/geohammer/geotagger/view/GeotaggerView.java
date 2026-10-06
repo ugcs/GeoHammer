@@ -177,7 +177,7 @@ public class GeotaggerView {
 		showProgress();
 		executor.submit(() -> {
 			try {
-				geotagger.interpolateAndUpdatePositions(
+				geotagger.geotag(
 						dataPane.getFiles(),
 						positionPane.getFiles(),
 						this::updateProgress);

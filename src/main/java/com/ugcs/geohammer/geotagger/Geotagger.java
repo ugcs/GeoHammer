@@ -2,9 +2,7 @@ package com.ugcs.geohammer.geotagger;
 
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
-import com.ugcs.geohammer.format.TraceFile;
-import com.ugcs.geohammer.format.csv.CsvFile;
-import com.ugcs.geohammer.format.gpr.Trace;
+import com.ugcs.geohammer.format.SgyFileWithMeta;
 import com.ugcs.geohammer.geotagger.domain.Position;
 import com.ugcs.geohammer.geotagger.domain.SplineStencil;
 import com.ugcs.geohammer.model.Model;
@@ -17,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -61,7 +58,7 @@ public class Geotagger {
 		return allPositions;
 	}
 
-	public void interpolateAndUpdatePositions(
+	public void geotag(
 			List<SgyFile> dataFiles,
 			List<SgyFile> positionFiles,
 			BiConsumer<Integer, Integer> onProgress) throws IOException {
@@ -77,10 +74,9 @@ public class Geotagger {
 				undoModel.removeSnapshots(dataFile);
 			}
 			try {
-				if (dataFile instanceof CsvFile csvFile) {
-					interpolateAndUpdatePositions(csvFile, positions, progress);
-				} else if (dataFile instanceof TraceFile traceFile) {
-					interpolateAndUpdatePositions(traceFile, positions, progress);
+				updatePositions(dataFile, positions, progress);
+				if (dataFile instanceof SgyFileWithMeta fileWithMeta) {
+					fileWithMeta.copyPositionsFromMeta();
 				}
 			} finally {
 				if (isOpened) {
@@ -95,8 +91,8 @@ public class Geotagger {
 		}
 	}
 
-    private void interpolateAndUpdatePositions(CsvFile csvFile, List<Position> positions, Progress progress) {
-		List<GeoData> values = csvFile.getGeoData();
+    private void updatePositions(SgyFile file, List<Position> positions, Progress progress) {
+		List<GeoData> values = file.getGeoData();
 		boolean hasAltitude = !values.isEmpty()
 				&& values.getFirst().getSchema().getHeaderBySemantic(Semantic.ALTITUDE.getName()) != null;
 
@@ -111,20 +107,6 @@ public class Geotagger {
             }
             progress.increment();
         }
-    }
-
-    private void interpolateAndUpdatePositions(TraceFile traceFile, List<Position> positions, Progress progress) {
-        for (int i = 0; i < traceFile.getTraces().size(); i++) {
-            Trace trace = traceFile.getTraces().get(i);
-			Instant time = trace.getDateTime();
-
-			Position interpolated = interpolate(positions, time != null ? time.toEpochMilli() : null);
-            if (interpolated != null) {
-                trace.setLatLon(interpolated.getLatLon());
-            }
-            progress.increment();
-        }
-        traceFile.syncMeta();
     }
 
     private @Nullable Position interpolate(List<Position> positions, Long time) {

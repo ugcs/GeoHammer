@@ -68,6 +68,8 @@ public abstract class SgyFileWithMeta extends SgyFile {
 
     abstract public void syncMeta();
 
+    abstract public void copyPositionsFromMeta();
+
     abstract public void saveMeta() throws IOException;
 
     @Override

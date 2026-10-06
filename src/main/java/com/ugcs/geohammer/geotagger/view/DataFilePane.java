@@ -8,6 +8,7 @@ import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.gpr.GprFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.geotagger.Formatters;
 import com.ugcs.geohammer.geotagger.domain.CoverageStatus;
 import com.ugcs.geohammer.geotagger.domain.TimeRange;
@@ -88,15 +89,15 @@ public class DataFilePane extends FilePane {
 
     @Override
     protected boolean canAdd(File file) {
-		if (FileTypes.isDztFile(file)
-				|| FileTypes.isSvlogFile(file)) {
+		if (FileTypes.isDztFile(file)) {
 			return false;
 		}
 
 		SgyFile sgyFile = model.getFileManager().getFile(file);
 		return sgyFile == null
 				|| sgyFile instanceof GprFile
-				|| sgyFile instanceof CsvFile;
+				|| sgyFile instanceof CsvFile
+				|| sgyFile instanceof SonarFile;
 	}
 
 	@Override

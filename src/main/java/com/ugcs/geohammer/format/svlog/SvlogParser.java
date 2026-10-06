@@ -39,6 +39,9 @@ public class SvlogParser {
             sonarState.setGpsQuality(gpsQuality);
         }
         Instant timestamp = parseTime(packet);
+        if (timestamp == null) {
+            timestamp = parseTimeOfDay(packet, sonarState.getTimestamp());
+        }
         if (timestamp != null) {
             sonarState.setTimestamp(timestamp);
         }
@@ -99,6 +102,11 @@ public class SvlogParser {
     public Instant parseTime(SvlogPacket packet) {
         Sentence sentence = parseNmeaSentence(packet);
         return nmeaParser.parseTime(sentence);
+    }
+
+    public Instant parseTimeOfDay(SvlogPacket packet, Instant reference) {
+        Sentence sentence = parseNmeaSentence(packet);
+        return nmeaParser.parseTimeOfDay(sentence, reference);
     }
 
     public Integer parseFixQuality(SvlogPacket packet) {

@@ -296,7 +296,6 @@ def compute_velocities_for_mark_from_spectrum(sub_mean, vaxis_cm_s):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("file_path", help="SEG-Y file path")
-    parser.add_argument("--original-path", default="", help="Original file path (fallback, prefer GEOHAMMER_ORIGINAL_PATH env var)")
     parser.add_argument("--output-dir", dest="output_dir", type=str, default="")
 
     args = parser.parse_args()
@@ -306,9 +305,7 @@ def main():
         print("No SGY selected. Exiting.")
         return
 
-    original_path = os.environ.get('GEOHAMMER_ORIGINAL_PATH', '') or args.original_path or SEG_Y_FILE
-
-    OUTPUT_CSV = build_output_csv_path(original_path, args.output_dir)
+    OUTPUT_CSV = build_output_csv_path(SEG_Y_FILE, args.output_dir)
 
     print("\nUsing SGY:", SEG_Y_FILE)
     print("Saving CSV to:", OUTPUT_CSV, "\n")

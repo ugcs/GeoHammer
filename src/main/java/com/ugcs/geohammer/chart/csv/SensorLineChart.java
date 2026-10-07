@@ -80,7 +80,12 @@ import javafx.geometry.Pos;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.ClosePath;
 import javafx.scene.shape.Line;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
+import javafx.scene.shape.PathElement;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.Node;
 import javafx.scene.chart.Axis;
@@ -1180,6 +1185,10 @@ public class SensorLineChart extends Chart {
 
         private final ObservableList<Data<Number, Number>> markers;
 
+        private final Path rangeBand = new Path();
+
+        private boolean selected;
+
         public LineChartWithMarkers(Axis<Number> xAxis, Axis<Number> yAxis, Plot plot) {
             super(xAxis, yAxis);
 
@@ -1187,6 +1196,13 @@ public class SensorLineChart extends Chart {
 
             series = new Series<>();
             getData().add(series);
+
+            rangeBand.setStroke(null);
+            rangeBand.setFill(plot.getRangeColor());
+            rangeBand.setManaged(false);
+            rangeBand.setMouseTransparent(true);
+            // keep the band behind the series line
+            getPlotChildren().addFirst(rangeBand);
 
             markers = FXCollections.observableArrayList(data -> new Observable[] {data.XValueProperty()});
             markers.addListener((InvalidationListener) observable -> layoutPlotChildren());
@@ -1202,8 +1218,12 @@ public class SensorLineChart extends Chart {
         }
 
         public void setSelected(boolean selected) {
+            this.selected = selected;
             setSeriesStyle(selected ? plot.getSelectedStyle() : plot.getStyle());
             setAxesVisible(selected);
+
+            rangeBand.setVisible(isSeriesVisible() && selected);
+            requestChartLayout();
         }
 
         public boolean isSeriesVisible() {
@@ -1212,10 +1232,9 @@ public class SensorLineChart extends Chart {
 
         public void setSeriesVisible(boolean visible) {
             series.getNode().setVisible(visible);
+            rangeBand.setVisible(visible && selected);
 
-            if (visible) {
-                updateData();
-            }
+            updateData();
         }
 
         private void setAxesVisible(boolean visible) {
@@ -1228,6 +1247,7 @@ public class SensorLineChart extends Chart {
 
         public void setPlot(Plot plot) {
             this.plot = Check.notNull(plot);
+            rangeBand.setFill(plot.getRangeColor());
         }
 
         public Point2D normalizeToBounds(Point2D chartPoint) {
@@ -1299,6 +1319,15 @@ public class SensorLineChart extends Chart {
             setSeriesData(data);
         }
 
+        private void updateRangeBand() {
+            if (!selected || !isSeriesVisible()) {
+                rangeBand.getElements().clear();
+                return;
+            }
+            List<PathElement> path = buildRangePath(series.getData());
+            rangeBand.getElements().setAll(path);
+        }
+
         private void setSeriesData(List<Data<Number, Number>> data) {
             setAnimated(false);
 
@@ -1315,33 +1344,120 @@ public class SensorLineChart extends Chart {
 
         private List<Data<Number, Number>> sampleSeriesData(IndexRange range, int numSamples) {
             int limit = Math.min(range.size(), numSamples);
-            double step = Math.max(1, limit > 1 ? (double)(range.size() - 1) / (limit - 1) : 1);
-            int hw = (int)(step / 2);
+            if (limit <= 0) {
+                return List.of();
+            }
 
+            // bucket k is [ceil(c(k) - step / 2), ceil(c(k) + step / 2)), adjacent
+            // buckets share the edge, so every value in range falls into one bucket;
+            // edge buckets reach half a step outside the range
+            double origin = range.from();
+            double step = limit > 1 ? (double)(range.size() - 1) / (limit - 1) : range.size();
+
+            NavigableMap<Integer, IndexRange> lineRanges = file.getLineRanges();
             List<Data<Number, Number>> samples = new ArrayList<>(limit);
+            // sample is placed at the source index nearest to the bucket center
+            // and belongs to the line of that index
+            int prevX = 0;
+            int prevLine = 0;
+            int x = (int)Math.round(origin);
+            int line = getValueLineIndex(x);
             for (int k = 0; k < limit; k++) {
-                int i = range.from() + (int)Math.round(k * step);
-                if (plot.data.get(i) == null) {
-                    continue;
+                int nextX = 0;
+                int nextLine = line;
+                if (k < limit - 1) {
+                    nextX = (int)Math.round(origin + (k + 1) * step);
+                    nextLine = getValueLineIndex(nextX);
                 }
-                int line = getValueLineIndex(i);
+
+                int bucketFrom = (int)Math.ceil(origin + (k - 0.5) * step);
+                int bucketTo = (int)Math.ceil(origin + (k + 0.5) * step);
+                // when a neighbor sample is on another line, extend the bucket
+                // up to the neighbor to collect the rest of the own line
+                if (k > 0 && prevLine != line) {
+                    bucketFrom = prevX + 1;
+                }
+                if (k < limit - 1 && nextLine != line) {
+                    bucketTo = nextX;
+                }
+                IndexRange lineRange = lineRanges.get(line);
+                if (lineRange != null) {
+                    bucketFrom = Math.max(bucketFrom, lineRange.from());
+                    bucketTo = Math.min(bucketTo, lineRange.to());
+                }
+                bucketFrom = Math.max(bucketFrom, 0);
+                bucketTo = Math.min(bucketTo, plot.data.size());
+
                 double sum = 0.0;
+                double min = Double.POSITIVE_INFINITY;
+                double max = Double.NEGATIVE_INFINITY;
                 int count = 0;
-                for (int j = i - hw; j <= i + hw; j++) {
-                    if (j < 0 || j >= plot.data.size()) {
-                        continue;
-                    }
+                for (int j = bucketFrom; j < bucketTo; j++) {
                     Number v = plot.data.get(j);
-                    if (v != null && getValueLineIndex(j) == line) {
-                        sum += v.doubleValue();
+                    if (v != null) {
+                        double value = v.doubleValue();
+                        if (!Double.isFinite(value)) {
+                            continue;
+                        }
+                        sum += value;
+                        min = Math.min(min, value);
+                        max = Math.max(max, value);
                         count++;
                     }
                 }
                 if (count > 0) {
-                    samples.add(new Data<>(i, sum / count));
+                    // value range of the bucket goes to the extra value
+                    samples.add(new Data<>(x, sum / count, new Range(min, max)));
                 }
+
+                prevX = x;
+                prevLine = line;
+                x = nextX;
+                line = nextLine;
             }
             return samples;
+        }
+
+        private List<PathElement> buildRangePath(List<Data<Number, Number>> samples) {
+            if (Nulls.isNullOrEmpty(samples)) {
+                return List.of();
+            }
+
+            Axis<Number> xAxis = getXAxis();
+            Axis<Number> yAxis = getYAxis();
+
+            List<PathElement> path = new ArrayList<>(2 * samples.size() + 2);
+            int from = 0;
+            while (from < samples.size()) {
+                if (!(samples.get(from).getExtraValue() instanceof Range)) {
+                    from++;
+                    continue;
+                }
+                // band is split at line boundaries
+                int line = getValueLineIndex(samples.get(from).getXValue().intValue());
+                int to = from + 1;
+                while (to < samples.size()
+                        && samples.get(to).getExtraValue() instanceof Range
+                        && getValueLineIndex(samples.get(to).getXValue().intValue()) == line) {
+                    to++;
+                }
+                // closed contour per line: max edge forward, min edge backward
+                for (int k = from; k < to; k++) {
+                    Data<Number, Number> sample = samples.get(k);
+                    double x = xAxis.getDisplayPosition(sample.getXValue());
+                    double y = yAxis.getDisplayPosition(((Range)sample.getExtraValue()).getMax());
+                    path.add(k == from ? new MoveTo(x, y) : new LineTo(x, y));
+                }
+                for (int k = to - 1; k >= from; k--) {
+                    Data<Number, Number> sample = samples.get(k);
+                    double x = xAxis.getDisplayPosition(sample.getXValue());
+                    double y = yAxis.getDisplayPosition(((Range)sample.getExtraValue()).getMin());
+                    path.add(new LineTo(x, y));
+                }
+                path.add(new ClosePath());
+                from = to;
+            }
+            return path;
         }
 
         public void addMarker(Data<Number, Number> marker, SelectionType type) {
@@ -1421,6 +1537,7 @@ public class SensorLineChart extends Chart {
         @Override
         protected void layoutPlotChildren() {
             super.layoutPlotChildren();
+            updateRangeBand();
 
             for (Data<Number, Number> verticalMarker : markers) {
                 VBox markerBox = (VBox) verticalMarker.getNode();
@@ -1546,6 +1663,10 @@ public class SensorLineChart extends Chart {
 
         public @Nullable String getUnit() {
             return unit;
+        }
+
+        public Color getRangeColor() {
+            return color.deriveColor(0, 1, 1, 0.4);
         }
 
         public String getStyle() {

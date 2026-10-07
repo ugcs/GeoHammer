@@ -1,0 +1,16 @@
+{
+  "filename": "echonimbus_mbes_head_position.py",
+  "display_name": "EchoNIMBUS MBES head position",
+  "parameters": [
+    {
+      "name": "position-file",
+      "display_name": "Position file",
+      "type": "FILE_PATH",
+      "default_value": "",
+      "required": true
+    }
+  ],
+  "templates": [
+    "SVLOG"
+  ]
+}

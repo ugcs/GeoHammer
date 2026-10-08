@@ -1,14 +1,15 @@
 package com.ugcs.geohammer;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.StringJoiner;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -21,6 +22,7 @@ import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
+import com.ugcs.geohammer.model.ProgressListener;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
@@ -130,7 +132,7 @@ public class Loader {
 		ProgressTask loadTask = listener -> {
 			List<File> openedFiles = new ArrayList<>();
 
-			for (File file : prepareOpenFiles(files)) {
+			for (File file : prepareOpenFiles(files, listener)) {
 				if (Thread.currentThread().isInterrupted()) {
 					break;
 				}
@@ -157,7 +159,8 @@ public class Loader {
 					results.put(file, Result.error(e));
 
 					eventPublisher.publishEvent(new FileOpenErrorEvent(this, file, e));
-					if (interactive) {
+					// files from directories are reported only in the status log
+					if (interactive && files.contains(file)) {
 						Dialogs.showError("Can't open file " + file.getName(),
 								new FileOpenException(file, e));
 					}
@@ -166,6 +169,7 @@ public class Loader {
 				}
 			}
 
+			reportFailedFiles(results, listener);
 			if (!openedFiles.isEmpty()) {
 				// run in app thread to wait for open postponed tasks
 				Platform.runLater(() -> {
@@ -191,49 +195,64 @@ public class Loader {
 		return future;
 	}
 
-	private List<File> prepareOpenFiles(List<File> files) {
-		// make unique and sort by name
-		List<File> result = new ArrayList<>(new HashSet<>(Nulls.toEmpty(files)));
-		result.sort(Comparator.comparing(File::getName));
-		// expand directories
-		result = expandDirectories(result);
-		return result;
+	private void reportFailedFiles(Map<File, Result<File>> results, ProgressListener listener) {
+		StringJoiner failedFileNames = new StringJoiner(", ");
+		for (Map.Entry<File, Result<File>> entry : results.entrySet()) {
+			if (entry.getValue().isError()) {
+				failedFileNames.add(entry.getKey().getName());
+			}
+		}
+		if (failedFileNames.length() > 0) {
+			listener.progressMsg("Failed to open: " + failedFileNames);
+		}
 	}
 
-	private List<File> expandDirectories(List<File> files) {
-		List<File> result = new ArrayList<>();
+	private List<File> prepareOpenFiles(List<File> files, ProgressListener listener) {
+		// expand directories, make unique and sort by path
+		Set<File> candidates = new TreeSet<>();
 		for (File file : Nulls.toEmpty(files)) {
-			if (file.isFile()) {
+			if (file.isDirectory()) {
+				candidates.addAll(listFiles(file));
+			} else {
+				candidates.add(file);
+			}
+		}
+
+		// explicitly chosen files are opened as is, files from directories are filtered
+		List<File> result = new ArrayList<>(candidates.size());
+		for (File file : candidates) {
+			if (files.contains(file) || isSupportedFile(file)) {
 				result.add(file);
 			} else {
-				result.addAll(listFiles(file));
+				listener.progressMsg("Skipped " + file);
 			}
 		}
 		return result;
 	}
 
 	private List<File> listFiles(File directory) {
-		if (directory == null || !directory.isDirectory()) {
-			return List.of();
-		}
-		FilenameFilter filter = (dir, name) -> FileTypes.isTraceFile(new File(dir, name));
-		File[] files = directory.listFiles(filter);
-		if (files == null) {
-			return List.of();
-		}
-		// exclude directories from result
-		List<File> result = new ArrayList<>(files.length);
-		for (File file : files) {
-			if (file.isFile()) {
-				result.add(file);
-			}
-		}
-		// sort files by name
-		result.sort(Comparator.comparing(File::getName));
-		return result;
+		File[] files = directory.listFiles(file -> file.isFile() && !file.isHidden());
+		return files != null ? Arrays.asList(files) : List.of();
 	}
 
-	// returns the opened file or null when nothing was opened
+	private boolean isSupportedFile(File file) {
+		// meta files are opened along with their data files
+		if (MetaFiles.isMeta(file)) {
+			return false;
+		}
+		if (FileTypes.isGprFile(file)
+				|| FileTypes.isDztFile(file)
+				|| FileTypes.isSvlogFile(file)
+				|| FileTypes.isNmeaFile(file)) {
+			return true;
+		}
+		// csv and other text formats are opened only with a matching template
+		return FileTypes.isTextFile(file)
+				&& model.getFileManager().getFileTemplates().findTemplate(file) != null;
+	}
+
+	// returns the opened file or null when nothing was opened;
+	// formats dispatched here must also be accepted by isSupportedFile
 	private @Nullable File openFile(File file, boolean interactive) throws IOException {
 		if (file == null) {
 			return null;

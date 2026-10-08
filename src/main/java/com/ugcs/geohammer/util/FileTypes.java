@@ -49,10 +49,6 @@ public final class FileTypes {
         return DZT_PROBE.matches(file);
     }
 
-    public static boolean isTraceFile(File file) {
-        return isGprFile(file) || isDztFile(file);
-    }
-
     public static boolean isSvlogFile(File file) {
         return SVLOG_PROBE.matches(file);
     }

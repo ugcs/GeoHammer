@@ -4,12 +4,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -131,8 +132,9 @@ public class Loader {
 
 		ProgressTask loadTask = listener -> {
 			List<File> openedFiles = new ArrayList<>();
+			StringJoiner failedFileNames = new StringJoiner(", ");
 
-			for (File file : prepareOpenFiles(files, listener)) {
+			for (File file : selectFilesToOpen(files, listener)) {
 				if (Thread.currentThread().isInterrupted()) {
 					break;
 				}
@@ -148,6 +150,7 @@ public class Loader {
 						results.put(file, Result.success(openedFile));
 					} else {
 						results.put(file, Result.error(new IOException("No data to open in " + file.getName())));
+						failedFileNames.add(file.getName());
 					}
 				} catch (CancellationException e) {
 					// loading cancelled
@@ -157,6 +160,7 @@ public class Loader {
 					log.error("Error", e);
 					listener.progressMsg("Error: " + e.getMessage());
 					results.put(file, Result.error(e));
+					failedFileNames.add(file.getName());
 
 					eventPublisher.publishEvent(new FileOpenErrorEvent(this, file, e));
 					// files from directories are reported only in the status log
@@ -169,7 +173,9 @@ public class Loader {
 				}
 			}
 
-			reportFailedFiles(results, listener);
+			if (failedFileNames.length() > 0) {
+				listener.progressMsg("Failed to open: " + failedFileNames);
+			}
 			if (!openedFiles.isEmpty()) {
 				// run in app thread to wait for open postponed tasks
 				Platform.runLater(() -> {
@@ -195,32 +201,10 @@ public class Loader {
 		return future;
 	}
 
-	private void reportFailedFiles(Map<File, Result<File>> results, ProgressListener listener) {
-		StringJoiner failedFileNames = new StringJoiner(", ");
-		for (Map.Entry<File, Result<File>> entry : results.entrySet()) {
-			if (entry.getValue().isError()) {
-				failedFileNames.add(entry.getKey().getName());
-			}
-		}
-		if (failedFileNames.length() > 0) {
-			listener.progressMsg("Failed to open: " + failedFileNames);
-		}
-	}
-
-	private List<File> prepareOpenFiles(List<File> files, ProgressListener listener) {
-		// expand directories, make unique and sort by path
-		Set<File> candidates = new TreeSet<>();
-		for (File file : Nulls.toEmpty(files)) {
-			if (file.isDirectory()) {
-				candidates.addAll(listFiles(file));
-			} else {
-				candidates.add(file);
-			}
-		}
-
+	private List<File> selectFilesToOpen(List<File> files, ProgressListener listener) {
 		// explicitly chosen files are opened as is, files from directories are filtered
-		List<File> result = new ArrayList<>(candidates.size());
-		for (File file : candidates) {
+		List<File> result = new ArrayList<>();
+		for (File file : expandDirectories(files)) {
 			if (files.contains(file) || isSupportedFile(file)) {
 				result.add(file);
 			} else {
@@ -230,9 +214,29 @@ public class Loader {
 		return result;
 	}
 
+	private Set<File> expandDirectories(List<File> files) {
+		List<File> sortedFiles = new ArrayList<>(Nulls.toEmpty(files));
+		sortedFiles.sort(Comparator.comparing(File::getName));
+
+		// unique files in order of sorted names
+		Set<File> result = new LinkedHashSet<>();
+		for (File file : sortedFiles) {
+			if (file.isDirectory()) {
+				result.addAll(listFiles(file));
+			} else {
+				result.add(file);
+			}
+		}
+		return result;
+	}
+
 	private List<File> listFiles(File directory) {
 		File[] files = directory.listFiles(file -> file.isFile() && !file.isHidden());
-		return files != null ? Arrays.asList(files) : List.of();
+		if (files == null) {
+			return List.of();
+		}
+		Arrays.sort(files, Comparator.comparing(File::getName));
+		return Arrays.asList(files);
 	}
 
 	private boolean isSupportedFile(File file) {

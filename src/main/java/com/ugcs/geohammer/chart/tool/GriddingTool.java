@@ -19,6 +19,8 @@ import com.ugcs.geohammer.service.gridding.GriddingParams;
 import com.ugcs.geohammer.service.gridding.GriddingSettings;
 import com.ugcs.geohammer.service.gridding.GriddingResult;
 import com.ugcs.geohammer.service.gridding.GriddingService;
+import com.ugcs.geohammer.service.magnetics.RtpDirection;
+import com.ugcs.geohammer.service.magnetics.RtpDirectionService;
 import com.ugcs.geohammer.service.palette.PaletteType;
 import com.ugcs.geohammer.service.palette.SpectrumType;
 import com.ugcs.geohammer.util.Formats;
@@ -27,6 +29,7 @@ import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.ResourceImageHolder;
+import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import javafx.application.Platform;
@@ -53,6 +56,9 @@ import org.springframework.stereotype.Component;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -78,6 +84,8 @@ public class GriddingTool extends FilterToolView {
     private final PaletteView paletteView;
 
     private final GriddingSettings griddingSettings;
+
+    private final RtpDirectionService rtpDirectionService;
 
     // shows that input events from the filter controls should be ignored;
     // alternative to this flag is disabling listeners during the preference
@@ -106,6 +114,8 @@ public class GriddingTool extends FilterToolView {
 
     private final TextField rtpDeclinationInput;
 
+    private final TextField rtpFallbackDateInput;
+
     private final ComboBox<PaletteType> paletteSelector;
 
     private final ComboBox<SpectrumType> spectrumSelector;
@@ -116,6 +126,7 @@ public class GriddingTool extends FilterToolView {
             PaletteView paletteView,
             GriddingService griddingService,
             GriddingSettings griddingSettings,
+            RtpDirectionService rtpDirectionService,
             TaskService taskService,
             ExecutorService executor
     ) {
@@ -126,6 +137,7 @@ public class GriddingTool extends FilterToolView {
         this.paletteView = paletteView;
         this.griddingService = griddingService;
         this.griddingSettings = griddingSettings;
+        this.rtpDirectionService = rtpDirectionService;
         this.taskService = taskService;
 
         warning = new Label("Warning: Grid needs to be recalculated.");
@@ -240,13 +252,22 @@ public class GriddingTool extends FilterToolView {
         rtpDeclinationInput.setText("0");
         rtpDeclinationInput.textProperty().addListener(this::onRtpDirectionChange);
 
+        InputWithTopLabel rtpFallbackDate = new InputWithTopLabel("RTP fallback date, UTC");
+        rtpFallbackDateInput = rtpFallbackDate.getInput();
+        rtpFallbackDateInput.setPromptText("YYYY-MM-DD when samples have no timestamps");
+
+        Button useIgrfDirection = new Button("Use IGRF direction");
+        useIgrfDirection.setOnAction(event -> updateRtpDirection());
+
         VBox postProcessingGroup = createGroup(
                 hillShading,
                 smoothing,
                 analyticSignal,
                 reductionToPole,
                 rtpInclination,
-                rtpDeclination
+                rtpDeclination,
+                rtpFallbackDate,
+                useIgrfDirection
         );
 
         inputContainer.getChildren().setAll(
@@ -585,6 +606,9 @@ public class GriddingTool extends FilterToolView {
 
         GriddingFilter filter = loadFilter(file, seriesName);
         updateFilterInputs(filter);
+        if (!filter.reductionToPole()) {
+            updateRtpDirection();
+        }
     }
 
     private GriddingParams loadParams(SgyFile file) {
@@ -719,6 +743,36 @@ public class GriddingTool extends FilterToolView {
     private void onRtpDirectionChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
         if (!ignoreFilterEvents.get() && reductionToPole.isSelected()) {
             applyFilter();
+        }
+    }
+
+    private void updateRtpDirection() {
+        if (selectedFile == null) {
+            return;
+        }
+        try {
+            RtpDirection direction = rtpDirectionService.derive(selectedFile.getGeoData(), parseRtpFallbackTimestamp());
+            ignoreFilterEvents.set(true);
+            try {
+                rtpInclinationInput.setText(Text.formatNumber(direction.inclination()));
+                rtpDeclinationInput.setText(Text.formatNumber(direction.declination()));
+            } finally {
+                ignoreFilterEvents.set(false);
+            }
+        } catch (IllegalArgumentException e) {
+            Dialogs.showError("RTP direction", e.getMessage());
+        }
+    }
+
+    private Instant parseRtpFallbackTimestamp() {
+        String text = rtpFallbackDateInput.getText().trim();
+        if (text.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(text).atStartOfDay(ZoneOffset.UTC).toInstant();
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

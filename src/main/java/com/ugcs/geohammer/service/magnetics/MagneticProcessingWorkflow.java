@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class MagneticProcessingWorkflow {
@@ -49,6 +50,21 @@ public class MagneticProcessingWorkflow {
         Check.notNull(options);
         record(file, MagneticProcessingStepType.LINE_LEVELING,
                 options.inputSeries(), options.outputSeries(), Map.of("method", "line-median"));
+    }
+
+    public void recordCrossoverLeveling(SgyFile file, String inputSeries, String outputSeries, Set<Integer> tieLines) {
+        Check.notEmpty(inputSeries);
+        Check.notEmpty(outputSeries);
+        Check.notEmpty(tieLines);
+        StringBuilder lineIds = new StringBuilder();
+        for (Integer tieLine : tieLines) {
+            if (!lineIds.isEmpty()) {
+                lineIds.append(',');
+            }
+            lineIds.append(tieLine);
+        }
+        record(file, MagneticProcessingStepType.LINE_LEVELING, inputSeries, outputSeries,
+                Map.of("method", "tie-line-crossover", "tieLineIds", lineIds.toString()));
     }
 
     public void recordMicroLeveling(SgyFile file, MicroLevelingOptions options) {

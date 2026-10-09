@@ -7,6 +7,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.service.magnetics.CrossoverLevelingResult;
 import com.ugcs.geohammer.service.magnetics.CrossoverLevelingService;
+import com.ugcs.geohammer.service.magnetics.MagneticProcessingWorkflow;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import com.ugcs.geohammer.view.control.NodeWithTopLabel;
@@ -29,6 +30,8 @@ public class CrossoverLevelingTool extends FilterToolView {
 
     private final CrossoverLevelingService levelingService;
 
+    private final MagneticProcessingWorkflow processingWorkflow;
+
     private final ComboBox<String> inputSeriesSelector;
 
     private final TextField tieLinesInput;
@@ -39,10 +42,12 @@ public class CrossoverLevelingTool extends FilterToolView {
 
     private final Label diagnostics;
 
-    public CrossoverLevelingTool(Model model, CrossoverLevelingService levelingService, ExecutorService executor) {
+    public CrossoverLevelingTool(Model model, CrossoverLevelingService levelingService,
+                                 MagneticProcessingWorkflow processingWorkflow, ExecutorService executor) {
         super(executor);
         this.model = model;
         this.levelingService = levelingService;
+        this.processingWorkflow = processingWorkflow;
 
         InputWithTopLabel outputSeries = new InputWithTopLabel("Crossover-leveled series");
         outputSeriesInput = outputSeries.getInput();
@@ -138,6 +143,7 @@ public class CrossoverLevelingTool extends FilterToolView {
             try {
                 CrossoverLevelingResult result = levelingService.level(chart.getFile().getGeoData(), inputSeries, tieLines);
                 chart.createDerivedSeries(outputSeries, inputSeries, result.values());
+                processingWorkflow.recordCrossoverLeveling(chart.getFile(), inputSeries, outputSeries, tieLines);
                 Platform.runLater(() -> diagnostics.setText("Crossovers: %d, RMS error: %.2f"
                         .formatted(result.crossovers().size(), result.rmsError())));
             } catch (IllegalArgumentException e) {

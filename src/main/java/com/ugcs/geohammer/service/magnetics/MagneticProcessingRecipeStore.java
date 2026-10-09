@@ -45,6 +45,12 @@ public class MagneticProcessingRecipeStore {
         if (!Files.exists(path)) {
             return List.of();
         }
+        return read(path);
+    }
+
+    public List<MagneticProcessingStep> read(Path path) throws IOException {
+        Check.notNull(path);
+
         try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
             RecipeDocument document = GsonConfig.GSON.fromJson(reader, RecipeDocument.class);
             return document != null ? document.toSteps() : List.of();

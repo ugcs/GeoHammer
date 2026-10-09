@@ -41,10 +41,7 @@ public class MagneticProcessingWorkflow {
     public void recordLineLeveling(SgyFile file, LineLevelingOptions options) {
         Check.notNull(options);
         record(file, MagneticProcessingStepType.LINE_LEVELING,
-                options.inputSeries(), options.outputSeries(), Map.of(
-                        "tieLineSeries", options.tieLineSeries(),
-                        "applyMicroLeveling", Boolean.toString(options.applyMicroLeveling())
-                ));
+                options.inputSeries(), options.outputSeries(), Map.of("method", "line-median"));
     }
 
     public void recordRegionalRemoval(SgyFile file, RegionalRemovalOptions options) {

@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  UgCS GeoHammer: Java 21 / JavaFX 21 desktop app, plain Spring context, Maven.
+  Workflow rules, architecture, domain glossary and conventions: CLAUDE.md and spec/.
+
+rules:
+  proposal:
+    - Reference the GitHub issue number when there is one
+    - Include a Non-goals section
+  specs:
+    - Describe user-visible behavior and data outcomes, not classes or implementation
+  design:
+    - Name affected classes, threads (FX vs background) and events
+    - When file data changes, cover snapshot/undo, setUnsaved and cache invalidation (see Recipes in spec/overview.md)
+    - Propose wide refactors explicitly instead of folding them into the change
+  tasks:
+    - Small, reviewable steps; touch only what the change needs
+    - No unit test tasks and no commit tasks
+    - Add a task to update spec/ when the change makes its architecture or recipes inaccurate
+    - >-
+      End with a Verify group of two tasks: (1) run `mvn clean package` and fix new compilation errors and
+      Error Prone/NullAway warnings; (2) if the `code-review` skill is available, invoke it (not the
+      `code-review:code-review` plugin) on the uncommitted changes with the change's proposal and specs as the
+      completeness reference, fix critical and major issues, and report the scores and any issues left open

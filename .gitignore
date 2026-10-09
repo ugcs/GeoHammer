@@ -1,15 +1,17 @@
-*.class
-
-# Package Files #
-*.jar
-*.war
-*.ear
-#*.png
-
-target
-.idea
 .DS_Store
+.idea
 .classpath
 .project
 .settings/*.prefs
 .vscode/*.json
+target/
+
+# Package Files
+*.class
+*.jar
+*.war
+*.ear
+
+# Claude Code (shared commands/skills are committed)
+.claude/settings.local.json
+.claude/worktrees/

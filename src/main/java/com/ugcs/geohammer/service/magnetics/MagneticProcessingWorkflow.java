@@ -44,6 +44,13 @@ public class MagneticProcessingWorkflow {
                 options.inputSeries(), options.outputSeries(), Map.of("method", "line-median"));
     }
 
+    public void recordMicroLeveling(SgyFile file, MicroLevelingOptions options) {
+        Check.notNull(options);
+        record(file, MagneticProcessingStepType.MICRO_LEVELING,
+                options.inputSeries(), options.outputSeries(),
+                Map.of("method", "neighbor-residual-median", "windowSize", Integer.toString(options.windowSize())));
+    }
+
     public void recordRegionalRemoval(SgyFile file, RegionalRemovalOptions options) {
         Check.notNull(options);
         record(file, MagneticProcessingStepType.REGIONAL_REMOVAL,

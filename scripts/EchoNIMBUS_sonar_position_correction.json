@@ -1,0 +1,16 @@
+{
+  "filename": "EchoNIMBUS_sonar_position_correction.py",
+  "display_name": "EchoNIMBUS sonar position correction",
+  "parameters": [
+    {
+      "name": "position-file",
+      "display_name": "Position file",
+      "type": "FILE_PATH",
+      "default_value": "",
+      "required": true
+    }
+  ],
+  "templates": [
+    "SVLOG"
+  ]
+}

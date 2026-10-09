@@ -28,6 +28,7 @@ import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.math.AnalyticSignal;
 import com.ugcs.geohammer.math.AnalyticSignalFilter;
+import com.ugcs.geohammer.math.ReductionToPoleFilter;
 import com.ugcs.geohammer.service.palette.Palettes;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.util.Check;
@@ -301,6 +302,10 @@ public final class GridLayer extends BaseLayer {
                             SMOOTHING_SIGMA_FACTOR * params.blankingDistance() / params.cellSize());
                     values = smoothing.apply(values);
                 }
+                if (filter.reductionToPole()) {
+                    values = new ReductionToPoleFilter(values, result.minLatLon(), result.maxLatLon(),
+                            filter.rtpInclination(), filter.rtpDeclination()).apply();
+                }
                 if (filter.analyticSignal()) {
                     AnalyticSignalFilter analyticSignalFilter = new AnalyticSignalFilter(
                             values,
@@ -358,7 +363,10 @@ public final class GridLayer extends BaseLayer {
         return grid == null
                 || grid.filter() == null
                 || !Objects.equals(grid.filter().smoothing(), filter.smoothing())
-                || !Objects.equals(grid.filter().analyticSignal(), filter.analyticSignal());
+                || !Objects.equals(grid.filter().analyticSignal(), filter.analyticSignal())
+                || !Objects.equals(grid.filter().reductionToPole(), filter.reductionToPole())
+                || !Objects.equals(grid.filter().rtpInclination(), filter.rtpInclination())
+                || !Objects.equals(grid.filter().rtpDeclination(), filter.rtpDeclination());
     }
 
     private boolean shouldUpdatePalette(Grid grid, GriddingFilter filter) {

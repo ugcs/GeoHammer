@@ -7,6 +7,12 @@ Magnetic processing history is automatically persisted beside a saved survey as
 timestamps without rewriting the source survey. Recipes are restored when the survey is opened and can be exported
 from the Processing recipe tool.
 
+## Magnetic Grid Interpretation
+
+Gridding supports analytic signal and reduction to pole (RTP) display transforms. RTP uses user-supplied magnetic
+inclination and declination, preserves the source grid, and is unavailable below 15 degrees inclination because the
+frequency-domain transform is unstable near the magnetic equator.
+
 UgCS GeoHammer is a desktop app for processing and visualizing geophysical survey data: GPR radargrams and sensor
 time series (magnetometers, sonar, NMEA, any CSV). Java 21, JavaFX 21, plain Spring context (Spring Boot is only the
 parent POM — no auto-configuration), Maven. Package root: `com.ugcs.geohammer`.

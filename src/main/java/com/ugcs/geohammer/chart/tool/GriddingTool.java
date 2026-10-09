@@ -100,6 +100,12 @@ public class GriddingTool extends FilterToolView {
 
     private final CheckBox analyticSignal;
 
+    private final CheckBox reductionToPole;
+
+    private final TextField rtpInclinationInput;
+
+    private final TextField rtpDeclinationInput;
+
     private final ComboBox<PaletteType> paletteSelector;
 
     private final ComboBox<SpectrumType> spectrumSelector;
@@ -210,12 +216,37 @@ public class GriddingTool extends FilterToolView {
         smoothing.selectedProperty().addListener(this::onFilterOptionChange);
 
         analyticSignal = new CheckBox("Analytic signal");
-        analyticSignal.selectedProperty().addListener(this::onFilterOptionChange);
+        reductionToPole = new CheckBox("Reduction to pole");
+        reductionToPole.selectedProperty().addListener((observable, oldValue, selected) -> {
+            if (selected) {
+                analyticSignal.setSelected(false);
+            }
+            onFilterOptionChange(observable, oldValue, selected);
+        });
+        analyticSignal.selectedProperty().addListener((observable, oldValue, selected) -> {
+            if (selected) {
+                reductionToPole.setSelected(false);
+            }
+            onFilterOptionChange(observable, oldValue, selected);
+        });
+
+        InputWithTopLabel rtpInclination = new InputWithTopLabel("RTP inclination (degrees)");
+        rtpInclinationInput = rtpInclination.getInput();
+        rtpInclinationInput.setText("60");
+        rtpInclinationInput.textProperty().addListener(this::onRtpDirectionChange);
+
+        InputWithTopLabel rtpDeclination = new InputWithTopLabel("RTP declination (degrees)");
+        rtpDeclinationInput = rtpDeclination.getInput();
+        rtpDeclinationInput.setText("0");
+        rtpDeclinationInput.textProperty().addListener(this::onRtpDirectionChange);
 
         VBox postProcessingGroup = createGroup(
                 hillShading,
                 smoothing,
-                analyticSignal
+                analyticSignal,
+                reductionToPole,
+                rtpInclination,
+                rtpDeclination
         );
 
         inputContainer.getChildren().setAll(
@@ -597,6 +628,9 @@ public class GriddingTool extends FilterToolView {
         ignoreFilterEvents.set(true);
         try {
             analyticSignal.setSelected(filter.analyticSignal());
+            reductionToPole.setSelected(filter.reductionToPole());
+            rtpInclinationInput.setText(Text.formatNumber(filter.rtpInclination()));
+            rtpDeclinationInput.setText(Text.formatNumber(filter.rtpDeclination()));
             hillShading.setSelected(filter.hillShading());
             smoothing.setSelected(filter.smoothing());
             paletteSelector.setValue(filter.paletteType());
@@ -672,11 +706,29 @@ public class GriddingTool extends FilterToolView {
         return new GriddingFilter(
                 new Range(rangeSlider.getLowValue(), rangeSlider.getHighValue()),
                 analyticSignal.isSelected(),
+                reductionToPole.isSelected(),
+                getRtpDirection(rtpInclinationInput, 60.0),
+                getRtpDirection(rtpDeclinationInput, 0.0),
                 hillShading.isSelected(),
                 smoothing.isSelected(),
                 paletteType,
                 spectrumType
         );
+    }
+
+    private void onRtpDirectionChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+        if (!ignoreFilterEvents.get() && reductionToPole.isSelected()) {
+            applyFilter();
+        }
+    }
+
+    private static double getRtpDirection(TextField input, double defaultValue) {
+        try {
+            double value = Double.parseDouble(input.getText());
+            return Double.isFinite(value) ? value : defaultValue;
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     private void publishFilter() {

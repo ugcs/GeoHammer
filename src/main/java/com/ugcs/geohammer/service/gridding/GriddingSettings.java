@@ -41,6 +41,9 @@ public class GriddingSettings {
     public GriddingFilter loadFilter(SgyFile file, String seriesName, Range defaultRange) {
         Range range = defaultRange;
         boolean analyticSignal = false;
+        boolean reductionToPole = false;
+        double rtpInclination = 60.0;
+        double rtpDeclination = 0.0;
         boolean hillShading = false;
         boolean smoothing = false;
         PaletteType paletteType = PaletteType.defaultPaletteType();
@@ -56,6 +59,9 @@ public class GriddingSettings {
                 }
             }
             analyticSignal = settings.getBooleanOrDefault("gridding_analytic_signal_enabled", templateName, analyticSignal);
+            reductionToPole = settings.getBooleanOrDefault("gridding_rtp_enabled", templateName, reductionToPole);
+            rtpInclination = settings.getDoubleOrDefault("gridding_rtp_inclination", templateName, rtpInclination);
+            rtpDeclination = settings.getDoubleOrDefault("gridding_rtp_declination", templateName, rtpDeclination);
             hillShading = settings.getBooleanOrDefault("gridding_hillshading_enabled", templateName, hillShading);
             smoothing = settings.getBooleanOrDefault("gridding_smoothing_enabled", templateName, smoothing);
             paletteType = PaletteType.findByName(settings.getStringOrDefault("gridding_palette", templateName, Strings.empty()));
@@ -65,6 +71,9 @@ public class GriddingSettings {
         return new GriddingFilter(
                 range,
                 analyticSignal,
+                reductionToPole,
+                rtpInclination,
+                rtpDeclination,
                 hillShading,
                 smoothing,
                 paletteType,
@@ -96,6 +105,9 @@ public class GriddingSettings {
         settings.setValue("gridding_hillshading_enabled", templateName, Boolean.toString(filter.hillShading()));
         settings.setValue("gridding_smoothing_enabled", templateName, Boolean.toString(filter.smoothing()));
         settings.setValue("gridding_analytic_signal_enabled", templateName, Boolean.toString(filter.analyticSignal()));
+        settings.setValue("gridding_rtp_enabled", templateName, Boolean.toString(filter.reductionToPole()));
+        settings.setValue("gridding_rtp_inclination", templateName, Text.formatNumber(filter.rtpInclination()));
+        settings.setValue("gridding_rtp_declination", templateName, Text.formatNumber(filter.rtpDeclination()));
         settings.setValue("gridding_palette", templateName, filter.paletteType().name());
         settings.setValue("gridding_spectrum", templateName, filter.spectrumType().name());
         Range range = filter.range();

@@ -134,6 +134,9 @@ public class RunGridding extends McpTool {
         GriddingFilter filter = new GriddingFilter(
                 range,
                 optionalBoolean(args, "analytic_signal", current.analyticSignal()),
+                current.reductionToPole(),
+                current.rtpInclination(),
+                current.rtpDeclination(),
                 optionalBoolean(args, "hill_shading", current.hillShading()),
                 optionalBoolean(args, "smoothing", current.smoothing()),
                 paletteArg != null

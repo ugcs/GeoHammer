@@ -9,9 +9,10 @@ from the Processing recipe tool.
 
 ## Magnetic Grid Interpretation
 
-Gridding supports analytic signal and reduction to pole (RTP) display transforms. RTP uses user-supplied magnetic
-inclination and declination, preserves the source grid, and is unavailable below 15 degrees inclination because the
-frequency-domain transform is unstable near the magnetic equator.
+Gridding supports analytic signal and reduction to pole (RTP) display transforms. RTP can derive magnetic inclination
+and declination from IGRF using the survey center and acquisition time, with an optional fallback date for surveys
+without timestamps; users can override both values. RTP preserves the source grid and is unavailable below 15 degrees
+inclination because the frequency-domain transform is unstable near the magnetic equator.
 
 UgCS GeoHammer is a desktop app for processing and visualizing geophysical survey data: GPR radargrams and sensor
 time series (magnetometers, sonar, NMEA, any CSV). Java 21, JavaFX 21, plain Spring context (Spring Boot is only the

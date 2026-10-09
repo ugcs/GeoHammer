@@ -6,6 +6,8 @@ import com.ugcs.geohammer.util.Check;
 
 public final class SplineInterpolator implements Interpolator {
 
+    public static final SplineInterpolator INSTANCE = new SplineInterpolator();
+
     private static double tangent(double dx, double dy) {
         if (Double.isNaN(dx) || Double.isNaN(dy)) {
             return 0.0;

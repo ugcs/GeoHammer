@@ -4,8 +4,9 @@
 
 Magnetic processing history is automatically persisted beside a saved survey as
 `<file name with ext>.magnetic-recipe.json`. The JSON sidecar records ordered operations, series, settings, and
-timestamps without rewriting the source survey. Recipes are restored when the survey is opened and can be exported
-from the Processing recipe tool.
+timestamps without rewriting the source survey. Recipes are restored when the survey is opened, can be exported, and
+can be imported for validation against the selected survey and replayed after explicit confirmation from the Processing
+recipe tool.
 
 ## Magnetic Grid Interpretation
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Recalculate the MBES head position of an EchoNIMBUS (Cerulean Surveyor 240-16)
+Correct the sonar (MBES head) position of an EchoNIMBUS (Cerulean Surveyor 240-16)
 SVLOG file, in place, from better drone positions: a PPK .pos or a SkyHub position.csv.
 
 The sonar head hangs on a two-link arm behind and below the GNSS antenna. The
@@ -50,7 +50,7 @@ HALF_DAY_S = 12 * 3600
 
 # RTKLIB solution quality Q -> GGA fix quality. GGA has no code for PPP (6): it is
 # mapped to a plain GPS fix so that it never replaces an RTK or DGPS position
-POS_QUALITY_TO_GGA = {1: 4, 2: 5, 3: 2, 4: 2, 5: 1, 6: 1}
+RTKLIB_QUALITY_TO_GGA = {1: 4, 2: 5, 3: 2, 4: 2, 5: 1, 6: 1}
 # GGA fix quality from best to worst. A solution with a code not listed here
 # (0 = no fix, or an unknown .pos Q) never replaces a logged position
 GGA_QUALITY_RANKS = {"4": 4, "5": 3, "2": 2, "1": 1}
@@ -61,7 +61,7 @@ GGA_QUALITY_RANKS = {"4": 4, "5": 3, "2": 2, "1": 1}
 MAX_POSITION_GAP_S = 2.0
 
 
-def arm_offset(pitch, roll, heading):
+def calculate_arm_offset(pitch, roll, heading):
     # Data post processing section of the Surveyor 240-16 driver specification.
     # The specification has L2 * sin(P + alpha) in Lh; the driver uses cos,
     # which matches the logged positions to a millimetre. It also calls the second
@@ -80,14 +80,14 @@ def arm_offset(pitch, roll, heading):
     return north, east, up
 
 
-class Fix:
+class Position:
 
-    def __init__(self, time, latitude, longitude, altitude, quality=None):
+    def __init__(self, time, latitude, longitude, altitude, rtklib_quality=None):
         self.time = time
         self.latitude = latitude
         self.longitude = longitude
         self.altitude = altitude
-        self.quality = quality
+        self.rtklib_quality = rtklib_quality
 
 
 # svlog
@@ -113,7 +113,7 @@ def packet_payload(packet):
     return packet[HEADER_SIZE:-CHECKSUM_SIZE]
 
 
-def build_packet(packet, payload):
+def replace_payload(packet, payload):
     header = packet[:2] + struct.pack("<HH", len(payload), struct.unpack_from("<H", packet, 4)[0]) + packet[6:8]
     body = header + payload
     return body + struct.pack("<H", sum(body) & 0xFFFF)
@@ -121,15 +121,15 @@ def build_packet(packet, payload):
 
 # NMEA
 
-def nmea_fields(payload):
+def split_nmea_sentence(payload):
     text = payload.decode("ascii", errors="ignore")
     start = text.find("$")
     if start < 0:
         return None, ""
     end = text.find("*", start)
-    tail = text[end + 3:] if end >= 0 else ""
+    line_ending = text[end + 3:] if end >= 0 else ""
     body = text[start + 1:end] if end >= 0 else text[start + 1:].rstrip()
-    return body.split(","), tail
+    return body.split(","), line_ending
 
 
 def nmea_checksum(body):
@@ -157,31 +157,31 @@ def parse_time_of_day(value):
 class GgaRecord:
     """One $GPGGA of the stream with the heading and the sonar attitude at its moment."""
 
-    def __init__(self, packet_index, fields, tail):
+    def __init__(self, packet_index, fields, line_ending):
         self.packet_index = packet_index
         self.fields = fields
-        self.tail = tail
+        self.line_ending = line_ending
         self.time_of_day = parse_time_of_day(fields[1])
         self.time = None
         self.heading = None
         self.attitude = None
 
     @property
-    def quality(self):
+    def gga_quality(self):
         return self.fields[6]
 
-    def format_gga(self, latitude, longitude, altitude, quality):
+    def format_gga(self, latitude, longitude, altitude, gga_quality):
         fields = list(self.fields)
         fields[2] = format_nmea_angle(latitude, 2)
         fields[3] = "N" if latitude >= 0 else "S"
         fields[4] = format_nmea_angle(longitude, 3)
         fields[5] = "E" if longitude >= 0 else "W"
-        fields[6] = quality
+        fields[6] = gga_quality
         # ellipsoidal height in the MSL altitude field with zero geoid separation,
         # as the driver writes it
         fields[9] = f"{altitude:.2f}"
         body = ",".join(fields)
-        return f"${body}*{nmea_checksum(body)}{self.tail}".encode("ascii")
+        return f"${body}*{nmea_checksum(body)}{self.line_ending}".encode("ascii")
 
 
 def parse_attitude(payload):
@@ -198,14 +198,14 @@ def read_gga_records(packets):
     records = []
     last_attitude = None
     # (number of GGA records before it, date and time) of every $GPZDA
-    dates = []
+    zda_times = []
     for index, (packet_id, packet) in enumerate(packets):
         if packet_id == SURVEYOR_ATTITUDE_REPORT_ID:
             last_attitude = parse_attitude(packet_payload(packet)) or last_attitude
             continue
         if packet_id != NMEA_WRAPPER_ID:
             continue
-        fields, tail = nmea_fields(packet_payload(packet))
+        fields, line_ending = split_nmea_sentence(packet_payload(packet))
         if not fields or len(fields[0]) < 5:
             continue
         sentence = fields[0][-3:]
@@ -213,7 +213,7 @@ def read_gga_records(packets):
             if sentence == "GGA":
                 if len(fields) < 10 or not fields[2] or not fields[4] or not fields[9]:
                     continue
-                record = GgaRecord(index, fields, tail)
+                record = GgaRecord(index, fields, line_ending)
                 # the driver uses the last attitude report before the $GPGGA,
                 # not an interpolated one
                 record.attitude = last_attitude
@@ -225,13 +225,13 @@ def read_gga_records(packets):
             elif sentence == "ZDA":
                 time_of_day = parse_time_of_day(fields[1])
                 day = datetime(int(fields[4]), int(fields[3]), int(fields[2]), tzinfo=timezone.utc)
-                dates.append((len(records), day + timedelta(seconds=time_of_day)))
+                zda_times.append((len(records), day + timedelta(seconds=time_of_day)))
         except (ValueError, IndexError):
             continue
 
     if not records:
         raise SystemExit("No $GPGGA positions in the file")
-    if not dates:
+    if not zda_times:
         raise SystemExit("No $GPZDA dates in the file")
     attitudes = fill_missing([record.attitude for record in records])
     if attitudes is None:
@@ -242,7 +242,7 @@ def read_gga_records(packets):
     for record, attitude, heading in zip(records, attitudes, headings):
         record.attitude = attitude
         record.heading = heading
-    assign_times(records, dates)
+    assign_times(records, zda_times)
     return records
 
 
@@ -260,16 +260,16 @@ def fill_missing(values):
     return filled
 
 
-def assign_times(records, dates):
+def assign_times(records, zda_times):
     # a GGA carries the time of day only: take the date of the $GPZDA that follows
     # it in the stream and step a day when the two straddle midnight
-    zda_record_indices = [index for index, _ in dates]
+    zda_record_indices = [index for index, _ in zda_times]
     for i, record in enumerate(records):
         k = bisect.bisect_right(zda_record_indices, i)
-        _, reference = dates[min(k, len(dates) - 1)]
-        midnight = reference.replace(hour=0, minute=0, second=0, microsecond=0)
+        _, zda_time = zda_times[min(k, len(zda_times) - 1)]
+        midnight = zda_time.replace(hour=0, minute=0, second=0, microsecond=0)
         time = midnight + timedelta(seconds=record.time_of_day)
-        delta = (time - reference).total_seconds()
+        delta = (time - zda_time).total_seconds()
         if delta > HALF_DAY_S:
             time -= timedelta(days=1)
         elif delta < -HALF_DAY_S:
@@ -294,7 +294,7 @@ def read_pos(path):
     # heights are taken as ellipsoidal heights of the antenna itself: no antenna
     # height and no geoid applied in the PPK software
     time_system = None
-    fixes = []
+    positions = []
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
@@ -319,15 +319,15 @@ def read_pos(path):
                     time = GPS_EPOCH + timedelta(weeks=int(tokens[0]), seconds=float(tokens[1]))
                 if time_system == "GPST":
                     time = gps_to_utc(time)
-                fixes.append(Fix(time.timestamp(), float(tokens[2]), float(tokens[3]),
+                positions.append(Position(time.timestamp(), float(tokens[2]), float(tokens[3]),
                                  float(tokens[4]), int(tokens[5])))
             except (ValueError, IndexError):
                 continue
-    return fixes
+    return positions
 
 
 def read_position_csv(path):
-    fixes = []
+    positions = []
     with open(path, "r", encoding="utf-8-sig", errors="replace", newline="") as f:
         reader = csv.DictReader(f)
         for column in ("Elapsed", "Latitude", "Longitude", "Ellipsoidal Height"):
@@ -335,32 +335,32 @@ def read_position_csv(path):
                 raise SystemExit(f"Not a SkyHub position.csv: no '{column}' column")
         for row in reader:
             try:
-                fixes.append(Fix(int(row["Elapsed"]) / 1000.0, float(row["Latitude"]),
+                positions.append(Position(int(row["Elapsed"]) / 1000.0, float(row["Latitude"]),
                                  float(row["Longitude"]), float(row["Ellipsoidal Height"])))
             except (ValueError, TypeError):
                 continue
-    return fixes
+    return positions
 
 
 def read_position_file(path):
     with open(path, "r", encoding="utf-8", errors="replace") as f:
-        head = f.read(4096)
-    first_line = head.lstrip("﻿").split("\n", 1)[0]
-    if head.lstrip().startswith("%"):
-        fixes = read_pos(path)
+        file_start = f.read(4096)
+    first_line = file_start.lstrip("﻿").split("\n", 1)[0]
+    if file_start.lstrip().startswith("%"):
+        positions = read_pos(path)
     elif first_line.startswith("Elapsed,"):
-        fixes = read_position_csv(path)
+        positions = read_position_csv(path)
     else:
         raise SystemExit(f"Unknown position file format: {path.name}. "
                          "Expected a RTKLIB/Emlid .pos or a SkyHub position.csv")
-    fixes.sort(key=lambda fix: fix.time)
-    if len(fixes) < 2:
+    positions.sort(key=lambda position: position.time)
+    if len(positions) < 2:
         raise SystemExit(f"No positions in the position file {path.name}")
-    return fixes
+    return positions
 
 
 # interpolation, as in GeoHammer Geotagger: a cubic Hermite spline over the four
-# nearest fixes for latitude and longitude, linear for altitude
+# nearest positions for latitude and longitude, linear for altitude
 
 def tangent(xp, yp, xn, yn):
     dx = xn - xp
@@ -382,28 +382,28 @@ def spline(x, p2, p1, n1, n2, coordinate):
     return hermite(x, p1.time, coordinate(p1), n1.time, coordinate(n1), tp, tn)
 
 
-def interpolate(fixes, times, time):
-    if time < fixes[0].time or time > fixes[-1].time:
+def interpolate(positions, times, time):
+    if time < positions[0].time or time > positions[-1].time:
         return None
     i = bisect.bisect_left(times, time)
-    last = len(fixes) - 1
-    p2 = fixes[max(i - 2, 0)]
-    p1 = fixes[max(i - 1, 0)]
-    n1 = fixes[min(i, last)]
-    n2 = fixes[min(i + 1, last)]
+    last = len(positions) - 1
+    p2 = positions[max(i - 2, 0)]
+    p1 = positions[max(i - 1, 0)]
+    n1 = positions[min(i, last)]
+    n2 = positions[min(i + 1, last)]
     span = n1.time - p1.time
     if span > MAX_POSITION_GAP_S:
         return None
 
-    latitude = spline(time, p2, p1, n1, n2, lambda fix: fix.latitude)
-    longitude = spline(time, p2, p1, n1, n2, lambda fix: fix.longitude)
+    latitude = spline(time, p2, p1, n1, n2, lambda position: position.latitude)
+    longitude = spline(time, p2, p1, n1, n2, lambda position: position.longitude)
     altitude = p1.altitude if abs(span) < 1e-12 \
         else p1.altitude + (n1.altitude - p1.altitude) * (time - p1.time) / span
-    # the larger RTKLIB Q of the bracketing fixes: the worse one for Q 1-5
-    quality = None
-    if p1.quality is not None and n1.quality is not None:
-        quality = max(p1.quality, n1.quality)
-    return Fix(time, latitude, longitude, altitude, quality)
+    # the larger RTKLIB Q of the bracketing positions: the worse one for Q 1-5
+    rtklib_quality = None
+    if p1.rtklib_quality is not None and n1.rtklib_quality is not None:
+        rtklib_quality = max(p1.rtklib_quality, n1.rtklib_quality)
+    return Position(time, latitude, longitude, altitude, rtklib_quality)
 
 
 # geodesy
@@ -426,65 +426,65 @@ def is_worse_quality(quality, than):
     return GGA_QUALITY_RANKS[quality] < GGA_QUALITY_RANKS.get(than, 0)
 
 
-def recalculate(path, position_path):
-    data = path.read_bytes()
-    packets = read_packets(data)
+def recalculate(svlog_path, position_path):
+    svlog_bytes = svlog_path.read_bytes()
+    packets = read_packets(svlog_bytes)
     records = read_gga_records(packets)
 
-    fixes = read_position_file(position_path)
-    times = [fix.time for fix in fixes]
-    print(f"Position file: {len(fixes)} positions")
-    if fixes[-1].time < records[0].time or fixes[0].time > records[-1].time:
+    positions = read_position_file(position_path)
+    times = [position.time for position in positions]
+    print(f"Position file: {len(positions)} positions")
+    if positions[-1].time < records[0].time or positions[0].time > records[-1].time:
         raise SystemExit("The position file does not overlap the file in time. "
                          "Check that the position file belongs to this flight")
 
-    updated = 0
-    without_position = 0
-    worse_quality = 0
+    updated_count = 0
+    without_position_count = 0
+    worse_quality_count = 0
     for record in records:
-        antenna = interpolate(fixes, times, record.time)
+        antenna = interpolate(positions, times, record.time)
         if antenna is None:
-            without_position += 1
+            without_position_count += 1
             continue
         # position.csv carries no quality: it is the logged solution itself
-        if antenna.quality is None:
-            quality = record.quality
+        if antenna.rtklib_quality is None:
+            gga_quality = record.gga_quality
         else:
-            quality = str(POS_QUALITY_TO_GGA.get(antenna.quality, 0))
-            if is_worse_quality(quality, record.quality):
-                worse_quality += 1
+            gga_quality = str(RTKLIB_QUALITY_TO_GGA.get(antenna.rtklib_quality, 0))
+            if is_worse_quality(gga_quality, record.gga_quality):
+                worse_quality_count += 1
                 continue
 
         pitch, roll = record.attitude
-        north, east, up = arm_offset(pitch, roll, record.heading)
+        north, east, up = calculate_arm_offset(pitch, roll, record.heading)
         latitude, longitude, altitude = offset_position(antenna.latitude, antenna.longitude, antenna.altitude,
                                                         north, east, up)
-        payload = record.format_gga(latitude, longitude, altitude, quality)
+        payload = record.format_gga(latitude, longitude, altitude, gga_quality)
 
         packet_id, packet = packets[record.packet_index]
-        packets[record.packet_index] = (packet_id, build_packet(packet, payload))
-        updated += 1
+        packets[record.packet_index] = (packet_id, replace_payload(packet, payload))
+        updated_count += 1
 
-    path.write_bytes(b"".join(packet for _, packet in packets))
-    print(f"Recalculated {updated} of {len(records)} positions")
-    if without_position:
-        print(f"Kept {without_position} positions unchanged: no data in the position file "
+    svlog_path.write_bytes(b"".join(packet for _, packet in packets))
+    print(f"Recalculated {updated_count} of {len(records)} positions")
+    if without_position_count:
+        print(f"Kept {without_position_count} positions unchanged: no data in the position file "
               f"(outside its time range or in a gap over {MAX_POSITION_GAP_S:g} s)")
-    if worse_quality:
-        print(f"Kept {worse_quality} positions unchanged: the position file solution is worse "
+    if worse_quality_count:
+        print(f"Kept {worse_quality_count} positions unchanged: the position file solution is worse "
               "than the logged one (e.g. PPK float over RTK fixed)")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Recalculate the EchoNIMBUS MBES head position in an SVLOG file.")
+    parser = argparse.ArgumentParser(description="Correct the EchoNIMBUS sonar position in an SVLOG file.")
     parser.add_argument("file", help="SVLOG file to modify in place")
     parser.add_argument("--position-file", required=True,
-                        help="Position file of the drone: RTKLIB/Emlid .pos or SkyHub position.csv")
+                        help="Position file of the drone .pos or SkyHub position.csv")
     args = parser.parse_args()
 
-    path = Path(args.file)
-    if not path.is_file():
-        raise SystemExit(f"File does not exist: {path}")
+    svlog_path = Path(args.file)
+    if not svlog_path.is_file():
+        raise SystemExit(f"File does not exist: {svlog_path}")
     if not args.position_file.strip():
         raise SystemExit("Choose the position file: a PPK .pos or the flight position.csv")
     position_path = Path(args.position_file)
@@ -493,9 +493,9 @@ def main():
 
     print(f"Drone positions from {position_path.name}")
     try:
-        recalculate(path, position_path)
+        recalculate(svlog_path, position_path)
     except ValueError as e:
-        raise SystemExit(f"Cannot read {path.name}: {e}")
+        raise SystemExit(f"Cannot read {svlog_path.name}: {e}")
 
 
 if __name__ == "__main__":

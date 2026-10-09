@@ -1,6 +1,6 @@
 {
-  "filename": "echonimbus_mbes_head_position.py",
-  "display_name": "EchoNIMBUS MBES head position",
+  "filename": "EchoNIMBUS_sonar_position_correction.py",
+  "display_name": "EchoNIMBUS sonar position correction",
   "parameters": [
     {
       "name": "position-file",

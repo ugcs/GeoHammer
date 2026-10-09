@@ -4,14 +4,11 @@ import com.ugcs.geohammer.util.Check;
 
 public record LineLevelingOptions(
         String inputSeries,
-        String outputSeries,
-        String tieLineSeries,
-        boolean applyMicroLeveling
+        String outputSeries
 ) {
 
     public LineLevelingOptions {
         Check.notEmpty(inputSeries);
         Check.notEmpty(outputSeries);
-        Check.notEmpty(tieLineSeries);
     }
 }

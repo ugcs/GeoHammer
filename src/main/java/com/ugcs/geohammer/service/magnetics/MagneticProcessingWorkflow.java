@@ -38,6 +38,13 @@ public class MagneticProcessingWorkflow {
                 options.inputSeries(), options.outputSeries(), settings);
     }
 
+    public void recordHeadingCorrection(SgyFile file, HeadingCorrectionOptions options) {
+        Check.notNull(options);
+        record(file, MagneticProcessingStepType.HEADING_CORRECTION,
+                options.inputSeries(), options.outputSeries(),
+                Map.of("method", "crossover-least-squares", "headingBins", Integer.toString(options.headingBins())));
+    }
+
     public void recordLineLeveling(SgyFile file, LineLevelingOptions options) {
         Check.notNull(options);
         record(file, MagneticProcessingStepType.LINE_LEVELING,

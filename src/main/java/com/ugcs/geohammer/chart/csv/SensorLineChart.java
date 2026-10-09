@@ -1154,6 +1154,33 @@ public class SensorLineChart extends Chart {
         Platform.runLater(this::updateChartName);
     }
 
+    public void createDerivedSeries(String seriesName, String sourceSeries,
+                                    List<@Nullable Number> values) {
+        Check.notEmpty(seriesName);
+        Check.notEmpty(sourceSeries);
+        Check.notEmpty(values);
+        Check.condition(!seriesName.equals(sourceSeries),
+                "Derived series name must differ from the source series");
+        Check.condition(values.size() == file.getGeoData().size(),
+                "Derived series must contain one value per measurement");
+
+        createFileColumn(seriesName, sourceSeries);
+        setFileColumnValues(seriesName, values);
+
+        Platform.runLater(() -> {
+            LineChartWithMarkers derivedChart = charts.get(seriesName);
+            Plot plot = createPlot(seriesName, file.getGeoData());
+            if (derivedChart == null) {
+                derivedChart = createChart(plot);
+            } else {
+                derivedChart.setPlot(plot);
+            }
+            mergeDisplayRanges();
+            derivedChart.updateData();
+            model.publishEvent(new SeriesUpdatedEvent(this, file, seriesName, true, true));
+        });
+    }
+
     public void applyTimeLag(String seriesName, int shift) {
         TimeLagFilter filter = new TimeLagFilter(shift);
         applyFilter(filter, seriesName, "_LAG");

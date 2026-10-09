@@ -29,7 +29,7 @@ class CheckImportsTest {
 
 	@BeforeAll
 	static void checkPythonAvailable() throws Exception {
-		ProcessBuilder pb = new ProcessBuilder("python3", "--version");
+		ProcessBuilder pb = new ProcessBuilder(pythonCommand(), "--version");
 		pb.redirectErrorStream(true);
 		Process process = pb.start();
 		int exitCode = process.waitFor();
@@ -162,7 +162,7 @@ class CheckImportsTest {
 		assertTrue(checkScript.exists(), "check_imports.py must exist at " + checkScript.getAbsolutePath());
 
 		ProcessBuilder pb = new ProcessBuilder(
-				"python3",
+				pythonCommand(),
 				checkScript.getAbsolutePath(),
 				targetScript.getAbsolutePath()
 		);
@@ -173,6 +173,10 @@ class CheckImportsTest {
 		String stderr = drain(process.getErrorStream());
 		int exitCode = process.waitFor();
 		return new ProcessResult(exitCode, stdout, stderr);
+	}
+
+	private static String pythonCommand() {
+		return System.getProperty("os.name").startsWith("Windows") ? "python" : "python3";
 	}
 
 	private static String drain(InputStream stream) throws Exception {

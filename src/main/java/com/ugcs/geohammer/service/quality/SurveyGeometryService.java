@@ -15,6 +15,12 @@ public class SurveyGeometryService {
 
     private static final double METERS_PER_DEGREE = 111_320.0;
 
+    private static final double DEFAULT_OFFSET_BIN_WIDTH = 100.0;
+
+    private static final double TIE_ORIENTATION_SEARCH_RANGE = 20.0;
+
+    private static final double TIE_ORIENTATION_SEARCH_STEP = 0.5;
+
     public SurveyGeometryReport analyze(List<GeoData> data) {
         List<LineGeometry> lines = collectLines(data);
         List<Double> sampleSpacing = new ArrayList<>();
@@ -24,19 +30,30 @@ public class SurveyGeometryService {
         }
 
         LineFamilies families = splitLineFamilies(lines);
-        List<Double> primaryLineSpacing = collectLineSpacing(families.primary());
-        List<Double> tieLineSpacing = collectLineSpacing(families.tieLines());
+        List<Double> primaryOffsets = collectLineOffsets(families.primary());
+        List<Double> primaryLineSpacing = collectAdjacentSpacing(primaryOffsets);
         SurveyGeometryReport.Distribution sampleSummary = summarize(sampleSpacing);
         SurveyGeometryReport.Distribution primarySummary = summarize(primaryLineSpacing);
-        SurveyGeometryReport.Distribution tieSummary = summarize(tieLineSpacing);
+        TieLinePeaks tiePeaks = findTieLinePeaks(families.tieLines(), primarySummary.median(),
+                families.primary().orientation());
 
         double cellSize = recommendCellSize(primarySummary);
         double blankingDistance = recommendBlankingDistance(primarySummary);
         return new SurveyGeometryReport(lines.size(), families.primary().lines().size(), families.tieLines().lines().size(),
-                sampleSummary, primarySummary, tieSummary, summarize(headings),
-                List.copyOf(sampleSpacing), List.copyOf(primaryLineSpacing), List.copyOf(tieLineSpacing),
-                List.copyOf(headings),
+                families.primary().orientation(), tiePeaks.orientation(), toPaths(families.primary()),
+                toPaths(families.tieLines()), sampleSummary, primarySummary, summarize(headings),
+                List.copyOf(sampleSpacing), List.copyOf(primaryLineSpacing), List.copyOf(headings),
+                tiePeaks.spacing(), tiePeaks.peakPositions().size(), tiePeaks.densityPositions(),
+                tiePeaks.densityValues(), tiePeaks.peakPositions(),
                 cellSize, blankingDistance);
+    }
+
+    private static List<List<LatLon>> toPaths(LineFamily family) {
+        List<List<LatLon>> paths = new ArrayList<>(family.lines().size());
+        for (LineGeometry line : family.lines()) {
+            paths.add(List.copyOf(line.points()));
+        }
+        return List.copyOf(paths);
     }
 
     private static List<LineGeometry> collectLines(List<GeoData> data) {
@@ -141,22 +158,29 @@ public class SurveyGeometryService {
         return orientation < 0.0 ? orientation + 180.0 : orientation;
     }
 
-    private static List<Double> collectLineSpacing(LineFamily family) {
-        List<Double> spacing = new ArrayList<>();
+    private static List<Double> collectLineOffsets(LineFamily family) {
+        List<Double> offsets = new ArrayList<>();
         if (family.lines().size() < 2 || !Double.isFinite(family.orientation())) {
-            return spacing;
+            return offsets;
         }
         LatLon origin = family.lines().getFirst().center();
-        List<Double> offsets = new ArrayList<>(family.lines().size());
         double orientation = Math.toRadians(family.orientation());
         double cosineLatitude = Math.cos(Math.toRadians(origin.getLatDgr()));
         for (LineGeometry line : family.lines()) {
-            LatLon center = line.center();
-            double east = (center.getLonDgr() - origin.getLonDgr()) * METERS_PER_DEGREE * cosineLatitude;
-            double north = (center.getLatDgr() - origin.getLatDgr()) * METERS_PER_DEGREE;
-            offsets.add(east * Math.cos(orientation) - north * Math.sin(orientation));
+            List<Double> lineOffsets = new ArrayList<>(line.points().size());
+            for (LatLon point : line.points()) {
+                double east = (point.getLonDgr() - origin.getLonDgr()) * METERS_PER_DEGREE * cosineLatitude;
+                double north = (point.getLatDgr() - origin.getLatDgr()) * METERS_PER_DEGREE;
+                lineOffsets.add(east * Math.cos(orientation) - north * Math.sin(orientation));
+            }
+            offsets.add(median(lineOffsets));
         }
         offsets.sort(Comparator.naturalOrder());
+        return offsets;
+    }
+
+    private static List<Double> collectAdjacentSpacing(List<Double> offsets) {
+        List<Double> spacing = new ArrayList<>();
         for (int i = 1; i < offsets.size(); i++) {
             double distance = offsets.get(i) - offsets.get(i - 1);
             if (distance > 0.0) {
@@ -164,6 +188,173 @@ public class SurveyGeometryService {
             }
         }
         return spacing;
+    }
+
+    private static TieLinePeaks findTieLinePeaks(LineFamily tieLines, double primaryLineSpacing,
+                                                 double primaryOrientation) {
+        if (tieLines.lines().isEmpty()) {
+            return TieLinePeaks.empty();
+        }
+        double orientation = findDominantTieOrientation(tieLines, primaryLineSpacing, primaryOrientation);
+        List<Double> offsets = collectSampleOffsets(tieLines, orientation);
+        if (offsets.size() < 2) {
+            return new TieLinePeaks(orientation, Double.NaN, List.of(), List.of(), List.of());
+        }
+        double binWidth = Double.isFinite(primaryLineSpacing)
+                ? Math.max(20.0, primaryLineSpacing / 4.0)
+                : DEFAULT_OFFSET_BIN_WIDTH;
+        double minimum = offsets.getFirst();
+        double maximum = offsets.getLast();
+        double origin = Math.floor(minimum / binWidth) * binWidth;
+        int binCount = (int) Math.ceil((maximum - origin) / binWidth) + 1;
+        int[] counts = new int[binCount];
+        for (double offset : offsets) {
+            int index = Math.min((int) ((offset - origin) / binWidth), binCount - 1);
+            counts[Math.max(index, 0)]++;
+        }
+
+        int radius = Math.max(1, (int) Math.round(primaryLineSpacing / (2.0 * binWidth)));
+        List<Double> densityPositions = new ArrayList<>(binCount);
+        List<Double> densityValues = new ArrayList<>(binCount);
+        double maximumDensity = 0.0;
+        for (int i = 0; i < binCount; i++) {
+            int sum = 0;
+            for (int j = Math.max(0, i - radius); j <= Math.min(binCount - 1, i + radius); j++) {
+                sum += counts[j];
+            }
+            double density = (double) sum / (2 * radius + 1);
+            densityPositions.add(origin + (i + 0.5) * binWidth);
+            densityValues.add(density);
+            maximumDensity = Math.max(maximumDensity, density);
+        }
+        List<Double> peaks = findDensityPeaks(densityPositions, densityValues, maximumDensity, primaryLineSpacing,
+                binWidth);
+        List<Double> peakSpacing = collectAdjacentSpacing(peaks);
+        double spacing = peakSpacing.isEmpty() ? Double.NaN : median(peakSpacing);
+        return new TieLinePeaks(orientation, spacing, List.copyOf(densityPositions),
+                List.copyOf(densityValues), List.copyOf(peaks));
+    }
+
+    private static double findDominantTieOrientation(LineFamily tieLines, double primaryLineSpacing,
+                                                     double primaryOrientation) {
+        double expected = Double.isFinite(primaryOrientation)
+                ? normalizeOrientation(primaryOrientation + 90.0)
+                : tieLines.orientation();
+        if (!Double.isFinite(expected)) {
+            return Double.NaN;
+        }
+        double binWidth = Double.isFinite(primaryLineSpacing)
+                ? Math.max(20.0, primaryLineSpacing / 4.0)
+                : DEFAULT_OFFSET_BIN_WIDTH;
+        double bestOrientation = expected;
+        long bestScore = Long.MIN_VALUE;
+        for (double offset = -TIE_ORIENTATION_SEARCH_RANGE; offset <= TIE_ORIENTATION_SEARCH_RANGE;
+             offset += TIE_ORIENTATION_SEARCH_STEP) {
+            double candidate = normalizeOrientation(expected + offset);
+            long score = calculateOrientationScore(tieLines, candidate, binWidth);
+            if (score > bestScore) {
+                bestScore = score;
+                bestOrientation = candidate;
+            }
+        }
+        return bestOrientation;
+    }
+
+    private static long calculateOrientationScore(LineFamily family, double orientation, double binWidth) {
+        LatLon origin = family.lines().getFirst().center();
+        double radians = Math.toRadians(orientation);
+        double cosineLatitude = Math.cos(Math.toRadians(origin.getLatDgr()));
+        double minimum = Double.POSITIVE_INFINITY;
+        double maximum = Double.NEGATIVE_INFINITY;
+        for (LineGeometry line : family.lines()) {
+            for (LatLon point : line.points()) {
+                double offset = projectOffset(point, origin, radians, cosineLatitude);
+                minimum = Math.min(minimum, offset);
+                maximum = Math.max(maximum, offset);
+            }
+        }
+        int binCount = (int) Math.ceil((maximum - minimum) / binWidth) + 1;
+        int[] counts = new int[binCount];
+        for (LineGeometry line : family.lines()) {
+            for (LatLon point : line.points()) {
+                double offset = projectOffset(point, origin, radians, cosineLatitude);
+                int index = Math.min((int) ((offset - minimum) / binWidth), binCount - 1);
+                counts[Math.max(index, 0)]++;
+            }
+        }
+        long score = 0;
+        for (int count : counts) {
+            score += (long) count * count;
+        }
+        return score;
+    }
+
+    private static List<Double> collectSampleOffsets(LineFamily family, double orientation) {
+        List<Double> offsets = new ArrayList<>();
+        if (family.lines().isEmpty() || !Double.isFinite(orientation)) {
+            return offsets;
+        }
+        LatLon origin = family.lines().getFirst().center();
+        double radians = Math.toRadians(orientation);
+        double cosineLatitude = Math.cos(Math.toRadians(origin.getLatDgr()));
+        for (LineGeometry line : family.lines()) {
+            for (LatLon point : line.points()) {
+                offsets.add(projectOffset(point, origin, radians, cosineLatitude));
+            }
+        }
+        offsets.sort(Comparator.naturalOrder());
+        return offsets;
+    }
+
+    private static double projectOffset(LatLon point, LatLon origin, double orientation, double cosineLatitude) {
+        double east = (point.getLonDgr() - origin.getLonDgr()) * METERS_PER_DEGREE * cosineLatitude;
+        double north = (point.getLatDgr() - origin.getLatDgr()) * METERS_PER_DEGREE;
+        return east * Math.cos(orientation) - north * Math.sin(orientation);
+    }
+
+    private static double normalizeOrientation(double orientation) {
+        double normalized = orientation % 180.0;
+        return normalized < 0.0 ? normalized + 180.0 : normalized;
+    }
+
+    private static List<Double> findDensityPeaks(List<Double> positions, List<Double> densityValues,
+                                                  double maximumDensity, double primaryLineSpacing,
+                                                  double binWidth) {
+        List<Peak> candidates = new ArrayList<>();
+        double threshold = maximumDensity * 0.1;
+        for (int i = 0; i < densityValues.size(); i++) {
+            double value = densityValues.get(i);
+            double previous = i > 0 ? densityValues.get(i - 1) : Double.NEGATIVE_INFINITY;
+            double next = i + 1 < densityValues.size() ? densityValues.get(i + 1) : Double.NEGATIVE_INFINITY;
+            if (value >= threshold && value >= previous && value > next) {
+                candidates.add(new Peak(positions.get(i), value));
+            }
+        }
+        candidates.sort((first, second) -> Double.compare(second.density(), first.density()));
+
+        double minimumPeakDistance = Double.isFinite(primaryLineSpacing)
+                ? primaryLineSpacing * 3.0
+                : binWidth * 4.0;
+        List<Double> peaks = new ArrayList<>();
+        for (Peak candidate : candidates) {
+            boolean separated = true;
+            for (double peak : peaks) {
+                if (Math.abs(candidate.position() - peak) < minimumPeakDistance) {
+                    separated = false;
+                    break;
+                }
+            }
+            if (separated) {
+                peaks.add(candidate.position());
+            }
+        }
+        peaks.sort(Comparator.naturalOrder());
+        return peaks;
+    }
+
+    private static double median(List<Double> values) {
+        values.sort(Comparator.naturalOrder());
+        return percentile(values, 0.5);
     }
 
     private static SurveyGeometryReport.Distribution summarize(List<Double> values) {
@@ -205,5 +396,17 @@ public class SurveyGeometryService {
     }
 
     private record LineFamilies(LineFamily primary, LineFamily tieLines) {
+    }
+
+    private record Peak(double position, double density) {
+    }
+
+    private record TieLinePeaks(double orientation, double spacing, List<Double> densityPositions,
+                                List<Double> densityValues,
+                                List<Double> peakPositions) {
+
+        private static TieLinePeaks empty() {
+            return new TieLinePeaks(Double.NaN, Double.NaN, List.of(), List.of(), List.of());
+        }
     }
 }

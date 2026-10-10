@@ -15,6 +15,7 @@ import com.ugcs.geohammer.view.control.InputWithTopLabel;
 import com.ugcs.geohammer.view.control.NodeWithTopLabel;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.util.StringConverter;
@@ -39,6 +40,8 @@ public class DiurnalCorrectionTool extends FilterToolView {
     private final ComboBox<SensorLineChart> baseStationSelector;
 
     private final ComboBox<String> baseStationSeriesSelector;
+
+    private final CheckBox synchronizedBaseSeries = new CheckBox("Use synchronized base series in this survey");
 
     private final TextField outputSeriesInput;
 
@@ -75,6 +78,8 @@ public class DiurnalCorrectionTool extends FilterToolView {
         baseStationSeriesSelector.setMaxWidth(Double.MAX_VALUE);
         baseStationSeriesSelector.setOnAction(event -> validateInput());
 
+        synchronizedBaseSeries.setOnAction(event -> updateBaseStationSeries());
+
         InputWithTopLabel referenceField = new InputWithTopLabel("Reference field (optional)");
         referenceFieldInput = referenceField.getInput();
         referenceFieldInput.setPromptText("Base-station median");
@@ -82,6 +87,7 @@ public class DiurnalCorrectionTool extends FilterToolView {
 
         inputContainer.getChildren().setAll(
                 new NodeWithTopLabel<>("Survey magnetic series", surveySeriesSelector),
+                new NodeWithTopLabel<>("Base source", synchronizedBaseSeries),
                 new NodeWithTopLabel<>("Base-station file", baseStationSelector),
                 new NodeWithTopLabel<>("Base-station magnetic series", baseStationSeriesSelector),
                 outputSeries,
@@ -131,7 +137,9 @@ public class DiurnalCorrectionTool extends FilterToolView {
     private void updateBaseStationSeries() {
         String selectedSeries = baseStationSeriesSelector.getValue();
         baseStationSeriesSelector.getItems().clear();
-        SensorLineChart baseStation = baseStationSelector.getValue();
+        SensorLineChart baseStation = synchronizedBaseSeries.isSelected()
+                ? selectedSurveyChart()
+                : baseStationSelector.getValue();
         if (baseStation != null) {
             baseStationSeriesSelector.getItems().addAll(baseStation.getSeriesNames());
         }
@@ -140,14 +148,19 @@ public class DiurnalCorrectionTool extends FilterToolView {
         } else if (!baseStationSeriesSelector.getItems().isEmpty()) {
             baseStationSeriesSelector.setValue(baseStationSeriesSelector.getItems().getFirst());
         }
+        baseStationSelector.setDisable(synchronizedBaseSeries.isSelected());
         validateInput();
+    }
+
+    private SensorLineChart selectedSurveyChart() {
+        return model.getChart(selectedFile) instanceof SensorLineChart chart ? chart : null;
     }
 
     private void validateInput() {
         Double referenceField = parseReferenceField();
         boolean invalidReference = !referenceFieldInput.getText().isBlank() && referenceField == null;
         boolean invalid = surveySeriesSelector.getValue() == null
-                || baseStationSelector.getValue() == null
+                || (!synchronizedBaseSeries.isSelected() && baseStationSelector.getValue() == null)
                 || baseStationSeriesSelector.getValue() == null
                 || outputSeriesInput.getText().isBlank()
                 || outputSeriesInput.getText().equals(surveySeriesSelector.getValue())
@@ -178,19 +191,22 @@ public class DiurnalCorrectionTool extends FilterToolView {
         String baseStationSeries = baseStationSeriesSelector.getValue();
         String outputSeries = outputSeriesInput.getText().trim();
         Double referenceField = parseReferenceField();
-        if (baseStationChart == null || surveySeries == null || baseStationSeries == null) {
+        boolean useSynchronizedBaseSeries = synchronizedBaseSeries.isSelected();
+        if ((!useSynchronizedBaseSeries && baseStationChart == null) || surveySeries == null || baseStationSeries == null) {
             return;
         }
 
         submitAction(() -> {
             try {
-                DiurnalCorrectionResult result = correctionService.correct(
-                        surveyChart.getFile().getGeoData(), surveySeries,
-                        baseStationChart.getFile().getGeoData(), baseStationSeries, referenceField);
+                DiurnalCorrectionResult result = useSynchronizedBaseSeries
+                        ? correctionService.correctSynchronized(surveyChart.getFile().getGeoData(), surveySeries,
+                                baseStationSeries, referenceField)
+                        : correctionService.correct(surveyChart.getFile().getGeoData(), surveySeries,
+                                baseStationChart.getFile().getGeoData(), baseStationSeries, referenceField);
                 surveyChart.createDerivedSeries(outputSeries, surveySeries, result.values());
                 processingWorkflow.recordDiurnalCorrection(surveyChart.getFile(),
                         new DiurnalCorrectionOptions(surveySeries, outputSeries, baseStationSeries,
-                                result.referenceField()));
+                                useSynchronizedBaseSeries, result.referenceField()));
             } catch (IllegalArgumentException e) {
                 Platform.runLater(() -> Dialogs.showError("Diurnal correction", e.getMessage()));
             }

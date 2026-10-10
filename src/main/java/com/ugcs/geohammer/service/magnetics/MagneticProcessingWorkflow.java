@@ -19,12 +19,14 @@ public class MagneticProcessingWorkflow {
 
     public void recordDiurnalCorrection(SgyFile file, DiurnalCorrectionOptions options) {
         Check.notNull(options);
+        String source = options.synchronizedBaseSeries() ? "synchronized-series" : "base-station-file";
         Map<String, String> settings = options.referenceField() != null
                 ? Map.of(
+                        "baseSource", source,
                         "baseStationSeries", options.baseStationSeries(),
                         "referenceField", Double.toString(options.referenceField())
                 )
-                : Map.of("baseStationSeries", options.baseStationSeries());
+                : Map.of("baseSource", source, "baseStationSeries", options.baseStationSeries());
         record(file, MagneticProcessingStepType.DIURNAL_CORRECTION,
                 options.inputSeries(), options.outputSeries(), settings);
     }

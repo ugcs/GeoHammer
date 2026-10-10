@@ -6,6 +6,7 @@ public record DiurnalCorrectionOptions(
         String inputSeries,
         String outputSeries,
         String baseStationSeries,
+        boolean synchronizedBaseSeries,
         Double referenceField
 ) {
 

@@ -47,6 +47,27 @@ public class DiurnalCorrectionService {
         return new DiurnalCorrectionResult(corrected, baseReference);
     }
 
+    public DiurnalCorrectionResult correctSynchronized(List<GeoData> data, String surveySeries, String baseSeries,
+                                                        @Nullable Double referenceField) {
+        Check.notEmpty(data);
+        Check.notEmpty(surveySeries);
+        Check.notEmpty(baseSeries);
+        Check.condition(referenceField == null || Double.isFinite(referenceField),
+                "Reference field must be finite");
+
+        List<Double> baseValues = collectBaseFields(data, baseSeries);
+        double baseReference = referenceField != null ? referenceField : medianFields(baseValues);
+        List<@Nullable Number> corrected = new ArrayList<>(data.size());
+        for (GeoData value : data) {
+            Number field = value.getNumber(surveySeries);
+            Number baseField = value.getNumber(baseSeries);
+            corrected.add(field != null && baseField != null
+                    ? field.doubleValue() - (baseField.doubleValue() - baseReference)
+                    : null);
+        }
+        return new DiurnalCorrectionResult(corrected, baseReference);
+    }
+
     private static List<TimedValue> collectBaseValues(List<GeoData> data, String series) {
         List<TimedValue> values = new ArrayList<>(data.size());
         for (GeoData value : data) {
@@ -61,6 +82,18 @@ public class DiurnalCorrectionService {
         }
         Check.condition(values.size() >= 2,
                 "Base station must contain at least two timestamped magnetic samples");
+        return values;
+    }
+
+    private static List<Double> collectBaseFields(List<GeoData> data, String series) {
+        List<Double> values = new ArrayList<>(data.size());
+        for (GeoData value : data) {
+            Number field = value.getNumber(series);
+            if (field != null) {
+                values.add(field.doubleValue());
+            }
+        }
+        Check.condition(!values.isEmpty(), "Synchronized base series has no magnetic samples");
         return values;
     }
 
@@ -98,6 +131,15 @@ public class DiurnalCorrectionService {
         return fields.size() % 2 == 0
                 ? (fields.get(middle - 1) + fields.get(middle)) / 2
                 : fields.get(middle);
+    }
+
+    private static double medianFields(List<Double> values) {
+        List<Double> sorted = new ArrayList<>(values);
+        sorted.sort(Double::compare);
+        int middle = sorted.size() / 2;
+        return sorted.size() % 2 == 0
+                ? (sorted.get(middle - 1) + sorted.get(middle)) / 2
+                : sorted.get(middle);
     }
 
     private static double interpolate(List<TimedValue> values, long timestamp) {

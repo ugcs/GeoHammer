@@ -13,6 +13,7 @@ import java.util.Set;
 public class RecipeReplayService {
 
     private final IgrfRemovalService igrfRemovalService;
+    private final DiurnalCorrectionService diurnalCorrectionService;
     private final HeadingCorrectionService headingCorrectionService;
     private final LineLevelingService lineLevelingService;
     private final CrossoverLevelingService crossoverLevelingService;
@@ -20,11 +21,13 @@ public class RecipeReplayService {
     private final RegionalRemovalService regionalRemovalService;
     private final MagneticProcessingWorkflow processingWorkflow;
 
-    public RecipeReplayService(IgrfRemovalService igrfRemovalService, HeadingCorrectionService headingCorrectionService,
+    public RecipeReplayService(IgrfRemovalService igrfRemovalService, DiurnalCorrectionService diurnalCorrectionService,
+                               HeadingCorrectionService headingCorrectionService,
                                LineLevelingService lineLevelingService, CrossoverLevelingService crossoverLevelingService,
                                MicroLevelingService microLevelingService, RegionalRemovalService regionalRemovalService,
                                MagneticProcessingWorkflow processingWorkflow) {
         this.igrfRemovalService = igrfRemovalService;
+        this.diurnalCorrectionService = diurnalCorrectionService;
         this.headingCorrectionService = headingCorrectionService;
         this.lineLevelingService = lineLevelingService;
         this.crossoverLevelingService = crossoverLevelingService;
@@ -43,7 +46,7 @@ public class RecipeReplayService {
         String input = step.inputSeries();
         String output = step.outputSeries();
         switch (step.type()) {
-            case DIURNAL_CORRECTION -> throw new IllegalArgumentException("Diurnal replay requires a base-station file");
+            case DIURNAL_CORRECTION -> replayDiurnalCorrection(chart, step);
             case IGRF_REMOVAL -> {
                 Instant fallback = step.settings().containsKey("fallbackTimestamp")
                         ? Instant.parse(step.settings().get("fallbackTimestamp")) : null;
@@ -67,6 +70,22 @@ public class RecipeReplayService {
                 processingWorkflow.recordRegionalRemoval(chart.getFile(), new RegionalRemovalOptions(input, output, order));
             }
         }
+    }
+
+    private void replayDiurnalCorrection(SensorLineChart chart, MagneticProcessingStep step) {
+        if (!step.settings().getOrDefault("baseSource", "base-station-file").equals("synchronized-series")) {
+            throw new IllegalArgumentException("Diurnal replay requires a base-station file");
+        }
+        String baseSeries = step.settings().get("baseStationSeries");
+        if (baseSeries == null || baseSeries.isBlank()) {
+            throw new IllegalArgumentException("Diurnal replay is missing the synchronized base series");
+        }
+        Double referenceField = step.settings().containsKey("referenceField")
+                ? Double.valueOf(step.settings().get("referenceField")) : null;
+        chart.createDerivedSeries(step.outputSeries(), step.inputSeries(), diurnalCorrectionService.correctSynchronized(
+                chart.getFile().getGeoData(), step.inputSeries(), baseSeries, referenceField).values());
+        processingWorkflow.recordDiurnalCorrection(chart.getFile(), new DiurnalCorrectionOptions(step.inputSeries(),
+                step.outputSeries(), baseSeries, true, referenceField));
     }
 
     private void replayLineLeveling(SensorLineChart chart, MagneticProcessingStep step) {

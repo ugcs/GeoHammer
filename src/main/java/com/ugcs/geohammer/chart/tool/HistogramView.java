@@ -13,9 +13,19 @@ class HistogramView extends Region {
 
     private final Canvas canvas = new Canvas();
 
+    private final double axisMinimum;
+
+    private final double axisMaximum;
+
     private List<Double> values = List.of();
 
     HistogramView() {
+        this(Double.NaN, Double.NaN);
+    }
+
+    HistogramView(double axisMinimum, double axisMaximum) {
+        this.axisMinimum = axisMinimum;
+        this.axisMaximum = axisMaximum;
         getChildren().add(canvas);
         setMinHeight(90);
         setPrefHeight(110);
@@ -48,11 +58,15 @@ class HistogramView extends Region {
             return;
         }
 
-        double minimum = Double.POSITIVE_INFINITY;
-        double maximum = Double.NEGATIVE_INFINITY;
+        double minimum = Double.isFinite(axisMinimum) ? axisMinimum : Double.POSITIVE_INFINITY;
+        double maximum = Double.isFinite(axisMaximum) ? axisMaximum : Double.NEGATIVE_INFINITY;
         for (double value : values) {
-            minimum = Math.min(minimum, value);
-            maximum = Math.max(maximum, value);
+            if (!Double.isFinite(axisMinimum)) {
+                minimum = Math.min(minimum, value);
+            }
+            if (!Double.isFinite(axisMaximum)) {
+                maximum = Math.max(maximum, value);
+            }
         }
         if (maximum == minimum) {
             maximum = minimum + 1.0;
@@ -72,10 +86,21 @@ class HistogramView extends Region {
             double barHeight = (height - 20) * bins[i] / maxCount;
             graphics.fillRect(i * barWidth + 1, height - 16 - barHeight, Math.max(1, barWidth - 2), barHeight);
         }
+        drawAxis(graphics, width, height, minimum, maximum);
+    }
+
+    private static void drawAxis(GraphicsContext graphics, double width, double height, double minimum, double maximum) {
         graphics.setFill(Color.GRAY);
-        graphics.fillText(format(minimum), 2, height - 2);
-        String maximumText = format(maximum);
-        graphics.fillText(maximumText, Math.max(2, width - maximumText.length() * 7), height - 2);
+        graphics.setStroke(Color.GRAY);
+        for (int i = 0; i <= 4; i++) {
+            double ratio = (double) i / 4.0;
+            double x = ratio * width;
+            double value = minimum + ratio * (maximum - minimum);
+            graphics.strokeLine(x, height - 16, x, height - 13);
+            String text = format(value);
+            double textX = Math.clamp(x - text.length() * 3.5, 2, width - text.length() * 7 - 2);
+            graphics.fillText(text, textX, height - 2);
+        }
     }
 
     private static String format(double value) {

@@ -69,10 +69,6 @@ public class GriddingTool extends FilterToolView {
 
     private static final float SLIDER_SHRINK_WIDTH_THRESHOLD = 0.3f;
 
-    private static final double MAX_CELL_SIZE = 100.0;
-
-    private static final double MAX_BLANKING_DISTANCE = 100.0;
-
     private final Model model;
 
     private final GridLayer gridLayer;
@@ -708,8 +704,8 @@ public class GriddingTool extends FilterToolView {
     private GriddingParams getParams() {
         Double cellSize = (Double)cellSizeInput.getUserData();
         Double blankingDistance = (Double)blankingDistanceInput.getUserData();
-        if (cellSize == null || cellSize <= 0.0 || cellSize > MAX_CELL_SIZE
-                || blankingDistance == null || blankingDistance <= 0.0 || blankingDistance > MAX_BLANKING_DISTANCE) {
+        if (cellSize == null || !Double.isFinite(cellSize) || cellSize <= 0.0
+                || blankingDistance == null || !Double.isFinite(blankingDistance) || blankingDistance <= 0.0) {
             return null;
         }
         return new GriddingParams(

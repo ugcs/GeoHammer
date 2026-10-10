@@ -11,9 +11,10 @@ import com.ugcs.geohammer.util.Text;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -33,13 +34,17 @@ public class SurveyGeometryQcTool extends FilterToolView {
 
     private final Label heading = new Label();
 
-    private final Label recommendation = new Label();
+    private final Label suggestedCellSize = new Label();
+
+    private final Label suggestedBlankingDistance = new Label();
+
+    private final Label recommendationNote = new Label();
 
     private final HistogramView sampleHistogram = new HistogramView();
 
     private final HistogramView lineHistogram = new HistogramView();
 
-    private final HistogramView headingHistogram = new HistogramView();
+    private final HistogramView headingHistogram = new HistogramView(0.0, 360.0);
 
     public SurveyGeometryQcTool(SurveyGeometryService surveyGeometryService, ExecutorService executor) {
         super(executor);
@@ -57,13 +62,25 @@ public class SurveyGeometryQcTool extends FilterToolView {
         addMetric(metrics, 2, "Line-centre separation", lineSpacing);
         addMetric(metrics, 3, "Heading", heading);
 
-        recommendation.getStyleClass().add("dim");
+        GridPane recommendation = new GridPane();
+        recommendation.setHgap(8);
+        recommendation.setVgap(4);
+        addMetric(recommendation, 0, "Suggested cell size", suggestedCellSize);
+        addMetric(recommendation, 1, "Suggested blanking distance", suggestedBlankingDistance);
+        configureGrid(metrics);
+        configureGrid(recommendation);
+
+        recommendationNote.getStyleClass().add("dim");
+        recommendationNote.setWrapText(true);
+        VBox recommendationGroup = new VBox(Views.DEFAULT_SPACING,
+                new Label("Suggested gridding"), recommendation, recommendationNote);
+        recommendationGroup.getStyleClass().add("group");
         inputContainer.getChildren().setAll(
                 metrics,
                 createHistogram("Along-line sample spacing (m)", sampleHistogram),
                 createHistogram("Nearest line-centre separation (m)", lineHistogram),
                 createHistogram("Segment heading (degrees)", headingHistogram),
-                recommendation);
+                recommendationGroup);
         clearReport();
     }
 
@@ -91,8 +108,17 @@ public class SurveyGeometryQcTool extends FilterToolView {
     }
 
     private static void addMetric(GridPane metrics, int row, String name, Label value) {
+        value.setMaxWidth(Double.MAX_VALUE);
+        value.setWrapText(true);
         metrics.add(new Label(name), 0, row);
         metrics.add(value, 1, row);
+    }
+
+    private static void configureGrid(GridPane grid) {
+        ColumnConstraints valueColumn = new ColumnConstraints();
+        valueColumn.setHgrow(Priority.ALWAYS);
+        valueColumn.setFillWidth(true);
+        grid.getColumnConstraints().addAll(new ColumnConstraints(), valueColumn);
     }
 
     private static VBox createHistogram(String title, HistogramView histogram) {
@@ -106,13 +132,13 @@ public class SurveyGeometryQcTool extends FilterToolView {
         lineCount.setText(Integer.toString(report.lineCount()));
         sampleSpacing.setText(formatDistribution(report.sampleSpacing(), "m"));
         lineSpacing.setText(formatDistribution(report.lineSpacing(), "m"));
-        heading.setText(formatDistribution(report.heading(), "degrees"));
+        heading.setText(formatHeading(report.heading()));
         sampleHistogram.setValues(report.sampleSpacingValues());
         lineHistogram.setValues(report.lineSpacingValues());
         headingHistogram.setValues(report.headingValues());
-        recommendation.setText("Suggested gridding: cell size " + format(report.recommendedCellSize())
-                + " m; blanking distance " + format(report.recommendedBlankingDistance())
-                + " m. Recommendations are not applied automatically.");
+        suggestedCellSize.setText(format(report.recommendedCellSize()) + " m");
+        suggestedBlankingDistance.setText(format(report.recommendedBlankingDistance()) + " m");
+        recommendationNote.setText("Recommendations are not applied automatically.");
     }
 
     private void clearReport() {
@@ -123,7 +149,9 @@ public class SurveyGeometryQcTool extends FilterToolView {
         sampleHistogram.setValues(java.util.List.of());
         lineHistogram.setValues(java.util.List.of());
         headingHistogram.setValues(java.util.List.of());
-        recommendation.setText("Uses mapped latitude, longitude, and line fields.");
+        suggestedCellSize.setText("n/a");
+        suggestedBlankingDistance.setText("n/a");
+        recommendationNote.setText("Uses mapped latitude, longitude, and line fields.");
     }
 
     private static String formatDistribution(SurveyGeometryReport.Distribution distribution, String unit) {
@@ -135,8 +163,20 @@ public class SurveyGeometryQcTool extends FilterToolView {
                 + format(distribution.upperQuartile()) + ")";
     }
 
+    private static String formatHeading(SurveyGeometryReport.Distribution distribution) {
+        if (distribution.isEmpty()) {
+            return "n/a";
+        }
+        return "range " + format(distribution.minimum()) + "-" + format(distribution.maximum()) + " degrees";
+    }
+
     private static String format(double value) {
-        return Double.isFinite(value) ? Text.formatNumber(value) : "n/a";
+        if (!Double.isFinite(value)) {
+            return "n/a";
+        }
+        double magnitude = Math.abs(value);
+        int fractionDigits = magnitude >= 100.0 ? 0 : magnitude >= 10.0 ? 1 : 2;
+        return Text.createNumberFormat(0, fractionDigits).format(value);
     }
 
     @EventListener

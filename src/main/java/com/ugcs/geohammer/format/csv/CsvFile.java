@@ -103,6 +103,8 @@ public class CsvFile extends SgyFile {
                     + " they were merged into adjacent lines.");
         }
 
+        MissingValues.fillGeoDataValues(geoData);
+
         setUnsaved(false);
     }
 

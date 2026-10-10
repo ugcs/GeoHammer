@@ -5,11 +5,11 @@ import java.util.Arrays;
 public interface Interpolator {
 
     static Interpolator linear() {
-        return new LinearInterpolator();
+        return LinearInterpolator.INSTANCE;
     }
 
     static Interpolator spline() {
-        return new SplineInterpolator();
+        return SplineInterpolator.INSTANCE;
     }
 
     default void interpolate(double[] y) {

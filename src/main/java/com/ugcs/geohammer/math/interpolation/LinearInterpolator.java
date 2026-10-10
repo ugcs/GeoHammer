@@ -7,6 +7,8 @@ import javafx.geometry.Point2D;
 
 public final class LinearInterpolator implements Interpolator {
 
+    public static final LinearInterpolator INSTANCE = new LinearInterpolator();
+
     public static Point2D interpolate(Point2D a, Point2D b, double t) {
         if (a == null) {
             return b;

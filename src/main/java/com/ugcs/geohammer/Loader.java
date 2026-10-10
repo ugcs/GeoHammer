@@ -1,12 +1,12 @@
 package com.ugcs.geohammer;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -21,6 +21,7 @@ import com.ugcs.geohammer.format.gpr.GprFile;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
+import com.ugcs.geohammer.model.ProgressListener;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.TraceFile;
@@ -130,16 +131,18 @@ public class Loader {
 		ProgressTask loadTask = listener -> {
 			List<File> openedFiles = new ArrayList<>();
 
-			for (File file : prepareOpenFiles(files)) {
+			for (File file : selectFilesToOpen(files, listener)) {
 				if (Thread.currentThread().isInterrupted()) {
 					break;
 				}
+
+				boolean fileInteractive = interactive && files.contains(file);
 
 				model.setLoading(true);
 				try {
 					listener.progressMsg("Opening " + file);
 
-					File openedFile = openFile(file, interactive);
+					File openedFile = openFile(file, fileInteractive);
 					if (openedFile != null) {
 						listener.progressMsg("File opened: " + openedFile);
 						openedFiles.add(openedFile);
@@ -153,11 +156,12 @@ public class Loader {
 					break;
 				} catch (Exception e) {
 					log.error("Error", e);
-					listener.progressMsg("Error: " + e.getMessage());
+					listener.progressMsg("Error opening " + file.getName() + ": " + e.getMessage());
 					results.put(file, Result.error(e));
 
 					eventPublisher.publishEvent(new FileOpenErrorEvent(this, file, e));
-					if (interactive) {
+					// files from directories are reported only in the status log
+					if (fileInteractive) {
 						Dialogs.showError("Can't open file " + file.getName(),
 								new FileOpenException(file, e));
 					}
@@ -191,45 +195,38 @@ public class Loader {
 		return future;
 	}
 
-	private List<File> prepareOpenFiles(List<File> files) {
-		// make unique and sort by name
-		List<File> result = new ArrayList<>(new HashSet<>(Nulls.toEmpty(files)));
-		result.sort(Comparator.comparing(File::getName));
-		// expand directories
-		result = expandDirectories(result);
-		return result;
-	}
-
-	private List<File> expandDirectories(List<File> files) {
+	private List<File> selectFilesToOpen(List<File> files, ProgressListener listener) {
+		// explicitly chosen files are opened as is, files from directories are filtered
 		List<File> result = new ArrayList<>();
 		for (File file : Nulls.toEmpty(files)) {
-			if (file.isFile()) {
-				result.add(file);
+			if (file.isDirectory()) {
+				result.addAll(filterUnsupported(listFiles(file), listener));
 			} else {
-				result.addAll(listFiles(file));
+				result.add(file);
 			}
 		}
-		return result;
+		Collections.sort(result);
+		return removeDuplicates(result);
+	}
+
+	private List<File> removeDuplicates(List<File> files) {
+		return new ArrayList<>(new LinkedHashSet<>(files));
 	}
 
 	private List<File> listFiles(File directory) {
-		if (directory == null || !directory.isDirectory()) {
-			return List.of();
-		}
-		FilenameFilter filter = (dir, name) -> FileTypes.isTraceFile(new File(dir, name));
-		File[] files = directory.listFiles(filter);
-		if (files == null) {
-			return List.of();
-		}
-		// exclude directories from result
-		List<File> result = new ArrayList<>(files.length);
+		File[] files = directory.listFiles(file -> file.isFile() && !file.isHidden());
+		return files != null ? Arrays.asList(files) : List.of();
+	}
+
+	private List<File> filterUnsupported(List<File> files, ProgressListener listener) {
+		List<File> result = new ArrayList<>(files.size());
 		for (File file : files) {
-			if (file.isFile()) {
+			if (FileTypes.isSupportedFile(file)) {
 				result.add(file);
+			} else {
+				listener.progressMsg("Skipped " + file);
 			}
 		}
-		// sort files by name
-		result.sort(Comparator.comparing(File::getName));
 		return result;
 	}
 

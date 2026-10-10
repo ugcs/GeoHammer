@@ -22,6 +22,7 @@ import com.ugcs.geohammer.map.layer.GpsTrack;
 import com.ugcs.geohammer.map.layer.GridLayer;
 import com.ugcs.geohammer.map.layer.Layer;
 import com.ugcs.geohammer.map.layer.QualityLayer;
+import com.ugcs.geohammer.map.layer.SurveyLineFamilyLayer;
 import com.ugcs.geohammer.map.layer.radar.RadarMap;
 import com.ugcs.geohammer.map.layer.SatelliteMap;
 import com.ugcs.geohammer.model.event.WhatChanged;
@@ -100,6 +101,9 @@ public class MapView implements InitializingBean, DisposableBean {
 
 	@Autowired
 	private QualityLayer qualityLayer;
+
+	@Autowired
+	private SurveyLineFamilyLayer surveyLineFamilyLayer;
 
 	@Autowired
 	private List<BaseLayer> baseLayers;
@@ -207,11 +211,14 @@ public class MapView implements InitializingBean, DisposableBean {
 
 		qualityLayer.setRepaintListener(listener);
 
+		surveyLineFamilyLayer.setRepaintListener(listener);
+
 		layers.add(satelliteMap);
 		layers.add(radarMap);
 		layers.add(gridLayer);
 		layers.add(qualityLayer);
 		layers.add(gpsTrackMap);
+		layers.add(surveyLineFamilyLayer);
 		layers.add(new FoundTracesLayer(model));
 
 		//TODO: bad style

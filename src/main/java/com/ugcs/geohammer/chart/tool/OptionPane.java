@@ -55,7 +55,7 @@ public class OptionPane extends VBox {
                 new ToolToggleBox(griddingTool, "Gridding"),
                 new ToolToggleBox(timeLagTool, "GNSS time-lag"),
                 new ToolToggleBox(runningMedianTool, "Running median filter"),
-                new ToolToggleBox(diurnalCorrectionTool, "Magnetics processing"),
+                new ToolToggleBox(diurnalCorrectionTool, "Diurnal correction"),
                 new ToolToggleBox(igrfRemovalTool, "IGRF removal"),
                 new ToolToggleBox(headingCorrectionTool, "Heading correction"),
                 new ToolToggleBox(lineLevelingTool, "Line leveling"),

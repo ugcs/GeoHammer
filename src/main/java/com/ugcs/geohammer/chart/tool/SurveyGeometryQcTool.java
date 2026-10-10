@@ -30,7 +30,9 @@ public class SurveyGeometryQcTool extends FilterToolView {
 
     private final Label sampleSpacing = new Label();
 
-    private final Label lineSpacing = new Label();
+    private final Label primaryLineSpacing = new Label();
+
+    private final Label tieLineSpacing = new Label();
 
     private final Label heading = new Label();
 
@@ -42,7 +44,9 @@ public class SurveyGeometryQcTool extends FilterToolView {
 
     private final HistogramView sampleHistogram = new HistogramView();
 
-    private final HistogramView lineHistogram = new HistogramView();
+    private final HistogramView primaryLineHistogram = new HistogramView();
+
+    private final HistogramView tieLineHistogram = new HistogramView();
 
     private final HistogramView headingHistogram = new HistogramView(0.0, 360.0);
 
@@ -59,8 +63,9 @@ public class SurveyGeometryQcTool extends FilterToolView {
         metrics.setVgap(4);
         addMetric(metrics, 0, "Lines", lineCount);
         addMetric(metrics, 1, "Sample spacing", sampleSpacing);
-        addMetric(metrics, 2, "Line-centre separation", lineSpacing);
-        addMetric(metrics, 3, "Heading", heading);
+        addMetric(metrics, 2, "Primary-line spacing", primaryLineSpacing);
+        addMetric(metrics, 3, "Tie-line spacing", tieLineSpacing);
+        addMetric(metrics, 4, "Heading", heading);
 
         GridPane recommendation = new GridPane();
         recommendation.setHgap(8);
@@ -78,7 +83,8 @@ public class SurveyGeometryQcTool extends FilterToolView {
         inputContainer.getChildren().setAll(
                 metrics,
                 createHistogram("Along-line sample spacing (m)", sampleHistogram),
-                createHistogram("Nearest line-centre separation (m)", lineHistogram),
+                createHistogram("Primary-line spacing (m)", primaryLineHistogram),
+                createHistogram("Tie-line spacing (m)", tieLineHistogram),
                 createHistogram("Segment heading (degrees)", headingHistogram),
                 recommendationGroup);
         clearReport();
@@ -129,25 +135,31 @@ public class SurveyGeometryQcTool extends FilterToolView {
     }
 
     private void showReport(SurveyGeometryReport report) {
-        lineCount.setText(Integer.toString(report.lineCount()));
+        lineCount.setText(report.lineCount() + " (" + report.primaryLineCount() + " primary, "
+                + report.tieLineCount() + " tie)");
         sampleSpacing.setText(formatDistribution(report.sampleSpacing(), "m"));
-        lineSpacing.setText(formatDistribution(report.lineSpacing(), "m"));
+        primaryLineSpacing.setText(formatDistribution(report.primaryLineSpacing(), "m"));
+        tieLineSpacing.setText(formatDistribution(report.tieLineSpacing(), "m"));
         heading.setText(formatHeading(report.heading()));
         sampleHistogram.setValues(report.sampleSpacingValues());
-        lineHistogram.setValues(report.lineSpacingValues());
+        primaryLineHistogram.setValues(report.primaryLineSpacingValues());
+        tieLineHistogram.setValues(report.tieLineSpacingValues());
         headingHistogram.setValues(report.headingValues());
         suggestedCellSize.setText(format(report.recommendedCellSize()) + " m");
         suggestedBlankingDistance.setText(format(report.recommendedBlankingDistance()) + " m");
-        recommendationNote.setText("Recommendations are not applied automatically.");
+        recommendationNote.setText("Cell size uses one-quarter of median primary-line spacing. "
+                + "Values are not applied automatically.");
     }
 
     private void clearReport() {
         lineCount.setText("Analyze the selected survey");
         sampleSpacing.setText("n/a");
-        lineSpacing.setText("n/a");
+        primaryLineSpacing.setText("n/a");
+        tieLineSpacing.setText("n/a");
         heading.setText("n/a");
         sampleHistogram.setValues(java.util.List.of());
-        lineHistogram.setValues(java.util.List.of());
+        primaryLineHistogram.setValues(java.util.List.of());
+        tieLineHistogram.setValues(java.util.List.of());
         headingHistogram.setValues(java.util.List.of());
         suggestedCellSize.setText("n/a");
         suggestedBlankingDistance.setText("n/a");

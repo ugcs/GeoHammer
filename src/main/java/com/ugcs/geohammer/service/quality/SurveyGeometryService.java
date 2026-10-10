@@ -11,6 +11,10 @@ import java.util.List;
 @Service
 public class SurveyGeometryService {
 
+    private static final double ORIENTATION_TOLERANCE = 20.0;
+
+    private static final double METERS_PER_DEGREE = 111_320.0;
+
     public SurveyGeometryReport analyze(List<GeoData> data) {
         List<LineGeometry> lines = collectLines(data);
         List<Double> sampleSpacing = new ArrayList<>();
@@ -19,14 +23,19 @@ public class SurveyGeometryService {
             collectSegments(line.points(), sampleSpacing, headings);
         }
 
-        List<Double> lineSpacing = collectLineSpacing(lines);
+        LineFamilies families = splitLineFamilies(lines);
+        List<Double> primaryLineSpacing = collectLineSpacing(families.primary());
+        List<Double> tieLineSpacing = collectLineSpacing(families.tieLines());
         SurveyGeometryReport.Distribution sampleSummary = summarize(sampleSpacing);
-        SurveyGeometryReport.Distribution lineSummary = summarize(lineSpacing);
+        SurveyGeometryReport.Distribution primarySummary = summarize(primaryLineSpacing);
+        SurveyGeometryReport.Distribution tieSummary = summarize(tieLineSpacing);
 
-        double cellSize = recommendCellSize(sampleSummary, lineSummary);
-        double blankingDistance = recommendBlankingDistance(cellSize, lineSummary);
-        return new SurveyGeometryReport(lines.size(), sampleSummary, lineSummary, summarize(headings),
-                List.copyOf(sampleSpacing), List.copyOf(lineSpacing), List.copyOf(headings),
+        double cellSize = recommendCellSize(primarySummary);
+        double blankingDistance = recommendBlankingDistance(primarySummary);
+        return new SurveyGeometryReport(lines.size(), families.primary().lines().size(), families.tieLines().lines().size(),
+                sampleSummary, primarySummary, tieSummary, summarize(headings),
+                List.copyOf(sampleSpacing), List.copyOf(primaryLineSpacing), List.copyOf(tieLineSpacing),
+                List.copyOf(headings),
                 cellSize, blankingDistance);
     }
 
@@ -63,7 +72,9 @@ public class SurveyGeometryService {
             latitude += point.getLatDgr();
             longitude += point.getLonDgr();
         }
-        lines.add(new LineGeometry(points, new LatLon(latitude / points.size(), longitude / points.size())));
+        LatLon center = new LatLon(latitude / points.size(), longitude / points.size());
+        double orientation = points.getFirst().getBearing(points.getLast()) % 180.0;
+        lines.add(new LineGeometry(points, center, orientation));
     }
 
     private static void collectSegments(List<LatLon> points, List<Double> sampleSpacing, List<Double> headings) {
@@ -79,19 +90,77 @@ public class SurveyGeometryService {
         }
     }
 
-    private static List<Double> collectLineSpacing(List<LineGeometry> lines) {
-        List<Double> spacing = new ArrayList<>();
-        for (int i = 0; i < lines.size(); i++) {
-            double nearest = Double.POSITIVE_INFINITY;
-            LatLon center = lines.get(i).center();
-            for (int j = 0; j < lines.size(); j++) {
-                if (i == j) {
-                    continue;
+    private static LineFamilies splitLineFamilies(List<LineGeometry> lines) {
+        if (lines.isEmpty()) {
+            return new LineFamilies(new LineFamily(List.of(), Double.NaN), new LineFamily(List.of(), Double.NaN));
+        }
+        LineGeometry dominant = lines.getFirst();
+        int largestGroup = 0;
+        for (LineGeometry candidate : lines) {
+            int count = 0;
+            for (LineGeometry line : lines) {
+                if (orientationDifference(candidate.orientation(), line.orientation()) <= ORIENTATION_TOLERANCE) {
+                    count++;
                 }
-                nearest = Math.min(nearest, center.getDistance(lines.get(j).center()));
             }
-            if (Double.isFinite(nearest) && nearest > 0.0) {
-                spacing.add(nearest);
+            if (count > largestGroup) {
+                dominant = candidate;
+                largestGroup = count;
+            }
+        }
+
+        List<LineGeometry> primary = new ArrayList<>();
+        List<LineGeometry> ties = new ArrayList<>();
+        for (LineGeometry line : lines) {
+            if (orientationDifference(dominant.orientation(), line.orientation()) <= ORIENTATION_TOLERANCE) {
+                primary.add(line);
+            } else {
+                ties.add(line);
+            }
+        }
+        return new LineFamilies(new LineFamily(primary, meanOrientation(primary)), new LineFamily(ties, meanOrientation(ties)));
+    }
+
+    private static double orientationDifference(double first, double second) {
+        double difference = Math.abs(first - second);
+        return Math.min(difference, 180.0 - difference);
+    }
+
+    private static double meanOrientation(List<LineGeometry> lines) {
+        if (lines.isEmpty()) {
+            return Double.NaN;
+        }
+        double x = 0.0;
+        double y = 0.0;
+        for (LineGeometry line : lines) {
+            double angle = Math.toRadians(2.0 * line.orientation());
+            x += Math.cos(angle);
+            y += Math.sin(angle);
+        }
+        double orientation = Math.toDegrees(Math.atan2(y, x)) / 2.0;
+        return orientation < 0.0 ? orientation + 180.0 : orientation;
+    }
+
+    private static List<Double> collectLineSpacing(LineFamily family) {
+        List<Double> spacing = new ArrayList<>();
+        if (family.lines().size() < 2 || !Double.isFinite(family.orientation())) {
+            return spacing;
+        }
+        LatLon origin = family.lines().getFirst().center();
+        List<Double> offsets = new ArrayList<>(family.lines().size());
+        double orientation = Math.toRadians(family.orientation());
+        double cosineLatitude = Math.cos(Math.toRadians(origin.getLatDgr()));
+        for (LineGeometry line : family.lines()) {
+            LatLon center = line.center();
+            double east = (center.getLonDgr() - origin.getLonDgr()) * METERS_PER_DEGREE * cosineLatitude;
+            double north = (center.getLatDgr() - origin.getLatDgr()) * METERS_PER_DEGREE;
+            offsets.add(east * Math.cos(orientation) - north * Math.sin(orientation));
+        }
+        offsets.sort(Comparator.naturalOrder());
+        for (int i = 1; i < offsets.size(); i++) {
+            double distance = offsets.get(i) - offsets.get(i - 1);
+            if (distance > 0.0) {
+                spacing.add(distance);
             }
         }
         return spacing;
@@ -115,35 +184,26 @@ public class SurveyGeometryService {
         return sorted.get(lower) + (sorted.get(upper) - sorted.get(lower)) * (index - lower);
     }
 
-    private static double recommendCellSize(SurveyGeometryReport.Distribution sampleSpacing,
-                                            SurveyGeometryReport.Distribution lineSpacing) {
-        if (sampleSpacing.isEmpty()) {
+    private static double recommendCellSize(SurveyGeometryReport.Distribution primaryLineSpacing) {
+        if (primaryLineSpacing.isEmpty()) {
             return Double.NaN;
         }
-        double recommended = sampleSpacing.median() / 2.0;
-        if (!lineSpacing.isEmpty()) {
-            recommended = Math.min(recommended, lineSpacing.median() / 4.0);
-        }
-        return roundToTwoSignificantDigits(recommended);
+        return primaryLineSpacing.median() / 4.0;
     }
 
-    private static double recommendBlankingDistance(double cellSize,
-                                                    SurveyGeometryReport.Distribution lineSpacing) {
-        if (!Double.isFinite(cellSize)) {
+    private static double recommendBlankingDistance(SurveyGeometryReport.Distribution primaryLineSpacing) {
+        if (primaryLineSpacing.isEmpty()) {
             return Double.NaN;
         }
-        double recommended = lineSpacing.isEmpty() ? cellSize * 4.0 : lineSpacing.median() * 2.0;
-        return roundToTwoSignificantDigits(Math.max(recommended, cellSize));
+        return primaryLineSpacing.median() * 2.0;
     }
 
-    private static double roundToTwoSignificantDigits(double value) {
-        if (value <= 0.0 || !Double.isFinite(value)) {
-            return Double.NaN;
-        }
-        double scale = Math.pow(10.0, Math.floor(Math.log10(value)) - 1.0);
-        return Math.round(value / scale) * scale;
+    private record LineGeometry(List<LatLon> points, LatLon center, double orientation) {
     }
 
-    private record LineGeometry(List<LatLon> points, LatLon center) {
+    private record LineFamily(List<LineGeometry> lines, double orientation) {
+    }
+
+    private record LineFamilies(LineFamily primary, LineFamily tieLines) {
     }
 }

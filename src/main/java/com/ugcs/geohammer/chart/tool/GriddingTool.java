@@ -2,10 +2,12 @@ package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.chart.csv.SensorLineChart;
 import com.ugcs.geohammer.format.SgyFile;
+import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.format.nmea.NmeaFile;
 import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.map.layer.GridLayer;
+import com.ugcs.geohammer.model.ColumnSchema;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.Range;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
@@ -32,6 +34,7 @@ import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.control.InputWithTopLabel;
+import com.ugcs.geohammer.view.control.NodeWithTopLabel;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -92,6 +95,10 @@ public class GriddingTool extends FilterToolView {
 
     private final Label warning;
 
+    private final ComboBox<String> inputSeriesSelector;
+
+    private final ComboBox<String> displayedGridSelector;
+
     private final TextField cellSizeInput;
 
     private final TextField blankingDistanceInput;
@@ -115,6 +122,8 @@ public class GriddingTool extends FilterToolView {
     private final ComboBox<PaletteType> paletteSelector;
 
     private final ComboBox<SpectrumType> spectrumSelector;
+
+    private boolean updatingGridSelectors;
 
     public GriddingTool(
             Model model,
@@ -140,6 +149,18 @@ public class GriddingTool extends FilterToolView {
         warning.getStyleClass().add("warning");
         warning.setVisible(false);
         warning.setManaged(false);
+
+        inputSeriesSelector = new ComboBox<>();
+        inputSeriesSelector.setMaxWidth(Double.MAX_VALUE);
+        inputSeriesSelector.setOnAction(event -> onInputSeriesSelected());
+
+        displayedGridSelector = new ComboBox<>();
+        displayedGridSelector.setMaxWidth(Double.MAX_VALUE);
+        displayedGridSelector.setOnAction(event -> onDisplayedGridSelected());
+
+        VBox gridSelectionGroup = createGroup(
+                new NodeWithTopLabel<>("Input series", inputSeriesSelector),
+                new NodeWithTopLabel<>("Displayed saved grid", displayedGridSelector));
 
         InputWithTopLabel cellSizeWithLabel = new InputWithTopLabel("Cell size (m)");
         cellSizeInput = cellSizeWithLabel.getInput();
@@ -268,6 +289,7 @@ public class GriddingTool extends FilterToolView {
 
         inputContainer.getChildren().setAll(
                 warning,
+                gridSelectionGroup,
                 inputGroup,
                 rangeGroup,
                 paletteGroup,
@@ -429,13 +451,10 @@ public class GriddingTool extends FilterToolView {
         if (file == null) {
             return false;
         }
-        GriddingResult griddingResult = gridLayer.getResult(file);
+        String seriesName = getInputSeries();
+        GriddingResult griddingResult = gridLayer.getResult(file, seriesName);
         if (griddingResult == null) {
             return false;
-        }
-        String seriesName = model.getSelectedSeriesName(file);
-        if (!Objects.equals(seriesName, griddingResult.seriesName())) {
-            return true;
         }
         return !Objects.equals(getParams(), griddingResult.params());
     }
@@ -445,6 +464,75 @@ public class GriddingTool extends FilterToolView {
             warning.setVisible(show);
             warning.setManaged(show);
         });
+    }
+
+    private String getInputSeries() {
+        return inputSeriesSelector.getValue();
+    }
+
+    private void updateInputSeries() {
+        String selectedSeries = inputSeriesSelector.getValue();
+        updatingGridSelectors = true;
+        try {
+            inputSeriesSelector.getItems().clear();
+            ColumnSchema schema = GeoData.getSchema(selectedFile != null ? selectedFile.getGeoData() : null);
+            if (schema != null) {
+                inputSeriesSelector.getItems().addAll(schema.getDisplayHeaders());
+            }
+            if (selectedSeries != null && inputSeriesSelector.getItems().contains(selectedSeries)) {
+                inputSeriesSelector.setValue(selectedSeries);
+            } else {
+                String chartSeries = model.getSelectedSeriesName(selectedFile);
+                inputSeriesSelector.setValue(inputSeriesSelector.getItems().contains(chartSeries)
+                        ? chartSeries
+                        : inputSeriesSelector.getItems().isEmpty() ? null : inputSeriesSelector.getItems().getFirst());
+            }
+        } finally {
+            updatingGridSelectors = false;
+        }
+    }
+
+    private void updateDisplayedGridSelector() {
+        SgyFile file = selectedFile;
+        String displayedSeries = gridLayer.getDisplayedSeries(file);
+        updatingGridSelectors = true;
+        try {
+            displayedGridSelector.getItems().clear();
+            for (GriddingResult result : gridLayer.getResults(file)) {
+                displayedGridSelector.getItems().add(result.seriesName());
+            }
+            displayedGridSelector.setValue(displayedGridSelector.getItems().contains(displayedSeries)
+                    ? displayedSeries : null);
+        } finally {
+            updatingGridSelectors = false;
+        }
+    }
+
+    private void onInputSeriesSelected() {
+        if (updatingGridSelectors) {
+            return;
+        }
+        SgyFile file = selectedFile;
+        String seriesName = getInputSeries();
+        if (file == null || Strings.isNullOrEmpty(seriesName)) {
+            return;
+        }
+        GriddingResult result = gridLayer.getResult(file, seriesName);
+        updateParamInputs(result != null ? result.params() : griddingSettings.loadParams(file));
+        updateFilterInputs(loadFilter(file, seriesName));
+        onInputChange();
+    }
+
+    private void onDisplayedGridSelected() {
+        if (!updatingGridSelectors) {
+            gridLayer.setDisplayedSeries(selectedFile, displayedGridSelector.getValue());
+        }
+    }
+
+    @Override
+    public void updateView() {
+        updateInputSeries();
+        updateDisplayedGridSelector();
     }
 
     @Override
@@ -461,7 +549,7 @@ public class GriddingTool extends FilterToolView {
 
     private @Nullable Range getSelectedSeriesRange() {
         SgyFile file = selectedFile;
-        return getSeriesRange(file, model.getSelectedSeriesName(file));
+        return getSeriesRange(file, getInputSeries());
     }
 
     private @Nullable Range getSeriesRange(SgyFile file, String seriesName) {
@@ -595,9 +683,11 @@ public class GriddingTool extends FilterToolView {
     @Override
     public void loadPreferences() {
         SgyFile file = selectedFile;
-        String seriesName = model.getSelectedSeriesName(file);
+        updateInputSeries();
+        updateDisplayedGridSelector();
+        String seriesName = getInputSeries();
 
-        GriddingParams params = loadParams(file);
+        GriddingParams params = loadParams(file, seriesName);
         updateParamInputs(params);
 
         GriddingFilter filter = loadFilter(file, seriesName);
@@ -607,8 +697,8 @@ public class GriddingTool extends FilterToolView {
         }
     }
 
-    private GriddingParams loadParams(SgyFile file) {
-        GriddingResult result = gridLayer.getResult(file);
+    private GriddingParams loadParams(SgyFile file, String seriesName) {
+        GriddingResult result = gridLayer.getResult(file, seriesName);
         GriddingParams params = result != null ? result.params() : null;
         if (params != null) {
             return params;
@@ -664,7 +754,7 @@ public class GriddingTool extends FilterToolView {
     @Override
     public void savePreferences() {
         SgyFile file = selectedFile;
-        String seriesName = model.getSelectedSeriesName(file);
+        String seriesName = getInputSeries();
 
         griddingSettings.saveParams(file, getParams());
         griddingSettings.saveFilter(file, seriesName, getFilter());
@@ -676,7 +766,7 @@ public class GriddingTool extends FilterToolView {
         if (file == null) {
             return;
         }
-        String seriesName = model.getSelectedSeriesName(file);
+        String seriesName = getInputSeries();
         if (Strings.isNullOrEmpty(seriesName)) {
             return;
         }
@@ -690,7 +780,7 @@ public class GriddingTool extends FilterToolView {
         if (file == null) {
             return;
         }
-        String seriesName = model.getSelectedSeriesName(file);
+        String seriesName = getInputSeries();
         if (Strings.isNullOrEmpty(seriesName)) {
             return;
         }
@@ -783,7 +873,7 @@ public class GriddingTool extends FilterToolView {
 
     private void publishFilter() {
         SgyFile file = selectedFile;
-        String seriesName = model.getSelectedSeriesName(file);
+        String seriesName = getInputSeries();
 
         GriddingFilter filter = getFilter();
         gridLayer.setFilter(file, seriesName, filter);
@@ -824,9 +914,10 @@ public class GriddingTool extends FilterToolView {
         SgyFile file = event.getFile();
         if (Objects.equals(selectedFile, file)) {
             Platform.runLater(() -> {
-                GriddingFilter filter = loadFilter(file, model.getSelectedSeriesName(file));
-                updateFilterInputs(filter);
-                onInputChange();
+                String seriesName = model.getSelectedSeriesName(file);
+                if (inputSeriesSelector.getItems().contains(seriesName)) {
+                    inputSeriesSelector.setValue(seriesName);
+                }
             });
         }
     }
@@ -852,9 +943,10 @@ public class GriddingTool extends FilterToolView {
             if (!Objects.equals(file, selectedFile)) {
                 return;
             }
-            GriddingResult result = gridLayer.getResult(file);
+            GriddingResult result = gridLayer.getResult(file, getInputSeries());
             updateParamInputs(result != null ? result.params() : null);
-            updateFilterInputs(gridLayer.getFilter(file, model.getSelectedSeriesName(file)));
+            updateFilterInputs(gridLayer.getFilter(file, getInputSeries()));
+            updateDisplayedGridSelector();
         });
     }
 
@@ -864,6 +956,16 @@ public class GriddingTool extends FilterToolView {
         if (!Objects.equals(file, event.getFile())) {
             return;
         }
+        Platform.runLater(() -> {
+            if (!Objects.equals(file, selectedFile)) {
+                return;
+            }
+            updateInputSeries();
+            if (event.isSeriesSelected() && inputSeriesSelector.getItems().contains(event.getSeriesName())) {
+                inputSeriesSelector.setValue(event.getSeriesName());
+            }
+        });
+
         GriddingResult griddingResult = gridLayer.getResult(file);
         if (griddingResult == null) {
             return;

@@ -5,7 +5,10 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -78,7 +81,9 @@ public final class GridLayer extends BaseLayer {
     @Nullable
     private SgyFile selectedFile;
 
-    private final ConcurrentMap<File, GriddingResult> results = new ConcurrentHashMap<>();
+    private final ConcurrentMap<File, ConcurrentMap<String, GriddingResult>> results = new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<File, String> displayedSeries = new ConcurrentHashMap<>();
 
     private final ConcurrentMap<TemplateSeriesKey, GriddingFilter> filters = new ConcurrentHashMap<>();
 
@@ -102,19 +107,58 @@ public final class GridLayer extends BaseLayer {
     }
 
     public boolean hasResult(SgyFile file) {
-        return file != null && results.containsKey(file.getFile());
+        return getResult(file) != null;
     }
 
     public GriddingResult getResult(SgyFile file) {
         if (file != null) {
-            return results.get(file.getFile());
+            ConcurrentMap<String, GriddingResult> fileResults = results.get(file.getFile());
+            if (fileResults == null || fileResults.isEmpty()) {
+                return null;
+            }
+            String seriesName = displayedSeries.get(file.getFile());
+            return seriesName != null ? fileResults.get(seriesName) : fileResults.values().iterator().next();
         }
         return null;
     }
 
+    public GriddingResult getResult(SgyFile file, String seriesName) {
+        if (file == null || seriesName == null) {
+            return null;
+        }
+        ConcurrentMap<String, GriddingResult> fileResults = results.get(file.getFile());
+        return fileResults != null ? fileResults.get(seriesName) : null;
+    }
+
+    public List<GriddingResult> getResults(SgyFile file) {
+        if (file == null) {
+            return List.of();
+        }
+        ConcurrentMap<String, GriddingResult> fileResults = results.get(file.getFile());
+        if (fileResults == null) {
+            return List.of();
+        }
+        List<GriddingResult> snapshots = new ArrayList<>(fileResults.values());
+        snapshots.sort(Comparator.comparing(GriddingResult::seriesName));
+        return snapshots;
+    }
+
+    public String getDisplayedSeries(SgyFile file) {
+        return file != null ? displayedSeries.get(file.getFile()) : null;
+    }
+
+    public void setDisplayedSeries(SgyFile file, String seriesName) {
+        if (getResult(file, seriesName) != null) {
+            displayedSeries.put(file.getFile(), seriesName);
+            updateGrid(file, true);
+        }
+    }
+
     public void setResult(SgyFile file, GriddingResult result) {
         if (file != null) {
-            results.put(file.getFile(), result);
+            results.computeIfAbsent(file.getFile(), key -> new ConcurrentHashMap<>())
+                    .put(result.seriesName(), result);
+            displayedSeries.put(file.getFile(), result.seriesName());
             updateGrid(file, true);
         }
     }
@@ -122,15 +166,19 @@ public final class GridLayer extends BaseLayer {
     private void removeResult(SgyFile file) {
         if (file != null) {
             results.remove(file.getFile());
+            displayedSeries.remove(file.getFile());
             updateGrid(file);
         }
     }
 
     private void moveResult(SgyFile file, File oldFile) {
-        GriddingResult result = results.get(oldFile);
-        if (result != null) {
-            results.put(file.getFile(), result);
-            results.remove(oldFile, result); // only removes if still points to same value
+        ConcurrentMap<String, GriddingResult> fileResults = results.remove(oldFile);
+        if (fileResults != null) {
+            results.put(file.getFile(), fileResults);
+            String seriesName = displayedSeries.remove(oldFile);
+            if (seriesName != null) {
+                displayedSeries.put(file.getFile(), seriesName);
+            }
             updateGrid(file);
         }
     }

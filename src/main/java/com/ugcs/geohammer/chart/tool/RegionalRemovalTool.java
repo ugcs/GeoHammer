@@ -5,6 +5,7 @@ import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.SeriesUpdatedEvent;
 import com.ugcs.geohammer.service.magnetics.MagneticProcessingWorkflow;
 import com.ugcs.geohammer.service.magnetics.RegionalRemovalOptions;
 import com.ugcs.geohammer.service.magnetics.RegionalRemovalResult;
@@ -84,17 +85,16 @@ public class RegionalRemovalTool extends FilterToolView {
 
     @Override
     public void updateView() {
-        inputSeriesSelector.getItems().clear();
         diagnostics.setText("");
-        if (model.getChart(selectedFile) instanceof SensorLineChart chart) {
-            inputSeriesSelector.getItems().addAll(chart.getSeriesNames());
-            String selectedSeries = chart.getSelectedSeriesName();
-            if (selectedSeries != null) {
-                inputSeriesSelector.setValue(selectedSeries);
-            } else if (!inputSeriesSelector.getItems().isEmpty()) {
-                inputSeriesSelector.setValue(inputSeriesSelector.getItems().getFirst());
-            }
+        updateInputSeries(null);
+    }
+
+    private void updateInputSeries(String preferredSeries) {
+        String selectedSeries = preferredSeries;
+        if (selectedSeries == null && model.getChart(selectedFile) instanceof SensorLineChart chart) {
+            selectedSeries = chart.getSelectedSeriesName();
         }
+        MagneticSeriesSelector.update(inputSeriesSelector, selectedFile, selectedSeries);
         validateInput();
     }
 
@@ -134,5 +134,17 @@ public class RegionalRemovalTool extends FilterToolView {
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
         Platform.runLater(() -> selectFile(event.getFile()));
+    }
+
+    @EventListener
+    private void onSeriesUpdated(SeriesUpdatedEvent event) {
+        if (!event.getFile().equals(selectedFile)) {
+            return;
+        }
+        Platform.runLater(() -> {
+            if (event.getFile().equals(selectedFile)) {
+                updateInputSeries(event.getSeriesName());
+            }
+        });
     }
 }

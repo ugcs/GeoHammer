@@ -6,6 +6,7 @@ import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
+import com.ugcs.geohammer.model.event.SeriesUpdatedEvent;
 import com.ugcs.geohammer.service.magnetics.DiurnalCorrectionOptions;
 import com.ugcs.geohammer.service.magnetics.DiurnalCorrectionResult;
 import com.ugcs.geohammer.service.magnetics.DiurnalCorrectionService;
@@ -109,16 +110,11 @@ public class DiurnalCorrectionTool extends FilterToolView {
     }
 
     private void updateSurveySeries() {
-        surveySeriesSelector.getItems().clear();
+        String selectedSeries = null;
         if (model.getChart(selectedFile) instanceof SensorLineChart chart) {
-            surveySeriesSelector.getItems().addAll(chart.getSeriesNames());
-            String selectedSeries = chart.getSelectedSeriesName();
-            if (selectedSeries != null) {
-                surveySeriesSelector.setValue(selectedSeries);
-            } else if (!surveySeriesSelector.getItems().isEmpty()) {
-                surveySeriesSelector.setValue(surveySeriesSelector.getItems().getFirst());
-            }
+            selectedSeries = chart.getSelectedSeriesName();
         }
+        MagneticSeriesSelector.update(surveySeriesSelector, selectedFile, selectedSeries);
     }
 
     private void updateBaseStations() {
@@ -136,17 +132,13 @@ public class DiurnalCorrectionTool extends FilterToolView {
 
     private void updateBaseStationSeries() {
         String selectedSeries = baseStationSeriesSelector.getValue();
-        baseStationSeriesSelector.getItems().clear();
         SensorLineChart baseStation = synchronizedBaseSeries.isSelected()
                 ? selectedSurveyChart()
                 : baseStationSelector.getValue();
         if (baseStation != null) {
-            baseStationSeriesSelector.getItems().addAll(baseStation.getSeriesNames());
-        }
-        if (selectedSeries != null && baseStationSeriesSelector.getItems().contains(selectedSeries)) {
-            baseStationSeriesSelector.setValue(selectedSeries);
-        } else if (!baseStationSeriesSelector.getItems().isEmpty()) {
-            baseStationSeriesSelector.setValue(baseStationSeriesSelector.getItems().getFirst());
+            MagneticSeriesSelector.update(baseStationSeriesSelector, baseStation.getFile(), selectedSeries);
+        } else {
+            MagneticSeriesSelector.update(baseStationSeriesSelector, null, null);
         }
         baseStationSelector.setDisable(synchronizedBaseSeries.isSelected());
         validateInput();
@@ -222,6 +214,31 @@ public class DiurnalCorrectionTool extends FilterToolView {
     @EventListener
     private void onFileOpened(FileOpenedEvent event) {
         Platform.runLater(this::updateBaseStations);
+    }
+
+    @EventListener
+    private void onSeriesUpdated(SeriesUpdatedEvent event) {
+        if (event.getFile().equals(selectedFile)) {
+            Platform.runLater(() -> {
+                if (event.getFile().equals(selectedFile)) {
+                    MagneticSeriesSelector.update(surveySeriesSelector, selectedFile, event.getSeriesName());
+                    if (synchronizedBaseSeries.isSelected()) {
+                        MagneticSeriesSelector.update(baseStationSeriesSelector, selectedFile, event.getSeriesName());
+                    }
+                    validateInput();
+                }
+            });
+            return;
+        }
+        SensorLineChart baseStation = baseStationSelector.getValue();
+        if (baseStation != null && event.getFile().equals(baseStation.getFile())) {
+            Platform.runLater(() -> {
+                if (baseStation == baseStationSelector.getValue()) {
+                    MagneticSeriesSelector.update(baseStationSeriesSelector, baseStation.getFile(), event.getSeriesName());
+                    validateInput();
+                }
+            });
+        }
     }
 
     private static class BaseStationConverter extends StringConverter<SensorLineChart> {

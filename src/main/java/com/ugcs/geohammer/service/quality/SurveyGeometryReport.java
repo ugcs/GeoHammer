@@ -4,11 +4,15 @@ import java.util.List;
 
 public record SurveyGeometryReport(
         int lineCount,
+        int primaryLineCount,
+        int tieLineCount,
         Distribution sampleSpacing,
-        Distribution lineSpacing,
+        Distribution primaryLineSpacing,
+        Distribution tieLineSpacing,
         Distribution heading,
         List<Double> sampleSpacingValues,
-        List<Double> lineSpacingValues,
+        List<Double> primaryLineSpacingValues,
+        List<Double> tieLineSpacingValues,
         List<Double> headingValues,
         double recommendedCellSize,
         double recommendedBlankingDistance) {

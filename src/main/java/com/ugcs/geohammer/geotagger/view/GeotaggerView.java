@@ -1,14 +1,16 @@
 
 package com.ugcs.geohammer.geotagger.view;
 
+import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.StatusBar;
 import com.ugcs.geohammer.geotagger.Geotagger;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.geotagger.domain.CoverageStatus;
-import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.view.Views;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
@@ -37,8 +39,6 @@ public class GeotaggerView {
 	private static final String TITLE = "Geotagging";
 	private static final Logger log = LoggerFactory.getLogger(GeotaggerView.class);
 
-	private final Model model;
-
 	private final Geotagger geotagger;
 
 	private final StatusBar statusBar;
@@ -61,17 +61,15 @@ public class GeotaggerView {
 
 	private final Button closeButton;
 
-	private final Button processButton;
+	private final AtomicBoolean cancelRequested = new AtomicBoolean();
 
 	public GeotaggerView(
-			Model model,
 			Geotagger geotagger,
 			StatusBar statusBar,
 			ExecutorService executor,
 			PositionFilePane positionPane,
 			DataFilePane dataPane
 	) {
-		this.model = model;
 		this.geotagger = geotagger;
 		this.statusBar = statusBar;
 		this.executor = executor;
@@ -91,9 +89,9 @@ public class GeotaggerView {
 		progressLabel.setVisible(false);
 
 		closeButton = new Button("Close");
-		closeButton.setOnAction(event -> closeWindow());
+		closeButton.setOnAction(event -> requestClose());
 
-		processButton = new Button("Process");
+		Button processButton = new Button("Process");
 		processButton.setDefaultButton(true);
 		processButton.setOnAction(event -> processFiles());
 
@@ -122,14 +120,18 @@ public class GeotaggerView {
 		scene = new Scene(root, 1000, 600);
 	}
 
-	public Stage showWindow() {
+	public void showWindow() {
 		if (stage == null) {
 			stage = new Stage();
-            stage.initModality(Modality.NONE);
+			stage.initOwner(AppContext.stage);
+			stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(TITLE);
             stage.setScene(scene);
             stage.setOnHiding(event -> closeWindow());
-            stage.setOnCloseRequest(event -> closeWindow());
+            stage.setOnCloseRequest(event -> {
+				event.consume();
+				requestClose();
+			});
 			AppContext.getInstance(ThemeService.class).registerScene(scene);
 		}
 		if (!stage.isShowing()) {
@@ -140,7 +142,20 @@ public class GeotaggerView {
 
 		positionPane.addGeohammerFiles();
 		dataPane.addGeohammerFiles();
-		return stage;
+	}
+
+	private void requestClose() {
+		if (!isProcessing()) {
+			closeWindow();
+			return;
+		}
+		cancelRequested.set(true);
+		closeButton.setDisable(true);
+		progressLabel.setText("Cancelling...");
+	}
+
+	private boolean isProcessing() {
+		return progressBar.isVisible();
 	}
 
 	private void closeWindow() {
@@ -169,26 +184,42 @@ public class GeotaggerView {
 		int percentage = (int) (completion * 100);
 		Platform.runLater(() -> {
 			progressBar.setProgress(completion);
-			progressLabel.setText("Progress: " + percentage + "%");
+			if (!cancelRequested.get()) {
+				progressLabel.setText("Progress: " + percentage + "%");
+			}
 		});
 	}
 
 	private void processFiles() {
+		cancelRequested.set(false);
 		showProgress();
+		List<SgyFile> dataFiles = List.copyOf(dataPane.getFiles());
+		List<SgyFile> positionFiles = List.copyOf(positionPane.getFiles());
 		executor.submit(() -> {
 			try {
 				geotagger.geotag(
-						dataPane.getFiles(),
-						positionPane.getFiles(),
-						this::updateProgress);
+						dataFiles,
+						positionFiles,
+						this::updateProgress,
+						cancelRequested);
 				statusBar.showMessage("Processing finished successfully", TITLE);
+			} catch (CancellationException e) {
+				statusBar.showMessage("Processing cancelled", TITLE);
 			} catch (Exception e) {
 				log.warn("Processing failed", e);
 				String message = "Processing failed: " + e.getMessage();
 				statusBar.showMessage(message, TITLE);
 			} finally {
-				Platform.runLater(this::hideProgress);
+				Platform.runLater(this::onProcessingFinished);
 			}
 		});
+	}
+
+	private void onProcessingFinished() {
+		hideProgress();
+		closeButton.setDisable(false);
+		if (cancelRequested.get()) {
+			closeWindow();
+		}
 	}
 }

@@ -10,6 +10,8 @@ public class Progress {
 
 	private final int maxProgress;
 
+	private int lastPercent = -1;
+
 	private final BiConsumer<Integer, Integer> onProgressUpdate;
 
 	public Progress(int maxProgress, BiConsumer<Integer, Integer> onProgressUpdate) {
@@ -19,17 +21,14 @@ public class Progress {
 		this.onProgressUpdate = onProgressUpdate;
 	}
 
-	public synchronized int getProgress() {
-		return progress;
-	}
-
-	public int getMaxProgress() {
-		return maxProgress;
-	}
-
-	public synchronized void increment() {
+	public void increment() {
 		progress = Math.min(progress + 1, maxProgress);
 
+		int percent = maxProgress > 0 ? (int) ((long) progress * 100 / maxProgress) : 0;
+		if (percent == lastPercent) {
+			return;
+		}
+		lastPercent = percent;
 		if (onProgressUpdate != null) {
 			onProgressUpdate.accept(progress, maxProgress);
 		}

@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
 @Service
@@ -61,7 +63,8 @@ public class Geotagger {
 	public void geotag(
 			List<SgyFile> dataFiles,
 			List<SgyFile> positionFiles,
-			BiConsumer<Integer, Integer> onProgress) throws IOException {
+			BiConsumer<Integer, Integer> onProgress,
+			AtomicBoolean cancelRequested) throws IOException {
 		List<Position> positions = getPositions(positionFiles);
 
 		int totalValues = dataFiles.stream()
@@ -69,6 +72,9 @@ public class Geotagger {
 				.sum();
 		Progress progress = new Progress(totalValues, onProgress);
 		for (SgyFile dataFile : dataFiles) {
+			if (cancelRequested.get()) {
+				throw new CancellationException();
+			} 
 			boolean isOpened = isOpenedInGeohammer(dataFile);
 			if (isOpened) {
 				undoModel.removeSnapshots(dataFile);

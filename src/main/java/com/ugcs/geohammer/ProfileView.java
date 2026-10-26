@@ -38,7 +38,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.event.EventListener;
@@ -70,9 +69,6 @@ public class ProfileView implements InitializingBean {
 	private final ComboBox<String> channelComboBox = new ComboBox<>();
 
 	private SgyFile currentFile;
-
-	@Nullable
-	private Stage geotaggerStage;
 
 	public ProfileView(Model model, Navigator navigator,
 					   Saver saver, TraceTransform traceTransform, GeotaggerView geotaggerView) {
@@ -163,12 +159,7 @@ public class ProfileView implements InitializingBean {
 	}
 
 	private void showGeotaggerWindow(ActionEvent actionEvent) {
-		if (geotaggerStage != null && geotaggerStage.isShowing()) {
-			geotaggerStage.close();
-		}
-		geotaggerStage = geotaggerView.showWindow();
-
-		geotaggerStage.setOnCloseRequest(e -> geotaggerStage = null);
+		geotaggerView.showWindow();
 	}
 
 	private void prepareToolbar() {

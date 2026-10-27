@@ -56,9 +56,13 @@ public class GetSeriesStats extends McpTool {
             from = range.from();
             to = range.to();
         } else {
+            int count = args.path("count").asInt(Integer.MAX_VALUE);
+            if (count < 0) {
+                throw new IllegalArgumentException("count must be non-negative");
+            }
             from = Math.max(0, args.path("start").asInt(0));
             from = Math.min(from, geoData.size());
-            to = Math.min(from + args.path("count").asInt(Integer.MAX_VALUE), geoData.size());
+            to = Math.clamp((long) from + count, from, geoData.size());
         }
         List<Double> values = new ArrayList<>(to - from);
         double sum = 0;

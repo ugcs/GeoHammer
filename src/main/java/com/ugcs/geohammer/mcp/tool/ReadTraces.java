@@ -60,9 +60,9 @@ public class ReadTraces extends McpTool {
         int numSamples = traceFile.maxSamples();
 
         int traceFrom = Math.min(traceStart, numTraces);
-        int traceTo = Math.min(traceFrom + traceCount, numTraces);
+        int traceTo = Math.clamp((long) traceFrom + traceCount, traceFrom, numTraces);
         int sampleFrom = Math.min(sampleStart, numSamples);
-        int sampleTo = Math.min(sampleFrom + sampleCount, numSamples);
+        int sampleTo = Math.clamp((long) sampleFrom + sampleCount, sampleFrom, numSamples);
 
         int traceBucket = Math.max(1, (int) Math.ceil((double) (traceTo - traceFrom) / maxTraces));
         int sampleBucket = Math.max(1, (int) Math.ceil((double) (sampleTo - sampleFrom) / maxSamples));

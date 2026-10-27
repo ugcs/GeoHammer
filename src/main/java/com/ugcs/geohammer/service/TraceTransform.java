@@ -96,10 +96,16 @@ public class TraceTransform {
         List<GeoData> values = file.getGeoData();
         int numRemoved = 0;
 
+        // test values before modifying them: a failure must not corrupt the file
+        boolean[] insideMask = new boolean[values.size()];
+        for (int i = 0; i < values.size(); i++) {
+            insideMask[i] = isGeoDataInsideSelection(field, cropArea, values.get(i));
+        }
+
         for (int i = 0; i < values.size(); i++) {
             GeoData value = values.get(i);
 
-            boolean inside = isGeoDataInsideSelection(field, cropArea, value);
+            boolean inside = insideMask[i];
             int lineIndex = value.getLineOrDefault(0);
 
             if (!inside && prevInside || lineIndex != prevLineIndex) {
@@ -373,7 +379,9 @@ public class TraceTransform {
     }
 
     private boolean isGeoDataInsideSelection(MapField field, List<Point2D> border, GeoData geoData) {
-        return isInsideSelection(field, border, new LatLon(geoData.getLatitude(), geoData.getLongitude()));
+        // values without coordinates are outside of any area
+        LatLon latLon = geoData.getLatLon();
+        return latLon != null && isInsideSelection(field, border, latLon);
     }
 
     private boolean isInsideSelection(MapField field, List<Point2D> border, LatLon ll) {

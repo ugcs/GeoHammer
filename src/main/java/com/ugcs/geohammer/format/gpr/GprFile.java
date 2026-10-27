@@ -60,6 +60,8 @@ public class GprFile extends TraceFile {
 
 	private static final int MARK_BYTE_POS = 238;
 
+	private static final byte MARK_VALUE = 1;
+
 	private static final Charset charset = StandardCharsets.UTF_8;
 
 	private static final BinaryHeaderFormat binaryHeaderFormat
@@ -293,7 +295,6 @@ public class GprFile extends TraceFile {
 
 		List<Trace> fileTraces = getTraces();
 
-		int markNumber = 1;
         for (int i = range.from(); i < range.to(); i++) {
 			Trace trace = fileTraces.get(i);
 
@@ -305,12 +306,7 @@ public class GprFile extends TraceFile {
             updateTraceBuffer(trace, buffer);
 
 			// set or clear mark
-			if (marks.contains(i)) {
-				binTrace.header[MARK_BYTE_POS] = (byte) markNumber;
-				markNumber++;
-			} else {
-				binTrace.header[MARK_BYTE_POS] = 0;
-			}
+			binTrace.header[MARK_BYTE_POS] = marks.contains(i) ? MARK_VALUE : 0;
 
 			IndexRange sampleRange = trace.getSampleRange();
 			int from = sampleRange != null ? sampleRange.from() : 0;

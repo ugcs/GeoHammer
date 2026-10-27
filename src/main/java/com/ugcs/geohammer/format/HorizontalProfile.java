@@ -159,6 +159,10 @@ public class HorizontalProfile {
         for (int i = 0; i < n; i++) {
             Trace trace = traces.get(i);
             float[] samples = trace.getFileSamples();
+            if (samples.length == 0) {
+                peaks[i] = new int[] {surface[i], surface[i]};
+                continue;
+            }
             peaks[i] = detectPeak(samples, surface[i], baseline);
             // check polarity
             int min = peaks[i][0];
@@ -185,6 +189,7 @@ public class HorizontalProfile {
         float distancePenalty = 0.2f;
 
         int n = samples.length;
+        center = Math.clamp(center, 0, n - 1);
         int start = Math.max(0, center - w);
         int end = Math.min(n - 1, center + w);
 
@@ -252,7 +257,7 @@ public class HorizontalProfile {
             Trace trace = traces.get(i);
             float[] samples = trace.getFileSamples();
             // zero amplitude of a trace, taken before samples are shifted
-            int offset = surface[i] - level;
+            int offset = Math.min(surface[i] - level, samples.length);
             if (offset > 0) {
                 System.arraycopy(
                         samples, offset,

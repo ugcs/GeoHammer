@@ -16,9 +16,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -41,6 +43,15 @@ class DztFileTest {
 
     private static final int REMOVED_TRACES = 3;
 
+    // channel n records n times this time range and depth range
+    private static final float RANGE_NANOS = 50f;
+
+    private static final float DEPTH_METERS = 2.5f;
+
+    private static final double RELATIVE_TOLERANCE = 1e-6;
+
+    private static final IndexRange CROPPED_SAMPLES = new IndexRange(2, 5);
+
     @TempDir
     Path directory;
 
@@ -51,6 +62,10 @@ class DztFileTest {
         assertEquals(NUM_CHANNELS, file.numChannels());
         for (int channelIndex = 0; channelIndex < NUM_CHANNELS; channelIndex++) {
             assertTraces(file, channelIndex, 0, NUM_TRACES, 0, NUM_SAMPLES);
+
+            DztHeader header = header(file, channelIndex);
+            assertEquals(rangeNanos(channelIndex), header.rhf_range);
+            assertEquals(depthMeters(channelIndex), header.rhf_depth);
         }
     }
 
@@ -111,6 +126,70 @@ class DztFileTest {
         }
     }
 
+    @Test
+    void save_afterSampleCrop_keepsTimeScale() throws IOException {
+        DztFile source = openSource();
+        cropSamples(source, CROPPED_SAMPLES);
+
+        File target = directory.resolve("cropped.dzt").toFile();
+        source.save(target);
+
+        DztFile saved = open(target);
+        assertEquals(CROPPED_SAMPLES.size() + 1, header(saved, 0).rh_nsamp);
+        assertTimeScale(source, saved);
+    }
+
+    @Test
+    void saveRange_afterSampleCrop_keepsTimeScale() throws IOException {
+        DztFile source = openSource();
+        cropSamples(source, CROPPED_SAMPLES);
+
+        File target = directory.resolve("line.dzt").toFile();
+        source.save(target, new IndexRange(2, 4));
+
+        DztFile saved = open(target);
+        assertTimeScale(source, saved);
+    }
+
+    @Test
+    void save_withoutCrop_keepsHeaderTimeScale() throws IOException {
+        DztFile source = openSource();
+
+        File target = directory.resolve("saved.dzt").toFile();
+        source.save(target);
+
+        DztFile saved = open(target);
+        for (int channelIndex = 0; channelIndex < NUM_CHANNELS; channelIndex++) {
+            DztHeader sourceHeader = header(source, channelIndex);
+            DztHeader savedHeader = header(saved, channelIndex);
+            assertEquals(sourceHeader.rh_nsamp, savedHeader.rh_nsamp);
+            assertEquals(sourceHeader.rhf_range, savedHeader.rhf_range);
+            assertEquals(sourceHeader.rhf_depth, savedHeader.rhf_depth);
+        }
+    }
+
+    @Test
+    void save_twiceAfterSampleCrop_writesSameHeadersAndKeepsSource() throws IOException {
+        DztFile source = openSource();
+        cropSamples(source, CROPPED_SAMPLES);
+
+        List<byte[]> sourceHeaders = new ArrayList<>();
+        for (int channelIndex = 0; channelIndex < NUM_CHANNELS; channelIndex++) {
+            sourceHeaders.add(header(source, channelIndex).getBuffer().array().clone());
+        }
+
+        File first = directory.resolve("first.dzt").toFile();
+        File second = directory.resolve("second.dzt").toFile();
+        source.save(first);
+        source.save(second);
+
+        assertArrayEquals(readHeaders(first), readHeaders(second));
+        for (int channelIndex = 0; channelIndex < NUM_CHANNELS; channelIndex++) {
+            assertArrayEquals(sourceHeaders.get(channelIndex), header(source, channelIndex).getBuffer().array(),
+                    "header of channel " + channelIndex);
+        }
+    }
+
     private DztFile openSource() throws IOException {
         File file = directory.resolve("source.dzt").toFile();
         writeDzt(file);
@@ -130,6 +209,26 @@ class DztFileTest {
 
         List<TraceGeoData> values = meta.getValues();
         meta.setValues(new ArrayList<>(values.subList(numTraces, values.size())));
+    }
+
+    private static void cropSamples(DztFile file, IndexRange sampleRange) {
+        Meta meta = file.getMeta();
+        assertNotNull(meta);
+
+        meta.setSampleRange(sampleRange);
+        file.syncMeta();
+    }
+
+    private static DztHeader header(DztFile file, int channelIndex) {
+        return ((DztChannel) file.getChannel(channelIndex)).getHeader();
+    }
+
+    private static float rangeNanos(int channelIndex) {
+        return RANGE_NANOS * (channelIndex + 1);
+    }
+
+    private static float depthMeters(int channelIndex) {
+        return DEPTH_METERS * (channelIndex + 1);
     }
 
     private static int sampleValue(int channelIndex, int traceIndex, int sampleIndex) {
@@ -153,7 +252,9 @@ class DztFileTest {
             buffer.putShort(headerStart + 2, (short) DztHeader.MINHEADSIZE);
             buffer.putShort(headerStart + 4, (short) (NUM_SAMPLES + 1));
             buffer.putShort(headerStart + 6, (short) BITS);
+            buffer.putFloat(headerStart + 26, rangeNanos(channelIndex));
             buffer.putShort(headerStart + 52, (short) NUM_CHANNELS);
+            buffer.putFloat(headerStart + 62, depthMeters(channelIndex));
         }
 
         buffer.position(NUM_CHANNELS * DztHeader.MINHEADSIZE);
@@ -226,6 +327,30 @@ class DztFileTest {
             expected.add(index);
         }
         assertEquals(expected, indices);
+    }
+
+    private static void assertTimeScale(DztFile source, DztFile saved) {
+        for (int channelIndex = 0; channelIndex < NUM_CHANNELS; channelIndex++) {
+            DztHeader sourceHeader = header(source, channelIndex);
+            DztHeader savedHeader = header(saved, channelIndex);
+
+            double sourceRangePerSample = (double) sourceHeader.rhf_range / sourceHeader.rh_nsamp;
+            double savedRangePerSample = (double) savedHeader.rhf_range / savedHeader.rh_nsamp;
+            assertEquals(sourceRangePerSample, savedRangePerSample, sourceRangePerSample * RELATIVE_TOLERANCE,
+                    "range per sample of channel " + channelIndex);
+
+            double sourceDepthPerSample = (double) sourceHeader.rhf_depth / sourceHeader.rh_nsamp;
+            double savedDepthPerSample = (double) savedHeader.rhf_depth / savedHeader.rh_nsamp;
+            assertEquals(sourceDepthPerSample, savedDepthPerSample, sourceDepthPerSample * RELATIVE_TOLERANCE,
+                    "depth per sample of channel " + channelIndex);
+        }
+        double sourceInterval = source.getSampleIntervalNanos();
+        assertEquals(sourceInterval, saved.getSampleIntervalNanos(), sourceInterval * RELATIVE_TOLERANCE);
+    }
+
+    private static byte[] readHeaders(File file) throws IOException {
+        byte[] bytes = Files.readAllBytes(file.toPath());
+        return Arrays.copyOf(bytes, NUM_CHANNELS * DztHeader.MINHEADSIZE);
     }
 
     private static void assertPositions(DztFile source, DztFile saved, int firstTraceIndex, int numTraces) {

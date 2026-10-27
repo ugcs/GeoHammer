@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 
@@ -18,6 +19,10 @@ public class DztWriter implements Closeable {
 
 	// rh_nsamp offset within each MINHEADSIZE channel header block
 	private static final int RH_NSAMP_OFFSET = 4;
+
+	private static final int RHF_RANGE_OFFSET = 26;
+
+	private static final int RHF_DEPTH_OFFSET = 62;
 
 	private final FileOutputStream out;
 
@@ -50,10 +55,7 @@ public class DztWriter implements Closeable {
 					? traces.getFirst().numSamples()
 					: 0;
 
-			DztHeader header = channel.getHeader();
-			ByteBuffer buffer = header.getBuffer();
-			setNumSamples(buffer, numSamples);
-			buffer.position(0);
+			ByteBuffer buffer = createHeaderBuffer(channel.getHeader(), numSamples);
 			out.getChannel().write(buffer);
 		}
 
@@ -66,11 +68,23 @@ public class DztWriter implements Closeable {
 		}
 	}
 
-	private void setNumSamples(ByteBuffer buffer, int numSamples) {
-		Check.notNull(buffer);
+	private static ByteBuffer createHeaderBuffer(DztHeader header, int numSamples) {
+		Check.notNull(header);
 
-		buffer.position(RH_NSAMP_OFFSET);
-		buffer.putShort((short) (numSamples + 1));
+		byte[] bytes = Arrays.copyOf(header.getBuffer().array(), DztHeader.MINHEADSIZE);
+		ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+
+		// header sample count includes the trace index value
+		int numHeaderSamples = numSamples + 1;
+		buffer.putShort(RH_NSAMP_OFFSET, (short) numHeaderSamples);
+
+		// keep time and depth per sample of the source
+		if (header.rh_nsamp > 0) {
+			double scale = (double) numHeaderSamples / header.rh_nsamp;
+			buffer.putFloat(RHF_RANGE_OFFSET, (float) (header.rhf_range * scale));
+			buffer.putFloat(RHF_DEPTH_OFFSET, (float) (header.rhf_depth * scale));
+		}
+		return buffer;
 	}
 
 	private void writeChannels(List<DztChannel> channels, int[] traceIndices) throws IOException {

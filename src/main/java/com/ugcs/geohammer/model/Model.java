@@ -404,6 +404,7 @@ public class Model implements InitializingBean {
         if (removed != null) {
             removed.getProfileScroll().setVisible(false);
             chartsContainer.getChildren().remove(removed.getRootNode());
+            removed.dispose();
         }
 
         // select first file in a list

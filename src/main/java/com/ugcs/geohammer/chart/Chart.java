@@ -114,7 +114,6 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
         if (!confirmUnsavedChanges()) {
             return;
         }
-        dispose();
         model.publishEvent(new FileClosedEvent(this, getFile()));
     }
 

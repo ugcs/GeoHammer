@@ -22,6 +22,9 @@ public class AmplitudeEventSender implements EventSender {
     private static final Logger log = LoggerFactory.getLogger(AmplitudeEventSender.class);
 
     private static final int HTTP_STATUS_OK = 200;
+
+    private final PublicIpAddressProvider publicIpAddressProvider;
+
     final Amplitude amplitude;
 
     @Autowired
@@ -29,8 +32,10 @@ public class AmplitudeEventSender implements EventSender {
 
     public AmplitudeEventSender(
             @Value("${amplitude.apiKey:}") String apiKey,
-            @Value("${amplitude.enabled:false}") Boolean isEnabled
+            @Value("${amplitude.enabled:false}") Boolean isEnabled,
+            PublicIpAddressProvider publicIpAddressProvider
     ) {
+        this.publicIpAddressProvider = publicIpAddressProvider;
         if (!isEnabled) {
             log.info("Amplitude integration is disabled by configuration");
             amplitude = null;
@@ -59,7 +64,6 @@ public class AmplitudeEventSender implements EventSender {
             amplitudeEvent.osName = clientProperties.getOsName();
             amplitudeEvent.osVersion = clientProperties.getOsVersion();
             amplitudeEvent.appVersion = clientProperties.getAppVersion();
-            amplitudeEvent.ip = clientProperties.getIpAddress();
         }
         amplitudeEvent.userProperties = buildUserProperties(event);
         amplitudeEvent.eventProperties = buildEventProperties(event);
@@ -99,8 +103,23 @@ public class AmplitudeEventSender implements EventSender {
             log.warn("Amplitude is disabled, cannot send event: {}", event.getEventType());
             return;
         }
-        CompletableFuture<Void> future = new CompletableFuture<>();
         com.amplitude.Event amplitudeEvent = toAmplitudeEvent(event);
+        if (event.getClientProperties() == null) {
+            logEvent(amplitudeEvent);
+            return;
+        }
+        publicIpAddressProvider.getPublicIpAddress().whenComplete((ip, e) -> {
+            if (e != null) {
+                log.warn("Failed to get public IP address", e);
+            } else {
+                amplitudeEvent.ip = ip;
+            }
+            logEvent(amplitudeEvent);
+        });
+    }
+
+    private void logEvent(com.amplitude.Event amplitudeEvent) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         amplitude.logEvent(amplitudeEvent, new AmplitudeCallbacks() {
             @Override
             public void onLogEventServerResponse(com.amplitude.Event event, int status, String message) {

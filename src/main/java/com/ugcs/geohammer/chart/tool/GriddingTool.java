@@ -698,9 +698,10 @@ public class GriddingTool extends FilterToolView {
             return;
         }
 
+        publishFilter();
+
         var future = submitAction(() -> {
             showParamsChangedWarning(false);
-            publishFilter();
             GriddingResult result = griddingService.runGridding(files, seriesName, params);
             for (SgyFile targetFile : files) {
                 gridLayer.setResult(targetFile, result);

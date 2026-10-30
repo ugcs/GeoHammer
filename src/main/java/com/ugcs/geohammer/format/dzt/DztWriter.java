@@ -124,7 +124,7 @@ public class DztWriter implements Closeable {
 				.allocate(bufferSize)
 				.order(ByteOrder.LITTLE_ENDIAN);
 
-		codec.write(buffer, index);
+		codec.writeIndex(buffer, index);
 		for (int sampleIndex = 0; sampleIndex < numSamples; sampleIndex++) {
 			codec.write(buffer, (int) trace.getSample(sampleIndex));
 		}

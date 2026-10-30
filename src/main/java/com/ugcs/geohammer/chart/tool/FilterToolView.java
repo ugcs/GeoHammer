@@ -22,6 +22,14 @@ public abstract class FilterToolView extends ToolView {
 
     protected final ExecutorService executor;
 
+    // controls state, accessed in the FX thread only
+
+    private boolean inputDisabled;
+
+    private boolean inputValid = true;
+
+    private boolean running;
+
     // view
 
     protected final ProgressIndicator progress;
@@ -76,27 +84,42 @@ public abstract class FilterToolView extends ToolView {
         progress.setManaged(show);
     }
 
-    public void disableInput(boolean disable) {
-        inputContainer.setDisable(disable);
+    public void setInputDisabled(boolean inputDisabled) {
+        this.inputDisabled = inputDisabled;
+        updateControls();
     }
 
-    public void disableActions(boolean disable) {
-        applyButton.setDisable(disable);
-        applyToAllButton.setDisable(disable);
+    public void setInputValid(boolean inputValid) {
+        this.inputValid = inputValid;
+        updateControls();
+    }
+
+    public void setRunning(boolean running) {
+        this.running = running;
+        updateControls();
+    }
+
+    protected boolean isRunning() {
+        return running;
     }
 
     public void disableAndShowProgress() {
         showProgress(true);
-
-        disableInput(true);
-        disableActions(true);
+        setRunning(true);
     }
 
     public void enableAndHideProgress() {
-        disableInput(false);
-        disableActions(false);
-
+        setRunning(false);
         showProgress(false);
+    }
+
+    private void updateControls() {
+        boolean disableInput = running || inputDisabled;
+        inputContainer.setDisable(disableInput);
+
+        boolean disableActions = running || !inputValid;
+        applyButton.setDisable(disableActions);
+        applyToAllButton.setDisable(disableActions);
     }
 
     protected <T> Future<T> submitAction(Callable<T> action) {

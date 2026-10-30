@@ -65,8 +65,8 @@ public class LowPassTool extends FilterToolView {
 
     public void validateInput() {
         Integer order = (Integer) orderInput.getUserData();
-        boolean disable = order == null || order < 0 || order > 10000;
-        disableActions(disable);
+        boolean valid = order != null && order >= 0 && order <= 10000;
+        setInputValid(valid);
     }
 
     @Override

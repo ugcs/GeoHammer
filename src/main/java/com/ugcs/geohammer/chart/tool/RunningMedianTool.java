@@ -63,8 +63,8 @@ public class RunningMedianTool extends FilterToolView {
 
     public void validateInput() {
         Integer window = (Integer) windowInput.getUserData();
-        boolean disable = window == null || window <= 0;
-        disableActions(disable);
+        boolean valid = window != null && window > 0;
+        setInputValid(valid);
     }
 
     @Override

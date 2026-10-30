@@ -368,8 +368,8 @@ public class GriddingTool extends FilterToolView {
     private void onInputChange() {
         // validate input
         GriddingParams params = getParams();
-        boolean disable = params == null;
-        disableActions(disable);
+        boolean valid = params != null;
+        setInputValid(valid);
 
         // show/hide params change warning
         boolean paramsChanged = checkParamsChanged();
@@ -751,7 +751,12 @@ public class GriddingTool extends FilterToolView {
                 return;
             }
             GriddingResult result = gridLayer.getResult(file);
-            updateParamInputs(result != null ? result.params() : null);
+            GriddingParams params = result != null ? result.params() : null;
+            // keep the input text when the values match, so that its change
+            // does not hide the warning of data changed during the gridding
+            if (!Objects.equals(params, getParams())) {
+                updateParamInputs(params);
+            }
             updateFilterInputs(gridLayer.getFilter(file, model.getSelectedSeriesName(file)));
         });
     }
@@ -771,8 +776,9 @@ public class GriddingTool extends FilterToolView {
             return;
         }
 
-        // check if gridding should be submitted automatically
-        boolean resubmit = gridLayer.isActive() && seriesName.endsWith("_LAG");
+        // check if gridding should be submitted automatically;
+        // never while running, as an older grid could finish last
+        boolean resubmit = gridLayer.isActive() && seriesName.endsWith("_LAG") && !isRunning();
         if (resubmit) {
             applyGridding(List.of(file), seriesName);
         } else {

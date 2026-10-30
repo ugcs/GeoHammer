@@ -130,7 +130,7 @@ public class QualityControlTool extends FilterToolView {
     }
 
     public void validateInput() {
-        disableActions(false); // always enabled
+        setInputValid(true); // always valid
     }
 
     @Override

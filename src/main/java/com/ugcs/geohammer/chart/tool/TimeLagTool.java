@@ -63,8 +63,8 @@ public class TimeLagTool extends FilterToolView {
 
     public void validateInput() {
         Integer shift = (Integer) shiftInput.getUserData();
-        boolean disable = shift == null || Math.abs(shift) > 10000;
-        disableActions(disable);
+        boolean valid = shift != null && Math.abs(shift) <= 10000;
+        setInputValid(valid);
     }
 
     @Override

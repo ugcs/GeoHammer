@@ -234,7 +234,7 @@ public class GprElevationTool extends FilterToolView {
             peakWindowSlider.reset(profile.getPeakWindow());
             surfaceFilterWindowSlider.reset(profile.getSurfaceFilterWindow());
         }
-        disableInput(profile == null);
+        setInputDisabled(profile == null);
     }
 
     private HorizontalProfile getGroundProfile(TraceFile traceFile) {

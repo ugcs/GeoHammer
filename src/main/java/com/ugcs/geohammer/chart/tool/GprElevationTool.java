@@ -15,6 +15,7 @@ import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.model.undo.FileSnapshot;
 import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
+import com.ugcs.geohammer.util.ReentranceGuard;
 import com.ugcs.geohammer.util.SinglePendingExecutor;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Unit;
@@ -69,6 +70,8 @@ public class GprElevationTool extends FilterToolView {
     private final CheckBox detectPeaks;
 
     private final CheckBox removeAirGap;
+
+    private final ReentranceGuard viewUpdateGuard = new ReentranceGuard();
 
     public GprElevationTool(Model model, UndoModel undoModel, ProjectionView gprReprojectionView, ExecutorService executor) {
         super(executor);
@@ -212,6 +215,10 @@ public class GprElevationTool extends FilterToolView {
 
     @Override
     public void updateView() {
+        viewUpdateGuard.run(this::showProfile);
+    }
+
+    private void showProfile() {
         TraceFile traceFile = null;
         if (selectedFile instanceof TraceFile) {
             traceFile = (TraceFile)selectedFile;
@@ -324,9 +331,10 @@ public class GprElevationTool extends FilterToolView {
         if (selectedFile instanceof TraceFile traceFile) {
             HorizontalProfile groundProfile = getGroundProfile(traceFile);
             if (groundProfile != null) {
+                boolean removeAirGap = this.removeAirGap.isSelected();
                 submitAction(() -> {
                     saveUndoSnapshot(traceFile);
-                    groundProfile.flattenSurface(traceFile, removeAirGap.isSelected());
+                    groundProfile.flattenSurface(traceFile, removeAirGap);
                     model.publishEvent(new FilterAppliedEvent(this, traceFile, FilterType.FLATTEN_SURFACE));
                     // reload chart
                     Chart chart = model.getChart(traceFile);
@@ -342,6 +350,10 @@ public class GprElevationTool extends FilterToolView {
     }
 
     private void updateProfile() {
+        // controls are set from the profile, not edited by the user
+        if (viewUpdateGuard.isLatched()) {
+            return;
+        }
         if (!(selectedFile instanceof TraceFile traceFile)) {
             return;
         }
@@ -354,10 +366,11 @@ public class GprElevationTool extends FilterToolView {
             return;
         }
 
+        ProfileParams params = getProfileParams();
         CompletableFuture<Void> future = pendingExecutor.submit(() -> {
-            String traceHeader = traceHeaderSelector.getValue();
-            String altitudeHeader = altitudeHeaderSelector.getValue();
-            String ellipsoidalHeightHeader = ellipsoidalHeightHeaderSelector.getValue();
+            String traceHeader = params.traceHeader();
+            String altitudeHeader = params.altitudeHeader();
+            String ellipsoidalHeightHeader = params.ellipsoidalHeightHeader();
 
             if (!Objects.equals(traceHeader, positionFile.getTraceHeader())
                     || !Objects.equals(altitudeHeader, positionFile.getAltitudeHeader())) {
@@ -374,11 +387,11 @@ public class GprElevationTool extends FilterToolView {
                         traceFile, positionFile.getEllipsoidalHeightHeader()));
             }
 
-            profile.setTraceOffset(traceOffsetSlider.getValue());
-            profile.setSampleOffset(sampleOffsetSlider.getValue());
-            profile.setDetectPeaks(detectPeaks.isSelected());
-            profile.setPeakWindow(Math.max(0, peakWindowSlider.getValue()));
-            profile.setSurfaceFilterWindow(Math.max(0, surfaceFilterWindowSlider.getValue()));
+            profile.setTraceOffset(params.traceOffset());
+            profile.setSampleOffset(params.sampleOffset());
+            profile.setDetectPeaks(params.detectPeaks());
+            profile.setPeakWindow(params.peakWindow());
+            profile.setSurfaceFilterWindow(params.surfaceFilterWindow());
             profile.buildSurface(traceFile);
             return null;
         });
@@ -389,6 +402,18 @@ public class GprElevationTool extends FilterToolView {
         });
     }
 
+    private ProfileParams getProfileParams() {
+        return new ProfileParams(
+                traceHeaderSelector.getValue(),
+                altitudeHeaderSelector.getValue(),
+                ellipsoidalHeightHeaderSelector.getValue(),
+                traceOffsetSlider.getValue(),
+                sampleOffsetSlider.getValue(),
+                detectPeaks.isSelected(),
+                Math.max(0, peakWindowSlider.getValue()),
+                Math.max(0, surfaceFilterWindowSlider.getValue())
+        );
+    }
 
     @EventListener
     private void onFileSelected(FileSelectedEvent event) {
@@ -400,5 +425,17 @@ public class GprElevationTool extends FilterToolView {
         if (changed.isUpdateButtons() || changed.isTraceCut()) {
             Platform.runLater(this::updateView);
         }
+    }
+
+    private record ProfileParams(
+            String traceHeader,
+            String altitudeHeader,
+            String ellipsoidalHeightHeader,
+            int traceOffset,
+            int sampleOffset,
+            boolean detectPeaks,
+            int peakWindow,
+            int surfaceFilterWindow
+    ) {
     }
 }

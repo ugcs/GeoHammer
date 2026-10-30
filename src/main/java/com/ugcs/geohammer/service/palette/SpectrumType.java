@@ -29,7 +29,7 @@ public enum SpectrumType {
     }
 
     public static SpectrumType defaultSpectrumType() {
-        return SpectrumType.RAINBOW;
+        return SpectrumType.VIVID_RAINBOW;
     }
 
     public static SpectrumType findByName(String name) {

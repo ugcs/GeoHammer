@@ -31,7 +31,8 @@ changes), `scripts/` (Python scripts). User settings: `~/.geohammer/templates-se
   (CSV) or in meta (GPR).
 - **Meta** — editable overlay over a source file that is never rewritten on save: line structure, marks, sample range,
   contrast, color scale. Stored as a JSON sidecar `<file name with ext>.geohammer` (`MetaDocument`). Used by GPR, sonar
-  and NMEA files (`SgyFileWithMeta`); CSV files are rewritten instead.
+  and NMEA files (`SgyFileWithMeta`); CSV files are rewritten instead. The geotagger writes only positions into the
+  source of a file that is not open (`writePositionsToSource`), without applying meta.
 - **Template** — YAML description of a CSV format (separators, header, column mapping, units, match regex). The
   template name also keys per-format user settings.
 - **Grid** — spatial interpolation of a series onto a lat/lon raster. Params: cell size and blanking distance (max

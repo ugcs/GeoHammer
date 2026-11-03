@@ -20,7 +20,7 @@ public class HorizontalProfile {
     private double[] ellipsoidalHeights;
 
     // surface sample indices in a global traces frame
-    private int[] surface;
+    private volatile int[] surface;
 
 	// horizontal trace offset applied to profile
 	private int traceOffset = 0;
@@ -114,6 +114,7 @@ public class HorizontalProfile {
                 ? meta.getTraceIndex(traceIndex)
                 : traceIndex;
 
+		int[] surface = this.surface;
 		int surfaceIndex = i >= 0 && i < surface.length ? surface[i] : 0;
         if (meta == null) {
             return surfaceIndex;
@@ -130,9 +131,10 @@ public class HorizontalProfile {
         // num samples in a meter
         double samplesPerMeter = traceFile.getSamplesPerMeter();
 
-        // init surface array
+        // init surface array; published only when complete,
+        // as the chart reads it concurrently
         int n = altitudes.length;
-        surface = new int[n];
+        int[] surface = new int[n];
         for (int i = Math.max(0, traceOffset); i < Math.min(n, n + traceOffset); i++) {
             double altitude = altitudes[i - traceOffset];
             surface[i] = (int) (altitude * samplesPerMeter) + sampleOffset;
@@ -145,6 +147,7 @@ public class HorizontalProfile {
                 medianFilter(surface);
             }
         }
+        this.surface = surface;
     }
 
     private void detectPeaks(TraceFile traceFile, int[] surface) {
@@ -236,6 +239,7 @@ public class HorizontalProfile {
     }
 
     public void flattenSurface(TraceFile traceFile, boolean removeAirGap) {
+        int[] surface = this.surface;
         List<Trace> traces = traceFile.getFileTraces();
         int n = Math.min(surface.length, traces.size());
 

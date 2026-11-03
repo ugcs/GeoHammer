@@ -16,6 +16,8 @@ import javafx.scene.control.TextField;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 @Component
@@ -91,8 +93,9 @@ public class TimeLagTool extends FilterToolView {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
+            String seriesName = sensorChart.getSelectedSeriesName();
             submitAction(() -> {
-                sensorChart.applyTimeLag(sensorChart.getSelectedSeriesName(), shift);
+                sensorChart.applyTimeLag(seriesName, shift);
                 return null;
             });
         }
@@ -104,12 +107,19 @@ public class TimeLagTool extends FilterToolView {
         if (shift == null) {
             return;
         }
-        if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
+        SgyFile file = selectedFile;
+        if (model.getChart(file) instanceof SensorLineChart sensorChart) {
             String seriesName = sensorChart.getSelectedSeriesName();
+            List<SensorLineChart> charts = new ArrayList<>();
+            for (SensorLineChart chart : model.getSensorCharts()) {
+                if (Templates.equals(chart.getFile(), file)) {
+                    charts.add(chart);
+                }
+            }
             submitAction(() -> {
-                model.getSensorCharts().stream()
-                        .filter(c -> Templates.equals(c.getFile(), selectedFile))
-                        .forEach(c -> c.applyTimeLag(seriesName, shift));
+                for (SensorLineChart chart : charts) {
+                    chart.applyTimeLag(seriesName, shift);
+                }
                 return null;
             });
         }

@@ -127,11 +127,11 @@ public abstract class FilterToolView extends ToolView {
     }
 
     protected <T> Future<T> submitAction(Callable<T> action, boolean showProgress) {
+        savePreferences();
         if (showProgress) {
             disableAndShowProgress();
         }
         return executor.submit(() -> {
-            savePreferences();
             try {
                 return action.call();
             } catch (Exception e) {

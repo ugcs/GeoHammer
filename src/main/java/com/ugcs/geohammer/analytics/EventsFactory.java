@@ -1,24 +1,16 @@
 package com.ugcs.geohammer.analytics;
 
-import com.ugcs.geohammer.analytics.amplitude.PublicIpAddressProvider;
 import com.ugcs.geohammer.model.event.FilterType;
 import com.ugcs.geohammer.release.Version;
 import org.springframework.stereotype.Component;
 
 @Component
 public class EventsFactory {
-    private final PublicIpAddressProvider publicIpAddressProvider;
-
-    public EventsFactory(PublicIpAddressProvider publicIpAddressProvider) {
-        this.publicIpAddressProvider = publicIpAddressProvider;
-    }
-
     public Event createAppStartedEvent(Version appVersion) {
         Event.ClientProperties clientProperties = new Event.ClientProperties(
                 System.getProperty("os.name"),
                 System.getProperty("os.version"),
-                Version.toString(appVersion),
-                publicIpAddressProvider.getPublicIpAddress()
+                Version.toString(appVersion)
         );
         return new Event(EventType.APP_STARTED, clientProperties, null, null);
     }

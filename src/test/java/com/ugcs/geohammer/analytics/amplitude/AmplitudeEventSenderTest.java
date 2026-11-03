@@ -12,6 +12,7 @@ import org.mockito.MockedStatic;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -21,6 +22,12 @@ class AmplitudeEventSenderTest {
     private static final String VALID_API_KEY = "test-key";
     private Amplitude mockAmplitude;
     private UserIdService mockUserIdService;
+    private final PublicIpAddressProvider ipProvider = new PublicIpAddressProvider() {
+        @Override
+        public CompletableFuture<String> getPublicIpAddress() {
+            return CompletableFuture.completedFuture("127.0.0.1");
+        }
+    };
 
     @BeforeEach
     void setUp() {
@@ -33,7 +40,7 @@ class AmplitudeEventSenderTest {
     void testAmplitudeInitializedWithApiKey() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            new AmplitudeEventSender(VALID_API_KEY, true);
+            new AmplitudeEventSender(VALID_API_KEY, true, ipProvider);
             amplitudeStatic.verify(Amplitude::getInstance);
             verify(mockAmplitude).init(VALID_API_KEY);
         }
@@ -42,7 +49,7 @@ class AmplitudeEventSenderTest {
     @Test
     void testAmplitudeNotInitializedWithEmptyApiKey() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            AmplitudeEventSender sender = new AmplitudeEventSender("", true);
+            AmplitudeEventSender sender = new AmplitudeEventSender("", true, ipProvider);
             sender.setUserIdService(mockUserIdService);
 
             Event event = createMockEvent();
@@ -55,7 +62,7 @@ class AmplitudeEventSenderTest {
     @Test
     void testAmplitudeNotInitializedWithNullApiKey() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            AmplitudeEventSender sender = new AmplitudeEventSender(null, true);
+            AmplitudeEventSender sender = new AmplitudeEventSender(null, true, ipProvider);
             sender.setUserIdService(mockUserIdService);
 
             Event event = createMockEvent();
@@ -68,7 +75,7 @@ class AmplitudeEventSenderTest {
     @Test
     void testAmplitudeDisabledByConfig() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, false);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, false, ipProvider);
             sender.setUserIdService(mockUserIdService);
 
             Event event = createMockEvent();
@@ -82,7 +89,7 @@ class AmplitudeEventSenderTest {
     void testSendEventSuccess() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true, ipProvider);
             sender.setUserIdService(mockUserIdService);
 
             Event event = createMockEvent();
@@ -111,7 +118,7 @@ class AmplitudeEventSenderTest {
     void testSendEventWithEventData() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true, ipProvider);
             sender.setUserIdService(mockUserIdService);
 
             Event event = createMockEventWithData();
@@ -136,7 +143,7 @@ class AmplitudeEventSenderTest {
     void testSendEventWithProperties() {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true, ipProvider);
             sender.setUserIdService(mockUserIdService);
 
             Event event = createMockEventWithProperties();
@@ -157,7 +164,7 @@ class AmplitudeEventSenderTest {
 
     @Test
     void testSendEventWhenAmplitudeIsNull() {
-        AmplitudeEventSender sender = new AmplitudeEventSender("", true);
+        AmplitudeEventSender sender = new AmplitudeEventSender("", true, ipProvider);
         sender.setUserIdService(mockUserIdService);
 
         Event event = createMockEvent();
@@ -170,7 +177,7 @@ class AmplitudeEventSenderTest {
     void testShutdownWithAmplitude() throws InterruptedException {
         try (MockedStatic<Amplitude> amplitudeStatic = mockStatic(Amplitude.class)) {
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true, ipProvider);
 
             sender.shutdown();
 
@@ -181,7 +188,7 @@ class AmplitudeEventSenderTest {
 
     @Test
     void testShutdownWithoutAmplitude() {
-        AmplitudeEventSender sender = new AmplitudeEventSender("", true);
+        AmplitudeEventSender sender = new AmplitudeEventSender("", true, ipProvider);
 
         // Should not throw exception
         assertDoesNotThrow(sender::shutdown);
@@ -193,7 +200,7 @@ class AmplitudeEventSenderTest {
             amplitudeStatic.when(Amplitude::getInstance).thenReturn(mockAmplitude);
             doThrow(new InterruptedException()).when(mockAmplitude).shutdown();
 
-            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true);
+            AmplitudeEventSender sender = new AmplitudeEventSender(VALID_API_KEY, true, ipProvider);
 
             sender.shutdown();
 
@@ -220,7 +227,6 @@ class AmplitudeEventSenderTest {
         when(clientProperties.getOsName()).thenReturn("macOS");
         when(clientProperties.getOsVersion()).thenReturn("14.0");
         when(clientProperties.getAppVersion()).thenReturn("1.0.0");
-        when(clientProperties.getIpAddress()).thenReturn("127.0.0.1");
         when(event.getClientProperties()).thenReturn(clientProperties);
         return event;
     }

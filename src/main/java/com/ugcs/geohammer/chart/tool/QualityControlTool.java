@@ -217,16 +217,17 @@ public class QualityControlTool extends FilterToolView {
 
     @Override
     protected void onApply(ActionEvent event) {
-        if (selectedFile == null) {
+        SgyFile file = selectedFile;
+        if (file == null) {
             return;
         }
 
+        QualityControlParams params = getParams();
         submitAction(() -> {
-            QualityControlParams params = getParams();
             List<QualityCheck> checks = createQualityChecks(params);
 
             QualityControl qualityControl = new QualityControl();
-            List<QualityIssue> issues = qualityControl.getQualityIssues(List.of(selectedFile), checks);
+            List<QualityIssue> issues = qualityControl.getQualityIssues(List.of(file), checks);
 
             qualityLayer.setIssues(issues);
             model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
@@ -236,19 +237,20 @@ public class QualityControlTool extends FilterToolView {
 
     @Override
     protected void onApplyToAll(ActionEvent event) {
-        if (selectedFile == null) {
+        SgyFile file = selectedFile;
+        if (file == null) {
             return;
         }
 
-        submitAction(() -> {
-            List<SgyFile> files = new ArrayList<>();
-            for (SgyFile file : model.getFileManager().getFiles()) {
-                if (Templates.equals(file, selectedFile)) {
-                    files.add(file);
-                }
+        List<SgyFile> files = new ArrayList<>();
+        for (SgyFile target : model.getFileManager().getFiles()) {
+            if (Templates.equals(target, file)) {
+                files.add(target);
             }
+        }
 
-            QualityControlParams params = getParams();
+        QualityControlParams params = getParams();
+        submitAction(() -> {
             List<QualityCheck> checks = createQualityChecks(params);
 
             QualityControl qualityControl = new QualityControl();

@@ -5,6 +5,7 @@ import com.ugcs.geohammer.feedback.Attachment;
 import com.ugcs.geohammer.feedback.FeedbackView;
 import com.ugcs.geohammer.feedback.FileAttachment;
 import com.ugcs.geohammer.format.FileOpenException;
+import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.style.ThemeService;
 import javafx.application.Platform;
@@ -31,6 +32,8 @@ import org.jspecify.annotations.Nullable;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public class Dialogs {
 
@@ -244,5 +247,27 @@ public class Dialogs {
 			Alert alert = createAlert(AlertType.WARNING, header, message);
 			alert.show();
 		});
+	}
+
+	public static boolean confirm(String header, String message, String acceptText, String rejectText) {
+		Check.condition(!Platform.isFxApplicationThread(),
+				"Confirmation cannot be awaited on the application thread");
+
+		ButtonType accept = new ButtonType(acceptText, ButtonBar.ButtonData.APPLY);
+		ButtonType reject = new ButtonType(rejectText, ButtonBar.ButtonData.CANCEL_CLOSE);
+		CompletableFuture<Boolean> result = new CompletableFuture<>();
+		Platform.runLater(() -> {
+			try {
+				Alert alert = createAlert(AlertType.CONFIRMATION, header, message);
+				alert.getButtonTypes().setAll(reject, accept);
+				Node rejectButton = alert.getDialogPane().lookupButton(reject);
+				alert.setOnShown(event -> rejectButton.requestFocus());
+				Optional<ButtonType> answer = alert.showAndWait();
+				result.complete(answer.isPresent() && answer.get() == accept);
+			} catch (RuntimeException e) {
+				result.completeExceptionally(e);
+			}
+		});
+		return result.join();
 	}
 }

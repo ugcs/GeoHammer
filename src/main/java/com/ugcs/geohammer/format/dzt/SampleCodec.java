@@ -13,6 +13,8 @@ interface SampleCodec {
 
 	void write(ByteBuffer buffer, int value);
 
+	void writeIndex(ByteBuffer buffer, int index);
+
 	static SampleCodec forBitDepth(int bits) {
 		SampleCodec codec = CODECS.get(bits);
 		if (codec == null) {
@@ -24,14 +26,27 @@ interface SampleCodec {
 
 class Sample16Bit implements SampleCodec {
 
+	// unsigned 16-bit words store values with this offset
+	private static final int OFFSET = 32767;
+
+	private static final int MIN_VALUE = -OFFSET;
+
+	private static final int MAX_VALUE = 0xFFFF - OFFSET;
+
 	@Override
 	public int read(ByteBuffer buffer) {
-		return (buffer.getShort() & 0xFFFF) - 32767;
+		return (buffer.getShort() & 0xFFFF) - OFFSET;
 	}
 
 	@Override
 	public void write(ByteBuffer buffer, int value) {
-		buffer.putShort((short) (value + 32767));
+		value = Math.clamp(value, MIN_VALUE, MAX_VALUE);
+		buffer.putShort((short) (value + OFFSET));
+	}
+
+	@Override
+	public void writeIndex(ByteBuffer buffer, int index) {
+		buffer.putShort((short) (index + OFFSET));
 	}
 }
 
@@ -45,5 +60,10 @@ class Sample32Bit implements SampleCodec {
 	@Override
 	public void write(ByteBuffer buffer, int value) {
 		buffer.putInt(value);
+	}
+
+	@Override
+	public void writeIndex(ByteBuffer buffer, int index) {
+		buffer.putInt(index);
 	}
 }

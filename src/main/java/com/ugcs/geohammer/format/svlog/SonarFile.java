@@ -233,6 +233,17 @@ public class SonarFile extends SgyFileWithMeta {
 		}
 	}
 
+	public void writePositionsToSource() throws IOException {
+		File source = getFile();
+		Check.notNull(source);
+
+		try (SvlogWriter w = new SvlogWriter(source)) {
+			for (SvlogPacket packet : packets) {
+				w.writePacket(packet);
+			}
+		}
+	}
+
     @Override
     public SonarFile copy() {
         SonarFile copy = new SonarFile();

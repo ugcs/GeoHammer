@@ -76,7 +76,7 @@ public class ReadData extends McpTool {
         }
         int total = geoData.size();
         int from = Math.min(start, total);
-        int to = Math.min(from + count, total);
+        int to = Math.clamp((long) from + count, from, total);
         int span = to - from;
         int bucketSize = Math.max(1, (int) Math.ceil((double) span / maxPoints));
         int numBuckets = (span + bucketSize - 1) / bucketSize;

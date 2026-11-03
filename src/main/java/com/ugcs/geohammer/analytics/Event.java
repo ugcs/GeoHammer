@@ -62,13 +62,11 @@ public class Event {
         private final String osName;
         private final String osVersion;
         private final String appVersion;
-        private final String ipAddress;
 
-        public ClientProperties(String osName, String osVersion, String appVersion, String ipAddress) {
+        public ClientProperties(String osName, String osVersion, String appVersion) {
             this.osName = osName;
             this.osVersion = osVersion;
             this.appVersion = appVersion;
-            this.ipAddress = ipAddress;
         }
 
         public String getOsName() {
@@ -81,10 +79,6 @@ public class Event {
 
         public String getAppVersion() {
             return appVersion;
-        }
-
-        public String getIpAddress() {
-            return ipAddress;
         }
     }
 }

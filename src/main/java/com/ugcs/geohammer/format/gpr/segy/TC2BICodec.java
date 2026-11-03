@@ -26,7 +26,7 @@ public class TC2BICodec implements SampleCodec {
     public byte[] encode(float[] samples, int offset, int length) {
         ByteBuffer buffer = ByteBuffer.allocate(length * 2).order(order);
         for (int i = 0; i < length; i++) {
-            buffer.putShort((short) samples[offset + i]);
+            buffer.putShort((short) Math.clamp(samples[offset + i], Short.MIN_VALUE, Short.MAX_VALUE));
         }
         return buffer.array();
     }

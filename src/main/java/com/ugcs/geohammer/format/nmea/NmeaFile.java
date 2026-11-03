@@ -119,55 +119,57 @@ public class NmeaFile extends SgyFileWithMeta {
     private void parseValues(GeoData geoData, Sentence sentence) {
         switch (sentence) {
             case RMCSentence rmc -> {
-                setTime(geoData, nmeaParser.parseTime(rmc.getDate(), rmc.getTime()));
-                setPosition(geoData, nmeaParser.parseLocation(rmc.getPosition()));
+                setTime(geoData, nmeaParser.parseTime(rmc));
+                setPosition(geoData, nmeaParser.parseLocation(rmc));
                 setValue(geoData,
                         NmeaSchema.composeHeader(rmc, "Speed"),
                         "kn",
-                        rmc.getSpeed());
+                        NmeaParser.parseOrNull(rmc::getSpeed));
                 setValue(geoData,
                         NmeaSchema.composeHeader(rmc, "Course"),
                         "D",
-                        rmc.getCourse());
+                        NmeaParser.parseOrNull(rmc::getCourse));
             }
             case GGASentence gga -> {
-                setPosition(geoData, nmeaParser.parseLocation(gga.getPosition()));
+                setPosition(geoData, nmeaParser.parseLocation(gga));
+                // altitude is skipped without its unit
+                String altitudeUnit = NmeaParser.parseOrNull(() -> String.valueOf(gga.getAltitudeUnits().toChar()));
                 setValue(geoData,
                         NmeaSchema.composeHeader(gga, "Altitude"),
-                        String.valueOf(gga.getAltitudeUnits().toChar()),
-                        gga.getAltitude());
+                        altitudeUnit,
+                        altitudeUnit != null ? NmeaParser.parseOrNull(gga::getAltitude) : null);
                 setValue(geoData,
                         NmeaSchema.composeHeader(gga, "GPS Quality"),
                         null,
                         nmeaParser.parseFixQuality(gga));
             }
             case ZDASentence zda -> {
-                setTime(geoData, nmeaParser.parseTime(zda.getDate(), zda.getTime()));
+                setTime(geoData, nmeaParser.parseTime(zda));
             }
             case DBTSentence dbt -> {
                 setValue(geoData,
                         NmeaSchema.composeHeader(dbt, "Depth"),
                         "M",
-                        dbt.getDepth());
+                        NmeaParser.parseOrNull(dbt::getDepth));
             }
             case DPTSentence dpt -> {
                 setValue(geoData,
                         NmeaSchema.composeHeader(dpt, "Depth"),
                         "M",
-                        dpt.getDepth());
+                        NmeaParser.parseOrNull(dpt::getDepth));
                 setValue(geoData,
                         NmeaSchema.composeHeader(dpt, "Offset"),
                         "M",
-                        dpt.getOffset());
+                        NmeaParser.parseOrNull(dpt::getOffset));
             }
             case MTWSentence mtw -> {
                 setValue(geoData,
                         NmeaSchema.composeHeader(mtw, "Temperature"),
                         "C",
-                        mtw.getTemperature());
+                        NmeaParser.parseOrNull(mtw::getTemperature));
             }
             case XDRSentence xdr -> {
-                for (Measurement measurement : Nulls.toEmpty(xdr.getMeasurements())) {
+                for (Measurement measurement : Nulls.toEmpty(NmeaParser.parseOrNull(xdr::getMeasurements))) {
                     Double value = nmeaParser.parseValue(measurement);
                     if (value == null || Double.isNaN(value)) {
                         continue;

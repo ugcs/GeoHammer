@@ -3,6 +3,8 @@ package com.ugcs.geohammer.geotagger;
 import com.ugcs.geohammer.format.GeoData;
 import com.ugcs.geohammer.format.SgyFile;
 import com.ugcs.geohammer.format.SgyFileWithMeta;
+import com.ugcs.geohammer.format.gpr.GprFile;
+import com.ugcs.geohammer.format.svlog.SonarFile;
 import com.ugcs.geohammer.geotagger.domain.Position;
 import com.ugcs.geohammer.geotagger.domain.SplineStencil;
 import com.ugcs.geohammer.model.Model;
@@ -152,8 +154,13 @@ public class Geotagger {
 
 	private void save(SgyFile sgyFile) throws IOException {
 		File file = sgyFile.getFile();
-		if (file != null) {
-			sgyFile.save(file);
+		if (file == null) {
+			return;
+		}
+		switch (sgyFile) {
+			case GprFile gprFile -> gprFile.writePositionsToSource();
+			case SonarFile sonarFile -> sonarFile.writePositionsToSource();
+			default -> sgyFile.save(file);
 		}
 	}
 

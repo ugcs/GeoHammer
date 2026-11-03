@@ -81,6 +81,7 @@ JUnit 5 with real objects: no mocking frameworks, no reflection; test public API
 
 ## Commit Messages
 
-Imperative, 40–70 chars (up to ~120), issue reference at the end: `Fix grid jitter on map zoom (#123)`. Precise verbs:
-Implement (feature), Add (to existing), Fix, Remove, Support (format/data type), Refine, Limit (performance). No body
-for simple changes; bullet list body for multi-part commits.
+Imperative, 40–70 chars (up to ~120), issue reference at the end when there is a related issue:
+`Fix grid jitter on map zoom (#123)`. Precise verbs: Implement (feature), Add (to existing), Fix, Remove, Support
+(format/data type), Refine, Limit (performance). Prefer a one-line message; add a bullet list body only for behavioral
+side fixes beyond the commit's main purpose.

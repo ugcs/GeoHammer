@@ -18,6 +18,8 @@ import javafx.scene.control.TextField;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 @Component
@@ -65,8 +67,8 @@ public class LowPassTool extends FilterToolView {
 
     public void validateInput() {
         Integer order = (Integer) orderInput.getUserData();
-        boolean disable = order == null || order < 0 || order > 10000;
-        disableActions(disable);
+        boolean valid = order != null && order >= 0 && order <= 10000;
+        setInputValid(valid);
     }
 
     @Override
@@ -93,8 +95,9 @@ public class LowPassTool extends FilterToolView {
             return;
         }
         if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
+            String seriesName = sensorChart.getSelectedSeriesName();
             submitAction(() -> {
-                sensorChart.applyLowPass(sensorChart.getSelectedSeriesName(), order);
+                sensorChart.applyLowPass(seriesName, order);
                 return null;
             });
         }
@@ -106,12 +109,19 @@ public class LowPassTool extends FilterToolView {
         if (order == null) {
             return;
         }
-        if (model.getChart(selectedFile) instanceof SensorLineChart sensorChart) {
+        SgyFile file = selectedFile;
+        if (model.getChart(file) instanceof SensorLineChart sensorChart) {
             String seriesName = sensorChart.getSelectedSeriesName();
+            List<SensorLineChart> charts = new ArrayList<>();
+            for (SensorLineChart chart : model.getSensorCharts()) {
+                if (Templates.equals(chart.getFile(), file)) {
+                    charts.add(chart);
+                }
+            }
             submitAction(() -> {
-                model.getSensorCharts().stream()
-                        .filter(c -> Templates.equals(c.getFile(), selectedFile))
-                        .forEach(c -> c.applyLowPass(seriesName, order));
+                for (SensorLineChart chart : charts) {
+                    chart.applyLowPass(seriesName, order);
+                }
                 return null;
             });
         }

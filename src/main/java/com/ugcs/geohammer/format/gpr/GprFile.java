@@ -22,6 +22,7 @@ import com.github.thecoldwine.sigrun.serialization.TraceHeaderFormat;
 import com.ugcs.geohammer.format.TraceFile;
 import com.ugcs.geohammer.format.gpr.BinFile.BinTrace;
 import com.ugcs.geohammer.format.meta.Meta;
+import com.ugcs.geohammer.format.meta.TraceGeoData;
 import com.ugcs.geohammer.model.IndexRange;
 import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.SgyLoader;
@@ -317,10 +318,27 @@ public class GprFile extends TraceFile {
 		binFile.save(file);
 	}
 
+	public void writePositionsToSource() throws IOException {
+		File source = getFile();
+		Check.notNull(source);
+		Check.notNull(meta);
+
+		BinFile binFile = BinFile.load(source);
+		List<BinTrace> binTraces = binFile.getTraces();
+		if (binTraces.size() != traces.size()) {
+			throw new IOException("Number of traces in file '" + source.getName() + "' has changed");
+		}
+		for (TraceGeoData value : meta.getValues()) {
+			int traceIndex = value.getTraceIndex();
+			ByteBuffer buffer = ByteBuffer.wrap(binTraces.get(traceIndex).header).order(binFile.getByteOrder());
+			writePosition(traces.get(traceIndex), buffer);
+		}
+		binFile.save(source);
+	}
+
     private void updateTraceBuffer(Trace trace, ByteBuffer buffer) {
         buffer.putShort(NUM_SAMPLES_POS, (short)trace.numSamples());
-        buffer.putDouble(LONGITUDE_POS, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
-        buffer.putDouble(LATITUDE_POS, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
+        writePosition(trace, buffer);
 
         float elevation = trace.getReceiverAltitude();
         // convert if file uses feet
@@ -330,6 +348,11 @@ public class GprFile extends TraceFile {
         // elevation is stored as float bytes
         // with no scalar applied
         buffer.putInt(RECEIVER_ELEVATION_POS, Float.floatToIntBits(elevation));
+    }
+
+    private void writePosition(Trace trace, ByteBuffer buffer) {
+        buffer.putDouble(LONGITUDE_POS, convertBackDegreeFraction(trace.getLatLon().getLonDgr()));
+        buffer.putDouble(LATITUDE_POS, convertBackDegreeFraction(trace.getLatLon().getLatDgr()));
     }
 
 	@Override

@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.function.Supplier;
 
 public class NmeaParser {
 
@@ -48,9 +49,17 @@ public class NmeaParser {
         return sf.createParser(nmea);
     }
 
+    public static <T> T parseOrNull(Supplier<T> parse) {
+        try {
+            return parse.get();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     public LatLon parseLocation(Sentence sentence) {
         if (sentence instanceof PositionSentence positionSentence) {
-            return parseLocation(positionSentence.getPosition());
+            return parseOrNull(() -> parseLocation(positionSentence.getPosition()));
         }
         return null;
     }
@@ -61,37 +70,32 @@ public class NmeaParser {
 
     public Double parseAltitude(Sentence sentence) {
         if (sentence instanceof PositionSentence positionSentence) {
-            Position position = positionSentence.getPosition();
-            return position.getAltitude();
+            return parseOrNull(() -> positionSentence.getPosition().getAltitude());
         }
         return null;
     }
 
     public Double parseHeading(Sentence sentence) {
         if (sentence instanceof HeadingSentence headingSentence) {
-            return headingSentence.getHeading();
+            return parseOrNull(headingSentence::getHeading);
         }
         return null;
     }
 
     public Integer parseFixQuality(Sentence sentence) {
         if (sentence instanceof GGASentence ggaSentence) {
-            GpsFixQuality fixQuality = ggaSentence.getFixQuality();
+            GpsFixQuality fixQuality = parseOrNull(ggaSentence::getFixQuality);
             return fixQuality != null ? fixQuality.toInt() : null;
         }
         return null;
     }
 
     public Instant parseTime(Sentence sentence) {
-        Date date = null;
-        if (sentence instanceof DateSentence dateSentence) {
-            date = dateSentence.getDate();
+        if (sentence instanceof DateSentence dateSentence
+                && sentence instanceof TimeSentence timeSentence) {
+            return parseOrNull(() -> parseTime(dateSentence.getDate(), timeSentence.getTime()));
         }
-        Time time = null;
-        if (sentence instanceof TimeSentence timeSentence) {
-            time = timeSentence.getTime();
-        }
-        return parseTime(date, time);
+        return null;
     }
 
     // nearest moment to the reference with the time of day of the sentence
@@ -99,8 +103,12 @@ public class NmeaParser {
         if (reference == null || !(sentence instanceof TimeSentence timeSentence)) {
             return null;
         }
+        Time timeOfDay = parseOrNull(timeSentence::getTime);
+        if (timeOfDay == null) {
+            return null;
+        }
         Instant time = reference.truncatedTo(ChronoUnit.DAYS)
-                .plusMillis(timeSentence.getTime().getMilliseconds());
+                .plusMillis(timeOfDay.getMilliseconds());
         // near midnight the time of day belongs to the adjacent day
         if (time.isBefore(reference.minus(HALF_DAY))) {
             return time.plus(Duration.ofDays(1));
@@ -130,11 +138,7 @@ public class NmeaParser {
         if (measurement == null) {
             return null;
         }
-        try {
-            return measurement.getValue();
-        } catch (Exception e) {
-            // ignore, guards against null value unboxing
-        }
-        return null;
+        // guard against null value unboxing
+        return parseOrNull(measurement::getValue);
     }
 }

@@ -1,127 +1,107 @@
 package com.ugcs.geohammer.math.filter;
 
+import com.ugcs.geohammer.util.Check;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The FIRFilter class represents a Finite Impulse Response (FIR) filter.
- *
- * The filter is designed based on the specified filter order, cutoff frequency, and sample rate.
- * It can be used to filter a single value or a list of values.
- *
- * The filter coefficients are computed using the createFIRCoefficients method, which uses a Hamming window function.
- * The filter implementation uses a circular buffer to store the input values and the coefficients are multiplied with the values in the buffer to get the filtered result.
- * The buffer is updated with the new input value and the oldest value is overwritten when the buffer is full.
- *
- * The FIRFilter class also provides a method to calculate the sampling rate based on a list of timestamps.
- * It uses the average interval between the timestamps to compute the sampling rate.
- *
- */
 public class FirFilter {
-    
-    private double[] coefficients;
-    private double[] buffer;
-    private int bufferIndex;
 
-    /**
-     * Constructs a new FIR filter with the specified filter order, cutoff frequency, and sample rate.
-     *
-     * @param filterOrder the filter order
-     */
-    public FirFilter(int filterOrder) {
-        this.coefficients = createFIRCoefficients(filterOrder);
-        this.buffer = new double[filterOrder];
-        this.bufferIndex = 0;
+    // the kernel has 2 * halfWidth + 1 taps centred at halfWidth
+    private final double[] kernel;
+
+    public FirFilter(int order) {
+        Check.condition(order >= 1);
+
+        this.kernel = createKernel(order);
     }
 
-    private double[] createFIRCoefficients(int filterOrder) {
-        double[] coefficients = new double[filterOrder];
-        double[] window = createHammingWindow(filterOrder);
+    private static double[] createKernel(int order) {
+        Check.condition(order >= 1);
 
-        // Normalized cut-off frequency
-        double normalizedCutoff = 2.0 / filterOrder;
-        int m = filterOrder / 2;
+        int halfWidth = order / 2;
+        int size = 2 * halfWidth + 1;
+        double[] kernel = new double[size];
+        double[] window = createHammingWindow(size);
 
-        for (int i = 0; i < filterOrder; i++) {
-            int n = i - m;
-            if (n == 0) {
-                coefficients[i] = normalizedCutoff;
-            } else {
-                coefficients[i] = normalizedCutoff * (Math.sin(Math.PI * normalizedCutoff * n) / (Math.PI * normalizedCutoff * n));
-            }
-            // Apply window function
-            coefficients[i] *= window[i];
+        // normalized cut-off frequency
+        double cutoff = 2.0 / order;
+        for (int i = 0; i < size; i++) {
+            int n = i - halfWidth;
+            double sinc = n == 0
+                    ? 1.0
+                    : Math.sin(Math.PI * cutoff * n) / (Math.PI * cutoff * n);
+            kernel[i] = cutoff * sinc * window[i];
         }
-
-        return coefficients;
+        return kernel;
     }
 
-    private double[] createHammingWindow(int size) {
+    private static double[] createHammingWindow(int size) {
+        Check.condition(size > 0);
+
         double[] window = new double[size];
+        if (size == 1) {
+            window[0] = 1.0;
+            return window;
+        }
         for (int i = 0; i < size; i++) {
             window[i] = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (size - 1));
         }
         return window;
     }
 
-    public List<Number> filterList(List<Number> data) {
-
-        var paddingLength = coefficients.length;
-        for (int i = 0; i < paddingLength; i++) {
-            var value = data.get(paddingLength - 1 - i);
-            if (value != null) {
-                filter(value.doubleValue());
-            } else {
-                filter(null);
-            }
+    public List<Number> filterList(List<Number> values) {
+        if (values == null || values.size() <= 1) {
+            return values;
         }
 
-        List<Number> result = new ArrayList<>();
-        for (Number value : data) {
-            if (value != null) {
-                result.add(filter(value.doubleValue()));
-            } else {
-                result.add(filter(null));
+        double[] padded = padValues(values);
+        List<Number> filtered = new ArrayList<>(values.size());
+        for (int i = 0; i < values.size(); i++) {
+            double sum = 0.0;
+            double weight = 0.0;
+            for (int k = 0; k < kernel.length; k++) {
+                double value = padded[i + k];
+                if (Double.isFinite(value)) {
+                    sum += kernel[k] * value;
+                    weight += kernel[k];
+                }
             }
+            filtered.add(weight > 0.0 ? sum / weight : null);
         }
-
-        for (int i = 0; i < paddingLength; i++) {
-            var value = data.get(data.size() - paddingLength - 1 - i);
-            if (value != null) {
-                result.add(filter(value.doubleValue()));
-            } else {
-                result.add(filter(null));
-            }
-        }
-        return result;
+        return filtered;
     }
 
-    private Double filter(Double inputValue) {
-        if (inputValue == null) {
-            inputValue = Double.NaN;
+    // extends values by halfWidth values at each end, mirrored around
+    // the first and last available values (point reflection), so that
+    // linear trends continue through the ends; missing values are NaN
+    private double[] padValues(List<Number> values) {
+        Check.notNull(values);
+
+        int n = values.size();
+        // kernel half-width
+        int halfWidth = kernel.length / 2;
+        double[] padded = new double[n + 2 * halfWidth];
+        for (int i = 0; i < n; i++) {
+            Number value = values.get(i);
+            padded[halfWidth + i] = value != null ? value.doubleValue() : Double.NaN;
         }
-        buffer[bufferIndex] = inputValue;
-        double result = 0.0;
-        int coefIndex = 0;
-        double coefSum = 0.0;
-        for (int i = bufferIndex; i >= 0; i--) {
-            if (!Double.isNaN(buffer[i])) {
-                result += coefficients[coefIndex] * buffer[i];
-                coefSum += coefficients[coefIndex];
-            }
-            coefIndex++;
+
+        double first = Double.NaN;
+        for (int i = 0; i < n && !Double.isFinite(first); i++) {
+            first = padded[halfWidth + i];
         }
-        for (int i = buffer.length - 1; i > bufferIndex; i--) {
-            if (!Double.isNaN(buffer[i])) {
-                result += coefficients[coefIndex] * buffer[i];
-                coefSum += coefficients[coefIndex];
-            }
-            coefIndex++;
+        double last = Double.NaN;
+        for (int i = n - 1; i >= 0 && !Double.isFinite(last); i--) {
+            last = padded[halfWidth + i];
         }
-        bufferIndex++;
-        if (bufferIndex == buffer.length) {
-            bufferIndex = 0;
+
+        // both ends are filled outwards together, so when halfWidth exceeds
+        // the data size, padding is mirrored again from the opposite end
+        for (int i = 1; i <= halfWidth; i++) {
+            padded[halfWidth - i] = 2 * first - padded[halfWidth + i];
+            padded[halfWidth + n - 1 + i] = 2 * last - padded[halfWidth + n - 1 - i];
         }
-        return coefSum != 0 ? result / coefSum : null;
+        return padded;
     }
 }

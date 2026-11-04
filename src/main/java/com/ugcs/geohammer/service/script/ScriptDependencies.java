@@ -41,9 +41,7 @@ public class ScriptDependencies {
 			throws IOException, InterruptedException, DependencyImportException {
 		String filename = scriptFile.getName();
 
-		Path requirementsPath = forceReinstall
-				? scriptRequirements.generate(scriptFile, onOutput)
-				: scriptRequirements.generateIfMissing(scriptFile, onOutput);
+		Path requirementsPath = scriptRequirements.generateIfMissing(scriptFile, onOutput);
 
 		if (!forceReinstall) {
 			try {

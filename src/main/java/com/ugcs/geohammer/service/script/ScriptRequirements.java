@@ -4,9 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import com.ugcs.geohammer.util.FileNames;
 import org.jspecify.annotations.Nullable;
@@ -24,6 +31,14 @@ public class ScriptRequirements {
 	private static final String ANALYZER_MODULE = "pipreqs.pipreqs";
 
 	private static final String FILE_SUFFIX = "_requirements.txt";
+
+	private static final String PYTHON_EXTENSION = "py";
+
+	private static final String PACKAGE_INIT = "__init__.py";
+
+	private static final Pattern REQUIREMENT_NAME = Pattern.compile("\\s*([A-Za-z0-9][A-Za-z0-9._-]*)");
+
+	private static final Pattern NAME_SEPARATORS = Pattern.compile("[-_.]+");
 
 	private final CommandExecutor commandExecutor;
 
@@ -54,8 +69,22 @@ public class ScriptRequirements {
 		}
 	}
 
+	public static List<String> excludeLocalModules(List<String> requirements, Path scriptDirectory)
+			throws IOException {
+		Set<String> localModules = getLocalModules(scriptDirectory);
+		List<String> kept = new ArrayList<>(requirements.size());
+		for (String requirement : requirements) {
+			Matcher matcher = REQUIREMENT_NAME.matcher(requirement);
+			if (matcher.lookingAt() && localModules.contains(normalizeName(matcher.group(1)))) {
+				continue;
+			}
+			kept.add(requirement);
+		}
+		return kept;
+	}
+
 	@Nullable
-	public Path generate(File scriptFile, Consumer<String> onOutput) throws IOException, InterruptedException {
+	private Path generate(File scriptFile, Consumer<String> onOutput) throws IOException, InterruptedException {
 		if (!packageInstaller.isInstalled(ANALYZER)) {
 			try {
 				packageInstaller.install(ANALYZER, onOutput);
@@ -94,9 +123,32 @@ public class ScriptRequirements {
 					requirementsPath.toString()
 			);
 			commandExecutor.executeCommand(command, tempDirectory.toFile(), onOutput);
+			// the analyzer sees only the script copy, so modules next to the original are reported as packages
+			List<String> requirements = Files.readAllLines(requirementsPath);
+			Files.write(requirementsPath, excludeLocalModules(requirements, scriptFile.toPath().getParent()));
 		} finally {
 			cleanupTempDirectory(tempDirectory, filename);
 		}
+	}
+
+	private static Set<String> getLocalModules(Path directory) throws IOException {
+		Set<String> modules = new HashSet<>();
+		try (Stream<Path> paths = Files.list(directory)) {
+			for (Path path : (Iterable<Path>) paths::iterator) {
+				String filename = path.getFileName().toString();
+				if (Files.isRegularFile(path) && PYTHON_EXTENSION.equals(FileNames.getExtension(filename))) {
+					modules.add(normalizeName(FileNames.removeExtension(filename)));
+				} else if (Files.isRegularFile(path.resolve(PACKAGE_INIT))) {
+					modules.add(normalizeName(filename));
+				}
+			}
+		}
+		return modules;
+	}
+
+	// PEP 503 normalization: case and runs of separators are insignificant
+	private static String normalizeName(String name) {
+		return NAME_SEPARATORS.matcher(name.toLowerCase(Locale.ROOT)).replaceAll("-");
 	}
 
 	private void cleanupTempDirectory(Path tempDirectory, String scriptFilename) {

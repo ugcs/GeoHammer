@@ -974,6 +974,8 @@ public class SensorLineChart extends Chart {
     private void mergeDisplayRanges() {
         // nodes: chart instances
         List<LineChartWithMarkers> nodes = new ArrayList<>(charts.values());
+        // line indices are not measurements: the line series keeps its own axis
+        nodes.removeIf(chart -> chart.plot.getSeriesName().equals(lineSeriesName));
         int n = nodes.size();
         // incidence map of the vertices:
         // two charts are connected if their

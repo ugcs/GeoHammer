@@ -181,8 +181,13 @@ public class GriddingService {
         for (GeoData value : values) {
             Number latitude = value.getNumber(latitudeIndex);
             Number longitude = value.getNumber(longitudeIndex);
+            if (latitude == null || longitude == null) {
+                continue;
+            }
             Number pointValue = value.getNumber(valueIndex);
-            if (latitude == null || longitude == null || pointValue == null) {
+            // a single NaN or infinity breaks the splines solver
+            // and flattens the whole grid
+            if (pointValue == null || !Double.isFinite(pointValue.doubleValue())) {
                 continue;
             }
             points.add(new DataPoint(

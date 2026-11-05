@@ -2,21 +2,13 @@ package com.ugcs.geohammer;
 
 import com.ugcs.geohammer.map.MapView;
 import com.ugcs.geohammer.chart.tool.OptionPane;
-import com.ugcs.geohammer.model.event.FileClosedEvent;
-import com.ugcs.geohammer.model.FileManager;
-import com.ugcs.geohammer.model.event.FileOpenedEvent;
-import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.ThemeSelectedEvent;
 import com.ugcs.geohammer.view.style.Theme;
 import com.ugcs.geohammer.view.style.ThemeService;
-import javafx.application.Platform;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.text.TextAlignment;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
@@ -41,12 +33,7 @@ public class SceneContent extends BorderPane implements InitializingBean {
 	private OptionPane optionPane;
 
 	@Autowired
-	private Model model;
-
-	@Autowired
 	private ThemeService themeService;
-
-	private final Label openHint = createOpenHint();
 
 	private BorderPane mapPane;
 
@@ -69,8 +56,7 @@ public class SceneContent extends BorderPane implements InitializingBean {
 		mapPane.setPrefHeight(350);
 
 		// charts
-		StackPane profilePane = new StackPane(profileView.getCenter(), openHint);
-		chartPane = createPane(profilePane);
+		chartPane = createPane(profileView.getCenter());
 		chartPane.setMinWidth(200);
 
 		// tools
@@ -89,34 +75,6 @@ public class SceneContent extends BorderPane implements InitializingBean {
 		BorderPane pane = new BorderPane(content);
 		setTheme(pane, themeService.getTheme());
 		return pane;
-	}
-
-	private Label createOpenHint() {
-		Label openHint = new Label("""
-			Drag and drop data files here or use \
-			the "Open files" button on the toolbar
-			""");
-		openHint.setTextAlignment(TextAlignment.CENTER);
-		openHint.setWrapText(true);
-		openHint.setMaxWidth(300);
-		openHint.setMouseTransparent(true);
-		return openHint;
-	}
-
-	private void updateOpenHintVisibility() {
-		FileManager fileManager = model.getFileManager();
-		int numOpenFiles = fileManager.getFilesCount();
-		Platform.runLater(() -> openHint.setVisible(numOpenFiles == 0));
-	}
-
-	@EventListener
-	private void fileClosed(FileClosedEvent event) {
-		updateOpenHintVisibility();
-	}
-
-	@EventListener
-	private void fileOpened(FileOpenedEvent event) {
-		updateOpenHintVisibility();
 	}
 
 	@EventListener

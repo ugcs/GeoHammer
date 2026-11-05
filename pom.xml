@@ -611,6 +611,10 @@
 											<targetPath>scripts</targetPath>
 										</resource>
 										<resource>
+											<directory>${project.basedir}/demo</directory>
+											<targetPath>demo</targetPath>
+										</resource>
+										<resource>
 											<directory>${project.basedir}/src/main/resources</directory>
 											<includes>
 												<include>splash_screen.jpg</include>
@@ -751,6 +755,17 @@
 									<executable>cp</executable>
 									<arguments>
 										<argument>-r</argument><argument>scripts</argument><argument>${installer.input}</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>copy-demo</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>cp</executable>
+									<arguments>
+										<argument>-r</argument><argument>demo</argument><argument>${installer.input}</argument>
 									</arguments>
 								</configuration>
 							</execution>

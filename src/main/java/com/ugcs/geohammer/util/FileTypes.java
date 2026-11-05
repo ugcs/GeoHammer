@@ -3,6 +3,7 @@ package com.ugcs.geohammer.util;
 import com.ugcs.geohammer.format.nmea.NmeaContentProbe;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -64,6 +65,10 @@ public final class FileTypes {
 
     public static boolean isSupportedFile(File file) {
         return file != null && SUPPORTED_EXTENSIONS.contains(getExtension(file));
+    }
+
+    public static Set<String> getSupportedExtensions() {
+        return Collections.unmodifiableSet(SUPPORTED_EXTENSIONS);
     }
 
     private static Map<String, Integer> rankExtensions(Set<String> extensions) {

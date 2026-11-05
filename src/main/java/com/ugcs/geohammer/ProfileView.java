@@ -37,6 +37,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
@@ -51,6 +52,7 @@ public class ProfileView implements InitializingBean {
 	private final Saver saver;
 	private final TraceTransform traceTransform;
 	private final GeotaggerView geotaggerView;
+	private final EmptyProfileView emptyProfileView;
 
 	private final ToolBar toolBar = new ToolBar();
 
@@ -71,12 +73,14 @@ public class ProfileView implements InitializingBean {
 	private SgyFile currentFile;
 
 	public ProfileView(Model model, Navigator navigator,
-					   Saver saver, TraceTransform traceTransform, GeotaggerView geotaggerView) {
+					   Saver saver, TraceTransform traceTransform, GeotaggerView geotaggerView,
+					   EmptyProfileView emptyProfileView) {
 		this.model = model;
 		this.navigator = navigator;
 		this.saver = saver;
 		this.traceTransform = traceTransform;
 		this.geotaggerView = geotaggerView;
+		this.emptyProfileView = emptyProfileView;
 	}
 
 	@Override
@@ -226,7 +230,9 @@ public class ProfileView implements InitializingBean {
 			profileScrollContainer = new VBox();
 			profileScrollContainer.setPadding(Insets.EMPTY);
 
-			center.getChildren().addAll(toolBar, profileScrollContainer, centerScrollPane);
+			StackPane chartArea = new StackPane(new VBox(profileScrollContainer, centerScrollPane), emptyProfileView);
+			VBox.setVgrow(chartArea, Priority.ALWAYS);
+			center.getChildren().addAll(toolBar, chartArea);
 
 			centerScrollPane.setFitToWidth(true);
 			centerScrollPane.setFitToHeight(true);

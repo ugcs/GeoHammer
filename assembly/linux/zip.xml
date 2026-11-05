@@ -23,6 +23,11 @@
             <useDefaultExcludes>false</useDefaultExcludes>
             <outputDirectory>/scripts</outputDirectory>
         </fileSet>
+        <fileSet>
+            <directory>${project.basedir}/demo</directory>
+            <useDefaultExcludes>false</useDefaultExcludes>
+            <outputDirectory>/demo</outputDirectory>
+        </fileSet>
     </fileSets>
     <files>
         <file>

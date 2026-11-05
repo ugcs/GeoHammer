@@ -346,3 +346,49 @@
 .unit-combo-box > .arrow-button {
     -fx-padding: 0.5em 0.5em 0.5em 0.333333em;
 }
+
+.empty-profile-view {
+    -fx-padding: 32;
+}
+
+.empty-profile-drop-zone {
+    -fx-padding: 72 32 72 32;
+    -fx-border-color: -color-outline;
+    -fx-border-style: segments(6, 4);
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.empty-profile-view:drop-target .empty-profile-drop-zone {
+    -fx-border-color: -color-accent;
+    -fx-background-color: -color-surface-accent-translucent;
+}
+
+.empty-profile-title {
+    -fx-font-size: 1.3em;
+}
+
+.empty-profile-columns {
+    -fx-spacing: 24;
+}
+
+.empty-profile-column-title {
+    -fx-font-weight: bold;
+}
+
+.empty-profile-formats {
+    -fx-hgap: 4;
+    -fx-vgap: 4;
+}
+
+.empty-profile-format {
+    -fx-font-family: monospace;
+    -fx-font-size: 0.91em;
+    -fx-text-fill: -color-text;
+    -fx-padding: 1 6 1 6;
+    -fx-background-color: -color-input;
+    -fx-background-radius: 4;
+    -fx-border-color: -color-outline;
+    -fx-border-radius: 4;
+}

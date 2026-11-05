@@ -48,4 +48,17 @@ class FileTypesTest {
     void isDzt_File_withNullString_returnsFalse() {
         assertFalse(FileTypes.isDztFile(null));
     }
+
+    @Test
+    void getSupportedExtensions_listsSupportedFiles() {
+        for (String extension : FileTypes.getSupportedExtensions()) {
+            assertTrue(FileTypes.isSupportedFile(new File("survey." + extension)), extension);
+        }
+        assertTrue(FileTypes.getSupportedExtensions().contains("sgy"));
+    }
+
+    @Test
+    void getSupportedExtensions_isUnmodifiable() {
+        assertThrows(UnsupportedOperationException.class, () -> FileTypes.getSupportedExtensions().add("pdf"));
+    }
 }

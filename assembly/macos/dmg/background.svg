@@ -3,9 +3,9 @@
        tiffutil -cathidpicheck bg.png bg@2x.png -out GeoHammer-background.tiff -->
   <rect width="520" height="340" fill="#FAFAF8"/>
   <g fill="none" stroke="#E83DB8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M219 106 L243 130 L219 154" stroke="#F4B8E2"/>
-    <path d="M253 106 L277 130 L253 154" stroke="#EE7BCD"/>
-    <path d="M287 106 L311 130 L287 154"/>
+    <path d="M209 106 L233 130 L209 154" stroke="#F4B8E2"/>
+    <path d="M243 106 L267 130 L243 154" stroke="#EE7BCD"/>
+    <path d="M277 106 L301 130 L277 154"/>
   </g>
-  <text x="260" y="270" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial" font-size="15" fill="#444441">Drag &amp; drop GeoHammer into Applications</text>
+  <text x="260" y="270" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial" font-size="15" fill="#737371">Drag &amp; drop GeoHammer into Applications</text>
 </svg>

@@ -352,7 +352,7 @@
 }
 
 .empty-profile-drop-zone {
-    -fx-padding: 72 32 72 32;
+    -fx-padding: 48 32 40 32;
     -fx-border-color: -color-outline;
     -fx-border-style: segments(6, 4);
     -fx-border-width: 1.5;
@@ -369,26 +369,34 @@
     -fx-font-size: 1.3em;
 }
 
-.empty-profile-columns {
-    -fx-spacing: 24;
+.empty-profile-demos {
+    -fx-spacing: 16;
 }
 
-.empty-profile-column-title {
-    -fx-font-weight: bold;
+.hyperlink.empty-profile-demo,
+.hyperlink.empty-profile-demo:visited {
+    -fx-text-fill: -color-accent;
 }
 
-.empty-profile-formats {
-    -fx-hgap: 4;
-    -fx-vgap: 4;
+.hyperlink.empty-profile-wiki-link,
+.hyperlink.empty-profile-wiki-link:visited {
+    -fx-text-fill: -color-text-dim;
 }
 
-.empty-profile-format {
-    -fx-font-family: monospace;
-    -fx-font-size: 0.91em;
-    -fx-text-fill: -color-text;
-    -fx-padding: 1 6 1 6;
-    -fx-background-color: -color-input;
-    -fx-background-radius: 4;
-    -fx-border-color: -color-outline;
-    -fx-border-radius: 4;
+.empty-profile-groups {
+    -fx-hgap: 32;
+    -fx-vgap: 16;
+    -fx-padding: 32 0 0 0;
+}
+
+.empty-profile-group {
+    -fx-spacing: 12;
+}
+
+.empty-profile-data-icon {
+    -fx-fill: transparent;
+    -fx-stroke: -color-text-dim;
+    -fx-stroke-width: 2;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-line-join: round;
 }

@@ -32,8 +32,8 @@ SHALL stay as they are without files.
 ### Requirement: Panel explains how to open files
 
 The panel SHALL tell the user that files and whole folders, one or several at a time, can be dropped onto the chart
-area. The panel SHALL NOT duplicate the Open files toolbar button. The drop hint SHALL be framed as the drop zone; the
-format lists, demo buttons and links SHALL be outside the frame.
+area. The panel SHALL NOT duplicate the Open files toolbar button. The drop hint, the demo links and the format groups
+SHALL be framed together as the drop zone; the documentation links SHALL be outside the frame.
 
 #### Scenario: Hint shown
 - **WHEN** the welcome panel is shown
@@ -53,29 +53,53 @@ removed when the drag leaves the chart area, is dropped or is cancelled.
 - **WHEN** the user drags a file over the chart area and then moves it back out without dropping
 - **THEN** the drop zone is highlighted while the file is over the chart area and not highlighted after it leaves
 
-### Requirement: Panel lists supported formats
+### Requirement: Panel describes supported data
 
-The panel SHALL list every file extension the app opens as compact tags in two groups, each group centered in its
-column: GPR data (SEG-Y and GSSI DZT extensions) and sensor data (all other supported extensions). A newly supported
-extension SHALL appear on the panel without changes to the panel.
+The panel SHALL show three groups of supported data, each with an icon of the data it holds and two lines
+naming the data with its format in parentheses: GPR (a hyperbola icon; "GPR radargrams (SEG-Y)", "GSSI radargrams
+(DZT)"), sensor tables (an anomaly peak icon; "Sensor tables (CSV, TXT, XYZ)", "GNSS positions (POS)") and navigation
+and sonar (a sonar ping icon; "GPS tracks (NMEA)", "Sonar logs (SVLOG)").
 
-#### Scenario: Formats shown
+#### Scenario: Data groups shown
 - **WHEN** the welcome panel is shown
-- **THEN** the GPR group shows the `.sgy`, `.segy` and `.dzt` tags and the sensor group shows the CSV, svlog and NMEA
-  extension tags
+- **THEN** the drop zone shows the GPR, sensor tables and navigation and sonar groups, each with a distinct icon and
+  its two lines
+
+### Requirement: Data icons match the group text
+
+Each group icon SHALL have the color of its group text in every theme and SHALL be vertically centered on the group's
+two lines.
+
+#### Scenario: Icon color follows the theme
+- **WHEN** the light or the dark theme is selected and the welcome panel is shown
+- **THEN** each group icon is drawn in the same color as its group text
+
+#### Scenario: Icon centered on the lines
+- **WHEN** the welcome panel is shown
+- **THEN** the middle of each group icon is level with the middle of its two lines
+
+### Requirement: Data groups wrap instead of cutting text
+
+The data groups SHALL be in one row when the chart area is wide enough. Otherwise whole groups SHALL wrap onto further
+rows; the text of a group SHALL NOT be cut.
+
+#### Scenario: Narrow chart area
+- **WHEN** the chart area is too narrow for the three groups in one row
+- **THEN** a group moves to the next row and every group line is shown in full
 
 ### Requirement: Demo opens a shipped demo file
 
-The panel SHALL offer a GPR demo and a CSV demo. The GPR demo SHALL open the full Gas pipelines GPR survey used in the
-Quick Start; the CSV demo SHALL open the full MagNIMBUS single-sensor magnetometer survey. The demo files SHALL be part of
-the installed app and SHALL open without a network connection.
+The panel SHALL offer a GPR demo ("Gas Pipes GPR Demo") and a CSV demo ("Magnimbus Survey Demo") as links in the drop
+zone under the drop hint. The GPR demo SHALL open the full Gas pipelines GPR survey used in the Quick Start; the CSV demo
+SHALL open the full MagNIMBUS single-sensor magnetometer survey. The demo files SHALL be part of the installed app and
+SHALL open without a network connection.
 
 #### Scenario: GPR demo
-- **WHEN** the user clicks the GPR demo button
+- **WHEN** the user clicks the GPR demo link
 - **THEN** the Gas pipelines GPR file is opened, its chart is shown and its track is shown on the map
 
 #### Scenario: CSV demo offline
-- **WHEN** the computer has no network connection and the user clicks the CSV demo button
+- **WHEN** the computer has no network connection and the user clicks the CSV demo link
 - **THEN** the MagNIMBUS file is opened with the MagNIMBUS template
 
 ### Requirement: Demo opens a fresh copy of the demo file
@@ -85,20 +109,20 @@ the previous copy of that demo file and its edits (including saved marks and lin
 original data. Saving a demo writes to the copy only.
 
 #### Scenario: Demo edits are not kept
-- **WHEN** the user opens the GPR demo, splits it into lines, saves, closes it and clicks the GPR demo button again
+- **WHEN** the user opens the GPR demo, splits it into lines, saves, closes it and clicks the GPR demo link again
 - **THEN** the opened file is the original continuous profile without the saved line changes
 
 #### Scenario: Shipped demo file stays intact
 - **WHEN** the user opens the CSV demo, applies a filter and saves
 - **THEN** the demo file shipped with the app is unchanged
 
-### Requirement: Demo buttons are disabled while a demo opens
+### Requirement: Demo links are disabled while a demo opens
 
-While a demo file is being copied or opened, both demo buttons SHALL be disabled, so a second demo cannot be started
-over the first one. The buttons SHALL be enabled again when opening finishes or fails.
+While a demo file is being copied or opened, both demo links SHALL be disabled, so a second demo cannot be started
+over the first one. The links SHALL be enabled again when opening finishes or fails.
 
 #### Scenario: Double click on a demo
-- **WHEN** the user clicks the GPR demo button twice in quick succession
+- **WHEN** the user clicks the GPR demo link twice in quick succession
 - **THEN** the GPR demo file is opened once
 
 ### Requirement: Demo failure is reported
@@ -107,7 +131,7 @@ When a demo file is missing from the installation or its copy cannot be written,
 the demo and SHALL keep the welcome panel shown.
 
 #### Scenario: Sample missing
-- **WHEN** the GPR demo file has been deleted from the installation and the user clicks the GPR demo button
+- **WHEN** the GPR demo file has been deleted from the installation and the user clicks the GPR demo link
 - **THEN** an error says the GPR demo could not be opened and the welcome panel stays shown
 
 ### Requirement: Panel links to documentation

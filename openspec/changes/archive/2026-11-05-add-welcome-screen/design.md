@@ -27,16 +27,16 @@
 
 ### Welcome panel fills the chart area under the toolbar
 
-New `EmptyProfileView` (`@Component`, root package next to `SceneContent`) builds the panel in its constructor: framed open
-hint, two format columns below it in one row with demo buttons, link row at the bottom. `ProfileView.getCenter()` stacks
+New `EmptyProfileView` (`@Component`, root package next to `SceneContent`) builds the panel in its constructor: a framed
+drop zone holding the open hint, the two demo links and a row of three data groups; the documentation link row at the
+bottom, outside the frame. `ProfileView.getCenter()` stacks
 it over the charts scroll area below the toolbar (`StackPane` that grows to the remaining height), so the whole chart
 area is the drop zone and the toolbar (geotagger button) stays usable. The previous scroll area children keep their
 own VBox, so chart sizing is unchanged. The `openHint` label in `SceneContent` is removed.
 
-Three equal growing spacers sit above the hint, between the hint and the columns and between the columns and the
-links, so the links stay at the bottom and the columns stay halfway between the drop zone and the links. Spacings
-between the columns and between the extension tags are set in the components stylesheet (`empty-profile-columns`,
-`empty-profile-formats`).
+Two equal growing spacers sit above and below the drop zone, so the drop zone stays centered and the links stay at
+the bottom. There is no other block between the frame and the links. Spacings inside the frame and between the data
+groups are set in the components stylesheet.
 
 `EmptyProfileView` sets its own visibility on `FileOpenedEvent` / `FileClosedEvent` (`getFilesCount() == 0`, read inside
 `Platform.runLater` so it does not depend on listener order). Collapsed charts still count as open files, which
@@ -49,24 +49,55 @@ children are chart roots indexed by position.
 
 `EmptyProfileView` observes `DRAG_ENTERED` / `DRAG_EXITED` / `DRAG_DROPPED` on itself (not consuming them) and toggles a
 pseudo-class that highlights the dashed frame around the drop hint. Since the panel fills the chart area, this equals
-"over the chart area". The frame is as wide as the format columns and encloses only the hint, so the demo buttons and
-links do not read as part of the drop zone; drops are still accepted anywhere on the window. Styling lives in the components stylesheet and uses color variables defined by every theme.
+"over the chart area". The frame encloses the hint, the demo links and the data groups, so the whole description of
+what can be dropped reads as the drop zone; only the documentation links are outside. Drops are still accepted
+anywhere on the window. Styling lives in the components stylesheet and uses color variables defined by every theme.
 
 ### No Open files button on the panel
 
 The panel does not repeat the Open files toolbar button: the toolbar stays visible above the panel, and the panel is
 about dropping files. `Saver` is not changed.
 
-### Supported formats come from `FileTypes`
+### Data groups are described, not generated from `FileTypes`
 
-The view reads `FileTypes.getSupportedExtensions()` (an unmodifiable view of the supported set, in its rank order)
-and puts an extension into the GPR column when the existing `isGprFile`/`isDztFile` probes match a file with that
-extension, otherwise into the sensor column. So a new extension shows on the panel without touching the view. One
-small bordered label (`empty-profile-format`) per extension in a centered `FlowPane`. Format names are not shown:
-`FileTypes` has none, and a name list in the view would duplicate the formats again.
-Sensor template names are not listed; MagNIMBUS appears in the CSV demo caption and the Templates link leads to the
-template list. Alternatives: names with an extension line per group, or one line per format. Rejected as less compact.
-Reading names from loaded templates is rejected too: template file names are not user-facing and the list is long.
+The drop zone shows three fixed groups in a centered `FlowPane`, each built by one private method from an icon path and two text
+lines:
+
+| Group | Icon | Lines |
+|---|---|---|
+| GPR | hyperbola under the ground line | GPR radargrams (SEG-Y), GSSI radargrams (DZT) |
+| Sensor tables | anomaly peak on a baseline | Sensor tables (CSV, TXT, XYZ), GNSS positions (POS) |
+| Navigation and sonar | sonar ping arcs | GPS tracks (NMEA), Sonar logs (SVLOG) |
+
+The `FlowPane` has an unbounded preferred wrap length, so it asks for one row, and wraps whole groups when the chart
+area is narrower; a `FlowPane` lays its children out at their preferred size, so group text is never cut. An `HBox`
+was rejected: it shrinks the labels to an ellipsis on a narrow chart area.
+
+The lines say what the data is and give the format in parentheses, so a new user recognizes their data and an
+experienced one their format. A text list is maintained by hand: a new format needs a change to the panel. This is a
+deliberate trade against the previous extension tags from `FileTypes.getSupportedExtensions()`, which listed every
+extension but did not say what the files hold. Less common extensions (`.segy`, `.asc`, `.dat`, `.nme`, `.log`) are
+not named. `FileTypes.getSupportedExtensions()` and the GPR probe in the view were added only for the tags and are
+removed with them.
+
+Alternatives: extension tags under each group (complete, but the group needs a rule for `.log` and `.txt`, which both
+the NMEA and the CSV probes accept); a group title over short lines (one more line per group, says less).
+
+### Data icons are themed vector paths
+
+The icons are stroke-drawn shapes (hyperbola, peak, ping arcs), so each is an `SVGPath` with no fill and the stroke
+set by a style class in the components stylesheet using the dim text color, the same as the group lines. Each path is
+centered in a fixed 40×40 `StackPane`, so icons whose shapes have different heights still sit on the middle of their two
+text lines. Paths are drawn at their final size instead of scaled, so the stroke width stays the same on all three. The
+path constants live in `ResourceImageHolder` next to the toolbar icon paths. Alternative: PNG icons tinted like `upload_file.png`. Rejected:
+they blur on HiDPI screens and need tint code per theme.
+
+### Demo links
+
+The demos are `Hyperlink`s in the drop zone under the hint, styled with the accent color so they stand out from the
+dim hint text. Their text is the `DemoFile` title ("Gas Pipes GPR Demo", "Magnimbus Survey Demo"), which also names
+the demo in the error dialog. Demo captions are removed. A link inside the frame is still clickable: drag events and
+clicks are independent.
 
 ### Demo files: shipped folder, fresh user copy
 
@@ -79,7 +110,7 @@ Reading names from loaded templates is rejected too: template file names are not
 - `DemoService.openDemo(demoFile)` (`@Service`) owns the opening flow and returns a `CompletableFuture`: it creates the
   copy on the shared virtual-thread executor, starts `Loader.load` on the FX thread (its task runner creates a
   `Stage`) and waits for loading in background. Copying stays in `DemoFiles` so it is unit-tested without `Loader`.
-- `EmptyProfileView` only disables both demo buttons, calls `openDemo` and re-enables them on the FX thread when the future
+- `EmptyProfileView` only disables both demo links, calls `openDemo` and re-enables them on the FX thread when the future
   completes.
 - A missing demo file or an IO failure is logged with the exception and shown with `Dialogs` naming the demo; the panel
   stays visible because no file was opened. Errors opening the copy are reported by `Loader` itself; the view's error
@@ -103,5 +134,7 @@ folder, and repeated demos would show previous edits.
   change rarely, so history grows once.
 - [A future edit of a demo file bloats history again] → Replace demo files only deliberately; note it in `spec/overview.md`.
 - [The demo copy needs up to ~79 MB in the user folder] → Only the last copy of each demo is kept.
-- [The panel can be narrow when the chart pane is resized small] → The two columns stay in one row and their text
-  wraps; at the minimum chart pane width the panel is cramped but usable.
+- [The panel can be narrow when the chart pane is resized small] → The data groups wrap onto further rows; below the
+  width of the widest group the panel is cut at the chart area edge.
+- [A new supported format is not shown on the panel automatically] → Accepted for readable descriptions; adding a
+  format to `FileTypes` includes updating the group lines.

@@ -6,36 +6,30 @@ import com.ugcs.geohammer.model.event.FileOpenedEvent;
 import com.ugcs.geohammer.service.demo.DemoFile;
 import com.ugcs.geohammer.service.demo.DemoService;
 import com.ugcs.geohammer.util.Check;
-import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.ResourceImageHolder;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.css.PseudoClass;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.DragEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.TextAlignment;
+import javafx.scene.shape.SVGPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletionException;
 
 @Component
@@ -47,19 +41,17 @@ public class EmptyProfileView extends VBox {
 
     private static final String WIKI_URL = "https://github.com/ugcs/GeoHammer/wiki";
 
-    private static final double COLUMN_WIDTH = 300;
-
     private static final double UPLOAD_ICON_SIZE = 40;
 
-    private static final String PROBE_FILE_NAME = "file";
+    private static final double DATA_ICON_SIZE = 40;
 
     private final Model model;
 
     private final DemoService demoService;
 
-    private final Button gprDemoButton = createDemoButton(DemoFile.GPR);
+    private final Hyperlink gprDemoLink = createDemoLink(DemoFile.GPR);
 
-    private final Button csvDemoButton = createDemoButton(DemoFile.CSV);
+    private final Hyperlink csvDemoLink = createDemoLink(DemoFile.CSV);
 
     public EmptyProfileView(Model model, DemoService demoService) {
         Check.notNull(model);
@@ -72,27 +64,7 @@ public class EmptyProfileView extends VBox {
         setAlignment(Pos.CENTER);
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-        List<String> gprExtensions = new ArrayList<>();
-        List<String> dataExtensions = new ArrayList<>();
-        for (String extension : FileTypes.getSupportedExtensions()) {
-            if (isGprExtension(extension)) {
-                gprExtensions.add(extension);
-            } else {
-                dataExtensions.add(extension);
-            }
-        }
-        HBox columns = new HBox(
-                createColumn("GPR data", gprExtensions, gprDemoButton, "Gas pipes, drone GPR survey"),
-                new Separator(Orientation.VERTICAL),
-                createColumn("Sensor data", dataExtensions, csvDemoButton, "Magnetic anomalies, drone MagNIMBUS survey"));
-        columns.getStyleClass().add("empty-profile-columns");
-        columns.setMaxWidth(Region.USE_PREF_SIZE);
-
-        VBox openHint = createOpenHint();
-        openHint.maxWidthProperty().bind(columns.widthProperty());
-
-        // equal spacers keep the demo columns halfway between the drop zone and the links at the bottom
-        getChildren().addAll(createSpacer(), openHint, createSpacer(), columns, createSpacer(), createLinks());
+        getChildren().addAll(createSpacer(), createDropZone(), createSpacer(), createLinks());
 
         addEventHandler(DragEvent.DRAG_ENTERED, event -> setDropTarget(event.getDragboard().hasFiles()));
         addEventHandler(DragEvent.DRAG_EXITED, event -> setDropTarget(false));
@@ -109,11 +81,27 @@ public class EmptyProfileView extends VBox {
         return spacer;
     }
 
-    private VBox createOpenHint() {
+    private VBox createDropZone() {
         Label hint = new Label("Drop files or folders here");
-        hint.getStyleClass().add("empty-profile-title");
+        hint.getStyleClass().addAll("empty-profile-title", "dim");
         Label note = new Label("Several files and whole folders can be opened at once");
         note.getStyleClass().add("dim");
+
+        HBox demos = new HBox(gprDemoLink, csvDemoLink);
+        demos.getStyleClass().add("empty-profile-demos");
+        demos.setAlignment(Pos.CENTER);
+
+        FlowPane groups = new FlowPane(
+                createDataGroup(ResourceImageHolder.GPR_DATA,
+                        "GPR radargrams (SEG-Y)", "GSSI radargrams (DZT)"),
+                createDataGroup(ResourceImageHolder.SENSOR_DATA,
+                        "Sensor tables (CSV, TXT, XYZ)", "GNSS positions (POS)"),
+                createDataGroup(ResourceImageHolder.SONAR_DATA,
+                        "GPS tracks (NMEA)", "Sonar logs (SVLOG)"));
+        groups.getStyleClass().add("empty-profile-groups");
+        groups.setAlignment(Pos.CENTER);
+        // one row when there is room; a narrow chart area wraps whole groups instead of cutting their text
+        groups.setPrefWrapLength(Double.MAX_VALUE);
 
         VBox box = new VBox(Views.DEFAULT_SPACING);
         ImageView uploadImage = ResourceImageHolder.getImageView("upload_file.png");
@@ -123,48 +111,40 @@ public class EmptyProfileView extends VBox {
             Views.tintImage(uploadImage, Color.GRAY);
             box.getChildren().add(uploadImage);
         }
-        box.getChildren().addAll(hint, note);
+        box.getChildren().addAll(hint, note, demos, groups);
         box.getStyleClass().add("empty-profile-drop-zone");
         box.setAlignment(Pos.CENTER);
+        box.setMaxWidth(Region.USE_PREF_SIZE);
         return box;
     }
 
-    private VBox createColumn(String title, List<String> fileExtensions, Button demoButton, String demoCaption) {
-        Label titleLabel = new Label(title);
-        titleLabel.getStyleClass().add("empty-profile-column-title");
+    private static HBox createDataGroup(String iconPath, String firstLine, String secondLine) {
+        SVGPath icon = new SVGPath();
+        icon.setContent(iconPath);
+        icon.getStyleClass().add("empty-profile-data-icon");
+        StackPane iconBox = new StackPane(icon);
+        iconBox.setMinSize(DATA_ICON_SIZE, DATA_ICON_SIZE);
+        iconBox.setPrefSize(DATA_ICON_SIZE, DATA_ICON_SIZE);
+        iconBox.setMaxSize(DATA_ICON_SIZE, DATA_ICON_SIZE);
 
-        FlowPane extensions = new FlowPane();
-        extensions.getStyleClass().add("empty-profile-formats");
-        extensions.setAlignment(Pos.CENTER);
-        extensions.setPrefWrapLength(COLUMN_WIDTH);
-        for (String extension : fileExtensions) {
-            Label tag = new Label("." + extension);
-            tag.getStyleClass().add("empty-profile-format");
-            extensions.getChildren().add(tag);
-        }
+        Label first = new Label(firstLine);
+        Label second = new Label(secondLine);
+        first.getStyleClass().add("dim");
+        second.getStyleClass().add("dim");
+        VBox lines = new VBox(first, second);
+        lines.setAlignment(Pos.CENTER_LEFT);
 
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
-        Label caption = new Label(demoCaption);
-        caption.setWrapText(true);
-        caption.setTextAlignment(TextAlignment.CENTER);
-        caption.getStyleClass().addAll("dim", "smaller");
-
-        VBox column = new VBox(Views.DEFAULT_SPACING, titleLabel, extensions, spacer, demoButton, caption);
-        column.setAlignment(Pos.TOP_CENTER);
-        column.setPrefWidth(COLUMN_WIDTH);
-        return column;
+        HBox group = new HBox(iconBox, lines);
+        group.getStyleClass().add("empty-profile-group");
+        group.setAlignment(Pos.CENTER_LEFT);
+        return group;
     }
 
-    private static boolean isGprExtension(String extension) {
-        File file = new File(PROBE_FILE_NAME + "." + extension);
-        return FileTypes.isGprFile(file) || FileTypes.isDztFile(file);
-    }
-
-    private Button createDemoButton(DemoFile demoFile) {
-        Button button = new Button("Open " + demoFile.getTitle());
-        button.setOnAction(event -> onDemo(demoFile));
-        return button;
+    private Hyperlink createDemoLink(DemoFile demoFile) {
+        Hyperlink link = new Hyperlink(demoFile.getTitle());
+        link.getStyleClass().add("empty-profile-demo");
+        link.setOnAction(event -> onDemo(demoFile));
+        return link;
     }
 
     private Node createLinks() {
@@ -178,14 +158,15 @@ public class EmptyProfileView extends VBox {
 
     private Hyperlink createLink(String text, String url) {
         Hyperlink link = new Hyperlink(text);
+        link.getStyleClass().add("empty-profile-wiki-link");
         link.setOnAction(event -> Views.browse(url));
         return link;
     }
 
     private void onDemo(DemoFile demoFile) {
-        setDemoButtonsDisabled(true);
+        setDemoLinksDisabled(true);
         demoService.openDemo(demoFile).whenComplete((result, error) -> {
-            Platform.runLater(() -> setDemoButtonsDisabled(false));
+            Platform.runLater(() -> setDemoLinksDisabled(false));
             if (error != null) {
                 Throwable cause = error instanceof CompletionException && error.getCause() != null
                         ? error.getCause()
@@ -196,9 +177,9 @@ public class EmptyProfileView extends VBox {
         });
     }
 
-    private void setDemoButtonsDisabled(boolean disabled) {
-        gprDemoButton.setDisable(disabled);
-        csvDemoButton.setDisable(disabled);
+    private void setDemoLinksDisabled(boolean disabled) {
+        gprDemoLink.setDisable(disabled);
+        csvDemoLink.setDisable(disabled);
     }
 
     private void updateVisibility() {

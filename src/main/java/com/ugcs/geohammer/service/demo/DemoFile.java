@@ -2,8 +2,8 @@ package com.ugcs.geohammer.service.demo;
 
 public enum DemoFile {
 
-    GPR("GPR demo", "gpr", "demo-gpr.sgy"),
-    CSV("CSV demo", "csv", "demo-csv.csv");
+    GPR("Gas Pipes GPR Demo", "gpr", "demo-gpr.sgy"),
+    CSV("Magnimbus Survey Demo", "csv", "demo-csv.csv");
 
     private final String title;
 

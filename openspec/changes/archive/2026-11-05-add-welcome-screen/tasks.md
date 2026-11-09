@@ -38,3 +38,26 @@
 - [x] 4.1 Run `mvn clean package` and fix new compilation errors and Error Prone/NullAway warnings
 - [x] 4.2 Invoke the `code-review` skill on the uncommitted changes with this change's proposal and specs as the
   completeness reference, fix critical and major issues, and report the scores and any issues left open
+
+## 5. Redesign: data groups in the drop zone
+
+- [x] 5.1 Add the three data icon paths (hyperbola under a ground line, anomaly peak on a baseline, sonar ping arcs)
+  to `ResourceImageHolder`, drawn in a 40×40 box, and a stroke-only icon style class in the components stylesheet
+  using the dim text color, centered in a fixed box; done when the icons render with equal stroke width in both themes
+- [x] 5.2 Replace the two format columns in `EmptyProfileView` with a row of three data groups inside the drop zone
+  (icon + two lines each, texts as in the spec), drop the bullet dashes, and remove the column, caption and extension
+  tag code and their stylesheet classes (`empty-profile-columns`, `empty-profile-column-title`, `empty-profile-formats`,
+  `empty-profile-format`); done when the panel shows the three groups and no tags
+- [x] 5.3 Remove `FileTypes.getSupportedExtensions()` and its tests in `FileTypesTest`, now unused; verify with
+  `mvn -Dtest=FileTypesTest test`
+- [x] 5.4 Turn the demo buttons into accent-colored `Hyperlink`s under the drop hint inside the frame, rename the
+  `DemoFile` titles to "Gas Pipes GPR Demo" and "Magnimbus Survey Demo", keep disabling both links while a demo opens;
+  verify with `mvn -Dtest=DemoFilesTest test`
+- [x] 5.5 Keep two equal spacers above and below the drop zone with the documentation links at the bottom and no
+  empty block between them; done when the frame is vertically centered in the chart area
+
+## 6. Verify redesign
+
+- [x] 6.1 Run `mvn clean package` and fix new compilation errors and Error Prone/NullAway warnings
+- [x] 6.2 Invoke the `code-review` skill on the uncommitted changes with this change's proposal and specs as the
+  completeness reference, fix critical and major issues, and report the scores and any issues left open

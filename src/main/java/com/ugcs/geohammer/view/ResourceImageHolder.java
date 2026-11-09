@@ -177,6 +177,23 @@ public class ResourceImageHolder {
     public static final String EYE_OFF = """
         M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z""";
 
+    // stroke-drawn data icons, at most 40x40
+    public static final String GPR_DATA = """
+        M4 8H36 M4 13H15 M25 13H36
+        M6 34C12 24 16 18 20 18C24 18 28 24 34 34
+        M11 34C15 27 18 24 20 24C22 24 25 27 29 34""";
+
+    public static final String SENSOR_DATA = """
+        M4 22H10L12 20L14 22H17L19 6L21 30L23 18L25 22H36
+        M4 32H36""";
+
+    public static final String SONAR_DATA = """
+        M4 4H36
+        M18 8A2 2 0 1 0 22 8A2 2 0 1 0 18 8
+        M13.1 12A8 8 0 0 0 26.9 12
+        M7.9 15A14 14 0 0 0 32.1 15
+        M2.7 18A20 20 0 0 0 37.3 18""";
+
     public static final double DEFAULT_BUTTON_HEIGHT = 28;
 
 	public static <B extends ButtonBase> B setButtonImage(String svgPathContent,

@@ -2,15 +2,15 @@ package com.ugcs.geohammer.model;
 
 import com.ugcs.geohammer.util.Check;
 
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 
 public class Task<V> {
 
-    private final Future<V> future;
+    private final CompletableFuture<V> future;
 
     private final String name;
 
-    public Task(Future<V> future, String name) {
+    public Task(CompletableFuture<V> future, String name) {
         Check.notNull(future);
         Check.notEmpty(name);
 
@@ -18,7 +18,7 @@ public class Task<V> {
         this.name = name;
     }
 
-    public Future<V> getFuture() {
+    public CompletableFuture<V> getFuture() {
         return future;
     }
 

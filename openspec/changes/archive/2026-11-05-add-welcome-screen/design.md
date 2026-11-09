@@ -101,12 +101,16 @@ clicks are independent.
 
 ### Demo files: shipped folder, fresh user copy
 
-- Repository folder `demo/` holds the full demo files, committed directly (no LFS, no CI download):
-  - `demo/gpr/demo-gpr.sgy` (Gas pipelines `2019-07-23-14-00-54-gpr.sgy`, 48 MB)
-  - `demo/csv/demo-csv.csv` (MagNIMBUS single sensor `2023-07-06-12-38-33-quspin.csv`, 31 MB)
-- `DemoFile` enum (`GPR`, `CSV`) holds the relative demo file path. `DemoFiles` (`@Component`) resolves `demo/` with
-  `Resources.resolvePath`, and for a demo: deletes `~/.geohammer/demo/<gpr|csv>/`, copies the demo file there and returns
-  the copy. Deleting the folder also removes the meta sidecar and any other leftovers of the previous run.
+- Repository folder `data/` holds the full demo files side by side, committed directly (no LFS, no CI download):
+  - `data/demo-gpr.sgy` (Gas pipelines `2019-07-23-14-00-54-gpr.sgy`, 48 MB)
+  - `data/demo-csv.csv` (MagNIMBUS single sensor `2023-07-06-12-38-33-quspin.csv`, 31 MB)
+- `DemoFile` enum (`GPR`, `CSV`) holds the demo file name. `DemoFiles` (`@Component`) resolves `data/` with
+  `Resources.resolvePath`, and for a demo: checks the source exists, deletes the whole `~/.geohammer/demo/` folder,
+  copies the demo file into it and returns the copy. Deleting the folder removes the meta sidecars, the other demo's
+  copy and any other leftovers. This is safe because the welcome panel, and so a demo, is only reachable while no file
+  is open. The copy folder keeps the name `demo` so that a folder the app wipes is never mistaken for user data.
+  Alternative: one copy subfolder per demo, wiping only that one. Rejected: two folders for two files, and keeping the
+  other demo's copy has no value since its next run replaces it anyway.
 - `DemoService.openDemo(demoFile)` (`@Service`) owns the opening flow and returns a `CompletableFuture`: it creates the
   copy on the shared virtual-thread executor, starts `Loader.load` on the FX thread (its task runner creates a
   `Stage`) and waits for loading in background. Copying stays in `DemoFiles` so it is unit-tested without `Loader`.
@@ -123,9 +127,9 @@ folder, and repeated demos would show previous edits.
 
 ### Packaging follows templates/scripts
 
-- `pom.xml`, `windows-build` profile: a `demo` resource in `stage-installer-input`, next to `scripts`.
-- `pom.xml`, `macos-build` profile: a `copy-demo` execution next to `copy-scripts`.
-- `assembly/linux/zip.xml`: a `<fileSet>` for `demo` like `scripts`.
+- `pom.xml`, `windows-build` profile: a `data` resource in `stage-installer-input`, next to `scripts`.
+- `pom.xml`, `macos-build` profile: a `copy-data` execution next to `copy-scripts`.
+- `assembly/linux/zip.xml`: a `<fileSet>` for `data` like `scripts`.
 - No change to workflow files; they build through the same POM.
 
 ## Risks / Trade-offs

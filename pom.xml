@@ -611,8 +611,8 @@
 											<targetPath>scripts</targetPath>
 										</resource>
 										<resource>
-											<directory>${project.basedir}/demo</directory>
-											<targetPath>demo</targetPath>
+											<directory>${project.basedir}/data</directory>
+											<targetPath>data</targetPath>
 										</resource>
 										<resource>
 											<directory>${project.basedir}/src/main/resources</directory>
@@ -759,13 +759,13 @@
 								</configuration>
 							</execution>
 							<execution>
-								<id>copy-demo</id>
+								<id>copy-data</id>
 								<phase>install</phase>
 								<goals><goal>exec</goal></goals>
 								<configuration>
 									<executable>cp</executable>
 									<arguments>
-										<argument>-r</argument><argument>demo</argument><argument>${installer.input}</argument>
+										<argument>-r</argument><argument>data</argument><argument>${installer.input}</argument>
 									</arguments>
 								</configuration>
 							</execution>

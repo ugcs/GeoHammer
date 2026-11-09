@@ -61,3 +61,11 @@
 - [x] 6.1 Run `mvn clean package` and fix new compilation errors and Error Prone/NullAway warnings
 - [x] 6.2 Invoke the `code-review` skill on the uncommitted changes with this change's proposal and specs as the
   completeness reference, fix critical and major issues, and report the scores and any issues left open
+
+## 7. Flat data folder
+
+- [x] 7.1 Move the demo files to `data/demo-gpr.sgy` and `data/demo-csv.csv` without subfolders and point the Windows
+  resource, the macOS `copy-data` execution and the Linux zip fileSet at `data/`; verify with `mvn clean package`
+- [x] 7.2 Drop the per-demo folder from `DemoFile`; `DemoFiles` reads from `data/` and replaces the whole
+  `~/.geohammer/demo/` folder with the new copy; update `DemoFilesTest` and verify with `mvn -Dtest=DemoFilesTest test`
+- [x] 7.3 Update `spec/overview.md` runtime folders to `data/`

@@ -105,7 +105,7 @@ SHALL open without a network connection.
 ### Requirement: Demo opens a fresh copy of the demo file
 
 A demo SHALL open a copy of the demo file in the user's GeoHammer folder, never the shipped file. Each click SHALL replace
-the previous copy of that demo file and its edits (including saved marks and line changes), so every demo starts from the
+the previous demo copies and their edits (including saved marks and line changes), so every demo starts from the
 original data. Saving a demo writes to the copy only.
 
 #### Scenario: Demo edits are not kept

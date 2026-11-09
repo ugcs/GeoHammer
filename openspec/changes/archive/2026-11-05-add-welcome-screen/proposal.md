@@ -42,9 +42,9 @@ data from file shares first, which does not work in the field without internet.
 
 - UI: the center area of `ProfileView` gets the welcome panel next to the charts container; new styles in the
   components stylesheet; three vector data icons themed like the toolbar icons.
-- New runtime folder `demo/` with the two demo files (48 MB GPR + 31 MB CSV, ~79 MB), resolved like `templates/` and
+- New runtime folder `data/` with the two demo files (48 MB GPR + 31 MB CSV, ~79 MB), resolved like `templates/` and
   `scripts/`; the repository grows by the size of the demo files once.
-- Packaging: `pom.xml` copies `demo/` into the installer input and the target folder; `assembly/linux/zip.xml` adds it
+- Packaging: `pom.xml` copies `data/` into the installer input and the target folder; `assembly/linux/zip.xml` adds it
   to the Linux zip. Installer size grows by the demo files size on every platform.
 - Demo copies are written to `~/.geohammer/demo/`.
-- `spec/overview.md`: runtime folders list gains `demo/`.
+- `spec/overview.md`: runtime folders list gains `data/`.

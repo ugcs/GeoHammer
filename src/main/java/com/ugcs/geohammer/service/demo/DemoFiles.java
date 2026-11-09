@@ -15,7 +15,9 @@ import java.nio.file.Path;
 @Component
 public class DemoFiles {
 
-    private static final String DEMO_FOLDER = "demo";
+    private static final String SOURCES_FOLDER = "data";
+
+    private static final String COPIES_FOLDER = "demo";
 
     private final Path sourcesPath;
 
@@ -23,8 +25,8 @@ public class DemoFiles {
 
     @Autowired
     public DemoFiles() {
-        this(Resources.resolvePath(DEMO_FOLDER),
-                Path.of(System.getProperty("user.home"), ".geohammer", DEMO_FOLDER));
+        this(Resources.resolvePath(SOURCES_FOLDER),
+                Path.of(System.getProperty("user.home"), ".geohammer", COPIES_FOLDER));
     }
 
     public DemoFiles(Path sourcesPath, Path copiesPath) {
@@ -38,14 +40,14 @@ public class DemoFiles {
     public File createCopy(DemoFile demoFile) throws IOException {
         Check.notNull(demoFile);
 
-        Path source = sourcesPath.resolve(demoFile.getFolder()).resolve(demoFile.getFileName());
+        Path source = sourcesPath.resolve(demoFile.getFileName());
         if (!Files.isRegularFile(source)) {
             throw new NoSuchFileException(source.toString());
         }
-        Path copyFolder = copiesPath.resolve(demoFile.getFolder());
-        FileSystemUtils.deleteRecursively(copyFolder);
-        Files.createDirectories(copyFolder);
-        Path copy = copyFolder.resolve(demoFile.getFileName());
+        // no file is open while a demo starts, so all previous copies and their sidecars can go
+        FileSystemUtils.deleteRecursively(copiesPath);
+        Files.createDirectories(copiesPath);
+        Path copy = copiesPath.resolve(demoFile.getFileName());
         Files.copy(source, copy);
         return copy.toFile();
     }

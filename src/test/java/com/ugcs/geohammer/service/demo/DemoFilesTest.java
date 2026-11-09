@@ -37,7 +37,7 @@ class DemoFilesTest {
 
         File copy = demoFiles.createCopy(DemoFile.GPR);
 
-        assertEquals(copiesPath.resolve("gpr").resolve(DemoFile.GPR.getFileName()), copy.toPath());
+        assertEquals(copiesPath.resolve(DemoFile.GPR.getFileName()), copy.toPath());
         assertEquals(SOURCE_CONTENT, Files.readString(copy.toPath()));
         assertEquals(SOURCE_CONTENT, Files.readString(source));
     }
@@ -57,14 +57,24 @@ class DemoFilesTest {
     }
 
     @Test
-    void createCopy_keepsOtherDemoCopy() throws IOException {
+    void createCopy_removesOtherDemoCopy() throws IOException {
         createSource(DemoFile.GPR);
         createSource(DemoFile.CSV);
         File csvCopy = demoFiles.createCopy(DemoFile.CSV);
 
         demoFiles.createCopy(DemoFile.GPR);
 
-        assertEquals(SOURCE_CONTENT, Files.readString(csvCopy.toPath()));
+        assertFalse(Files.exists(csvCopy.toPath()));
+    }
+
+    @Test
+    void createCopy_missingSource_keepsPreviousCopy() throws IOException {
+        createSource(DemoFile.GPR);
+        File gprCopy = demoFiles.createCopy(DemoFile.GPR);
+
+        assertThrows(NoSuchFileException.class, () -> demoFiles.createCopy(DemoFile.CSV));
+
+        assertEquals(SOURCE_CONTENT, Files.readString(gprCopy.toPath()));
     }
 
     @Test
@@ -73,7 +83,6 @@ class DemoFilesTest {
     }
 
     private Path createSource(DemoFile demoFile) throws IOException {
-        Path folder = Files.createDirectories(sourcesPath.resolve(demoFile.getFolder()));
-        return Files.writeString(folder.resolve(demoFile.getFileName()), SOURCE_CONTENT);
+        return Files.writeString(sourcesPath.resolve(demoFile.getFileName()), SOURCE_CONTENT);
     }
 }

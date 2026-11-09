@@ -24,9 +24,9 @@
             <outputDirectory>/scripts</outputDirectory>
         </fileSet>
         <fileSet>
-            <directory>${project.basedir}/demo</directory>
+            <directory>${project.basedir}/data</directory>
             <useDefaultExcludes>false</useDefaultExcludes>
-            <outputDirectory>/demo</outputDirectory>
+            <outputDirectory>/data</outputDirectory>
         </fileSet>
     </fileSets>
     <files>

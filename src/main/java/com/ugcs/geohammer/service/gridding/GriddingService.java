@@ -130,7 +130,8 @@ public class GriddingService {
                 grid,
                 envelope.min(),
                 envelope.max(),
-                params
+                params,
+                files.size() > 1
         );
     }
 

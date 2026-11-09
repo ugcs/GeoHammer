@@ -113,9 +113,30 @@ public final class GridLayer extends BaseLayer {
     }
 
     public void setResult(SgyFile file, GriddingResult result) {
-        if (file != null) {
-            results.put(file.getFile(), result);
-            updateGrid(file, true);
+        if (file == null || result == null) {
+            return;
+        }
+
+        results.put(file.getFile(), result);
+        updateGrid(file, true);
+
+        // a file is covered by one grid: a shared grid replaces individual
+        // grids of the template, and an individual grid replaces shared ones
+        for (SgyFile other : model.getFileManager().getFilesWithSameTemplate(file)) {
+            if (Objects.equals(other, file)) {
+                continue;
+            }
+            File otherSource = other.getFile();
+            if (otherSource == null) {
+                continue;
+            }
+
+            GriddingResult otherResult = results.get(otherSource);
+            if (otherResult != null
+                    && otherResult.shared() != result.shared()
+                    && results.remove(otherSource, otherResult)) {
+                updateGrid(other);
+            }
         }
     }
 

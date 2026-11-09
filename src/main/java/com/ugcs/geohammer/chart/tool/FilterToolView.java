@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
+import com.ugcs.geohammer.util.Tasks;
 import com.ugcs.geohammer.view.Views;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -13,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 public abstract class FilterToolView extends ToolView {
 
@@ -122,16 +123,16 @@ public abstract class FilterToolView extends ToolView {
         applyToAllButton.setDisable(disableActions);
     }
 
-    protected <T> Future<T> submitAction(Callable<T> action) {
+    protected <T> CompletableFuture<T> submitAction(Callable<T> action) {
         return submitAction(action, true);
     }
 
-    protected <T> Future<T> submitAction(Callable<T> action, boolean showProgress) {
+    protected <T> CompletableFuture<T> submitAction(Callable<T> action, boolean showProgress) {
         savePreferences();
         if (showProgress) {
             disableAndShowProgress();
         }
-        return executor.submit(() -> {
+        return Tasks.submitCompletable(executor, () -> {
             try {
                 return action.call();
             } catch (Exception e) {

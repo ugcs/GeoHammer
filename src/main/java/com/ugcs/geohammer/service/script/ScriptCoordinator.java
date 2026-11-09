@@ -8,6 +8,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -18,6 +19,7 @@ import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.model.undo.UndoSnapshot;
 import com.ugcs.geohammer.service.TaskService;
+import com.ugcs.geohammer.util.Tasks;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +63,7 @@ public class ScriptCoordinator {
 	public Future<Void> submit(List<SgyFile> sgyFiles, ScriptMetadata metadata, Map<String, String> params,
 	                           Consumer<String> onOutput, ScriptRunListener listener) {
 		RecentOutput recent = new RecentOutput(onOutput, MAX_RECENT_OUTPUT_LINES);
-		Future<Void> future = executor.submit(() -> {
+		CompletableFuture<Void> future = Tasks.submitCompletable(executor, () -> {
 			listener.onRunStarted();
 			try {
 				runScriptOnFiles(sgyFiles, metadata, params, recent, listener);

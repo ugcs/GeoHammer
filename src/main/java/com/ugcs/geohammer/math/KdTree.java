@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
+import java.util.function.ToDoubleFunction;
 
 /**
  * NB: Implementation is based on a generic binary search tree
@@ -66,7 +67,12 @@ public class KdTree<V> {
     }
 
     private static <V> Node<V> buildTree(List<Node<V>> nodes, int from, int to, int level) {
-        int k = medianSelect(nodes, from, to, level);
+        // median split: values before k are <= and values after k are >= on the level axis
+        int k = from + (to - from) / 2;
+        ToDoubleFunction<Node<V>> axis = level % 2 == 0
+                ? node -> node.point.getX()
+                : node -> node.point.getY();
+        QuickSelect.select(nodes.subList(from, to), axis, k - from);
         Node<V> node = nodes.get(k);
         // left sub-tree
         int left = k - from;
@@ -83,50 +89,6 @@ public class KdTree<V> {
             node.right = null;
         }
         return node;
-    }
-
-    private static <V> int medianSelect(List<Node<V>> values, int from, int to, int level) {
-        // split [from, to) array into the two equal by size parts
-        // and return index of the median;
-        // all values from left are less and values from right are
-        // greater than the median value;
-        // items comparison is level-based
-
-        int n = from + (to - from) / 2;
-        while (from < to) {
-            if (from == to - 1) {
-                return from;
-            }
-            int i = partition(values, from, to, level);
-            if (i == n) {
-                return n;
-            }
-            if (n < i) {
-                to = i;
-            } else {
-                from = i + 1;
-            }
-        }
-        assert (false);
-        return -1;
-    }
-
-    private static <V> int partition(List<Node<V>> nodes, int from, int to, int level) {
-        assert (from < to);
-
-        Point2D pivot = nodes.get(to - 1).point; // last element is a pivot
-        int i = from;
-        for (int j = from; j < to - 1; ++j) {
-            Point2D l = nodes.get(j).point;
-            if (compare(l, pivot, level) < 0) {
-                // swap will not occur for sorted sequence
-                Collections.swap(nodes, i, j);
-                i++;
-            }
-        }
-        // place pivot in the middle
-        Collections.swap(nodes, i, to - 1);
-        return i;
     }
 
     public int size() {

@@ -6,7 +6,6 @@ import com.ugcs.geohammer.model.SelectedTrace;
 import com.ugcs.geohammer.model.TraceUnit;
 import com.ugcs.geohammer.model.element.FoundPlace;
 import com.ugcs.geohammer.model.Model;
-import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileCollapsedEvent;
 import com.ugcs.geohammer.util.Check;
 import javafx.geometry.Insets;
@@ -114,7 +113,9 @@ public abstract class Chart extends ScrollableData implements FileDataContainer 
         if (!confirmUnsavedChanges()) {
             return;
         }
-        model.publishEvent(new FileClosedEvent(this, getFile()));
+        SgyFile file = getFile();
+        model.removeChart(file);
+        model.closeFile(file);
     }
 
     // releases chart resources when the chart is discarded

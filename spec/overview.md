@@ -65,9 +65,10 @@ changes), `scripts/` (Python scripts). User settings: `~/.geohammer/templates-se
   cropping. Session-only view state owned by the header; query it with `Model.isCollapsed`/`getExpandedFiles`.
   Processing, saving and MCP tools ignore it.
 - **Reopening**: opening a file that is already open never creates a second instance. `Loader` reads a fresh instance,
-  then on the FX thread `Model.replaceFile` closes the open one (`FileClosedEvent`, so per-file state is dropped) and
-  puts the fresh chart in its place; the replace is skipped if the file version changed meanwhile. Discarding unsaved
-  changes is confirmed by the user (explicitly chosen files only).
+  then on the FX thread `Model.initChart` closes the open one (`Model.closeFile`, so per-file state is dropped) and
+  puts the fresh chart in its place. Discarding unsaved changes is confirmed by the user (explicitly chosen files only).
+- **Closing**: `Model.removeChart` then `Model.closeFile`. `FileClosedEvent` is only a notification published after the
+  file left the model; listeners drop their own state and never close files themselves.
 - **Locking** (`SgyFile.withLock`) and optimistic version checks are used only by the MCP layer; UI paths do not lock.
 
 # Runtime

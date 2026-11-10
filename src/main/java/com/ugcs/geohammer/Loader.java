@@ -239,18 +239,43 @@ public class Loader {
 		if (MetaFiles.isMeta(file)) {
 			return openMetaSource(file, interactive);
 		}
-
 		SgyFile openFile = model.getFileManager().getFile(file);
-		if (openFile != null) {
-			reopenFile(openFile, file, interactive);
+		if (openFile != null && openFile.isUnsaved()) {
+			if (!interactive) {
+				status.showProgressText(file.getName() + " has unsaved changes and was kept");
+				return file;
+			}
+			if (!confirmReload(file)) {
+				Platform.runLater(() -> selectChart(openFile));
+				return file;
+			}
+		}
+		if (FileTypes.isCsvFile(file)) {
+			openCsvFile(file, interactive);
 			return file;
 		}
-
-		SgyFile sgyFile = readFile(file, interactive);
-		Platform.runLater(() -> model.initChart(sgyFile));
-		// queued after the chart init so the dialog is not blocked by it
-		showParserWarnings(sgyFile, file.getName(), interactive);
-		return file;
+		if (FileTypes.isGprFile(file)) {
+			openGprFile(file);
+			return file;
+		}
+		if (FileTypes.isDztFile(file)) {
+			openDztFile(file);
+			return file;
+		}
+		if (FileTypes.isSvlogFile(file)) {
+			openSvlogFile(file);
+			return file;
+		}
+		if (FileTypes.isNmeaFile(file)) {
+			openNmeaFile(file);
+			return file;
+		}
+		// try csv as a fallback for text formats only
+		if (FileTypes.isTextFile(file)) {
+			openCsvFile(file, interactive);
+			return file;
+		}
+		throw new IOException("Unsupported file format: " + file.getName());
 	}
 
 	private @Nullable File openMetaSource(File metaFile, boolean interactive) throws IOException {
@@ -285,30 +310,7 @@ public class Loader {
 		return null;
 	}
 
-	private SgyFile readFile(File file, boolean interactive) throws IOException {
-		if (FileTypes.isCsvFile(file)) {
-			return openCsvFile(file, interactive);
-		}
-		if (FileTypes.isGprFile(file)) {
-			return openGprFile(file);
-		}
-		if (FileTypes.isDztFile(file)) {
-			return openDztFile(file);
-		}
-		if (FileTypes.isSvlogFile(file)) {
-			return openSvlogFile(file);
-		}
-		if (FileTypes.isNmeaFile(file)) {
-			return openNmeaFile(file);
-		}
-		// try csv as a fallback for text formats only
-		if (FileTypes.isTextFile(file)) {
-			return openCsvFile(file, interactive);
-		}
-		throw new IOException("Unsupported file format: " + file.getName());
-	}
-
-	private TraceFile openGprFile(File file) throws IOException {
+	private void openGprFile(File file) throws IOException {
 		Check.notNull(file);
 
 		TraceFile gprFile = new GprFile();
@@ -321,19 +323,25 @@ public class Loader {
 		} catch (Exception e) {
 			log.warn("Error loading positions file", e);
 		}
-		return gprFile;
+
+		Platform.runLater(() -> {
+            model.initChart(gprFile);
+		});
 	}
 
-	private DztFile openDztFile(File file) throws IOException {
+	private void openDztFile(File file) throws IOException {
 		Check.notNull(file);
 
 		DztFile dztFile = new DztFile();
 
 		dztFile.open(file);
-		return dztFile;
+
+		Platform.runLater(() -> {
+            model.initChart(dztFile);
+		});
 	}
 
-	private CsvFile openCsvFile(File file, boolean interactive) throws IOException {
+	private void openCsvFile(File file, boolean interactive) throws IOException {
 		Check.notNull(file);
 
 		FileTemplates fileTemplates = model.getFileManager().getFileTemplates();
@@ -351,72 +359,43 @@ public class Loader {
 
 		CsvFile csvFile = new CsvFile(fileTemplates);
 		csvFile.open(file, template);
-		return csvFile;
+
+		Platform.runLater(() -> {
+            model.initChart(csvFile);
+		});
+
+		// queued after the chart init so the dialog is not blocked by it
+		Parser parser = csvFile.getParser();
+		if (interactive && parser != null) {
+			Warnings warnings = parser.getWarnings();
+			if (!warnings.isEmpty()) {
+				Dialogs.showWarning("Warnings in " + file.getName(), warnings.format());
+			}
+		}
 	}
 
-	private SonarFile openSvlogFile(File file) throws IOException {
+	private void openSvlogFile(File file) throws IOException {
         Check.notNull(file);
 
         SonarFile sonarFile = new SonarFile();
 
         sonarFile.open(file);
-        return sonarFile;
+
+        Platform.runLater(() -> {
+            model.initChart(sonarFile);
+        });
     }
 
-	private NmeaFile openNmeaFile(File file) throws IOException {
+	private void openNmeaFile(File file) throws IOException {
 		Check.notNull(file);
 
 		NmeaFile nmeaFile = new NmeaFile();
 
 		nmeaFile.open(file);
-		return nmeaFile;
-	}
 
-	private static void showParserWarnings(SgyFile sgyFile, String filename, boolean interactive) {
-		if (!interactive || !(sgyFile instanceof CsvFile csvFile)) {
-			return;
-		}
-		Parser parser = csvFile.getParser();
-		if (parser != null) {
-			Warnings warnings = parser.getWarnings();
-			if (!warnings.isEmpty()) {
-				Dialogs.showWarning("Warnings in " + filename, warnings.format());
-			}
-		}
-	}
-
-	private void reopenFile(SgyFile openFile, File file, boolean interactive) throws IOException {
-		long version = openFile.getVersion();
-		if (openFile.isUnsaved()) {
-			if (!interactive) {
-				status.showProgressText(file.getName() + " has unsaved changes and was kept");
-				return;
-			}
-			if (!confirmReload(file)) {
-				Platform.runLater(() -> selectChart(openFile));
-				return;
-			}
-			version = openFile.getVersion();
-		}
-
-		SgyFile reloadedFile = readFile(file, interactive);
-		if (!replaceFile(openFile, reloadedFile, version)) {
-			status.showProgressText("Reload of " + file.getName() + " skipped: the file was changed or closed");
-			return;
-		}
-		showParserWarnings(reloadedFile, file.getName(), interactive);
-	}
-
-	private boolean replaceFile(SgyFile openFile, SgyFile reloadedFile, long version) {
-		CompletableFuture<Boolean> replaced = new CompletableFuture<>();
 		Platform.runLater(() -> {
-			try {
-				replaced.complete(model.replaceFile(openFile, reloadedFile, version));
-			} catch (RuntimeException e) {
-				replaced.completeExceptionally(e);
-			}
+			model.initChart(nmeaFile);
 		});
-		return replaced.join();
 	}
 
 	private boolean confirmReload(File file) {

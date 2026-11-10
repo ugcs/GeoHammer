@@ -321,8 +321,20 @@ public class Model implements InitializingBean {
         return null;
     }
 
-    private Chart createChart(SgyFile file, @Nullable Integer index) {
-        Chart chart = newChart(file);
+    private Chart createChart(SgyFile file) {
+        // if there is a chart for a given file then put new chart
+        // to the same position as it was before
+        int index = -1;
+
+        Chart chart = getChart(file);
+        if (chart != null) {
+            Node chartBox = chart.getRootNode();
+            if (chartBox != null) {
+                index = chartsContainer.getChildren().indexOf(chartBox);
+            }
+        }
+
+        chart = newChart(file);
         if (chart == null) {
             return null;
         }
@@ -334,8 +346,9 @@ public class Model implements InitializingBean {
         VBox newChartBox = chart.getRootNode();
 		newChartBox.getStyleClass().add("data-chart");
 
-        if (index != null) {
-            chartsContainer.getChildren().add(index, newChartBox);
+        // add to container keeping position
+        if (index != -1) {
+            chartsContainer.getChildren().set(index, newChartBox);
         } else {
             chartsContainer.getChildren().add(newChartBox);
         }
@@ -356,42 +369,22 @@ public class Model implements InitializingBean {
 
     public Chart initChart(SgyFile file) {
         Chart chart = getChart(file);
-        if (chart != null) {
-            // the file is already open: keep its instance and chart
-            selectAndScrollToChart(chart);
-            return chart;
+        if (chart == null) {
+            chart = createChart(file);
+            fileManager.addFile(file);
+        } else {
+            // replace the open file: close it the regular way, the new chart takes its position
+            Chart oldChart = chart;
+            closeFile(oldChart.getFile());
+            chart = createChart(file);
+            oldChart.dispose();
+            fileManager.addFile(file);
         }
-        chart = createChart(file, null);
-        fileManager.addFile(file);
         updateAuxElements();
         initField();
 
         selectAndScrollToChart(chart);
         return chart;
-    }
-
-    public boolean replaceFile(SgyFile openFile, SgyFile reloadedFile, long version) {
-        SgyFile currentFile = fileManager.getFile(openFile.getFile());
-        if (currentFile == null || currentFile.getVersion() != version) {
-            return false;
-        }
-
-        Integer index = null;
-        Chart openChart = charts.remove(openFile);
-        if (openChart != null) {
-            index = chartsContainer.getChildren().indexOf(openChart.getRootNode());
-            chartsContainer.getChildren().remove(openChart.getRootNode());
-            openChart.dispose();
-        }
-        fileManager.removeFile(openFile);
-        publishEvent(new FileClosedEvent(this, openFile));
-
-        Chart chart = createChart(reloadedFile, index);
-        fileManager.addFile(reloadedFile);
-        updateAuxElements();
-
-        selectAndScrollToChart(chart);
-        return true;
     }
 
     public void updateChartFile(SgyFile sgyFile, File file) {
@@ -404,27 +397,32 @@ public class Model implements InitializingBean {
 
     // close chart
 
+    public void closeFile(SgyFile file) {
+        fileManager.removeFile(file);
+
+        publishEvent(new FileClosedEvent(this, file));
+        publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+        publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+    }
+
     public void removeChart(SgyFile sgyFile) {
         Chart removed = charts.remove(sgyFile);
         if (removed != null) {
             removed.getProfileScroll().setVisible(false);
             chartsContainer.getChildren().remove(removed.getRootNode());
             removed.dispose();
+            updateAuxElements();
         }
 
-        // select first file in a list
-        boolean chartSelected = false;
-        List<SgyFile> openedFiles = fileManager.getFiles();
-        if (!openedFiles.isEmpty()) {
-            Chart chart = getChart(openedFiles.getFirst());
+        // select first file that still has a chart
+        for (SgyFile openedFile : fileManager.getFiles()) {
+            Chart chart = getChart(openedFile);
             if (chart != null) {
                 selectAndScrollToChart(chart);
-                chartSelected = true;
+                return;
             }
         }
-        if (!chartSelected) {
-            publishEvent(new FileSelectedEvent(this, (SgyFile) null));
-        }
+        publishEvent(new FileSelectedEvent(this, (SgyFile) null));
     }
 
     public void reload(SgyFile sgyFile) {

@@ -15,7 +15,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.DragEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -23,7 +22,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,9 +39,7 @@ public class EmptyProfileView extends VBox {
 
     private static final String WIKI_URL = "https://github.com/ugcs/GeoHammer/wiki";
 
-    private static final double UPLOAD_ICON_SIZE = 40;
-
-    private static final double DATA_ICON_SIZE = 40;
+    private static final double ICON_SIZE = 40;
 
     private final Model model;
 
@@ -103,29 +99,28 @@ public class EmptyProfileView extends VBox {
         // one row when there is room; a narrow chart area wraps whole groups instead of cutting their text
         groups.setPrefWrapLength(Double.MAX_VALUE);
 
-        VBox box = new VBox(Views.DEFAULT_SPACING);
-        ImageView uploadImage = ResourceImageHolder.getImageView("upload_file.png");
-        if (uploadImage != null) {
-            uploadImage.setFitWidth(UPLOAD_ICON_SIZE);
-            uploadImage.setFitHeight(UPLOAD_ICON_SIZE);
-            Views.tintImage(uploadImage, Color.GRAY);
-            box.getChildren().add(uploadImage);
-        }
-        box.getChildren().addAll(hint, note, demos, groups);
+        VBox box = new VBox(Views.DEFAULT_SPACING, createIcon(ResourceImageHolder.UPLOAD_FILE), hint, note, demos,
+                groups);
         box.getStyleClass().add("empty-profile-drop-zone");
         box.setAlignment(Pos.CENTER);
         box.setMaxWidth(Region.USE_PREF_SIZE);
         return box;
     }
 
-    private static HBox createDataGroup(String iconPath, String firstLine, String secondLine) {
+    // icon paths differ in height, so a fixed box keeps them centered
+    private static StackPane createIcon(String iconPath) {
         SVGPath icon = new SVGPath();
         icon.setContent(iconPath);
-        icon.getStyleClass().add("empty-profile-data-icon");
+        icon.getStyleClass().add("empty-profile-icon");
         StackPane iconBox = new StackPane(icon);
-        iconBox.setMinSize(DATA_ICON_SIZE, DATA_ICON_SIZE);
-        iconBox.setPrefSize(DATA_ICON_SIZE, DATA_ICON_SIZE);
-        iconBox.setMaxSize(DATA_ICON_SIZE, DATA_ICON_SIZE);
+        iconBox.setMinSize(ICON_SIZE, ICON_SIZE);
+        iconBox.setPrefSize(ICON_SIZE, ICON_SIZE);
+        iconBox.setMaxSize(ICON_SIZE, ICON_SIZE);
+        return iconBox;
+    }
+
+    private static HBox createDataGroup(String iconPath, String firstLine, String secondLine) {
+        StackPane iconBox = createIcon(iconPath);
 
         Label first = new Label(firstLine);
         Label second = new Label(secondLine);

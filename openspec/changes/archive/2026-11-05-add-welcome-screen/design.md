@@ -83,13 +83,15 @@ removed with them.
 Alternatives: extension tags under each group (complete, but the group needs a rule for `.log` and `.txt`, which both
 the NMEA and the CSV probes accept); a group title over short lines (one more line per group, says less).
 
-### Data icons are themed vector paths
+### Panel icons are themed vector paths
 
-The icons are stroke-drawn shapes (hyperbola, peak, ping arcs), so each is an `SVGPath` with no fill and the stroke
-set by a style class in the components stylesheet using the dim text color, the same as the group lines. Each path is
+The data icons (hyperbola, peak, ping arcs) and the upload icon above the drop hint are stroke-drawn shapes, so each is
+an `SVGPath` with no fill and the stroke set by one style class in the components stylesheet using the dim text color,
+the same as the hint and the group lines. The groups are drawn at reduced opacity, so the hint and its icon lead and the
+groups stay secondary in both themes without a separate color per theme. Each path is
 centered in a fixed 40×40 `StackPane`, so icons whose shapes have different heights still sit on the middle of their two
 text lines. Paths are drawn at their final size instead of scaled, so the stroke width stays the same on all three. The
-path constants live in `ResourceImageHolder` next to the toolbar icon paths. Alternative: PNG icons tinted like `upload_file.png`. Rejected:
+path constants live in `ResourceImageHolder` next to the toolbar icon paths. Alternative: PNG icons tinted with a fixed color, as `upload_file.png` was. Rejected:
 they blur on HiDPI screens and need tint code per theme.
 
 ### Demo links

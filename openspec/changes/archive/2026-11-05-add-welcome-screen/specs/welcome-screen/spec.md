@@ -78,6 +78,15 @@ two lines.
 - **WHEN** the welcome panel is shown
 - **THEN** the middle of each group icon is level with the middle of its two lines
 
+### Requirement: Drop hint leads the panel
+
+The upload icon above the drop hint SHALL be drawn in the color of the hint text in every theme, and the data groups
+SHALL be fainter than the hint and its icon.
+
+#### Scenario: Upload icon follows the theme
+- **WHEN** the light or the dark theme is selected and the welcome panel is shown
+- **THEN** the upload icon is drawn in the same color as the drop hint, and the data groups and their icons are fainter
+
 ### Requirement: Data groups wrap instead of cutting text
 
 The data groups SHALL be in one row when the chart area is wide enough. Otherwise whole groups SHALL wrap onto further

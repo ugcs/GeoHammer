@@ -391,9 +391,10 @@
 
 .empty-profile-group {
     -fx-spacing: 12;
+    -fx-opacity: 0.75;
 }
 
-.empty-profile-data-icon {
+.empty-profile-icon {
     -fx-fill: transparent;
     -fx-stroke: -color-text-dim;
     -fx-stroke-width: 2;

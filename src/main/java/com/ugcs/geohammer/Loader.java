@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import com.ugcs.geohammer.chart.Chart;
 import com.ugcs.geohammer.format.FileOpenException;
 import com.ugcs.geohammer.format.csv.parser.Parser;
 import com.ugcs.geohammer.format.csv.parser.Warnings;
@@ -239,6 +240,17 @@ public class Loader {
 		if (MetaFiles.isMeta(file)) {
 			return openMetaSource(file, interactive);
 		}
+		SgyFile openFile = model.getFileManager().getFile(file);
+		if (openFile != null && openFile.isUnsaved()) {
+			if (!interactive) {
+				status.showProgressText(file.getName() + " has unsaved changes and was kept");
+				return file;
+			}
+			if (!confirmReload(file)) {
+				Platform.runLater(() -> selectChart(openFile));
+				return file;
+			}
+		}
 		if (FileTypes.isCsvFile(file)) {
 			openCsvFile(file, interactive);
 			return file;
@@ -385,6 +397,21 @@ public class Loader {
 		Platform.runLater(() -> {
 			model.initChart(nmeaFile);
 		});
+	}
+
+	private boolean confirmReload(File file) {
+		return Dialogs.confirm(
+				file.getName() + " is already open and has unsaved changes",
+				"Reload it from disk? The unsaved changes will be lost.",
+				"Reload",
+				"Keep");
+	}
+
+	private void selectChart(SgyFile file) {
+		Chart chart = model.getChart(file);
+		if (chart != null) {
+			model.selectAndScrollToChart(chart);
+		}
 	}
 
 	public void loadFrom(SgyFile sgyFile, File file) throws IOException {

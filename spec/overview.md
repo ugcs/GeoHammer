@@ -64,6 +64,11 @@ changes), `scripts/` (Python scripts). User settings: `~/.geohammer/templates-se
 - **Collapsed files**: a collapsed chart shows only its header, and its file is left out of the map and map line
   cropping. Session-only view state owned by the header; query it with `Model.isCollapsed`/`getExpandedFiles`.
   Processing, saving and MCP tools ignore it.
+- **Reopening**: opening a file that is already open never creates a second instance. `Loader` reads a fresh instance,
+  then on the FX thread `Model.initChart` closes the open one (`Model.closeFile`, so per-file state is dropped) and
+  puts the fresh chart in its place. Discarding unsaved changes is confirmed by the user (explicitly chosen files only).
+- **Closing**: `Model.removeChart` then `Model.closeFile`. `FileClosedEvent` is only a notification published after the
+  file left the model; listeners drop their own state and never close files themselves.
 - **Locking** (`SgyFile.withLock`) and optimistic version checks are used only by the MCP layer; UI paths do not lock.
 
 # Runtime
@@ -90,7 +95,8 @@ changes), `scripts/` (Python scripts). User settings: `~/.geohammer/templates-se
 Spring events extending `BaseEvent`, published via `model.publishEvent(...)`. Delivery is synchronous on the
 publishing thread; listeners that touch UI must tolerate non-FX publishers. Find listeners by searching usages.
 
-- `FileOpenedEvent` — files finished loading (FX thread). `FileOpenErrorEvent` — a file failed to open.
+- `FileOpenedEvent` — files finished loading (FX thread), files opened again included whether reloaded or kept.
+  `FileOpenErrorEvent` — a file failed to open.
 - `FileSelectedEvent` — active file changed (null when cleared). Tools and layers reload their state for it.
 - `FileClosedEvent` — file closed; drop all per-file state (caches, undo frames, grids).
 - `FileUpdatedEvent` — file columns or data changed (published by `Model.reload`).

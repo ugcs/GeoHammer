@@ -640,10 +640,7 @@ public class GriddingTool extends FilterToolView {
         if (Strings.isNullOrEmpty(seriesName)) {
             return;
         }
-        List<SgyFile> files = model.getFileManager().getFiles().stream()
-                .filter(f -> Templates.equals(f, file))
-                .toList();
-
+		List<SgyFile> files = model.getFileManager().getFilesWithSameTemplate(file);
         applyGridding(files, seriesName);
     }
 
@@ -781,7 +778,11 @@ public class GriddingTool extends FilterToolView {
         // never while running, as an older grid could finish last
         boolean resubmit = gridLayer.isActive() && seriesName.endsWith("_LAG") && !isRunning();
         if (resubmit) {
-            applyGridding(List.of(file), seriesName);
+            // rebuild a shared grid as shared, so that it is not replaced by an individual one
+			List<SgyFile> files = griddingResult.shared()
+                    ? model.getFileManager().getFilesWithSameTemplate(file)
+                    : List.of(file);
+            applyGridding(files, seriesName);
         } else {
             showParamsChangedWarning(true);
         }

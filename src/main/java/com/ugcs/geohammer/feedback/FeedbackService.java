@@ -12,6 +12,7 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.RetrofitCalls;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.Tasks;
 import com.ugcs.geohammer.util.ZipStream;
 import com.ugcs.geohammer.view.status.Status;
 import okhttp3.MediaType;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 @Service
@@ -85,11 +87,12 @@ public class FeedbackService {
     }
 
     public void submitFeedback(Feedback feedback, List<Attachment> attachments) {
-        var future = executor.submit(() -> {
+        CompletableFuture<Void> future = Tasks.submitCompletable(executor, () -> {
             try {
                 String attachmentId = uploadAttachments(attachments);
                 collectFeedback(feedback, attachmentId);
                 status.showMessage("Feedback submitted", "Feedback");
+                return null;
             } catch (Exception e) {
                 status.showMessage("Feedback not sent: " + e.getMessage(), "Feedback");
                 throw e;

@@ -6,6 +6,7 @@ import com.ugcs.geohammer.format.csv.CsvFile;
 import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.model.template.Template;
 import com.ugcs.geohammer.util.FileTypes;
+import com.ugcs.geohammer.util.Templates;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -70,6 +71,12 @@ public class FileManager {
 				.filter(CsvFile.class::isInstance)
 				.map(CsvFile.class::cast)
 				.collect(Collectors.toList());
+	}
+
+	public List<SgyFile> getFilesWithSameTemplate(SgyFile file) {
+		return files.stream()
+				.filter(f -> Templates.equals(f, file))
+				.toList();
 	}
 
 	public List<SgyFile> getFiles() {

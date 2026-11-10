@@ -164,8 +164,17 @@ jobs:
         run: |
           xcrun stapler staple "$APP_PATH"
           ./$APP_PATH/Contents/runtime/Contents/Home/bin/java -version
+
+      - name: Build dmg
+        run: |
           cd target/installer
-          hdiutil create -fs HFS+ -srcfolder GeoHammer.app "${{ steps.name.outputs.base }}.dmg"
+          # Resources in assembly/macos/dmg give the window its background, Applications link layout and volume icon
+          "$JAVA_HOME/bin/jpackage" --type dmg --app-image GeoHammer.app --name GeoHammer \
+            --resource-dir "$GITHUB_WORKSPACE/assembly/macos/dmg" --dest dmg
+          mv dmg/GeoHammer-*.dmg "${{ steps.name.outputs.base }}.dmg"
+          hdiutil attach -nobrowse -readonly -mountpoint dmg/volume "${{ steps.name.outputs.base }}.dmg"
+          xcrun stapler validate dmg/volume/GeoHammer.app
+          hdiutil detach dmg/volume
 
       - name: Stage artifacts
         run: mkdir staging && cp "target/installer/${{ steps.name.outputs.base }}.dmg" staging

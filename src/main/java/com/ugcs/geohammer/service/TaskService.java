@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Future;
 
 @Service
 public class TaskService {
@@ -30,11 +29,11 @@ public class TaskService {
         this.eventPublisher = eventPublisher;
     }
 
-    public <V> CompletableFuture<V> registerTask(Future<V> future, String taskName) {
-        return registerTask(new Task<>(future, taskName));
+    public <V> void registerTask(CompletableFuture<V> future, String taskName) {
+        registerTask(new Task<>(future, taskName));
     }
 
-    public <V> CompletableFuture<V> registerTask(Task<V> task) {
+    public <V> void registerTask(Task<V> task) {
         Check.notNull(task);
 
         tasks.add(task);
@@ -42,23 +41,8 @@ public class TaskService {
 
         log.debug("Task registered: {}", task.getName());
 
-        CompletableFuture<V> completableFuture;
-        if (task.getFuture() instanceof CompletableFuture) {
-            completableFuture = (CompletableFuture<V>)task.getFuture();
-        } else {
-            completableFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return task.getFuture().get();
-                } catch (RuntimeException e) {
-                    throw e;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        }
-
         // cleanup on completion
-        completableFuture.whenComplete((result, exception) -> {
+        task.getFuture().whenComplete((result, exception) -> {
             if (exception != null) {
                 log.warn("Task failed: {}", task.getName(), exception);
             } else {
@@ -68,8 +52,6 @@ public class TaskService {
             tasks.remove(task);
             eventPublisher.publishEvent(new TaskCompletedEvent(this, task));
         });
-
-        return completableFuture;
     }
 
     public <V> void cancelTask(Task<V> task) {

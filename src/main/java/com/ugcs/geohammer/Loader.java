@@ -39,6 +39,7 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileTypes;
 import com.ugcs.geohammer.util.Nulls;
 import com.ugcs.geohammer.util.Result;
+import com.ugcs.geohammer.util.Tasks;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.status.Status;
 import javafx.application.Platform;
@@ -187,7 +188,7 @@ public class Loader {
 				: "Loading " + files.size()	+ " files";
 
 		TaskRunner runner = new TaskRunner(status, loadTask);
-		Future<Map<File, Result<File>>> future = executor.submit(() -> {
+		CompletableFuture<Map<File, Result<File>>> future = Tasks.submitCompletable(executor, () -> {
 			runner.start(false);
 			return results;
 		});

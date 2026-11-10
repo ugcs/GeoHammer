@@ -7,6 +7,8 @@ public record GriddingResult(
         float[][] grid,
         LatLon minLatLon,
         LatLon maxLatLon,
-        GriddingParams params
+        GriddingParams params,
+        // built from several files
+        boolean shared
 ) {
 }

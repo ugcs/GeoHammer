@@ -346,3 +346,62 @@
 .unit-combo-box > .arrow-button {
     -fx-padding: 0.5em 0.5em 0.5em 0.333333em;
 }
+
+.empty-profile-view {
+    -fx-padding: 32;
+}
+
+.empty-profile-drop-zone {
+    -fx-padding: 48 32 40 32;
+    -fx-border-color: -color-outline;
+    -fx-border-style: segments(6, 4);
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.empty-profile-view:drop-target .empty-profile-drop-zone {
+    -fx-border-color: -color-accent;
+    -fx-background-color: -color-surface-accent-translucent;
+}
+
+.empty-profile-title {
+    -fx-font-size: 1.3em;
+}
+
+.empty-profile-demos {
+    -fx-spacing: 16;
+}
+
+.hyperlink.empty-profile-demo,
+.hyperlink.empty-profile-demo:visited {
+    -fx-text-fill: -color-accent;
+}
+
+.hyperlink.empty-profile-wiki-link,
+.hyperlink.empty-profile-wiki-link:visited {
+    -fx-text-fill: -color-text-dim;
+}
+
+.hyperlink.empty-profile-wiki-link:focused {
+    -fx-border-color: -color-text-dim;
+}
+
+.empty-profile-groups {
+    -fx-hgap: 32;
+    -fx-vgap: 16;
+    -fx-padding: 32 0 0 0;
+}
+
+.empty-profile-group {
+    -fx-spacing: 12;
+    -fx-opacity: 0.75;
+}
+
+.empty-profile-icon {
+    -fx-fill: transparent;
+    -fx-stroke: -color-text-dim;
+    -fx-stroke-width: 2;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-line-join: round;
+}

@@ -611,6 +611,10 @@
 											<targetPath>scripts</targetPath>
 										</resource>
 										<resource>
+											<directory>${project.basedir}/data</directory>
+											<targetPath>data</targetPath>
+										</resource>
+										<resource>
 											<directory>${project.basedir}/src/main/resources</directory>
 											<includes>
 												<include>splash_screen.jpg</include>
@@ -751,6 +755,17 @@
 									<executable>cp</executable>
 									<arguments>
 										<argument>-r</argument><argument>scripts</argument><argument>${installer.input}</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>copy-data</id>
+								<phase>install</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>cp</executable>
+									<arguments>
+										<argument>-r</argument><argument>data</argument><argument>${installer.input}</argument>
 									</arguments>
 								</configuration>
 							</execution>

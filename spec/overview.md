@@ -13,7 +13,8 @@ mvn checkstyle:checkstyle            # warnings only, never fails the build
 ```
 
 Runtime folders (resolved relative to the working dir, then to the jar): `templates/` (CSV templates, watched for
-changes), `scripts/` (Python scripts). User settings: `~/.geohammer/templates-settings.properties`.
+changes), `scripts/` (Python scripts), `data/` (demo files opened from the welcome panel; a demo opens a fresh copy
+in `~/.geohammer/demo/`, never the shipped file). User settings: `~/.geohammer/templates-settings.properties`.
 
 # Domain Glossary
 

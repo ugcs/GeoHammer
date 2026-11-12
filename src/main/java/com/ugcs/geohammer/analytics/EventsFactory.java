@@ -15,14 +15,16 @@ public class EventsFactory {
         return new Event(EventType.APP_STARTED, clientProperties, null, null);
     }
 
-    public Event createFileOpenedEvent(String template) {
+    public Event createFileOpenedEvent(String template, boolean demo) {
         return new Event(EventType.FILE_OPENED, null, null, null)
-                .withProperty("template", template);
+                .withProperty("template", template)
+                .withProperty("demo", demo);
     }
 
-    public Event createFileOpenErrorEvent(String template, String errorMessage) {
+    public Event createFileOpenErrorEvent(String template, boolean demo, String errorMessage) {
         return new Event(EventType.FILE_OPEN_ERROR, null, null, null)
                 .withProperty("template", template)
+                .withProperty("demo", demo)
                 .withProperty("error_message", errorMessage);
     }
 

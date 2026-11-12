@@ -1,0 +1,93 @@
+{
+  "lines": [
+    {
+      "lineIndex": 0,
+      "from": 3325,
+      "to": 3883
+    },
+    {
+      "lineIndex": 1,
+      "from": 4654,
+      "to": 5201
+    },
+    {
+      "lineIndex": 2,
+      "from": 5979,
+      "to": 6521
+    },
+    {
+      "lineIndex": 3,
+      "from": 7287,
+      "to": 7840
+    },
+    {
+      "lineIndex": 4,
+      "from": 8627,
+      "to": 9169
+    },
+    {
+      "lineIndex": 5,
+      "from": 9930,
+      "to": 10485
+    },
+    {
+      "lineIndex": 6,
+      "from": 11278,
+      "to": 11823
+    },
+    {
+      "lineIndex": 7,
+      "from": 12584,
+      "to": 13132
+    },
+    {
+      "lineIndex": 8,
+      "from": 13924,
+      "to": 14474
+    },
+    {
+      "lineIndex": 9,
+      "from": 15231,
+      "to": 15792
+    },
+    {
+      "lineIndex": 10,
+      "from": 16600,
+      "to": 17159
+    },
+    {
+      "lineIndex": 11,
+      "from": 17913,
+      "to": 18476
+    },
+    {
+      "lineIndex": 12,
+      "from": 19280,
+      "to": 19846
+    },
+    {
+      "lineIndex": 13,
+      "from": 20586,
+      "to": 21154
+    },
+    {
+      "lineIndex": 14,
+      "from": 21955,
+      "to": 22524
+    },
+    {
+      "lineIndex": 15,
+      "from": 23265,
+      "to": 23834
+    }
+  ],
+  "marks": [],
+  "colorScale": "GRAYSCALE",
+  "contrast": 35.1063829787234,
+  "maxGain": 32.170212765957444,
+  "backgroundRemoved": true,
+  "depthRange": {
+    "from": 188,
+    "to": 235
+  }
+}

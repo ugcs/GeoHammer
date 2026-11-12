@@ -2,7 +2,6 @@ package com.ugcs.geohammer.analytics;
 
 import com.ugcs.geohammer.model.event.FilterType;
 import com.ugcs.geohammer.release.Version;
-import com.ugcs.geohammer.service.demo.DemoFile;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -16,14 +15,16 @@ public class EventsFactory {
         return new Event(EventType.APP_STARTED, clientProperties, null, null);
     }
 
-    public Event createFileOpenedEvent(String template) {
+    public Event createFileOpenedEvent(String template, boolean demo) {
         return new Event(EventType.FILE_OPENED, null, null, null)
-                .withProperty("template", template);
+                .withProperty("template", template)
+                .withProperty("demo", demo);
     }
 
-    public Event createFileOpenErrorEvent(String template, String errorMessage) {
+    public Event createFileOpenErrorEvent(String template, boolean demo, String errorMessage) {
         return new Event(EventType.FILE_OPEN_ERROR, null, null, null)
                 .withProperty("template", template)
+                .withProperty("demo", demo)
                 .withProperty("error_message", errorMessage);
     }
 
@@ -43,11 +44,6 @@ public class EventsFactory {
         return new Event(EventType.FILTER_APPLIED, null, null, null)
                 .withProperty("filter", filterType.getCode())
                 .withProperty("template", template);
-    }
-
-    public Event createDemoFileOpenedEvent(DemoFile demoFile) {
-        return new Event(EventType.DEMO_FILE_OPENED, null, null, null)
-                .withProperty("file_name", demoFile.getFileName());
     }
 
     public Event createMcpSessionInitEvent(String clientName, String clientVersion) {

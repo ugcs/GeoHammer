@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DemoFilesTest {
 
@@ -110,6 +111,37 @@ class DemoFilesTest {
         assertThrows(NoSuchFileException.class, () -> demoFiles.createCopy(DemoFile.CSV));
 
         assertEquals(SOURCE_CONTENT, Files.readString(gprCopy.toPath()));
+    }
+
+    @Test
+    void isInDemoFolder_createdCopy() throws IOException {
+        createSource(DemoFile.GPR);
+        File copy = demoFiles.createCopy(DemoFile.GPR);
+
+        assertTrue(demoFiles.isInDemoFolder(copy));
+    }
+
+    @Test
+    void isInDemoFolder_relativePathToCopy() throws IOException {
+        createSource(DemoFile.GPR);
+        File copy = demoFiles.createCopy(DemoFile.GPR);
+        File sameCopy = copiesPath.resolve("..").resolve(copiesPath.getFileName()).resolve(copy.getName()).toFile();
+
+        assertTrue(demoFiles.isInDemoFolder(sameCopy));
+    }
+
+    @Test
+    void isInDemoFolder_shippedSource() throws IOException {
+        Path source = createSource(DemoFile.GPR);
+
+        assertFalse(demoFiles.isInDemoFolder(source.toFile()));
+    }
+
+    @Test
+    void isInDemoFolder_fileInSubfolder() {
+        File nested = copiesPath.resolve("nested").resolve(DemoFile.GPR.getFileName()).toFile();
+
+        assertFalse(demoFiles.isInDemoFolder(nested));
     }
 
     @Test

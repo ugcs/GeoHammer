@@ -71,21 +71,24 @@ The system SHALL NOT send the filter application event when no filter is applied
 - **WHEN** a series filter is requested for a series that has no chart and no new series is created
 - **THEN** no filter application event is sent
 
-### Requirement: Demo file opening event
+### Requirement: Demo flag on file opening events
 
-The system SHALL send a `geohammer-demo-file-opened` analytics event when a demo file is opened from the welcome
-panel. The event SHALL carry exactly one property: `file_name`, the name of the shipped demo file — `demo-gpr.sgy`
-for the GPR demo and `demo-csv.csv` for the CSV demo. The event is sent in addition to the `geohammer-file-opened`
-event of the opened file.
+The `geohammer-file-opened` and `geohammer-file-open-error` analytics events SHALL carry a `demo` property: `true` when
+the file is a demo file opened from the welcome panel, `false` otherwise. Opening a demo SHALL NOT send any other
+analytics event.
 
-#### Scenario: GPR demo opened
+#### Scenario: Demo opened
 - **WHEN** the user clicks the GPR demo link and the demo file is opened
-- **THEN** the system sends `geohammer-demo-file-opened` with `file_name` = `demo-gpr.sgy`
+- **THEN** the system sends one `geohammer-file-opened` event with `template` = `sgy` and `demo` = `true`
 
-#### Scenario: CSV demo opened
-- **WHEN** the user clicks the CSV demo link and the demo file is opened
-- **THEN** the system sends `geohammer-demo-file-opened` with `file_name` = `demo-csv.csv`
+#### Scenario: User file opened
+- **WHEN** the user opens their own CSV file with template `MagNIMBUS`
+- **THEN** the system sends `geohammer-file-opened` with `template` = `MagNIMBUS` and `demo` = `false`
 
-#### Scenario: Demo failed to open
-- **WHEN** the user clicks a demo link and the demo file is missing, cannot be copied or cannot be opened
-- **THEN** no demo file opening event is sent
+#### Scenario: Demo failed to parse
+- **WHEN** the user clicks a demo link and the copied demo file cannot be parsed
+- **THEN** the system sends `geohammer-file-open-error` with `demo` = `true`
+
+#### Scenario: Demo file missing
+- **WHEN** the user clicks a demo link and the demo file is missing or cannot be copied
+- **THEN** no analytics event is sent

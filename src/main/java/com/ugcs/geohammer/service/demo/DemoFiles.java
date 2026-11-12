@@ -56,4 +56,11 @@ public class DemoFiles {
         }
         return copy.toFile();
     }
+
+    public boolean isInDemoFolder(File file) {
+        Check.notNull(file);
+
+        Path folder = file.toPath().toAbsolutePath().normalize().getParent();
+        return copiesPath.toAbsolutePath().normalize().equals(folder);
+    }
 }

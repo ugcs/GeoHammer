@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.service.demo;
 
+import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Resources;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,10 @@ public class DemoFiles {
         Files.createDirectories(copiesPath);
         Path copy = copiesPath.resolve(demoFile.getFileName());
         Files.copy(source, copy);
+        Path sourceMeta = MetaFiles.getMetaPath(source.toFile());
+        if (Files.isRegularFile(sourceMeta)) {
+            Files.copy(sourceMeta, MetaFiles.getMetaPath(copy.toFile()));
+        }
         return copy.toFile();
     }
 }

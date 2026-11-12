@@ -18,6 +18,8 @@ class DemoFilesTest {
 
     private static final String SOURCE_CONTENT = "original";
 
+    private static final String SOURCE_META_CONTENT = "{\"lines\":[]}";
+
     @TempDir
     Path sourcesPath;
 
@@ -54,6 +56,39 @@ class DemoFilesTest {
 
         assertEquals(SOURCE_CONTENT, Files.readString(newCopy.toPath()));
         assertFalse(Files.exists(sidecar));
+    }
+
+    @Test
+    void createCopy_copiesSourceMeta() throws IOException {
+        Path source = createSource(DemoFile.GPR);
+        Files.writeString(source.resolveSibling(source.getFileName() + ".geohammer"), SOURCE_META_CONTENT);
+
+        File copy = demoFiles.createCopy(DemoFile.GPR);
+
+        Path copyMeta = copy.toPath().resolveSibling(copy.getName() + ".geohammer");
+        assertEquals(SOURCE_META_CONTENT, Files.readString(copyMeta));
+    }
+
+    @Test
+    void createCopy_withoutSourceMeta_createsNoMeta() throws IOException {
+        createSource(DemoFile.GPR);
+
+        File copy = demoFiles.createCopy(DemoFile.GPR);
+
+        assertFalse(Files.exists(copy.toPath().resolveSibling(copy.getName() + ".geohammer")));
+    }
+
+    @Test
+    void createCopy_replacesEditedMeta() throws IOException {
+        Path source = createSource(DemoFile.GPR);
+        Files.writeString(source.resolveSibling(source.getFileName() + ".geohammer"), SOURCE_META_CONTENT);
+        File copy = demoFiles.createCopy(DemoFile.GPR);
+        Path copyMeta = copy.toPath().resolveSibling(copy.getName() + ".geohammer");
+        Files.writeString(copyMeta, "edited");
+
+        demoFiles.createCopy(DemoFile.GPR);
+
+        assertEquals(SOURCE_META_CONTENT, Files.readString(copyMeta));
     }
 
     @Test

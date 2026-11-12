@@ -7,6 +7,7 @@ public enum EventType {
     LICENSE_VALIDATED("geohammer-license-validated"),
     SCRIPT_EXECUTION_STARTED("geohammer-script-execution-started"),
     FILTER_APPLIED("geohammer-filter-applied"),
+    DEMO_FILE_OPENED("geohammer-demo-file-opened"),
     MCP_SESSION_INIT("geohammer-mcp-session-init"),
     MCP_SCRIPT_CREATED("geohammer-mcp-script-created");
 

@@ -383,6 +383,10 @@
     -fx-text-fill: -color-text-dim;
 }
 
+.hyperlink.empty-profile-wiki-link:focused {
+    -fx-border-color: -color-text-dim;
+}
+
 .empty-profile-groups {
     -fx-hgap: 32;
     -fx-vgap: 16;

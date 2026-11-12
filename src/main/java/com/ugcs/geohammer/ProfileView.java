@@ -260,19 +260,12 @@ public class ProfileView implements InitializingBean {
             return;
         }
 
-        model.getFileManager().removeFile(closedFile);
         if (closedFile.equals(currentFile)) {
             currentFile = null;
         }
 
-		model.removeChart(closedFile);
-		model.updateAuxElements();
-
 		activateTools();
 		Platform.runLater(() -> updateChannelComboBox(currentFile));
-
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
-		model.publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
 	}
 
 	@EventListener

@@ -21,7 +21,6 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.ProgressTask;
 import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.ToolProducer;
-import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TaskRunner;
@@ -400,7 +399,8 @@ public class Saver implements ToolProducer, InitializingBean {
 			}
 			// Make a copy to avoid concurrent modification
 			for (SgyFile file : files.toArray(new SgyFile[0])) {
-				model.publishEvent(new FileClosedEvent(this, file));
+				model.removeChart(file);
+				model.closeFile(file);
 			}
 			return null;
 		});

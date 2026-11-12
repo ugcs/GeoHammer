@@ -373,13 +373,11 @@ public class Model implements InitializingBean {
             chart = createChart(file);
             fileManager.addFile(file);
         } else {
-            // recreate chart
-            fileManager.removeFile(file);
-            chartsContainer.getChildren().remove(chart.getRootNode());
-            charts.remove(file);
-            chart.dispose();
-
+            // replace the open file: close it the regular way, the new chart takes its position
+            Chart oldChart = chart;
+            closeFile(oldChart.getFile());
             chart = createChart(file);
+            oldChart.dispose();
             fileManager.addFile(file);
         }
         updateAuxElements();
@@ -399,27 +397,32 @@ public class Model implements InitializingBean {
 
     // close chart
 
+    public void closeFile(SgyFile file) {
+        fileManager.removeFile(file);
+
+        publishEvent(new FileClosedEvent(this, file));
+        publishEvent(new WhatChanged(this, WhatChanged.Change.justdraw));
+        publishEvent(new WhatChanged(this, WhatChanged.Change.traceValues));
+    }
+
     public void removeChart(SgyFile sgyFile) {
         Chart removed = charts.remove(sgyFile);
         if (removed != null) {
             removed.getProfileScroll().setVisible(false);
             chartsContainer.getChildren().remove(removed.getRootNode());
             removed.dispose();
+            updateAuxElements();
         }
 
-        // select first file in a list
-        boolean chartSelected = false;
-        List<SgyFile> openedFiles = fileManager.getFiles();
-        if (!openedFiles.isEmpty()) {
-            Chart chart = getChart(openedFiles.getFirst());
+        // select first file that still has a chart
+        for (SgyFile openedFile : fileManager.getFiles()) {
+            Chart chart = getChart(openedFile);
             if (chart != null) {
                 selectAndScrollToChart(chart);
-                chartSelected = true;
+                return;
             }
         }
-        if (!chartSelected) {
-            publishEvent(new FileSelectedEvent(this, (SgyFile) null));
-        }
+        publishEvent(new FileSelectedEvent(this, (SgyFile) null));
     }
 
     public void reload(SgyFile sgyFile) {

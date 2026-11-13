@@ -8,6 +8,7 @@ import com.ugcs.geohammer.service.palette.SpectrumType;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -19,22 +20,16 @@ public class GriddingSettings {
         this.settings = settings;
     }
 
-    public GriddingParams loadParams(SgyFile file) {
-        double cellSize = 0.1;
-        double blankingDistance = 1.0;
-
+    public @Nullable GriddingParams loadParams(SgyFile file) {
         String templateName = Templates.getTemplateName(file);
-        if (!Strings.isNullOrEmpty(templateName)) {
-            cellSize = settings.getDoubleOrDefault("gridding_cellsize", templateName, cellSize);
-            if (cellSize <= 0.0) {
-                cellSize = 0.1;
-            }
-            blankingDistance = settings.getDoubleOrDefault("gridding_blankingdistance", templateName, blankingDistance);
-            if (blankingDistance <= 0.0) {
-                blankingDistance = 1.0;
-            }
+        if (Strings.isNullOrEmpty(templateName)) {
+            return null;
         }
-
+        Double cellSize = settings.getDouble("gridding_cellsize", templateName);
+        Double blankingDistance = settings.getDouble("gridding_blankingdistance", templateName);
+        if (cellSize == null || cellSize <= 0.0 || blankingDistance == null || blankingDistance <= 0.0) {
+            return null;
+        }
         return new GriddingParams(cellSize, blankingDistance);
     }
 

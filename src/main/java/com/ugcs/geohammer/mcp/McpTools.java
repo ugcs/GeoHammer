@@ -19,6 +19,7 @@ import com.ugcs.geohammer.mcp.tool.CropByRegion;
 import com.ugcs.geohammer.mcp.tool.CropGprSamples;
 import com.ugcs.geohammer.mcp.tool.CutToLines;
 import com.ugcs.geohammer.mcp.tool.DeleteLine;
+import com.ugcs.geohammer.mcp.tool.EstimateGriddingParams;
 import com.ugcs.geohammer.mcp.tool.ExportCsv;
 import com.ugcs.geohammer.mcp.tool.GetChartImage;
 import com.ugcs.geohammer.mcp.tool.GetFileInfo;
@@ -54,6 +55,7 @@ import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.TraceTransform;
 import com.ugcs.geohammer.service.gridding.GriddingSettings;
 import com.ugcs.geohammer.service.gridding.GriddingService;
+import com.ugcs.geohammer.service.survey.SurveyService;
 import com.ugcs.geohammer.service.script.PythonInterpreter;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
@@ -89,6 +91,7 @@ public class McpTools {
 
     public McpTools(Model model, Loader loader, UndoModel undoModel, TraceTransform traceTransform,
                     GriddingService griddingService, GriddingSettings griddingSettings, GridLayer gridLayer,
+                    SurveyService surveyService,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
                     ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter,
                     EventSender eventSender, EventsFactory eventsFactory) {
@@ -107,6 +110,7 @@ public class McpTools {
         register(new CreateSeries(model, undoModel));
         register(new ApplyFilter(model));
         register(new RunGridding(model, griddingService, gridLayer, griddingSettings));
+        register(new EstimateGriddingParams(model, surveyService));
         register(new ListLines(model));
         register(new SplitLine(model, traceTransform));
         register(new MergeLines(model, traceTransform));

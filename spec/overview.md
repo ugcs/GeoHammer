@@ -144,7 +144,8 @@ Locking, version checks and undo tracking are handled by `McpTools.callTool`.
 - `format` — file types, readers and writers
 - `map` — map view and layers (track, grid, satellite, radar, quality); layer drawing colors live in `MapColors`
 - `model` — `Model`, events, undo, templates, column schema
-- `service` — gridding, palettes, transforms, GPR processing, quality checks, Python scripts, tasks
+- `service` — gridding, palettes, transforms, GPR processing, quality checks, survey geometry (`SurveyService`:
+  line spacing from the track), Python scripts, tasks
 - `math` — interpolation, filters, statistics, projections
 - `mcp` — embedded MCP server (HTTP JSON-RPC on 127.0.0.1) and tools
 - `template` — CSV template editor
@@ -156,6 +157,7 @@ Locking, version checks and undo tracking are handled by `McpTools.callTool`.
 - `Check` — preconditions; `Nulls`, `Strings` — null-safe helpers; `Result` — success/error value
 - `Numbers` — fast number parsing; `Text` — text and multi-format date parsing; `Regex` — regex helpers
 - `QuickSelect` — k-th element / median without sorting; `PrefixSum`, `SegmentTree`, `KdTree`
+- `PrincipalComponents` — principal axes of points, or of the steps of a path counted by their length
 - `FileTypes`, `FileNames`, `Templates` — file type detection, names, template name of a file
 - `SphericalMercator`, `CoordinatesMath`, `UtmProjector` — coordinate math
 - `SinglePendingExecutor`, `ReentranceGuard` — last-wins tasks, re-entrance guard

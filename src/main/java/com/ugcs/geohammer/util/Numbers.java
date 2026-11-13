@@ -16,6 +16,11 @@ public final class Numbers {
 	private Numbers() {
 	}
 
+	public static double round(double value, int numFractionDigits) {
+		double factor = Math.pow(10, numFractionDigits);
+		return Math.round(value * factor) / factor;
+	}
+
 	public static ParseResult parseNumber(CharSequence str) {
 		if (str == null) {
 			return ParseResult.empty();
@@ -107,9 +112,9 @@ public final class Numbers {
 		}
 	}
 
-	private static ParseResult parseFallback(CharSequence s, int from, int to) {
+	private static ParseResult parseFallback(CharSequence str, int from, int to) {
 		try {
-			return ParseResult.number(JavaDoubleParser.parseDouble(s, from, to - from));
+			return ParseResult.number(JavaDoubleParser.parseDouble(str, from, to - from));
 		} catch (NumberFormatException e) {
 			return ParseResult.error();
 		}

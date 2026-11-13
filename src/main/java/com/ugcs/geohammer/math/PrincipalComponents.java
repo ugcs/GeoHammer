@@ -67,6 +67,51 @@ public final class PrincipalComponents {
         return new Point2D(xSum / n, ySum / n);
     }
 
+    // components of the offsets (directions) between the adjacent pairs of points
+    public static Components2 findOffsetComponents(double[] x, double[] y) {
+        Check.notNull(x);
+        Check.notNull(y);
+        Check.condition(x.length == y.length);
+
+        double lengthSum = 0;
+        double xx = 0;
+        double xy = 0;
+        double yy = 0;
+        for (int i = 0; i < x.length - 1; i++) {
+            double dx = x[i + 1] - x[i];
+            double dy = y[i + 1] - y[i];
+
+            double length = Math.hypot(dx, dy);
+            if (length > 0) {
+                // products of the unit vector, weighted by the vector length
+                lengthSum += length;
+                xx += dx * dx / length;
+                xy += dx * dy / length;
+                yy += dy * dy / length;
+            }
+        }
+        if (!(lengthSum > 0)) {
+            return new Components2(
+                    new Point2D(0, 0),
+                    new Point2D(1, 0),
+                    new Point2D(0, 1));
+        }
+        xx /= lengthSum;
+        xy /= lengthSum;
+        yy /= lengthSum;
+
+        // eigen decomposition of a symmetric 2x2 matrix
+        double mean = 0.5 * (xx + yy);
+        double radius = Math.hypot(0.5 * (xx - yy), xy);
+        double angle = 0.5 * Math.atan2(2 * xy, xx - yy);
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+
+        Point2D c0 = new Point2D(cos, sin).multiply(mean + radius);
+        Point2D c1 = new Point2D(-sin, cos).multiply(mean - radius);
+        return new Components2(new Point2D(0, 0), c0, c1);
+    }
+
     // shape components in a 2d space
     public static class Components2 {
 

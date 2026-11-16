@@ -61,6 +61,9 @@ jobs:
       - name: Set bundle build number
         run: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ inputs.timestamp }}" target/installer/GeoHammer.app/Contents/Info.plist
 
+      - name: Mark app image as signed
+        run: sed -i '' 's#<signed>false</signed>#<signed>true</signed>#' target/installer/GeoHammer.app/Contents/app/.jpackage.xml
+
       - name: Import developer id certificate
         env:
           CERT_P12: ${{ secrets.SIGNING_CERTIFICATE_P12 }}

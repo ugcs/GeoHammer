@@ -12,9 +12,11 @@ mvn javafx:run                       # run the app
 mvn checkstyle:checkstyle            # warnings only, never fails the build
 ```
 
-Runtime folders (resolved relative to the working dir, then to the jar): `templates/` (CSV templates, watched for
-changes), `scripts/` (Python scripts), `data/` (demo files opened from the welcome panel; a demo opens a fresh copy
-in `~/.geohammer/demo/`, never the shipped file). User settings: `~/.geohammer/templates-settings.properties`.
+Runtime folders (resolved relative to the working dir, then to the jar): `templates/` (built-in CSV templates,
+watched for changes), `scripts/` (Python scripts), `data/` (demo files opened from the welcome panel; a demo opens a
+fresh copy in `~/.geohammer/demo/`, never the shipped file). User settings: `~/.geohammer/templates-settings.properties`.
+User folder (`UserFolder`): a setting, `~/.geohammer` by default; user CSV templates are in its `templates/`
+subfolder (created at startup, watched for changes).
 
 # Domain Glossary
 
@@ -110,6 +112,8 @@ publishing thread; listeners that touch UI must tolerate non-FX publishers. Find
 - `TemplateUnitChangedEvent` — x-axis unit changed; synced to charts with the same template.
 - `TaskRegisteredEvent` / `TaskCompletedEvent` — background task lifecycle (`TaskService` only).
 - `UndoStackChanged`, `ThemeSelectedEvent` — undo stack / theme changed.
+- `UserFolderChangedEvent` — the user folder setting changed (published off the FX thread); reload what is read from
+  it.
 - `WhatChanged(Change)` — generic invalidation. Key values: `justdraw` (repaint), `traceCut` (trace set changed),
   `traceValues` (sample values changed), `traceSelected`, `mapscroll`/`mapzoom`, `csvDataZoom`, `updateButtons`.
 
@@ -137,8 +141,11 @@ Line structure changes go through `TraceTransform`, which already does all of th
 
 **CSV templates**
 Matching (`FileTemplates.findTemplate`) reads the first lines of a file and tries `*.yaml` templates from the file's
-own directory first, then the app `templates/` folder; the first `match-regex` hit wins. No match opens the template
-editor when interactive, otherwise fails. User templates are never saved into the app folder.
+own directory first, then the user templates folder (`UserFolder.getTemplatesPath()`), then the app `templates/`
+folder; the first `match-regex` hit wins. A user template replaces the app template of the same name
+(`FileTemplates` merges both folders into one list). The user folder is changed in Settings → General;
+`UserFolder.setPath` publishes `UserFolderChangedEvent`, and `FileTemplates` reloads and moves the watcher. No match
+opens the template editor when interactive, otherwise fails. User templates are never saved into the app folder.
 
 **Add an MCP tool**
 Extend `McpTool` (`getName`, `buildSchema`, `invoke`; override `modifiesFiles()` for writes), register it in the

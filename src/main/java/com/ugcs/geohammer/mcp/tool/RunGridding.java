@@ -62,7 +62,8 @@ public class RunGridding extends McpTool {
                 "Grid cell size in meters. Required if the file has no grid, otherwise defaults "
                 + "to the value of the current grid.");
         addProperty(schema, "blanking_distance", "number",
-                "Blanking distance in meters: cells farther than this from any data point are left empty. "
+                "Blanking distance in meters: gaps between data points up to twice this wide are filled. "
+                + "Wider gaps and the area outside the survey are left empty beyond one cell from the data. "
                 + "Required if the file has no grid, otherwise defaults to the value of the current grid.");
         addProperty(schema, "range_min", "number",
                 "Lower bound of the color scale in series units, lower values get the first color.");

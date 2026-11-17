@@ -33,6 +33,9 @@ public class GriddingService {
     // 0 overshoots near strong anomalies, and 0.999999 becomes unstable with more iterations
     private static final double SPLINES_TENSION = 0.9999;
 
+    // cells shown outside the outline of the data cells
+    private static final int MASK_MARGIN = 1;
+
     public GriddingService() {
     }
 
@@ -45,8 +48,9 @@ public class GriddingService {
         }
 
         Envelope envelope = Envelope.of(dataPoints);
-        // add padding of blanking distance to envelope
-        double padding = ((int) Math.ceil(params.blankingDistance() / params.cellSize()) + 1) * params.cellSize();
+        // add padding of the mask margin to envelope,
+        // and a cell for the rounding of the grid size
+        double padding = (MASK_MARGIN + 1) * params.cellSize();
         envelope = envelope.expand(padding);
 
         double width = envelope.width();
@@ -98,22 +102,8 @@ public class GriddingService {
 
         // visibility mask
         int blankingRadius = (int) (params.blankingDistance() / params.cellSize());
-        boolean[][] visiblePoints = new boolean[gridWidth][gridHeight];
-        for (Map.Entry<CellIndex, List<Double>> entry : cellValues.entrySet()) {
-            CellIndex cellIndex = entry.getKey();
-            int x = cellIndex.x();
-            int y = cellIndex.y();
-
-            for (int dx = -blankingRadius; dx <= blankingRadius; dx++) {
-                for (int dy = -blankingRadius; dy <= blankingRadius; dy++) {
-                    int nx = x + dx;
-                    int ny = y + dy;
-                    if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
-                        visiblePoints[nx][ny] = true;
-                    }
-                }
-            }
-        }
+        GridMask gridMask = new GridMask(blankingRadius, MASK_MARGIN);
+        boolean[][] visiblePoints = gridMask.create(gridWidth, gridHeight, cellValues.keySet());
 
         for (int i = 0; i < gridWidth; i++) {
             for (int j = 0; j < gridHeight; j++) {
@@ -264,6 +254,4 @@ public class GriddingService {
                     new LatLon(maxLatitude, maxLongitude));
         }
     }
-
-    private record CellIndex(int x, int y) {}
 }

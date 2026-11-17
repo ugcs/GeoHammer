@@ -559,6 +559,11 @@ public class GriddingTool extends FilterToolView {
     }
 
     @Override
+    public void updateView() {
+        onInputChange();
+    }
+
+    @Override
     public void loadPreferences() {
         SgyFile file = selectedFile;
         String seriesName = model.getSelectedSeriesName(file);
@@ -748,21 +753,15 @@ public class GriddingTool extends FilterToolView {
         );
     }
 
-    private void publishFilter() {
-        SgyFile file = selectedFile;
-        String seriesName = model.getSelectedSeriesName(file);
-
-        GriddingFilter filter = getFilter();
-        gridLayer.setFilter(file, seriesName, filter);
-    }
-
     private void applyFilter() {
-        // save filter settings
         SgyFile file = selectedFile;
         String seriesName = model.getSelectedSeriesName(file);
-        griddingSettings.saveFilter(file, seriesName, getFilter());
+        GriddingFilter filter = getFilter();
 
-        publishFilter();
+        // save filter settings
+        griddingSettings.saveFilter(file, seriesName, filter);
+        // publish filter
+        gridLayer.setFilter(file, seriesName, filter);
     }
 
     private void applyGridding(Collection<SgyFile> files, String seriesName) {
@@ -771,11 +770,17 @@ public class GriddingTool extends FilterToolView {
             return;
         }
 
-        publishFilter();
+        SgyFile file = selectedFile;
+        String filterSeriesName = model.getSelectedSeriesName(file);
+        GriddingFilter filter = getFilter();
 
         var future = submitAction(() -> {
-            showParamsChangedWarning(false);
             GriddingResult result = griddingService.runGridding(files, seriesName, params);
+            if (result != null) {
+                // published with the new grid: an update of the current grid
+                // resets the inputs to its parameters
+                gridLayer.setFilter(file, filterSeriesName, filter);
+            }
             for (SgyFile targetFile : files) {
                 gridLayer.setResult(targetFile, result);
             }

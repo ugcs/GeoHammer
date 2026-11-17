@@ -36,6 +36,8 @@ public class GriddingService {
     // cells shown outside the outline of the data cells
     private static final int MASK_MARGIN = 1;
 
+    private static final int MAX_GRID_CELLS = 50_000_000;
+
     public GriddingService() {
     }
 
@@ -60,6 +62,11 @@ public class GriddingService {
         int gridHeight = (int) (height / params.cellSize());
         if (gridWidth == 0 || gridHeight == 0) {
             return null;
+        }
+
+        long numCells = (long) gridWidth * gridHeight;
+        if (numCells > MAX_GRID_CELLS) {
+            throw new IllegalArgumentException("Grid is too large. Increase the cell size");
         }
 
         Map<CellIndex, List<Double>> cellValues = new HashMap<>();

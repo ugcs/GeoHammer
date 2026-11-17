@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,6 +73,12 @@ class GriddingServiceTest extends BaseParsersTest {
 
     // the size of the grid around the data slightly changes the interpolation
     private static final float VALUE_TOLERANCE = 0.05f;
+
+    // survey grid of this cell size exceeds the limit
+    private static final GriddingParams OVERSIZED_PARAMS = new GriddingParams(0.005, 4);
+
+    // a rejection does not build the grid
+    private static final Duration REJECTION_TIMEOUT = Duration.ofSeconds(1);
 
     private final GriddingService griddingService = new GriddingService();
 
@@ -135,6 +144,29 @@ class GriddingServiceTest extends BaseParsersTest {
                 () -> assertEquals(112.53217f, getValue(result, 10, 10), VALUE_TOLERANCE),
                 () -> assertEquals(94.4659f, getValue(result, 30, 10), VALUE_TOLERANCE),
                 () -> assertEquals(101.29328f, getValue(result, 46, 50), VALUE_TOLERANCE));
+    }
+
+    @Test
+    void runGridding_cellSizeExceedsLimit_rejects() {
+        CsvFile survey = createSurvey();
+
+        assertTimeout(REJECTION_TIMEOUT, () -> assertThrows(IllegalArgumentException.class,
+                () -> griddingService.runGridding(List.of(survey), SURVEY_SERIES, OVERSIZED_PARAMS)));
+    }
+
+    @Test
+    void runGridding_rowWithInvalidCoordinates_rejects() {
+        CsvFile survey = createSurvey();
+        List<GeoData> values = new ArrayList<>(survey.getGeoData());
+        GeoData invalid = new GeoData(GeoData.getSchema(values));
+        invalid.setLatitude(0.0);
+        invalid.setLongitude(0.0);
+        invalid.setValue(SURVEY_SERIES, 100);
+        values.add(invalid);
+        survey.setGeoData(values);
+
+        assertTimeout(REJECTION_TIMEOUT, () -> assertThrows(IllegalArgumentException.class,
+                () -> griddingService.runGridding(List.of(survey), SURVEY_SERIES, SURVEY_PARAMS)));
     }
 
     private CsvFile createSurvey() {

@@ -51,6 +51,8 @@ public class RunGridding extends McpTool {
                 + "an open data file, or change display options of its current grid. The grid is shown "
                 + "as a map overlay. Passing cell_size or blanking_distance runs the gridding, which may "
                 + "take a while on large files; omit both to only change the display options. "
+                + "A grid above the internal size limit (currently 50 million cells, may change) is rejected "
+                + "with an error; use a larger cell size. "
                 + "Display options match the gridding tool in the UI; omitted options keep their "
                 + "current values for the series.");
         ObjectNode schema = objectSchema();

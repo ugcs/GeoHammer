@@ -38,6 +38,8 @@
     -fx-faint-focus-color: transparent;
 }
 
+.button.flat,
+.button.flat:focused,
 .toggle-button.flat,
 .toggle-button.flat:focused {
     -fx-background-color: transparent;
@@ -46,10 +48,12 @@
     -fx-text-fill: -color-text;
 }
 
+.button.flat:hover,
 .toggle-button.flat:hover {
     -fx-background-color: -color-surface-accent-translucent;
 }
 
+.button.flat:armed,
 .toggle-button.flat:selected,
 .toggle-button.flat:selected:focused {
     -fx-background-color: -color-surface-accent;
@@ -78,6 +82,14 @@
 .warning {
     -fx-text-fill: -color-warning;
     -fx-font-weight: bold;
+}
+
+.warning-banner {
+    -fx-background-color: -color-warning;
+    -fx-background-radius: 4;
+    -fx-text-fill: -color-accent-text;
+    -fx-font-weight: bold;
+    -fx-padding: 4 8;
 }
 
 .icon {

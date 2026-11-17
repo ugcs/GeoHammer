@@ -21,8 +21,10 @@ import com.ugcs.geohammer.service.gridding.GriddingResult;
 import com.ugcs.geohammer.service.gridding.GriddingService;
 import com.ugcs.geohammer.service.palette.PaletteType;
 import com.ugcs.geohammer.service.palette.SpectrumType;
+import com.ugcs.geohammer.service.survey.SurveyService;
 import com.ugcs.geohammer.util.Formats;
 import com.ugcs.geohammer.util.Nulls;
+import com.ugcs.geohammer.util.SinglePendingExecutor;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Templates;
 import com.ugcs.geohammer.util.Text;
@@ -40,6 +42,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -47,25 +50,26 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.controlsfx.control.RangeSlider;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 public class GriddingTool extends FilterToolView {
 
+    private static final Logger log = LoggerFactory.getLogger(GriddingTool.class);
+
     private static final float SLIDER_EXPAND_THRESHOLD = 0.15f;
 
     private static final float SLIDER_SHRINK_WIDTH_THRESHOLD = 0.3f;
-
-    private static final double MAX_CELL_SIZE = 100.0;
-
-    private static final double MAX_BLANKING_DISTANCE = 100.0;
 
     private final Model model;
 
@@ -79,14 +83,16 @@ public class GriddingTool extends FilterToolView {
 
     private final GriddingSettings griddingSettings;
 
+    private final SurveyService surveyService;
+
+    private final SinglePendingExecutor pendingExecutor;
+
     // shows that input events from the filter controls should be ignored;
     // alternative to this flag is disabling listeners during the preference
     // loading stage which makes code messier
     private final AtomicBoolean ignoreFilterEvents = new AtomicBoolean(false);
 
     // view
-
-    private final Label warning;
 
     private final TextField cellSizeInput;
 
@@ -110,6 +116,7 @@ public class GriddingTool extends FilterToolView {
             PaletteView paletteView,
             GriddingService griddingService,
             GriddingSettings griddingSettings,
+            SurveyService surveyService,
             TaskService taskService,
             ExecutorService executor
     ) {
@@ -120,12 +127,9 @@ public class GriddingTool extends FilterToolView {
         this.paletteView = paletteView;
         this.griddingService = griddingService;
         this.griddingSettings = griddingSettings;
+        this.surveyService = surveyService;
         this.taskService = taskService;
-
-        warning = new Label("Warning: Grid needs to be recalculated.");
-        warning.getStyleClass().add("warning");
-        warning.setVisible(false);
-        warning.setManaged(false);
+        this.pendingExecutor = new SinglePendingExecutor(executor);
 
         InputWithTopLabel cellSizeWithLabel = new InputWithTopLabel("Cell size (m)");
         cellSizeInput = cellSizeWithLabel.getInput();
@@ -135,9 +139,17 @@ public class GriddingTool extends FilterToolView {
         blankingDistanceInput = blankingDistanceWithLabel.getInput();
         blankingDistanceInput.textProperty().addListener(this::onBlankingDistanceChange);
 
+        Button autoParamsButton = new Button("Auto");
+        autoParamsButton.getStyleClass().add("flat");
+        autoParamsButton.setMinWidth(Region.USE_PREF_SIZE);
+        autoParamsButton.setTooltip(new Tooltip("Estimate from the survey line spacing"));
+        autoParamsButton.setOnAction(e -> submitAutoParams(selectedFile, false));
+
         HBox inputGroup = new HBox(Views.DEFAULT_SPACING,
                 cellSizeWithLabel,
-                blankingDistanceWithLabel);
+                blankingDistanceWithLabel,
+                autoParamsButton);
+        inputGroup.setAlignment(Pos.BOTTOM_LEFT);
 
         // palette
 
@@ -219,7 +231,6 @@ public class GriddingTool extends FilterToolView {
         );
 
         inputContainer.getChildren().setAll(
-                warning,
                 inputGroup,
                 rangeGroup,
                 paletteGroup,
@@ -394,8 +405,11 @@ public class GriddingTool extends FilterToolView {
 
     private void showParamsChangedWarning(boolean show) {
         Platform.runLater(() -> {
-            warning.setVisible(show);
-            warning.setManaged(show);
+            if (show) {
+                showWarning("Grid needs to be recalculated", false);
+            } else {
+                hideWarning();
+            }
         });
     }
 
@@ -550,19 +564,73 @@ public class GriddingTool extends FilterToolView {
         String seriesName = model.getSelectedSeriesName(file);
 
         GriddingParams params = loadParams(file);
-        updateParamInputs(params);
+        if (params != null) {
+            updateParamInputs(params);
+        } else {
+            if (isVisibleFor(file)) {
+                submitAutoParams(file, true);
+            }
+        }
 
         GriddingFilter filter = loadFilter(file, seriesName);
         updateFilterInputs(filter);
     }
 
-    private GriddingParams loadParams(SgyFile file) {
+    private @Nullable GriddingParams loadParams(SgyFile file) {
+        if (file == null) {
+            return null;
+        }
+
         GriddingResult result = gridLayer.getResult(file);
         GriddingParams params = result != null ? result.params() : null;
         if (params != null) {
             return params;
         }
         return griddingSettings.loadParams(file);
+    }
+
+    private @Nullable GriddingParams estimateParams(SgyFile file) {
+        if (file == null) {
+            return null;
+        }
+
+        try {
+            OptionalDouble lineSpacing = surveyService.estimateLineSpacing(file);
+            if (lineSpacing.isPresent()) {
+                return GriddingParams.fromLineSpacing(lineSpacing.getAsDouble());
+            }
+        } catch (RuntimeException e) {
+            log.error("Error estimating line spacing", e);
+        }
+        return null;
+    }
+
+    // in case of init save estimated params in settings
+    // and use default params when estimation fails
+    private void submitAutoParams(SgyFile file, boolean init) {
+        if (file == null) {
+            return;
+        }
+
+        pendingExecutor.submit(() -> {
+            GriddingParams estimated = estimateParams(file);
+            GriddingParams params = estimated == null && init ? GriddingParams.DEFAULT : estimated;
+            boolean saveParams = init && estimated != null;
+            Platform.runLater(() -> {
+                // estimate of a file that is not selected anymore
+                if (!Objects.equals(file, selectedFile)) {
+                    return;
+                }
+                if (params == null) {
+                    showWarning("No survey lines detected", true);
+                    return;
+                }
+                updateParamInputs(params);
+                if (saveParams) {
+                    griddingSettings.saveParams(file, params);
+                }
+            });
+        });
     }
 
     // filter of the grid layer takes precedence over the saved one,
@@ -647,8 +715,12 @@ public class GriddingTool extends FilterToolView {
     private GriddingParams getParams() {
         Double cellSize = (Double)cellSizeInput.getUserData();
         Double blankingDistance = (Double)blankingDistanceInput.getUserData();
-        if (cellSize == null || cellSize <= 0.0 || cellSize > MAX_CELL_SIZE
-                || blankingDistance == null || blankingDistance <= 0.0 || blankingDistance > MAX_BLANKING_DISTANCE) {
+        if (cellSize == null
+                || cellSize <= 0.0
+                || cellSize > GriddingParams.MAX_CELL_SIZE
+                || blankingDistance == null
+                || blankingDistance <= 0.0
+                || blankingDistance > GriddingParams.MAX_BLANKING_DISTANCE) {
             return null;
         }
         return new GriddingParams(
@@ -685,7 +757,11 @@ public class GriddingTool extends FilterToolView {
     }
 
     private void applyFilter() {
-        savePreferences();
+        // save filter settings
+        SgyFile file = selectedFile;
+        String seriesName = model.getSelectedSeriesName(file);
+        griddingSettings.saveFilter(file, seriesName, getFilter());
+
         publishFilter();
     }
 
@@ -729,7 +805,8 @@ public class GriddingTool extends FilterToolView {
 
     @EventListener
     private void onChange(WhatChanged changed) {
-        if (changed.isTraceCut() || changed.isTraceValues()) {
+        if ((changed.isTraceCut() || changed.isTraceValues())
+                && gridLayer.getResult(selectedFile) != null) {
             showParamsChangedWarning(true);
         }
     }

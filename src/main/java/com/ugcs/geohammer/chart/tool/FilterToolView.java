@@ -2,14 +2,17 @@ package com.ugcs.geohammer.chart.tool;
 
 import com.ugcs.geohammer.util.Tasks;
 import com.ugcs.geohammer.view.Views;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +23,8 @@ import java.util.concurrent.ExecutorService;
 public abstract class FilterToolView extends ToolView {
 
     private static final Logger log = LoggerFactory.getLogger(FilterToolView.class);
+
+    private static final Duration WARNING_DURATION = Duration.seconds(4);
 
     protected final ExecutorService executor;
 
@@ -34,6 +39,10 @@ public abstract class FilterToolView extends ToolView {
     // view
 
     protected final ProgressIndicator progress;
+
+    private final Label warning;
+
+    private final PauseTransition warningTimer;
 
     protected final VBox inputContainer;
 
@@ -68,8 +77,33 @@ public abstract class FilterToolView extends ToolView {
         HBox.setHgrow(separator, Priority.ALWAYS);
         buttonContainer = new HBox(Views.DEFAULT_SPACING, applyButton, separator, applyToAllButton);
 
-        VBox container = Tools.createToolContainer(inputContainer, buttonContainer);
+        warning = new Label();
+        warning.getStyleClass().add("warning-banner");
+        warning.setMaxWidth(Double.MAX_VALUE);
+        warning.setWrapText(true);
+        warning.setVisible(false);
+        warning.setManaged(false);
+        warningTimer = new PauseTransition(WARNING_DURATION);
+        warningTimer.setOnFinished(e -> hideWarning());
+
+        VBox container = Tools.createToolContainer(warning, inputContainer, buttonContainer);
         getChildren().addAll(progress, container);
+    }
+
+    public void showWarning(String message, boolean autoHide) {
+        warning.setText(message);
+        warning.setVisible(true);
+        warning.setManaged(true);
+        warningTimer.stop();
+        if (autoHide) {
+            warningTimer.playFromStart();
+        }
+    }
+
+    public void hideWarning() {
+        warningTimer.stop();
+        warning.setVisible(false);
+        warning.setManaged(false);
     }
 
     public void showApply(boolean show) {

@@ -2,6 +2,7 @@ package com.ugcs.geohammer.settings;
 
 import com.ugcs.geohammer.AppContext;
 import com.ugcs.geohammer.model.template.FileTemplates;
+import com.ugcs.geohammer.model.template.UserTemplatesFolder;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.Views;
@@ -36,25 +37,26 @@ public class TemplatesTab implements SettingsTab {
 
     private final VBox content;
 
-    private final TextField templatesFolderInput;
+    private final TextField userTemplatesFolderInput;
 
     public TemplatesTab(FileTemplates fileTemplates, ExecutorService executor) {
         this.fileTemplates = Check.notNull(fileTemplates);
         this.executor = Check.notNull(executor);
 
-        templatesFolderInput = new TextField();
-        HBox.setHgrow(templatesFolderInput, Priority.ALWAYS);
+        userTemplatesFolderInput = new TextField();
+        userTemplatesFolderInput.setPromptText(UserTemplatesFolder.getDefaultPath().toString());
+        HBox.setHgrow(userTemplatesFolderInput, Priority.ALWAYS);
 
         Button browse = new Button("Browse...");
-        browse.setOnAction(event -> onTemplatesFolderBrowse());
+        browse.setOnAction(event -> onUserTemplatesFolderBrowse());
 
-        HBox templatesFolderWithBrowse = new HBox(Views.DEFAULT_SPACING, templatesFolderInput, browse);
-        templatesFolderWithBrowse.setAlignment(Pos.CENTER_LEFT);
+        HBox userTemplatesFolderWithBrowse = new HBox(Views.DEFAULT_SPACING, userTemplatesFolderInput, browse);
+        userTemplatesFolderWithBrowse.setAlignment(Pos.CENTER_LEFT);
 
-        NodeWithTopLabel<HBox> templatesFolderWithLabel = new NodeWithTopLabel<>(
-                "Templates folder", templatesFolderWithBrowse);
+        NodeWithTopLabel<HBox> userTemplatesFolderWithLabel = new NodeWithTopLabel<>(
+                "User templates folder", userTemplatesFolderWithBrowse);
 
-        content = new VBox(SettingsView.VERTICAL_SPACING, templatesFolderWithLabel);
+        content = new VBox(SettingsView.VERTICAL_SPACING, userTemplatesFolderWithLabel);
     }
 
     @Override
@@ -65,24 +67,24 @@ public class TemplatesTab implements SettingsTab {
     @Override
     public ValidationResult validate() {
         try {
-            Path path = getTemplatesFolderPath();
+            Path path = readUserTemplatesFolderInput();
             if (path != null && !path.equals(fileTemplates.getUserTemplatesPath()) && !Files.isDirectory(path)) {
-                return ValidationResult.fromError(templatesFolderInput, "Templates folder does not exist");
+                return ValidationResult.fromError(userTemplatesFolderInput, "User templates folder does not exist");
             }
         } catch (InvalidPathException e) {
-            return ValidationResult.fromError(templatesFolderInput, "Templates folder must be a valid path");
+            return ValidationResult.fromError(userTemplatesFolderInput, "User templates folder must be a valid path");
         }
         return new ValidationResult();
     }
 
     @Override
     public void load() {
-        templatesFolderInput.setText(fileTemplates.getUserTemplatesPath().toString());
+        userTemplatesFolderInput.setText(fileTemplates.getUserTemplatesPath().toString());
     }
 
     @Override
     public void save() {
-        Path path = getTemplatesFolderPath();
+        Path path = readUserTemplatesFolderInput();
         executor.submit(() -> {
             try {
                 fileTemplates.setUserTemplatesPath(path);
@@ -92,14 +94,14 @@ public class TemplatesTab implements SettingsTab {
         });
     }
 
-    private @Nullable Path getTemplatesFolderPath() {
-        String text = Strings.trim(templatesFolderInput.getText());
+    private @Nullable Path readUserTemplatesFolderInput() {
+        String text = Strings.trim(userTemplatesFolderInput.getText());
         return Strings.isNullOrEmpty(text)
                 ? null
                 : Path.of(text).toAbsolutePath().normalize();
     }
 
-    private void onTemplatesFolderBrowse() {
+    private void onUserTemplatesFolderBrowse() {
         DirectoryChooser directoryChooser = new DirectoryChooser();
         directoryChooser.setTitle("Select templates folder");
         File directory = fileTemplates.getUserTemplatesPath().toFile();
@@ -108,7 +110,7 @@ public class TemplatesTab implements SettingsTab {
         }
         File selected = directoryChooser.showDialog(AppContext.stage);
         if (selected != null) {
-            templatesFolderInput.setText(selected.getAbsolutePath());
+            userTemplatesFolderInput.setText(selected.getAbsolutePath());
         }
     }
 }

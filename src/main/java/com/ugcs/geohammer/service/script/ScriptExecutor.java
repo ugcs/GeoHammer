@@ -3,6 +3,7 @@ package com.ugcs.geohammer.service.script;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,6 +32,8 @@ public class ScriptExecutor {
 
 	private static final Logger log = LoggerFactory.getLogger(ScriptExecutor.class);
 
+	private static final String PYTHONPATH_VARIABLE = "PYTHONPATH";
+
 	private final Loader loader;
 
 	private final EventSender eventSender;
@@ -41,16 +44,20 @@ public class ScriptExecutor {
 
 	private final PythonInterpreter pythonInterpreter;
 
+	private final ScriptPaths scriptPaths;
+
 	public ScriptExecutor(Loader loader,
 	                      EventSender eventSender,
 	                      EventsFactory eventsFactory,
 	                      CommandExecutor commandExecutor,
-	                      PythonInterpreter pythonInterpreter) {
+	                      PythonInterpreter pythonInterpreter,
+	                      ScriptPaths scriptPaths) {
 		this.loader = loader;
 		this.eventSender = eventSender;
 		this.eventsFactory = eventsFactory;
 		this.commandExecutor = commandExecutor;
 		this.pythonInterpreter = pythonInterpreter;
+		this.scriptPaths = scriptPaths;
 	}
 
 	public void execute(SgyFile sgyFile, File scriptFile, ScriptMetadata metadata, Map<String, String> params,
@@ -69,7 +76,9 @@ public class ScriptExecutor {
 			List<String> command = buildCommand(scriptFile, metadata, fileParams, tempFile);
 			eventSender.send(eventsFactory.createScriptExecutionStartedEvent(
 					metadata.filename(), pythonInterpreter.getVersion().toString()));
-			commandExecutor.executeCommand(command, output);
+			String pythonImportFolders = createPythonImportFolders(scriptPaths.getScriptsPath(),
+					System.getenv(PYTHONPATH_VARIABLE));
+			commandExecutor.executeCommand(command, null, Map.of(PYTHONPATH_VARIABLE, pythonImportFolders), output);
 			if (Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException();
 			}
@@ -82,6 +91,14 @@ public class ScriptExecutor {
 				log.warn("Failed to delete temporary file: {}", tempFile);
 			}
 		}
+	}
+
+	private static String createPythonImportFolders(Path scriptsPath, @Nullable String existingPythonFolders) {
+		String pythonImportFolders = scriptsPath.toAbsolutePath().toString();
+		if (!Strings.isNullOrEmpty(existingPythonFolders)) {
+			pythonImportFolders += File.pathSeparator + existingPythonFolders;
+		}
+		return pythonImportFolders;
 	}
 
 	private File createTempFile(SgyFile sgyFile) throws IOException {

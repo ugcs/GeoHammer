@@ -30,6 +30,11 @@ class UserTemplatesFolderTest {
     }
 
     @Test
+    void defaultFolderIsInUserHome() {
+        assertEquals(DEFAULT_PATH, UserTemplatesFolder.getDefaultPath());
+    }
+
+    @Test
     void usesDefaultFolderWhenNothingIsStored() {
         UserTemplatesFolder folder = new UserTemplatesFolder(settings);
 

@@ -38,7 +38,7 @@ public class GetScript extends ScriptTool {
     public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
         String scriptName = requiredString(args, "script");
         ScriptMetadata metadata = findScript(scriptName);
-        Path scriptFile = scriptPaths.getScriptsPath().resolve(metadata.filename());
+        Path scriptFile = scriptPaths.findScriptFile(metadata.filename());
         ObjectNode result = describeScript(metadata);
         result.put("code", Files.readString(scriptFile));
         return text(toJson(result));

@@ -33,7 +33,7 @@ public class UserTemplatesFolder {
         this.path = readPath(settings);
     }
 
-    private static Path getDefaultPath() {
+    public static Path getDefaultPath() {
         return Path.of(System.getProperty("user.home"), DEFAULT_USER_FOLDER, DEFAULT_TEMPLATES_FOLDER);
     }
 

@@ -17,6 +17,10 @@ watched for changes), `scripts/` (Python scripts), `data/` (demo files opened fr
 fresh copy in `~/.geohammer/demo/`, never the shipped file). User settings: `~/.geohammer/templates-settings.properties`.
 User templates folder (`UserTemplatesFolder`): a setting, `~/.geohammer/templates` by default (created at startup,
 watched for changes).
+User scripts folder (`UserScriptsFolder`): a setting, `~/.geohammer/scripts` by default (created at startup, read on
+every listing); a user script replaces the built-in script with the same file name (`ScriptPaths.findScriptFile`,
+`ScriptMetadataLoader`). Scripts run with the app `scripts/` folder on `PYTHONPATH`, so user scripts can import the
+shipped helper modules.
 
 # Domain Glossary
 

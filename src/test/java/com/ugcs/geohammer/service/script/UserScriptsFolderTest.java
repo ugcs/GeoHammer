@@ -1,7 +1,9 @@
 package com.ugcs.geohammer.service.script;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 
@@ -63,7 +65,7 @@ class UserScriptsFolderTest {
 	void storesChangedFolder() {
 		UserScriptsFolder folder = new UserScriptsFolder(settings);
 
-		folder.setPath(root);
+		assertTrue(folder.setPath(root));
 
 		assertEquals(root, folder.getPath());
 		assertEquals(root.toString(), settings.getString(PREF_USER_SCRIPTS, PREF_PATH));
@@ -76,7 +78,7 @@ class UserScriptsFolderTest {
 		// a changed folder would be stored again
 		settings.setValue(PREF_USER_SCRIPTS, PREF_PATH, null);
 
-		folder.setPath(root);
+		assertFalse(folder.setPath(root));
 
 		assertNull(settings.getString(PREF_USER_SCRIPTS, PREF_PATH));
 	}
@@ -86,7 +88,7 @@ class UserScriptsFolderTest {
 		UserScriptsFolder folder = new UserScriptsFolder(settings);
 		folder.setPath(root);
 
-		folder.setPath(null);
+		assertTrue(folder.setPath(null));
 
 		assertEquals(DEFAULT_PATH, folder.getPath());
 		assertNull(settings.getString(PREF_USER_SCRIPTS, PREF_PATH));

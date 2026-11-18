@@ -47,9 +47,7 @@ public class ScriptPaths {
 	}
 
 	public void setUserScriptsPath(@Nullable Path path) {
-		Path previousPath = userScriptsFolder.getPath();
-		userScriptsFolder.setPath(path);
-		if (userScriptsFolder.getPath().equals(previousPath)) {
+		if (!userScriptsFolder.setPath(path)) {
 			return;
 		}
 		createUserScriptsFolder();

@@ -387,9 +387,7 @@ public class FileTemplates implements InitializingBean {
     }
 
     public synchronized void setUserTemplatesPath(@Nullable Path path) {
-        Path previousPath = userTemplatesFolder.getPath();
-        userTemplatesFolder.setPath(path);
-        if (userTemplatesFolder.getPath().equals(previousPath)) {
+        if (!userTemplatesFolder.setPath(path)) {
             return;
         }
         createUserTemplatesFolder();

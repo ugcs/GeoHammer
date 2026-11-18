@@ -52,15 +52,16 @@ public class UserScriptsFolder {
 		return path;
 	}
 
-	public void setPath(@Nullable Path path) {
+	boolean setPath(@Nullable Path path) {
 		Path defaultPath = getDefaultPath();
 		if (path == null) {
 			path = defaultPath;
 		}
 		if (path.equals(this.path)) {
-			return;
+			return false;
 		}
 		settings.setValue(PREF_USER_SCRIPTS, PREF_PATH, path.equals(defaultPath) ? null : path);
 		this.path = path;
+		return true;
 	}
 }

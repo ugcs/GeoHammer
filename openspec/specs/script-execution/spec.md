@@ -288,13 +288,13 @@ names SHALL stay available.
 
 ### Requirement: Scripts folder is shown and changed in settings
 
-The "Scripts" tab of the settings window SHALL show the user scripts folder and SHALL let the user change it by
+The "Paths" tab of the settings window SHALL show the user scripts folder and SHALL let the user change it by
 typing a path or choosing a folder. The default folder SHALL be `.geohammer/scripts` in the user's home directory.
 When the settings are saved with another folder, the system SHALL use it without a restart and in later sessions. An
 empty value SHALL select the default folder, and an empty field SHALL show the default folder as a hint.
 
 #### Scenario: Default folder shown
-- **WHEN** the user opens the "Scripts" tab and has never changed the scripts folder
+- **WHEN** the user opens the "Paths" tab and has never changed the scripts folder
 - **THEN** the field shows the `.geohammer/scripts` folder in the user's home directory
 
 #### Scenario: Folder changed
@@ -304,7 +304,7 @@ empty value SHALL select the default folder, and an empty field SHALL show the d
 
 #### Scenario: Folder kept between sessions
 - **WHEN** the user changed the scripts folder, saved the settings and restarted the application
-- **THEN** user scripts are read from the chosen folder and the "Scripts" tab shows it
+- **THEN** user scripts are read from the chosen folder and the "Paths" tab shows it
 
 #### Scenario: Empty value
 - **WHEN** the user clears the field and saves the settings

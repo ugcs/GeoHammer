@@ -145,7 +145,7 @@ Line structure changes go through `TraceTransform`, which already does all of th
 Matching (`FileTemplates.findTemplate`) reads the first lines of a file and tries `*.yaml` templates from the file's
 own directory first, then the user templates folder (`FileTemplates.getUserTemplatesPath()`), then the app `templates/`
 folder; the first `match-regex` hit wins. A user template replaces the app template of the same name
-(`FileTemplates` merges both folders into one list). The user templates folder is changed in Settings → Templates;
+(`FileTemplates` merges both folders into one list). The user templates folder is changed in Settings → Paths;
 `FileTemplates.setUserTemplatesPath` stores it in `UserTemplatesFolder`, moves the watcher and reloads. No match
 opens the template editor when interactive, otherwise fails. User templates are never saved into the app folder.
 
@@ -175,7 +175,8 @@ Locking, version checks and undo tracking are handled by `McpTools.callTool`.
 - `QuickSelect` — k-th element / median without sorting; `PrefixSum`, `SegmentTree`, `KdTree`
 - `PrincipalComponents` — principal axes of points, or of the steps of a path counted by their length
 - `FileTypes`, `FileNames`, `Templates` — file type detection, names, template name of a file
-- `UserDataFolder` — the `~/.geohammer` folder for user settings, templates, scripts and demo copies
+- `UserDataFolder` — the `~/.geohammer` folder for user settings, templates, scripts and demo copies;
+  `ConfigurableFolder` (`model`) — base of a folder chosen in settings with a default (`UserTemplatesFolder`, `UserScriptsFolder`)
 - `SphericalMercator`, `CoordinatesMath`, `UtmProjector` — coordinate math
 - `SinglePendingExecutor`, `ReentranceGuard` — last-wins tasks, re-entrance guard
 - `Views`, `Dialogs`, `Listeners`, `Bindings`, `UtilityWindow`, `PaintLimiter` — UI construction and wiring

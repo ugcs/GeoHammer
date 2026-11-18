@@ -88,20 +88,11 @@ public class FileTemplates implements InitializingBean {
 
         yaml = createYaml();
 
-        createUserTemplatesFolder();
+        userTemplatesFolder.createFolder();
         templates.addAll(loadTemplates());
 
         if (!templates.isEmpty()) {
             status.showMessage("Loaded " + templates.size() + " templates", "Templates");
-        }
-    }
-
-    private void createUserTemplatesFolder() {
-        Path userTemplatesPath = userTemplatesFolder.getPath();
-        try {
-            Files.createDirectories(userTemplatesPath);
-        } catch (IOException e) {
-            log.warn("Cannot create templates folder {}", userTemplatesPath, e);
         }
     }
 
@@ -390,7 +381,7 @@ public class FileTemplates implements InitializingBean {
         if (!userTemplatesFolder.setPath(path)) {
             return;
         }
-        createUserTemplatesFolder();
+        userTemplatesFolder.createFolder();
         watchUserTemplates();
         reloadTemplates();
     }

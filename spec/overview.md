@@ -42,8 +42,10 @@ shipped helper modules.
   source of a file that is not open (`writePositionsToSource`), without applying meta.
 - **Template** — YAML description of a CSV format (separators, header, column mapping, units, match regex). The
   template name also keys per-format user settings.
-- **Grid** — spatial interpolation of a series onto a lat/lon raster. Params: cell size and blanking distance (max
-  distance from data where values are shown). Render filters: range, analytic signal, hill shading, smoothing.
+- **Grid** — spatial interpolation of a series onto a lat/lon raster. Params: cell size and blanking distance (gaps
+  between data up to twice this wide are filled; elsewhere the grid ends one cell from the data, `GridMask`).
+  A grid above an internal limit (50M cells) is rejected with an `IllegalArgumentException`. Render filters: range,
+  analytic signal, hill shading, smoothing.
 - **Palette** — value-to-color mapping (`PaletteType`: linear, gaussian, histogram) over a color ramp (`SpectrumType`).
 
 # Data Model

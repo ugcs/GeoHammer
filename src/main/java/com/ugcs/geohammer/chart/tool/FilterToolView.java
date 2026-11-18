@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.chart.tool;
 
+import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.util.Tasks;
 import com.ugcs.geohammer.view.Views;
 import javafx.animation.PauseTransition;
@@ -35,6 +36,9 @@ public abstract class FilterToolView extends ToolView {
     private boolean inputValid = true;
 
     private boolean running;
+
+    // changes whenever the warning is shown or hidden
+    private int warningVersion;
 
     // view
 
@@ -91,6 +95,7 @@ public abstract class FilterToolView extends ToolView {
     }
 
     public void showWarning(String message, boolean autoHide) {
+        warningVersion++;
         warning.setText(message);
         warning.setVisible(true);
         warning.setManaged(true);
@@ -101,6 +106,11 @@ public abstract class FilterToolView extends ToolView {
     }
 
     public void hideWarning() {
+        if (!warning.isVisible()) {
+            return;
+        }
+
+        warningVersion++;
         warningTimer.stop();
         warning.setVisible(false);
         warning.setManaged(false);
@@ -166,11 +176,27 @@ public abstract class FilterToolView extends ToolView {
         if (showProgress) {
             disableAndShowProgress();
         }
+        int submitWarningVersion = warningVersion;
         return Tasks.submitCompletable(executor, () -> {
             try {
-                return action.call();
+                T result = action.call();
+                // the warning stays in place while the action runs, so that the tool
+                // does not jump; a warning shown during the action is kept
+                Platform.runLater(() -> {
+                    if (warningVersion == submitWarningVersion) {
+                        hideWarning();
+                    }
+                });
+                return result;
             } catch (Exception e) {
                 log.error("Error", e);
+                // a cancelled action is not an error for the user
+                if (!(e instanceof InterruptedException) && !Thread.currentThread().isInterrupted()) {
+                    String message = !Strings.isNullOrEmpty(e.getMessage())
+                            ? e.getMessage()
+                            : "Action failed";
+                    Platform.runLater(() -> showWarning(message, false));
+                }
                 throw e;
             } finally {
                 if (showProgress) {

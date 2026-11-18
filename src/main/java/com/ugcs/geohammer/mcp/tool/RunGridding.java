@@ -51,6 +51,8 @@ public class RunGridding extends McpTool {
                 + "an open data file, or change display options of its current grid. The grid is shown "
                 + "as a map overlay. Passing cell_size or blanking_distance runs the gridding, which may "
                 + "take a while on large files; omit both to only change the display options. "
+                + "A grid above the internal size limit (currently 50 million cells, may change) is rejected "
+                + "with an error; use a larger cell size. "
                 + "Display options match the gridding tool in the UI; omitted options keep their "
                 + "current values for the series.");
         ObjectNode schema = objectSchema();
@@ -62,7 +64,8 @@ public class RunGridding extends McpTool {
                 "Grid cell size in meters. Required if the file has no grid, otherwise defaults "
                 + "to the value of the current grid.");
         addProperty(schema, "blanking_distance", "number",
-                "Blanking distance in meters: cells farther than this from any data point are left empty. "
+                "Blanking distance in meters: gaps between data points up to twice this wide are filled. "
+                + "Wider gaps and the area outside the survey are left empty beyond one cell from the data. "
                 + "Required if the file has no grid, otherwise defaults to the value of the current grid.");
         addProperty(schema, "range_min", "number",
                 "Lower bound of the color scale in series units, lower values get the first color.");

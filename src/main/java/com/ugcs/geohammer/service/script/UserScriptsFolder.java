@@ -3,6 +3,7 @@ package com.ugcs.geohammer.service.script;
 import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.UserDataFolder;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +16,6 @@ import java.nio.file.Path;
 public class UserScriptsFolder {
 
 	private static final Logger log = LoggerFactory.getLogger(UserScriptsFolder.class);
-
-	private static final String DEFAULT_USER_FOLDER = ".geohammer";
 
 	private static final String DEFAULT_SCRIPTS_FOLDER = "scripts";
 
@@ -34,7 +33,7 @@ public class UserScriptsFolder {
 	}
 
 	public static Path getDefaultPath() {
-		return Path.of(System.getProperty("user.home"), DEFAULT_USER_FOLDER, DEFAULT_SCRIPTS_FOLDER);
+		return UserDataFolder.getPath().resolve(DEFAULT_SCRIPTS_FOLDER);
 	}
 
 	private static Path readPath(Settings settings) {
@@ -53,7 +52,7 @@ public class UserScriptsFolder {
 		return path;
 	}
 
-	public synchronized void setPath(@Nullable Path path) {
+	public void setPath(@Nullable Path path) {
 		Path defaultPath = getDefaultPath();
 		if (path == null) {
 			path = defaultPath;

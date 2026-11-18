@@ -5,6 +5,7 @@ import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.Strings;
+import com.ugcs.geohammer.util.UserDataFolder;
 import jakarta.annotation.PreDestroy;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -32,7 +33,7 @@ public class Settings {
     private final Properties properties;
 
     public Settings() {
-        path = Path.of(System.getProperty("user.home"), ".geohammer", SETTINGS_FILE);
+        path = UserDataFolder.getPath().resolve(SETTINGS_FILE);
         Path legacyPath = Resources.resolvePath(Path.of(FileTemplates.TEMPLATES_FOLDER, SETTINGS_FILE));
         properties = loadProperties(Files.exists(path) ? path : legacyPath);
     }

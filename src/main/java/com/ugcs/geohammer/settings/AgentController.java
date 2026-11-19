@@ -16,11 +16,12 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 
 public abstract class AgentController {
@@ -37,6 +38,8 @@ public abstract class AgentController {
 
     private final BooleanProperty busy = new SimpleBooleanProperty(false);
 
+    private @Nullable Path executable;
+
     protected AgentController(McpIdentity server, CommandExecutor commandExecutor, ExecutorService executor) {
         this.server = Check.notNull(server);
         this.commandExecutor = Check.notNull(commandExecutor);
@@ -45,11 +48,26 @@ public abstract class AgentController {
 
     public abstract String getName();
 
-    public abstract String getCheckCommand();
+    public abstract String getExecutableName();
 
-    public abstract String getEnableCommand();
+    public @Nullable Path resolveExecutable() {
+        try {
+            return OperatingSystemUtils.resolveExecutable(getExecutableName());
+        } catch (IOException e) {
+            log.warn("Cannot resolve executable {}", getExecutableName(), e);
+            return null;
+        }
+    }
 
-    public abstract String getDisableCommand();
+    public abstract String getCheckArguments();
+
+    public abstract String getEnableArguments();
+
+    public abstract String getDisableArguments();
+
+    public String getEnableCommand() {
+        return getExecutableName() + " " + getEnableArguments();
+    }
 
     public ReadOnlyObjectProperty<Status> statusProperty() {
         return status;
@@ -59,22 +77,32 @@ public abstract class AgentController {
         return busy;
     }
 
-    // run through a shell: resolves the CLI on a terminal-like PATH
-    private static List<String> toShellCommand(String command) {
-        if (OperatingSystemUtils.isWindows()) {
-            return List.of("cmd", "/c", command);
+    private CommandResult runAgentCommand(String arguments) throws InterruptedException {
+        if (executable == null) {
+            executable = resolveExecutable();
         }
-        String shell = System.getenv("SHELL");
-        if (Strings.isNullOrEmpty(shell)) {
-            shell = "/bin/sh";
+        CommandResult result = runCommand(executable, arguments);
+        if (result.isUnknown() || result.isNotFound()) {
+            // the executable may be moved or removed: resolve again on the next command
+            executable = null;
         }
-        return List.of(shell, "-lc", command);
+        return result;
     }
 
-    private CommandResult runCommand(String command) throws InterruptedException {
+    private CommandResult runCommand(@Nullable Path executable, String arguments) throws InterruptedException {
+        if (executable == null) {
+            return new CommandResult(CommandResult.EXIT_UNKNOWN, "Not found");
+        }
+        String command = executable.toString();
+        if (command.contains(" ")) {
+            command = "\"" + command + "\"";
+        }
+        if (!Strings.isNullOrBlank(arguments)) {
+            command += " " + arguments;
+        }
         StringBuilder out = new StringBuilder();
         try {
-            commandExecutor.executeCommand(toShellCommand(command), line -> {
+            commandExecutor.executeCommand(OperatingSystemUtils.toShellCommand(command), line -> {
                 log.debug(line);
                 out.append(line).append("\n");
             });
@@ -88,7 +116,7 @@ public abstract class AgentController {
     }
 
     private boolean runEnable() throws InterruptedException {
-        CommandResult result = runCommand(getEnableCommand());
+        CommandResult result = runAgentCommand(getEnableArguments());
         if (!result.isSuccess()) {
             Dialogs.showError(
                     "Error enabling " + getName(),
@@ -98,7 +126,7 @@ public abstract class AgentController {
     }
 
     private boolean runDisable() throws InterruptedException {
-        CommandResult result = runCommand(getDisableCommand());
+        CommandResult result = runAgentCommand(getDisableArguments());
         if (!result.isSuccess()) {
             Dialogs.showError(
                     "Error disabling " + getName(),
@@ -108,7 +136,7 @@ public abstract class AgentController {
     }
 
     private Status runCheck() throws InterruptedException {
-        CommandResult result = runCommand(getCheckCommand());
+        CommandResult result = runAgentCommand(getCheckArguments());
         if (result.isSuccess()) {
             return Status.ENABLED;
         }

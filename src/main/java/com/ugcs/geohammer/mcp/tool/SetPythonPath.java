@@ -5,16 +5,20 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.ugcs.geohammer.mcp.McpSession;
 import com.ugcs.geohammer.mcp.McpTool;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.service.script.PythonInterpreter;
 import com.ugcs.geohammer.util.Strings;
 import java.io.File;
 
 public class SetPythonPath extends McpTool {
 
+    private final PathSettings pathSettings;
+
     private final PythonInterpreter pythonInterpreter;
 
-    public SetPythonPath(Model model, PythonInterpreter pythonInterpreter) {
+    public SetPythonPath(Model model, PathSettings pathSettings, PythonInterpreter pythonInterpreter) {
         super(model);
+        this.pathSettings = pathSettings;
         this.pythonInterpreter = pythonInterpreter;
     }
 
@@ -44,7 +48,7 @@ public class SetPythonPath extends McpTool {
             if (!executable.isFile()) {
                 throw new IllegalArgumentException("Python executable not found at: " + path);
             }
-            pythonInterpreter.setPath(path);
+            pathSettings.setPythonExecutable(path);
         }
         String currentPath;
         try {

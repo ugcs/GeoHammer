@@ -1,6 +1,6 @@
 package com.ugcs.geohammer.analytics.amplitude;
 
-import com.ugcs.geohammer.util.UserDataFolder;
+import com.ugcs.geohammer.util.UserPaths;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -13,7 +13,7 @@ import java.util.Properties;
 @Service
 public class UserPropertiesService {
 
-    private static final Path CONFIG_PATH = UserDataFolder.getPath().resolve("user.properties");
+    private static final Path CONFIG_PATH = UserPaths.GEOHAMMER_PATH.resolve("user.properties");
 
     private final Properties properties = new Properties();
 

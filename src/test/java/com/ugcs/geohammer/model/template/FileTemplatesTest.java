@@ -11,14 +11,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.ugcs.geohammer.Settings;
 import com.ugcs.geohammer.view.status.Status;
 
 class FileTemplatesTest {
-
-    private static final String PREF_USER_TEMPLATES = "userTemplates";
-
-    private static final String PREF_PATH = "path";
 
     private static final Status STATUS = new Status() {
         @Override
@@ -33,8 +28,6 @@ class FileTemplatesTest {
     @TempDir
     Path root;
 
-    private UserTemplatesFolder userTemplatesFolder;
-
     private Path userPath;
 
     private Path appPath;
@@ -42,21 +35,7 @@ class FileTemplatesTest {
     @BeforeEach
     void setUp() throws Exception {
         userPath = root.resolve("user").resolve("templates");
-        // values are kept in memory: settings are written to disk only on save
-        Settings settings = new Settings();
-        settings.setValue(PREF_USER_TEMPLATES, PREF_PATH, userPath);
-        userTemplatesFolder = new UserTemplatesFolder(settings);
         appPath = Files.createDirectories(root.resolve("app").resolve("templates"));
-    }
-
-    @Test
-    void createsMissingUserTemplatesFolder() throws Exception {
-        writeTemplate(appPath, "app.yaml", "Mag", "Mag", "nT");
-
-        FileTemplates templates = loadTemplates();
-
-        assertTrue(Files.isDirectory(userPath));
-        assertEquals(1, templates.getTemplates().size());
     }
 
     @Test
@@ -135,9 +114,8 @@ class FileTemplatesTest {
         writeTemplate(otherUserPath, "other.yaml", "Mag", "Mag", "uT");
         FileTemplates templates = loadTemplates();
 
-        templates.setUserTemplatesPath(otherUserPath);
+        templates.watch(otherUserPath);
 
-        assertEquals(otherUserPath, templates.getUserTemplatesPath());
         assertEquals(1, templates.getTemplates().size());
         assertEquals("uT", getUnits(templates.getTemplate("Mag")));
     }
@@ -148,7 +126,7 @@ class FileTemplatesTest {
         FileTemplates templates = loadTemplates();
         Path otherUserPath = root.resolve("other").resolve("templates");
 
-        templates.setUserTemplatesPath(otherUserPath);
+        templates.watch(otherUserPath);
 
         assertTrue(Files.isDirectory(otherUserPath));
         assertEquals(1, templates.getTemplates().size());
@@ -160,14 +138,14 @@ class FileTemplatesTest {
         FileTemplates templates = loadTemplates();
         writeTemplate(userPath, "user.yaml", "Sonar", "Depth", "m");
 
-        templates.setUserTemplatesPath(userPath);
+        templates.watch(userPath);
 
         // a change would reload the list and pick up the new template
         assertEquals(0, templates.getTemplates().size());
     }
 
     private FileTemplates loadTemplates() throws Exception {
-        FileTemplates templates = new FileTemplates(STATUS, userTemplatesFolder, appPath);
+        FileTemplates templates = new FileTemplates(STATUS, userPath, appPath);
         templates.afterPropertiesSet();
         return templates;
     }

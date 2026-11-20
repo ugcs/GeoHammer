@@ -4,32 +4,36 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Resources;
-import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ScriptPaths {
 
+	private static final Logger log = LoggerFactory.getLogger(ScriptPaths.class);
+
 	private static final String SCRIPTS_DIRECTORY = "scripts";
 	private static final String CHECK_IMPORTS_SCRIPT = "check_imports.py";
 
-	private final UserScriptsFolder userScriptsFolder;
-
 	private final Path scriptsPath;
 
+	private volatile Path userScriptsPath;
+
 	@Autowired
-	public ScriptPaths(UserScriptsFolder userScriptsFolder) {
+	public ScriptPaths(PathSettings pathSettings) {
 		// absolute: commands that get script paths may run in another working directory
-		this(userScriptsFolder, Resources.resolvePath(SCRIPTS_DIRECTORY).toAbsolutePath());
+		this(pathSettings.getUserScriptsPath(), Resources.resolvePath(SCRIPTS_DIRECTORY).toAbsolutePath());
 	}
 
-	public ScriptPaths(UserScriptsFolder userScriptsFolder, Path scriptsPath) {
-		this.userScriptsFolder = Check.notNull(userScriptsFolder);
+	public ScriptPaths(Path userScriptsPath, Path scriptsPath) {
+		this.userScriptsPath = Check.notNull(userScriptsPath);
 		this.scriptsPath = scriptsPath;
-		userScriptsFolder.createFolder();
+		createUserScriptsFolder();
 	}
 
 	public Path getScriptsPath() {
@@ -37,14 +41,16 @@ public class ScriptPaths {
 	}
 
 	public Path getUserScriptsPath() {
-		return userScriptsFolder.getPath();
+		return userScriptsPath;
 	}
 
-	public void setUserScriptsPath(@Nullable Path path) {
-		if (!userScriptsFolder.setPath(path)) {
+	public void setUserScriptsPath(Path path) {
+		Check.notNull(path);
+		if (path.equals(userScriptsPath)) {
 			return;
 		}
-		userScriptsFolder.createFolder();
+		userScriptsPath = path;
+		createUserScriptsFolder();
 	}
 
 	public Path findScriptFile(String scriptFilename) throws IOException {
@@ -63,4 +69,12 @@ public class ScriptPaths {
 		return scriptsPath.resolve(CHECK_IMPORTS_SCRIPT);
 	}
 
+	private void createUserScriptsFolder() {
+		Path userScriptsPath = getUserScriptsPath();
+		try {
+			Files.createDirectories(userScriptsPath);
+		} catch (IOException e) {
+			log.warn("Cannot create scripts folder {}", userScriptsPath, e);
+		}
+	}
 }

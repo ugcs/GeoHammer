@@ -12,16 +12,6 @@ mvn javafx:run                       # run the app
 mvn checkstyle:checkstyle            # warnings only, never fails the build
 ```
 
-Runtime folders (resolved relative to the working dir, then to the jar): `templates/` (built-in CSV templates,
-watched for changes), `scripts/` (Python scripts), `data/` (demo files opened from the welcome panel; a demo opens a
-fresh copy in `~/.geohammer/demo/`, never the shipped file). User settings: `~/.geohammer/templates-settings.properties`.
-User templates folder (`UserTemplatesFolder`): a setting, `~/.geohammer/templates` by default (created at startup,
-watched for changes).
-User scripts folder (`UserScriptsFolder`): a setting, `~/.geohammer/scripts` by default (created at startup, read on
-every listing); a user script replaces the built-in script with the same file name (`ScriptPaths.findScriptFile`,
-`ScriptMetadataLoader`). Scripts run with the app `scripts/` folder on `PYTHONPATH`, so user scripts can import the
-shipped helper modules.
-
 # Domain Glossary
 
 - **GPR file** — `TraceFile` (SEG-Y `GprFile`, GSSI `DztFile`). A profile of **traces**; each trace is a vertical array
@@ -90,6 +80,9 @@ shipped helper modules.
 - **Shutdown**: closing the window calls `context.close()`; cleanup goes through `@PreDestroy`. Settings are written to
   disk only then (or on explicit `save()`).
 - **Static access**: `AppContext` exposes the Spring context, primary stage and model for non-bean code.
+- **Folders**: built-in `templates/`, `scripts/` and demo `data/` next to the app (working dir first, then the jar);
+  user settings, templates and scripts in `~/.geohammer` (folders changed in Settings → Paths, kept on reinstall;
+  a user file replaces the built-in one with the same name).
 - **Threads**:
   - FX thread — scene graph changes, chart reload, undo stack changes, publishing UI events.
   - Shared virtual-thread `ExecutorService` bean — file loading, filters, gridding, scripts. Register long tasks in
@@ -145,11 +138,9 @@ Line structure changes go through `TraceTransform`, which already does all of th
 
 **CSV templates**
 Matching (`FileTemplates.findTemplate`) reads the first lines of a file and tries `*.yaml` templates from the file's
-own directory first, then the user templates folder (`FileTemplates.getUserTemplatesPath()`), then the app `templates/`
-folder; the first `match-regex` hit wins. A user template replaces the app template of the same name
-(`FileTemplates` merges both folders into one list). The user templates folder is changed in Settings → Paths;
-`FileTemplates.setUserTemplatesPath` stores it in `UserTemplatesFolder`, moves the watcher and reloads. No match
-opens the template editor when interactive, otherwise fails. User templates are never saved into the app folder.
+own directory first, then the user templates folder, then the app `templates/` folder; the first `match-regex` hit
+wins. No match opens the template editor when interactive, otherwise fails. User templates are never saved into the
+app folder.
 
 **Add an MCP tool**
 Extend `McpTool` (`getName`, `buildSchema`, `invoke`; override `modifiesFiles()` for writes), register it in the
@@ -177,8 +168,7 @@ Locking, version checks and undo tracking are handled by `McpTools.callTool`.
 - `QuickSelect` — k-th element / median without sorting; `PrefixSum`, `SegmentTree`, `KdTree`
 - `PrincipalComponents` — principal axes of points, or of the steps of a path counted by their length
 - `FileTypes`, `FileNames`, `Templates` — file type detection, names, template name of a file
-- `UserDataFolder` — the `~/.geohammer` folder for user settings, templates, scripts and demo copies;
-  `ConfigurableFolder` (`model`) — base of a folder chosen in settings with a default (`UserTemplatesFolder`, `UserScriptsFolder`)
+- `UserPaths` — user home and the `~/.geohammer` folder for user settings, templates, scripts and demo copies
 - `SphericalMercator`, `CoordinatesMath`, `UtmProjector` — coordinate math
 - `SinglePendingExecutor`, `ReentranceGuard` — last-wins tasks, re-entrance guard
 - `Views`, `Dialogs`, `Listeners`, `Bindings`, `UtilityWindow`, `PaintLimiter` — UI construction and wiring

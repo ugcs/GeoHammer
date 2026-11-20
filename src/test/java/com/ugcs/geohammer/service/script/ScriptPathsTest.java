@@ -12,13 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.ugcs.geohammer.Settings;
-
 class ScriptPathsTest {
-
-	private static final String PREF_USER_SCRIPTS = "userScripts";
-
-	private static final String PREF_PATH = "path";
 
 	@TempDir
 	Path root;
@@ -33,10 +27,7 @@ class ScriptPathsTest {
 	void setUp() throws IOException {
 		appScripts = Files.createDirectories(root.resolve("app").resolve("scripts"));
 		userScripts = root.resolve("user").resolve("scripts");
-		// values are kept in memory: settings are written to disk only on save
-		Settings settings = new Settings();
-		settings.setValue(PREF_USER_SCRIPTS, PREF_PATH, userScripts);
-		scriptPaths = new ScriptPaths(new UserScriptsFolder(settings), appScripts);
+		scriptPaths = new ScriptPaths(userScripts, appScripts);
 	}
 
 	@Test

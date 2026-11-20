@@ -6,17 +6,12 @@ import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.List;
 
-import com.ugcs.geohammer.Settings;
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.util.OperatingSystemUtils;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
 public class PythonInterpreter {
-
-	private static final String PREF_PYTHON_EXECUTOR = "python";
-
-	private static final String PREF_PYTHON_EXECUTOR_PATH = "path";
 
 	private static final PythonVersion MINIMAL_VERSION = PythonVersion.parse("3.8");
 
@@ -26,15 +21,15 @@ public class PythonInterpreter {
 
 	private final CommandExecutor commandExecutor;
 
-	private final Settings settings;
+	private final PathSettings pathSettings;
 
-	public PythonInterpreter(CommandExecutor commandExecutor, Settings settings) {
+	public PythonInterpreter(CommandExecutor commandExecutor, PathSettings pathSettings) {
 		this.commandExecutor = commandExecutor;
-		this.settings = settings;
+		this.pathSettings = pathSettings;
 	}
 
 	public Path getPath() throws IOException {
-		String pythonPath = settings.getString(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH);
+		String pythonPath = pathSettings.getPythonExecutable();
 		if (pythonPath == null || pythonPath.isEmpty()) {
 			String[] command;
 			if (OperatingSystemUtils.isWindows()) {
@@ -51,11 +46,6 @@ public class PythonInterpreter {
 			throw new IllegalStateException("Python executable not found. Please install Python or configure path in settings.");
 		}
 		return Path.of(pythonPath);
-	}
-
-	public void setPath(@Nullable String pythonPath) {
-		settings.setValue(PREF_PYTHON_EXECUTOR, PREF_PYTHON_EXECUTOR_PATH,
-				pythonPath != null && !pythonPath.isEmpty() ? pythonPath : null);
 	}
 
 	public void checkVersion() throws InterruptedException {

@@ -5,7 +5,7 @@ import com.ugcs.geohammer.model.template.FileTemplates;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.Strings;
-import com.ugcs.geohammer.util.UserDataFolder;
+import com.ugcs.geohammer.util.UserPaths;
 import jakarta.annotation.PreDestroy;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Properties;
 
@@ -33,7 +34,7 @@ public class Settings {
     private final Properties properties;
 
     public Settings() {
-        path = UserDataFolder.getPath().resolve(SETTINGS_FILE);
+        path = UserPaths.GEOHAMMER_PATH.resolve(SETTINGS_FILE);
         Path legacyPath = Resources.resolvePath(Path.of(FileTemplates.TEMPLATES_FOLDER, SETTINGS_FILE));
         properties = loadProperties(Files.exists(path) ? path : legacyPath);
     }
@@ -133,6 +134,20 @@ public class Settings {
 
     public boolean getBooleanOrDefault(String group, String name, boolean defaultValue) {
         Boolean value = getBoolean(group, name);
+        return value != null ? value : defaultValue;
+    }
+
+    public @Nullable Path getPath(String group, String name) {
+        String value = getString(group, name);
+        try {
+            return !Strings.isNullOrEmpty(value) ? Path.of(value) : null;
+        } catch (InvalidPathException e) {
+            return null;
+        }
+    }
+
+    public Path getPathOrDefault(String group, String name, Path defaultValue) {
+        Path value = getPath(group, name);
         return value != null ? value : defaultValue;
     }
 

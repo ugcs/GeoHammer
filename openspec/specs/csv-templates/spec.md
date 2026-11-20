@@ -68,10 +68,11 @@ per-template settings apply to the user template. Built-in templates with other 
 
 ### Requirement: Template folder changes are picked up without a restart
 
-The system SHALL reload templates when a template file in the user templates folder or in the application templates
-folder is created, changed or deleted, and SHALL show a status message about it. After the templates folder is changed
-in settings, the system SHALL follow the new user templates folder instead of the previous one. Files opened after the
-reload SHALL be matched against the reloaded templates. Already open files SHALL keep their template.
+The system SHALL reload templates when a template file in the user templates folder is created, changed or deleted,
+and SHALL show a status message about it. Templates of the application templates folder SHALL be read at startup.
+After the templates folder is changed in settings, the system SHALL follow the new user templates folder instead of the
+previous one. Files opened after the reload SHALL be matched against the reloaded templates. Already open files SHALL
+keep their template.
 
 #### Scenario: Template deleted
 - **WHEN** a user template that replaced a built-in template of the same name is deleted
@@ -119,7 +120,7 @@ empty value SHALL select the default folder, and an empty field SHALL show the d
 
 #### Scenario: Empty value
 - **WHEN** the user clears the field and saves the settings
-- **THEN** the default folder is used
+- **THEN** the default folder is used and is created when it does not exist
 
 #### Scenario: Empty field hints the default folder
 - **WHEN** the templates folder field is empty
@@ -151,3 +152,12 @@ copies.
 #### Scenario: Files of the previous folder
 - **WHEN** the user changes the templates folder
 - **THEN** the files in the previous folder are left as they are and are no longer used
+
+### Requirement: Template editor saves to the user templates folder
+
+The save dialog of the template editor SHALL open in the user templates folder, so a saved template is found for files
+opened later. When that folder does not exist, the dialog SHALL open in the folder of the sample file.
+
+#### Scenario: Save a new template
+- **WHEN** the user presses "Save template…" in the template editor
+- **THEN** the save dialog opens in the user templates folder chosen in settings

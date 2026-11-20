@@ -6,18 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.ugcs.geohammer.Settings;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
 public class JsonScriptMetadataLoaderTest {
-
-	private static final String PREF_USER_SCRIPTS = "userScripts";
-
-	private static final String PREF_PATH = "path";
 
 	@TempDir
 	Path root;
@@ -112,10 +106,7 @@ public class JsonScriptMetadataLoaderTest {
 	}
 
 	private static ScriptMetadataLoader createLoader(Path scriptsPath, Path userScriptsPath) {
-		// values are kept in memory: settings are written to disk only on save
-		Settings settings = new Settings();
-		settings.setValue(PREF_USER_SCRIPTS, PREF_PATH, userScriptsPath);
-		return new JsonScriptMetadataLoader(new ScriptPaths(new UserScriptsFolder(settings), scriptsPath));
+		return new JsonScriptMetadataLoader(new ScriptPaths(userScriptsPath, scriptsPath));
 	}
 
 	private static void writeDescription(Path dir, String filename, String displayName) throws Exception {

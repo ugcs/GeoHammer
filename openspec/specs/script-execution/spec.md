@@ -308,7 +308,7 @@ empty value SHALL select the default folder, and an empty field SHALL show the d
 
 #### Scenario: Empty value
 - **WHEN** the user clears the field and saves the settings
-- **THEN** the default folder is used
+- **THEN** the default folder is used and is created when it does not exist
 
 #### Scenario: Empty field hints the default folder
 - **WHEN** the scripts folder field is empty

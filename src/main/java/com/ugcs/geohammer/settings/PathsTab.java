@@ -1,11 +1,10 @@
 package com.ugcs.geohammer.settings;
 
 import com.ugcs.geohammer.AppContext;
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.model.template.FileTemplates;
-import com.ugcs.geohammer.model.template.UserTemplatesFolder;
 import com.ugcs.geohammer.service.script.PythonInterpreter;
 import com.ugcs.geohammer.service.script.ScriptPaths;
-import com.ugcs.geohammer.service.script.UserScriptsFolder;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.ResourceImageHolder;
@@ -45,6 +44,8 @@ public class PathsTab implements SettingsTab {
 
     private final PythonInterpreter pythonInterpreter;
 
+    private final PathSettings pathSettings;
+
     private final ScriptPaths scriptPaths;
 
     private final FileTemplates fileTemplates;
@@ -59,9 +60,10 @@ public class PathsTab implements SettingsTab {
 
     private final TextField userTemplatesFolderInput;
 
-    public PathsTab(PythonInterpreter pythonInterpreter, ScriptPaths scriptPaths, FileTemplates fileTemplates,
-            ExecutorService executor) {
+    public PathsTab(PythonInterpreter pythonInterpreter, PathSettings pathSettings,
+            ScriptPaths scriptPaths, FileTemplates fileTemplates, ExecutorService executor) {
         this.pythonInterpreter = Check.notNull(pythonInterpreter);
+        this.pathSettings = Check.notNull(pathSettings);
         this.scriptPaths = Check.notNull(scriptPaths);
         this.fileTemplates = Check.notNull(fileTemplates);
         this.executor = Check.notNull(executor);
@@ -87,17 +89,17 @@ public class PathsTab implements SettingsTab {
                 "Python executable", pythonPathWithButtons);
 
         userScriptsFolderInput = new TextField();
-        userScriptsFolderInput.setPromptText(UserScriptsFolder.getDefaultPath().toString());
+        userScriptsFolderInput.setPromptText(PathSettings.DEFAULT_SCRIPTS_PATH.toString());
 
         userTemplatesFolderInput = new TextField();
-        userTemplatesFolderInput.setPromptText(UserTemplatesFolder.getDefaultPath().toString());
+        userTemplatesFolderInput.setPromptText(PathSettings.DEFAULT_TEMPLATES_PATH.toString());
 
         content = new VBox(SettingsView.VERTICAL_SPACING,
                 pythonPathWithLabel,
                 createFolderRow(USER_SCRIPTS_FOLDER, userScriptsFolderInput,
-                        () -> onFolderBrowse(userScriptsFolderInput, scriptPaths.getUserScriptsPath())),
+                        () -> onFolderBrowse(userScriptsFolderInput, pathSettings.getUserScriptsPath())),
                 createFolderRow(USER_TEMPLATES_FOLDER, userTemplatesFolderInput,
-                        () -> onFolderBrowse(userTemplatesFolderInput, fileTemplates.getUserTemplatesPath())));
+                        () -> onFolderBrowse(userTemplatesFolderInput, pathSettings.getUserTemplatesPath())));
     }
 
     @Override
@@ -113,36 +115,38 @@ public class PathsTab implements SettingsTab {
         } catch (IOException ignore) {
         }
         pythonPathInput.setText(path != null ? path.toString() : Strings.empty());
-        userScriptsFolderInput.setText(scriptPaths.getUserScriptsPath().toString());
-        userTemplatesFolderInput.setText(fileTemplates.getUserTemplatesPath().toString());
+        userScriptsFolderInput.setText(pathSettings.getUserScriptsPath().toString());
+        userTemplatesFolderInput.setText(pathSettings.getUserTemplatesPath().toString());
     }
 
     @Override
     public ValidationResult validate() {
-        return validateFolder(userScriptsFolderInput, scriptPaths.getUserScriptsPath(), USER_SCRIPTS_FOLDER)
-                .combine(validateFolder(userTemplatesFolderInput, fileTemplates.getUserTemplatesPath(),
+        return validateFolder(userScriptsFolderInput, pathSettings.getUserScriptsPath(), USER_SCRIPTS_FOLDER)
+                .combine(validateFolder(userTemplatesFolderInput, pathSettings.getUserTemplatesPath(),
                         USER_TEMPLATES_FOLDER));
     }
 
     @Override
     public void save() {
         String path = pythonPathInput.getText();
-        pythonInterpreter.setPath(path != null ? path.trim() : null);
+        pathSettings.setPythonExecutable(path != null ? path.trim() : null);
 
-        Path userScriptsFolderPath = readFolderInput(userScriptsFolderInput);
+        pathSettings.setUserScriptsPath(readFolderInput(userScriptsFolderInput));
+        Path userScriptsPath = pathSettings.getUserScriptsPath();
         try {
-            scriptPaths.setUserScriptsPath(userScriptsFolderPath);
+            scriptPaths.setUserScriptsPath(userScriptsPath);
         } catch (RuntimeException e) {
-            log.error("Cannot change scripts folder to {}", userScriptsFolderPath, e);
+            log.error("Cannot change scripts folder to {}", userScriptsPath, e);
         }
 
+        pathSettings.setUserTemplatesPath(readFolderInput(userTemplatesFolderInput));
+        Path userTemplatesPath = pathSettings.getUserTemplatesPath();
         // templates are reloaded on a folder change, so it is applied in background
-        Path userTemplatesFolderPath = readFolderInput(userTemplatesFolderInput);
         executor.submit(() -> {
             try {
-                fileTemplates.setUserTemplatesPath(userTemplatesFolderPath);
+                fileTemplates.watch(userTemplatesPath);
             } catch (RuntimeException e) {
-                log.error("Cannot change templates folder to {}", userTemplatesFolderPath, e);
+                log.error("Cannot change templates folder to {}", userTemplatesPath, e);
             }
         });
     }

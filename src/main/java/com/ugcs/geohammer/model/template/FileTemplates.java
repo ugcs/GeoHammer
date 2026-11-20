@@ -21,11 +21,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.TextFiles;
-import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -60,25 +60,25 @@ public class FileTemplates implements InitializingBean {
 
     private final Path templatesPath;
 
+    private volatile Path userTemplatesPath;
+
     private volatile WatchService watchService;
 
     private WatchKey userTemplatesWatchKey;
 
     private final Status status;
 
-    private final UserTemplatesFolder userTemplatesFolder;
-
     @Value( "${app.filetemplates.linethreshold:50}")
     private int lineThreshold;
 
     @Autowired
-    public FileTemplates(Status status, UserTemplatesFolder userTemplatesFolder) {
-        this(status, userTemplatesFolder, Resources.resolvePath(TEMPLATES_FOLDER));
+    public FileTemplates(Status status, PathSettings pathSettings) {
+        this(status, pathSettings.getUserTemplatesPath(), Resources.resolvePath(TEMPLATES_FOLDER));
     }
 
-    public FileTemplates(Status status, UserTemplatesFolder userTemplatesFolder, Path templatesPath) {
+    public FileTemplates(Status status, Path userTemplatesPath, Path templatesPath) {
         this.status = status;
-        this.userTemplatesFolder = Check.notNull(userTemplatesFolder);
+        this.userTemplatesPath = Check.notNull(userTemplatesPath);
         this.templatesPath = templatesPath;
     }
 
@@ -88,7 +88,6 @@ public class FileTemplates implements InitializingBean {
 
         yaml = createYaml();
 
-        userTemplatesFolder.createFolder();
         templates.addAll(loadTemplates());
 
         if (!templates.isEmpty()) {
@@ -184,7 +183,7 @@ public class FileTemplates implements InitializingBean {
     }
 
     private List<Template> loadTemplates() {
-        Path userTemplatesPath = userTemplatesFolder.getPath();
+        Path userTemplatesPath = this.userTemplatesPath;
         List<Template> templates = new ArrayList<>(loadTemplates(userTemplatesPath));
         Set<String> userTemplateNames = new HashSet<>();
         for (Template template : templates) {
@@ -227,6 +226,7 @@ public class FileTemplates implements InitializingBean {
     }
 
     private synchronized void reloadTemplates() {
+        // load before replacing to keep templates readable while reloading
         List<Template> reloaded = loadTemplates();
         templates.clear();
         templates.addAll(reloaded);
@@ -236,14 +236,13 @@ public class FileTemplates implements InitializingBean {
         }
     }
 
-    private static WatchKey watch(WatchService watchService, Path path) throws IOException {
-        return path.register(watchService,
-                StandardWatchEventKinds.ENTRY_CREATE,
-                StandardWatchEventKinds.ENTRY_DELETE,
-                StandardWatchEventKinds.ENTRY_MODIFY);
-    }
-
     private synchronized void watchUserTemplates() {
+        Path userTemplatesPath = this.userTemplatesPath;
+        try {
+            Files.createDirectories(userTemplatesPath);
+        } catch (IOException e) {
+            log.warn("Cannot create templates folder {}", userTemplatesPath, e);
+        }
         if (watchService == null) {
             return;
         }
@@ -251,27 +250,20 @@ public class FileTemplates implements InitializingBean {
             userTemplatesWatchKey.cancel();
             userTemplatesWatchKey = null;
         }
-        Path userTemplatesPath = userTemplatesFolder.getPath();
-        if (Files.isDirectory(userTemplatesPath)) {
-            try {
-                userTemplatesWatchKey = watch(watchService, userTemplatesPath);
-            } catch (IOException e) {
-                log.warn("Cannot watch templates folder {}", userTemplatesPath, e);
-            }
+        try {
+            userTemplatesWatchKey = userTemplatesPath.register(watchService,
+                    StandardWatchEventKinds.ENTRY_CREATE,
+                    StandardWatchEventKinds.ENTRY_DELETE,
+                    StandardWatchEventKinds.ENTRY_MODIFY);
+        } catch (IOException e) {
+            log.warn("Cannot watch templates folder {}", userTemplatesPath, e);
         }
     }
 
     @Async
     public void watchTemplates() {
-        if (templatesPath == null) {
-            return;
-        }
-
         try {
             WatchService watchService = FileSystems.getDefault().newWatchService();
-            if (Files.isDirectory(templatesPath)) {
-                watch(watchService, templatesPath);
-            }
             this.watchService = watchService;
             watchUserTemplates();
 
@@ -373,15 +365,12 @@ public class FileTemplates implements InitializingBean {
         return templatesPath;
     }
 
-    public Path getUserTemplatesPath() {
-        return userTemplatesFolder.getPath();
-    }
-
-    public synchronized void setUserTemplatesPath(@Nullable Path path) {
-        if (!userTemplatesFolder.setPath(path)) {
+    public void watch(Path path) {
+        Check.notNull(path);
+        if (path.equals(userTemplatesPath)) {
             return;
         }
-        userTemplatesFolder.createFolder();
+        userTemplatesPath = path;
         watchUserTemplates();
         reloadTemplates();
     }

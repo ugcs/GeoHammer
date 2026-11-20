@@ -26,10 +26,15 @@ SMOOTH_LENGTH = 0.5
 # search range along track in meters: covers the lag plus the offset
 # oblique anomalies add to single pairs
 MAX_LAG_DISTANCE = 6.0
-# minimum relative depth of the cost minimum to trust the estimate of a single
-# pair; noise averages out over pairs, so n pairs need MIN_CONTRAST / sqrt(n)
-# (noise only reaches ~0.35 / sqrt(n))
+# minimum relative depth of the cost minimum to trust the estimate of a pair
+# (noise only reaches ~0.35)
 MIN_CONTRAST = 0.5
+# a pair agrees with the estimate when its own estimate is this close (m along
+# track); the pair cost does not resolve offsets below its smoothing
+AGREEMENT_DISTANCE = SMOOTH_LENGTH
+MIN_AGREEING_PAIRS = 2
+# scales the median absolute deviation to the standard deviation of normal noise
+MAD_SCALE = 1.4826
 
 
 def resolve_column(data, name):
@@ -273,48 +278,79 @@ def binned_gradient(bins, bin_count, vals, window):
     return np.gradient(smoothed)
 
 
-def total_cost(pairs, values, shift):
-    # C(k) = 1 - sum covariance / sum norm: 0 is a perfect match, ~1 is unrelated;
-    # pairs with strong anomalies weigh more than noise
-    covariance = 0.0
-    norm = 0.0
-    for pair in pairs:
-        pair_covariance, pair_norm = pair.correlation_terms(values, shift)
-        covariance += pair_covariance
-        norm += pair_norm
+def pair_cost(pair, values, shift):
+    # C(k) = 1 - correlation: 0 is a perfect match, ~1 is unrelated
+    covariance, norm = pair.correlation_terms(values, shift)
     return 1.0 - covariance / norm if norm > 0 else np.nan
 
 
-def search_shift(pairs, values, max_shift, coarse_step):
+def pair_shift(pair, values, max_shift, coarse_step):
     # coarse pass over the whole range, then every shift around the coarse minimum
     coarse = np.arange(-max_shift, max_shift + 1, coarse_step)
-    costs = np.array([total_cost(pairs, values, shift) for shift in coarse])
+    costs = np.array([pair_cost(pair, values, shift) for shift in coarse])
     if not np.any(np.isfinite(costs)):
         return None
     coarse_best = int(coarse[np.nanargmin(costs)])
     median = float(np.nanmedian(costs))
 
     fine = np.arange(max(-max_shift, coarse_best - coarse_step), min(max_shift, coarse_best + coarse_step) + 1)
-    fine_costs = np.array([total_cost(pairs, values, shift) for shift in fine])
+    fine_costs = np.array([pair_cost(pair, values, shift) for shift in fine])
     best_index = int(np.nanargmin(fine_costs))
     best = int(fine[best_index])
     contrast = (median - fine_costs[best_index]) / median if median > 0 else 0.0
-    if contrast < MIN_CONTRAST / np.sqrt(len(pairs)) or abs(best) >= max_shift:
+    if contrast < MIN_CONTRAST or abs(best) >= max_shift:
         return None
     return best
 
 
-def estimate_shift(pairs, values, max_shift, coarse_step):
-    # Oblique anomalies bias the minimum by +b for one pair orientation and by -b
-    # for the other, so the mean of per-orientation minimums cancels it.
-    forward = search_shift([pair for pair in pairs if pair.a.sign > 0], values, max_shift, coarse_step)
-    backward = search_shift([pair for pair in pairs if pair.a.sign < 0], values, max_shift, coarse_step)
-    if forward is not None and backward is not None:
-        return int(round((forward + backward) / 2)), None
-    if forward is not None or backward is not None:
-        shift = forward if forward is not None else backward
-        return shift, "only one pair orientation is reliable, oblique anomalies may bias the result"
-    return None, None
+class LagEstimate:
+
+    def __init__(self, pair_count, forward_shifts, backward_shifts, tolerance):
+        # forward/backward shifts: estimates of the pairs with a forward/backward
+        # segment below; tolerance: max distance (rows) of an agreeing pair estimate
+        self.pair_count = pair_count
+        self.forward_shifts = forward_shifts
+        self.backward_shifts = backward_shifts
+        orientations = [shifts for shifts in (forward_shifts, backward_shifts) if shifts]
+        # Oblique anomalies bias a pair estimate by +b for one orientation and by -b
+        # for the other, so the mean of the per-orientation medians cancels it;
+        # medians keep pairs that match different anomalies from moving the result.
+        self.shift = int(round(np.mean([np.median(shifts) for shifts in orientations]))) if orientations else None
+        agreeing_by_orientation = [[k for k in shifts if abs(k - self.shift) <= tolerance] for shifts in orientations]
+        agreeing_shifts = [k for shifts in agreeing_by_orientation for k in shifts]
+        self.agreeing_count = len(agreeing_shifts)
+        self.is_reliable = (self.agreeing_count >= min(MIN_AGREEING_PAIRS, self.used_count())
+                            and all(len(shifts) > 0 for shifts in agreeing_by_orientation))
+        deviation = 0.0
+        if agreeing_shifts:
+            deviation = np.median(np.abs(np.array(agreeing_shifts) - np.median(agreeing_shifts)))
+        self.uncertainty = max(1, int(round(MAD_SCALE * deviation / np.sqrt(max(1, self.agreeing_count)))))
+        self.has_single_orientation = len(orientations) == 1
+
+    def used_count(self):
+        return len(self.forward_shifts) + len(self.backward_shifts)
+
+    def print_diagnostics(self):
+        print(f"Pairs used: {self.used_count()} of {self.pair_count}"
+              f" (forward {len(self.forward_shifts)}, backward {len(self.backward_shifts)})")
+        print(f"Estimate of forward pairs: {format_median(self.forward_shifts)},"
+              f" of backward pairs: {format_median(self.backward_shifts)}")
+        if self.shift is not None:
+            print(f"Pairs agreeing with the estimate: {self.agreeing_count} of {self.used_count()}")
+
+
+def format_median(shifts):
+    return f"{float(np.median(shifts)):.1f}" if shifts else "n/a"
+
+
+def estimate_shift(pairs, values, max_shift, coarse_step, tolerance):
+    forward_shifts = []
+    backward_shifts = []
+    for pair in pairs:
+        shift = pair_shift(pair, values, max_shift, coarse_step)
+        if shift is not None:
+            (forward_shifts if pair.a.sign > 0 else backward_shifts).append(shift)
+    return LagEstimate(len(pairs), forward_shifts, backward_shifts, tolerance)
 
 
 def main():
@@ -358,14 +394,21 @@ def main():
 
     max_shift = int(np.ceil(MAX_LAG_DISTANCE / step))
     coarse_step = max(1, int(round(bin_size / step)))
-    shift, warning = estimate_shift(pairs, values, max_shift, coarse_step)
-    if shift is None:
+    tolerance = int(round(AGREEMENT_DISTANCE / step))
+    estimate = estimate_shift(pairs, values, max_shift, coarse_step, tolerance)
+    estimate.print_diagnostics()
+    if estimate.shift is None:
         print("Error: Time lag cannot be determined reliably: no pair has a distinct cost minimum."
               " Check that the survey has anomalies")
         sys.exit(1)
-    if warning is not None:
-        print(f"Warning: {warning}")
-    print(f"Estimated shift: {shift} measurements (~{shift * step:.2f} m along track)")
+    if not estimate.is_reliable:
+        print("Error: Time lag cannot be determined reliably: the pairs do not agree on the shift")
+        sys.exit(1)
+    if estimate.has_single_orientation:
+        print("Warning: only one pair orientation is reliable, oblique anomalies may bias the result")
+    shift = estimate.shift
+    print(f"Estimated shift: {shift} +/- {estimate.uncertainty} measurements"
+          f" (~{shift * step:.2f} +/- {estimate.uncertainty * step:.2f} m along track)")
 
     base = value_col[:-len(LAG_SUFFIX)] if value_col.endswith(LAG_SUFFIX) else value_col
     target = base + LAG_SUFFIX

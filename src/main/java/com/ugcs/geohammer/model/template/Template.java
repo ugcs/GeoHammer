@@ -90,7 +90,7 @@ public class Template {
         for (BaseData dataValue : dataValues) {
             if (dataValue.getIndex() != null
                     && Strings.isNullOrBlank(dataValue.getHeader())) {
-                dataValue.setHeader("column_" + dataValue.getIndex());
+                dataValue.setHeader(DataMapping.INDEX_HEADER_PREFIX + dataValue.getIndex());
             }
         }
     }

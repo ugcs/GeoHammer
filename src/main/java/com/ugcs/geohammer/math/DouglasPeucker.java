@@ -57,7 +57,7 @@ public final class DouglasPeucker {
             }
         }
         selected.sort(Comparator.naturalOrder());
-        if (selected.size() == 2) {
+        if (selected.size() == 2 && minPoints < 2) {
             Point2D a = points.get(selected.get(0));
             Point2D b = points.get(selected.get(1));
             if (b.subtract(a).magnitude() < threshold) {
@@ -79,10 +79,19 @@ public final class DouglasPeucker {
         double maxd = 0.0;
         int maxi = -1;
         for (int i = interval.a + 1; i < interval.b; i++) {
-            Point2D ap = points.get(i).subtract(a);
-            double d = ul < 1e-9
-                    ? ap.magnitude() // interval is close to point
-                    : Math.abs(ap.getX() * un.getY() - ap.getY() * un.getX()); // = ap dot ortho(un)
+            Point2D p = points.get(i);
+            Point2D ap = p.subtract(a);
+            // distance to the segment, not to the line through it:
+            // a point projected beyond a segment end deviates by its distance to that end
+            double t = ap.dotProduct(un);
+            double d;
+            if (t <= 0.0) {
+                d = ap.magnitude();
+            } else if (t >= ul) {
+                d = p.distance(b);
+            } else {
+                d = Math.abs(ap.getX() * un.getY() - ap.getY() * un.getX()); // = ap dot ortho(un)
+            }
             if (d > maxd) {
                 maxd = d;
                 maxi = i;

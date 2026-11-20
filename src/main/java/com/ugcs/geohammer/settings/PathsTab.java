@@ -139,16 +139,19 @@ public class PathsTab implements SettingsTab {
             log.error("Cannot change scripts folder to {}", userScriptsPath, e);
         }
 
+        Path previousUserTemplatesPath = pathSettings.getUserTemplatesPath();
         pathSettings.setUserTemplatesPath(readFolderInput(userTemplatesFolderInput));
         Path userTemplatesPath = pathSettings.getUserTemplatesPath();
-        // templates are reloaded on a folder change, so it is applied in background
-        executor.submit(() -> {
-            try {
-                fileTemplates.watch(userTemplatesPath);
-            } catch (RuntimeException e) {
-                log.error("Cannot change templates folder to {}", userTemplatesPath, e);
-            }
-        });
+        if (!userTemplatesPath.equals(previousUserTemplatesPath)) {
+            // templates are reloaded on a folder change, so it is applied in background
+            executor.submit(() -> {
+                try {
+                    fileTemplates.watch(userTemplatesPath);
+                } catch (RuntimeException e) {
+                    log.error("Cannot change templates folder to {}", userTemplatesPath, e);
+                }
+            });
+        }
     }
 
     private static NodeWithTopLabel<HBox> createFolderRow(String label, TextField input, Runnable onBrowse) {

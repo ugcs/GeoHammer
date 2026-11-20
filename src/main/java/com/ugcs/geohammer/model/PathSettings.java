@@ -44,7 +44,7 @@ public class PathSettings {
 
     // null selects the default folder
     public void setUserTemplatesPath(@Nullable Path path) {
-        setPath(TEMPLATES_FOLDER_KEY, path, DEFAULT_TEMPLATES_PATH);
+        settings.setValue(TEMPLATES_FOLDER_KEY, PATH_KEY, path);
     }
 
     public Path getUserScriptsPath() {
@@ -53,11 +53,6 @@ public class PathSettings {
 
     // null selects the default folder
     public void setUserScriptsPath(@Nullable Path path) {
-        setPath(SCRIPTS_FOLDER_KEY, path, DEFAULT_SCRIPTS_PATH);
-    }
-
-    // the default folder is not stored
-    private void setPath(String group, @Nullable Path path, Path defaultPath) {
-        settings.setValue(group, PATH_KEY, path == null || path.equals(defaultPath) ? null : path);
+        settings.setValue(SCRIPTS_FOLDER_KEY, PATH_KEY, path);
     }
 }

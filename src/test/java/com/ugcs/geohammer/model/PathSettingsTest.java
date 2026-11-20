@@ -22,7 +22,7 @@ class PathSettingsTest {
 
     private static final String PATH_KEY = "path";
 
-    private static final Path GEOHAMMER_PATH = Path.of(UserPaths.HOME, ".geohammer");
+    private static final Path GEOHAMMER_PATH = UserPaths.HOME.resolve(".geohammer");
 
     @TempDir
     Path root;
@@ -70,16 +70,12 @@ class PathSettingsTest {
     }
 
     @Test
-    void doesNotStoreDefaultFolder() {
+    void selectsDefaultFolderForNull() {
         pathSettings.setUserScriptsPath(root);
 
         pathSettings.setUserScriptsPath(null);
 
         assertEquals(PathSettings.DEFAULT_SCRIPTS_PATH, pathSettings.getUserScriptsPath());
-        assertNull(settings.getString(USER_SCRIPTS_GROUP, PATH_KEY));
-
-        pathSettings.setUserScriptsPath(PathSettings.DEFAULT_SCRIPTS_PATH);
-
         assertNull(settings.getString(USER_SCRIPTS_GROUP, PATH_KEY));
     }
 }

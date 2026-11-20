@@ -26,9 +26,9 @@ import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.TextFiles;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -46,7 +46,7 @@ import com.ugcs.geohammer.view.status.Status;
 import com.ugcs.geohammer.model.template.Template.FileType;
 
 @Component
-public class FileTemplates implements InitializingBean {
+public class FileTemplates {
 
     private static final Logger log = LoggerFactory.getLogger(FileTemplates.class);
 
@@ -56,15 +56,13 @@ public class FileTemplates implements InitializingBean {
 
     private final List<Template> templates = new CopyOnWriteArrayList<>();
 
-    private Yaml yaml;
+    private final Yaml yaml;
 
     private final Path templatesPath;
 
-    private volatile Path userTemplatesPath;
+    private final @Nullable WatchService watchService;
 
-    private volatile WatchService watchService;
-
-    private WatchKey userTemplatesWatchKey;
+    private volatile WatchKey userTemplatesWatchKey;
 
     private final Status status;
 
@@ -73,26 +71,23 @@ public class FileTemplates implements InitializingBean {
 
     @Autowired
     public FileTemplates(Status status, PathSettings pathSettings) {
-        this(status, pathSettings.getUserTemplatesPath(), Resources.resolvePath(TEMPLATES_FOLDER));
+        this(status, Resources.resolvePath(TEMPLATES_FOLDER), pathSettings.getUserTemplatesPath());
     }
 
-    public FileTemplates(Status status, Path userTemplatesPath, Path templatesPath) {
+    FileTemplates(Status status, Path templatesPath, Path userTemplatesPath) {
         this.status = status;
-        this.userTemplatesPath = Check.notNull(userTemplatesPath);
         this.templatesPath = templatesPath;
-    }
+        this.yaml = createYaml();
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        log.info("Loading templates...");
-
-        yaml = createYaml();
-
-        templates.addAll(loadTemplates());
-
-        if (!templates.isEmpty()) {
-            status.showMessage("Loaded " + templates.size() + " templates", "Templates");
+        WatchService watchService = null;
+        try {
+            watchService = FileSystems.getDefault().newWatchService();
+        } catch (IOException e) {
+            log.error("Cannot watch templates folder for changes", e);
         }
+        this.watchService = watchService;
+
+		watch(userTemplatesPath);
     }
 
     // yaml instances are not thread-safe: a new one is created
@@ -182,8 +177,7 @@ public class FileTemplates implements InitializingBean {
         return templates;
     }
 
-    private List<Template> loadTemplates() {
-        Path userTemplatesPath = this.userTemplatesPath;
+    private List<Template> loadAllTemplates(Path userTemplatesPath) {
         List<Template> templates = new ArrayList<>(loadTemplates(userTemplatesPath));
         Set<String> userTemplateNames = new HashSet<>();
         for (Template template : templates) {
@@ -225,19 +219,20 @@ public class FileTemplates implements InitializingBean {
         return templates;
     }
 
-    private synchronized void reloadTemplates() {
+    private synchronized void reloadTemplates(Path userTemplatesPath) {
+        boolean isFirstLoad = templates.isEmpty();
         // load before replacing to keep templates readable while reloading
-        List<Template> reloaded = loadTemplates();
+        List<Template> reloaded = loadAllTemplates(userTemplatesPath);
         templates.clear();
         templates.addAll(reloaded);
 
         if (!templates.isEmpty()) {
-            status.showMessage("Reloaded " + templates.size() + " templates", "Templates");
+            status.showMessage((isFirstLoad ? "Loaded " : "Reloaded ") + templates.size() + " templates",
+                    "Templates");
         }
     }
 
-    private synchronized void watchUserTemplates() {
-        Path userTemplatesPath = this.userTemplatesPath;
+    private synchronized void watchUserTemplates(Path userTemplatesPath) {
         try {
             Files.createDirectories(userTemplatesPath);
         } catch (IOException e) {
@@ -262,13 +257,16 @@ public class FileTemplates implements InitializingBean {
 
     @Async
     public void watchTemplates() {
+        if (watchService == null) {
+            return;
+        }
         try {
-            WatchService watchService = FileSystems.getDefault().newWatchService();
-            this.watchService = watchService;
-            watchUserTemplates();
-
             while (true) {
                 WatchKey key = watchService.take();
+                // events queued before a folder change belong to the previous folder
+                if (key != userTemplatesWatchKey) {
+                    continue;
+                }
 
                 for (WatchEvent<?> event : key.pollEvents()) {
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
@@ -292,12 +290,14 @@ public class FileTemplates implements InitializingBean {
                             continue;
                         }
                     }
-                    reloadTemplates();
+					if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
+                        reloadTemplates((Path) key.watchable());
+                    }
                 }
                 // To receive further events, reset the key
                 key.reset();
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             log.error("Error reading template: {}", e.getMessage());
         }
     }
@@ -365,13 +365,9 @@ public class FileTemplates implements InitializingBean {
         return templatesPath;
     }
 
-    public void watch(Path path) {
-        Check.notNull(path);
-        if (path.equals(userTemplatesPath)) {
-            return;
-        }
-        userTemplatesPath = path;
-        watchUserTemplates();
-        reloadTemplates();
+    public void watch(Path userTemplatesPath) {
+        Check.notNull(userTemplatesPath);
+        watchUserTemplates(userTemplatesPath);
+        reloadTemplates(userTemplatesPath);
     }
 }

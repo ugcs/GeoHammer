@@ -133,21 +133,8 @@ class FileTemplatesTest {
         assertEquals("nT", getUnits(templates.getTemplate("Mag")));
     }
 
-    @Test
-    void ignoresSameUserTemplatesFolder() throws Exception {
-        FileTemplates templates = loadTemplates();
-        writeTemplate(userPath, "user.yaml", "Sonar", "Depth", "m");
-
-        templates.watch(userPath);
-
-        // a change would reload the list and pick up the new template
-        assertEquals(0, templates.getTemplates().size());
-    }
-
-    private FileTemplates loadTemplates() throws Exception {
-        FileTemplates templates = new FileTemplates(STATUS, userPath, appPath);
-        templates.afterPropertiesSet();
-        return templates;
+    private FileTemplates loadTemplates() {
+		return new FileTemplates(STATUS, appPath, userPath);
     }
 
     private static String getUnits(Template template) {

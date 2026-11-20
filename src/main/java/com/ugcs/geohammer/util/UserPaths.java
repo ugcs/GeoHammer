@@ -4,9 +4,9 @@ import java.nio.file.Path;
 
 public final class UserPaths {
 
-    public static final String HOME = System.getProperty("user.home");
+    public static final Path HOME = Path.of(System.getProperty("user.home"));
 
-    public static final Path GEOHAMMER_PATH = Path.of(HOME, ".geohammer");
+    public static final Path GEOHAMMER_PATH = HOME.resolve(".geohammer");
 
     private UserPaths() {
     }

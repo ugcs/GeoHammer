@@ -1,0 +1,16 @@
+  name: "Unique headers"
+  file-type: CSV
+  match-regex: >-
+    ^.*Lat.*Lon.*$
+  file-format:
+    has-header: true
+    comment-prefix: '#'
+    decimal-separator: '.'
+    separator: ','
+  data-mapping:
+    latitude:
+      header: Lat
+    longitude:
+      header: Lon
+    data-values:
+      - header: "Mag"

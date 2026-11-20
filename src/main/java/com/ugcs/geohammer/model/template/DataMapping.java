@@ -21,6 +21,9 @@ import java.util.Map;
 @NullUnmarked
 public class DataMapping {
 
+    // name prefix of a column that has no name, followed by the column index
+    public static final String INDEX_HEADER_PREFIX = "column_";
+
     private Latitude latitude;
 
     private Longitude longitude;
@@ -181,7 +184,7 @@ public class DataMapping {
                     ? Strings.trim(value.getHeader())
                     : null;
             if (header == null) {
-                header = "column_" + i;
+                header = INDEX_HEADER_PREFIX + i;
             }
             indexedHeaders.add(header);
         }

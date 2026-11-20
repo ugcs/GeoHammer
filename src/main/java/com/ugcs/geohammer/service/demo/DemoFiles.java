@@ -3,6 +3,7 @@ package com.ugcs.geohammer.service.demo;
 import com.ugcs.geohammer.format.meta.MetaFiles;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Resources;
+import com.ugcs.geohammer.util.UserPaths;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileSystemUtils;
@@ -27,7 +28,7 @@ public class DemoFiles {
     @Autowired
     public DemoFiles() {
         this(Resources.resolvePath(SOURCES_FOLDER),
-                Path.of(System.getProperty("user.home"), ".geohammer", COPIES_FOLDER));
+                UserPaths.GEOHAMMER_PATH.resolve(COPIES_FOLDER));
     }
 
     public DemoFiles(Path sourcesPath, Path copiesPath) {

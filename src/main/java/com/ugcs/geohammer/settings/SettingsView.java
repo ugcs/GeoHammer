@@ -51,10 +51,10 @@ public class SettingsView extends UtilityWindow implements ToolProducer {
 	private final ToggleButton settingsToggle = ResourceImageHolder.setButtonImage(
 			ResourceImageHolder.SETTINGS, new ToggleButton());
 
-	public SettingsView(GeneralTab generalTab, ScriptsTab scriptsTab, McpTab mcpTab) {
+	public SettingsView(GeneralTab generalTab, PathsTab pathsTab, McpTab mcpTab) {
 		super(getWindowProperties());
 
-		tabs = List.of(generalTab, scriptsTab, mcpTab);
+		tabs = List.of(generalTab, pathsTab, mcpTab);
 
 		settingsToggle.setTooltip(new Tooltip("Settings"));
 		settingsToggle.setSelected(false);

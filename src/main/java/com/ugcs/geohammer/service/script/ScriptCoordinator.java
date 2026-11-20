@@ -111,7 +111,7 @@ public class ScriptCoordinator {
 
 		pythonInterpreter.checkVersion();
 
-		File scriptFile = resolveScriptFile(metadata);
+		File scriptFile = scriptPaths.findScriptFile(metadata.filename()).toFile();
 
 		List<UndoSnapshot> snapshots = new ArrayList<>(sgyFiles.size());
 		try {
@@ -147,14 +147,6 @@ public class ScriptCoordinator {
 				undoModel.push(new UndoFrame(snapshots));
 			}
 		}
-	}
-
-	private File resolveScriptFile(ScriptMetadata metadata) throws IOException {
-		File scriptFile = new File(scriptPaths.getScriptsPath().toFile(), metadata.filename());
-		if (!scriptFile.exists()) {
-			throw new IOException("Script file not found: " + scriptFile.getAbsolutePath());
-		}
-		return scriptFile;
 	}
 
 	private String buildTaskName(ScriptMetadata scriptMetadata, List<SgyFile> files) {

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -14,17 +15,21 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.Regex;
 import com.ugcs.geohammer.util.Resources;
 import com.ugcs.geohammer.util.TextFiles;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -41,7 +46,7 @@ import com.ugcs.geohammer.view.status.Status;
 import com.ugcs.geohammer.model.template.Template.FileType;
 
 @Component
-public class FileTemplates implements InitializingBean {
+public class FileTemplates {
 
     private static final Logger log = LoggerFactory.getLogger(FileTemplates.class);
 
@@ -51,31 +56,38 @@ public class FileTemplates implements InitializingBean {
 
     private final List<Template> templates = new CopyOnWriteArrayList<>();
 
-    private Yaml yaml;
+    private final Yaml yaml;
 
-    private Path templatesPath;
+    private final Path templatesPath;
+
+    private final @Nullable WatchService watchService;
+
+    private volatile WatchKey userTemplatesWatchKey;
 
     private final Status status;
 
     @Value( "${app.filetemplates.linethreshold:50}")
     private int lineThreshold;
 
-    public FileTemplates(Status status) {
-        this.status = status;
+    @Autowired
+    public FileTemplates(Status status, PathSettings pathSettings) {
+        this(status, Resources.resolvePath(TEMPLATES_FOLDER), pathSettings.getUserTemplatesPath());
     }
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        log.info("Loading templates...");
+    FileTemplates(Status status, Path templatesPath, Path userTemplatesPath) {
+        this.status = status;
+        this.templatesPath = templatesPath;
+        this.yaml = createYaml();
 
-        yaml = createYaml();
-
-        this.templatesPath = Resources.resolvePath(TEMPLATES_FOLDER);
-        templates.addAll(loadTemplates());
-
-        if (!templates.isEmpty()) {
-            status.showMessage("Loaded " + templates.size() + " templates", "Templates");
+        WatchService watchService = null;
+        try {
+            watchService = FileSystems.getDefault().newWatchService();
+        } catch (IOException e) {
+            log.error("Cannot watch templates folder for changes", e);
         }
+        this.watchService = watchService;
+
+		watch(userTemplatesPath);
     }
 
     // yaml instances are not thread-safe: a new one is created
@@ -165,11 +177,28 @@ public class FileTemplates implements InitializingBean {
         return templates;
     }
 
-    private List<Template> loadTemplates() {
+    private List<Template> loadAllTemplates(Path userTemplatesPath) {
+        List<Template> templates = new ArrayList<>(loadTemplates(userTemplatesPath));
+        Set<String> userTemplateNames = new HashSet<>();
+        for (Template template : templates) {
+            userTemplateNames.add(template.getName());
+        }
+        for (Template template : loadTemplates(templatesPath)) {
+            if (!userTemplateNames.contains(template.getName())) {
+                templates.add(template);
+            }
+        }
+        if (templates.isEmpty()) {
+            log.error("No templates found in {} and {}", userTemplatesPath, templatesPath);
+        }
+        return templates;
+    }
+
+    private List<Template> loadTemplates(Path path) {
         Resource[] resources;
         try {
             resources = new PathMatchingResourcePatternResolver()
-                    .getResources("file:" + templatesPath.toString() + "/*.yaml");
+                    .getResources("file:" + path.toString() + "/*.yaml");
         } catch (IOException e) {
             log.error("Error reading templates folder", e);
             return List.of();
@@ -187,27 +216,57 @@ public class FileTemplates implements InitializingBean {
                 // try next
             }
         }
-        if (templates.isEmpty()) {
-            log.error("No templates found in {}", templatesPath);
-        }
         return templates;
+    }
+
+    private synchronized void reloadTemplates(Path userTemplatesPath) {
+        boolean isFirstLoad = templates.isEmpty();
+        // load before replacing to keep templates readable while reloading
+        List<Template> reloaded = loadAllTemplates(userTemplatesPath);
+        templates.clear();
+        templates.addAll(reloaded);
+
+        if (!templates.isEmpty()) {
+            status.showMessage((isFirstLoad ? "Loaded " : "Reloaded ") + templates.size() + " templates",
+                    "Templates");
+        }
+    }
+
+    private synchronized void watchUserTemplates(Path userTemplatesPath) {
+        try {
+            Files.createDirectories(userTemplatesPath);
+        } catch (IOException e) {
+            log.warn("Cannot create templates folder {}", userTemplatesPath, e);
+        }
+        if (watchService == null) {
+            return;
+        }
+        if (userTemplatesWatchKey != null) {
+            userTemplatesWatchKey.cancel();
+            userTemplatesWatchKey = null;
+        }
+        try {
+            userTemplatesWatchKey = userTemplatesPath.register(watchService,
+                    StandardWatchEventKinds.ENTRY_CREATE,
+                    StandardWatchEventKinds.ENTRY_DELETE,
+                    StandardWatchEventKinds.ENTRY_MODIFY);
+        } catch (IOException e) {
+            log.warn("Cannot watch templates folder {}", userTemplatesPath, e);
+        }
     }
 
     @Async
     public void watchTemplates() {
-        if (templatesPath == null) {
+        if (watchService == null) {
             return;
         }
-
         try {
-            WatchService watchService = FileSystems.getDefault().newWatchService();
-            templatesPath.register(watchService,
-                    StandardWatchEventKinds.ENTRY_CREATE,
-                    StandardWatchEventKinds.ENTRY_DELETE,
-                    StandardWatchEventKinds.ENTRY_MODIFY);
-
             while (true) {
                 WatchKey key = watchService.take();
+                // events queued before a folder change belong to the previous folder
+                if (key != userTemplatesWatchKey) {
+                    continue;
+                }
 
                 for (WatchEvent<?> event : key.pollEvents()) {
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
@@ -231,19 +290,14 @@ public class FileTemplates implements InitializingBean {
                             continue;
                         }
                     }
-                    // load before replacing to keep templates readable while reloading
-                    List<Template> reloaded = loadTemplates();
-                    templates.clear();
-                    templates.addAll(reloaded);
-
-                    if (!templates.isEmpty()) {
-                        status.showMessage("Reloaded " + templates.size() + " templates", "Templates");
+					if (event.context() instanceof Path templatePath && templatePath.toString().endsWith(".yaml")) {
+                        reloadTemplates((Path) key.watchable());
                     }
                 }
                 // To receive further events, reset the key
                 key.reset();
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             log.error("Error reading template: {}", e.getMessage());
         }
     }
@@ -272,7 +326,7 @@ public class FileTemplates implements InitializingBean {
         String firstLines = readFirstLines(file);
 
         // templates in the file directory take precedence
-        // over the application templates
+        // over the user and application templates
         File directory = file.getAbsoluteFile().getParentFile();
         Template local = matchTemplate(loadTemplates(directory), firstLines);
         if (local != null) {
@@ -309,5 +363,11 @@ public class FileTemplates implements InitializingBean {
 
     public Path getTemplatesPath() {
         return templatesPath;
+    }
+
+    public void watch(Path userTemplatesPath) {
+        Check.notNull(userTemplatesPath);
+        watchUserTemplates(userTemplatesPath);
+        reloadTemplates(userTemplatesPath);
     }
 }

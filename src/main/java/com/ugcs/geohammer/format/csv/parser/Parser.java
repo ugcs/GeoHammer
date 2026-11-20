@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -138,7 +139,7 @@ public abstract class Parser {
             String[] headerTokens = readHeaders(r);
             Check.notNull(headerTokens, "No header found");
 
-            setHeaders(Arrays.asList(headerTokens));
+            setHeaders(toUniqueHeaders(headerTokens));
             if (!hasHeader(mapping.getLatitude()) || !hasHeader(mapping.getLongitude())) {
                 throw new ParseException("Column names for latitude and longitude are not matched");
             }
@@ -253,6 +254,50 @@ public abstract class Parser {
 		String commentPrefix = template.getFileFormat().getCommentPrefix();
 		return !Strings.isNullOrBlank(commentPrefix) && line.startsWith(commentPrefix, i);
 	}
+
+    // an empty name becomes column_<index>, a repeated name gets a numeric suffix;
+    // a generated name never takes a name written in the file
+    private List<String> toUniqueHeaders(String[] headerTokens) {
+        Set<String> fileHeaders = new HashSet<>(Arrays.asList(headerTokens));
+        Set<String> uniqueHeaders = new LinkedHashSet<>(headerTokens.length);
+		Map<String, String> generatedHeaders = new LinkedHashMap<>();
+        for (int i = 0; i < headerTokens.length; i++) {
+			String header = headerTokens[i];
+			boolean generated = false;
+			if (header.isEmpty()) {
+				header = DataMapping.INDEX_HEADER_PREFIX + i;
+				generated = true;
+			}
+			String uniqueHeader = header;
+			int suffix = 1;
+			while (uniqueHeaders.contains(uniqueHeader) || (generated && fileHeaders.contains(uniqueHeader))) {
+				uniqueHeader = header + "_" + suffix++;
+				generated = true;
+			}
+			if (generated) {
+				generatedHeaders.put(uniqueHeader, headerTokens[i]);
+			}
+			uniqueHeaders.add(uniqueHeader);
+        }
+		if (!generatedHeaders.isEmpty()) {
+			String message = buildHeadersWarningMessage(generatedHeaders);
+			warnings.addWarning(message);
+		}
+        return new ArrayList<>(uniqueHeaders);
+    }
+
+    private String buildHeadersWarningMessage(Map<String, String> generatedHeaders) {
+		StringBuilder message = new StringBuilder()
+				.append("Columns with empty or repeated names were renamed. ")
+				.append("They will be saved under these names:\n");
+		generatedHeaders.forEach((newHeader, oldHeader) -> {
+			if (Strings.isNullOrEmpty(oldHeader)) {
+				oldHeader = "(empty)";
+			}
+			message.append("\n").append(oldHeader).append(" -> ").append(newHeader);
+		});
+		return message.toString();
+    }
 
     private ColumnSchema buildValueSchema() {
         DataMapping mapping = template.getDataMapping();

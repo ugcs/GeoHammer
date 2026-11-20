@@ -91,7 +91,7 @@ public class AltitudeCheck extends FileQualityCheck {
         if (points.size() > 2) {
             List<Point2D> projected = points.stream().map(SphericalMercator::project).toList();
             List<Integer> indices = DouglasPeucker.approximatePolyline(
-                    projected, 0.5 * width, 2);
+                    projected, 0.5 * width, 1);
             List<LatLon> selected = new ArrayList<>(indices.size());
             for (int i : indices) {
                 selected.add(points.get(i));

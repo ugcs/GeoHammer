@@ -14,6 +14,7 @@ import java.util.Objects;
 import com.ugcs.geohammer.map.MapColors;
 import com.ugcs.geohammer.map.RenderQueue;
 import com.ugcs.geohammer.model.ActivationPolicy;
+import com.ugcs.geohammer.model.LatLon;
 import com.ugcs.geohammer.model.MapField;
 import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.view.Colors;
@@ -144,8 +145,11 @@ public class GpsTrack extends BaseLayer {
 	private static void renderTraceLines(Graphics2D g2, MapField field, List<GeoData> traces, Color color, float strokeWidth) {
 		List<Point2D> points = new ArrayList<>(traces.size());
 		for (GeoData trace : traces) {
-			Point2D point = field.latLonToScreen(trace.getLatLon());
-			points.add(point);
+			LatLon latLon = trace.getLatLon();
+			if (latLon == null) {
+				continue;
+			}
+			points.add(field.latLonToScreen(latLon));
 		}
 		List<Integer> selected = DouglasPeucker.approximatePolyline(points,
 				APPROXIMATION_THRESHOLD, 2);

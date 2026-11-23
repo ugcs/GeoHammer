@@ -24,6 +24,7 @@ import com.ugcs.geohammer.model.ToolProducer;
 import com.ugcs.geohammer.model.event.FileRenameEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TaskRunner;
+import com.ugcs.geohammer.service.demo.DemoSurvey;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Nulls;
@@ -109,7 +110,7 @@ public class Saver implements ToolProducer, InitializingBean {
 	public List<ToolNode> getToolNodes() {
 		return List.of(
 				new ToolNode(buttonOpen, ActivationPolicy.always()),
-				new ToolNode(buttonSave, ActivationPolicy.fileSelected()),
+				new ToolNode(buttonSave, (m, file) -> file != null && !DemoSurvey.isDemoFile(file)),
 				new ToolNode(buttonSaveTo, ActivationPolicy.fileSelected()),
 				new ToolNode(buttonSaveAll, ActivationPolicy.fileSelected()),
 				new ToolNode(buttonCloseAll, ActivationPolicy.fileSelected())
@@ -145,6 +146,8 @@ public class Saver implements ToolProducer, InitializingBean {
 
         File file = sgyFile.getFile();
         Check.notNull(file);
+        Check.condition(!DemoSurvey.isDemoFile(file),
+                "Demo file " + file.getName() + " is read-only. Use Save to.");
 
         log.info("Saving file {}", file);
 
@@ -355,7 +358,9 @@ public class Saver implements ToolProducer, InitializingBean {
 		if (initFile != null) {
 			String filenameWithoutExtension = FileNames.removeExtension(initFile.getName());
 			fileChooser.setInitialFileName(filenameWithoutExtension);
-			fileChooser.setInitialDirectory(initFile.getParentFile());
+			fileChooser.setInitialDirectory(DemoSurvey.isDemoFile(initFile)
+					? null
+					: initFile.getParentFile());
 			String extensionPattern = "*." + FileNames.getExtension(initFile.getName());
 			fileChooser.getExtensionFilters().add(
 					new FileChooser.ExtensionFilter("Files (" + extensionPattern + ")", extensionPattern)
@@ -367,7 +372,9 @@ public class Saver implements ToolProducer, InitializingBean {
 	private @Nullable File selectFolder(@Nullable File initFile) {
 		DirectoryChooser dirChooser = new DirectoryChooser();
 		if (initFile != null) {
-			dirChooser.setInitialDirectory(initFile.getParentFile());
+			dirChooser.setInitialDirectory(DemoSurvey.isDemoFile(initFile)
+					? null
+					: initFile.getParentFile());
 		}
 		return dirChooser.showDialog(AppContext.stage);
 	}
@@ -381,7 +388,9 @@ public class Saver implements ToolProducer, InitializingBean {
 		String actionName = "Saving all opened files";
 		runAction(actionName, () -> {
 			for (SgyFile file : files) {
-                saveFile(file);
+				if (!DemoSurvey.isDemoFile(file)) {
+					saveFile(file);
+				}
 			}
 			return null;
 		});

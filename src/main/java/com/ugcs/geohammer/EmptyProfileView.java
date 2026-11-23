@@ -3,8 +3,7 @@ package com.ugcs.geohammer;
 import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
-import com.ugcs.geohammer.service.demo.DemoFile;
-import com.ugcs.geohammer.service.demo.DemoService;
+import com.ugcs.geohammer.service.demo.DemoSurvey;
 import com.ugcs.geohammer.util.Check;
 import com.ugcs.geohammer.view.Dialogs;
 import com.ugcs.geohammer.view.ResourceImageHolder;
@@ -28,7 +27,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.CompletionException;
+import java.io.File;
+import java.nio.file.NoSuchFileException;
+import java.util.List;
 
 @Component
 public class EmptyProfileView extends VBox {
@@ -43,18 +44,18 @@ public class EmptyProfileView extends VBox {
 
     private final Model model;
 
-    private final DemoService demoService;
+    private final Loader loader;
 
-    private final Hyperlink gprDemoLink = createDemoLink(DemoFile.GPR);
+    private final Hyperlink gprDemoLink = createDemoLink(DemoSurvey.GPR);
 
-    private final Hyperlink csvDemoLink = createDemoLink(DemoFile.CSV);
+    private final Hyperlink csvDemoLink = createDemoLink(DemoSurvey.CSV);
 
-    public EmptyProfileView(Model model, DemoService demoService) {
+    public EmptyProfileView(Model model, Loader loader) {
         Check.notNull(model);
-        Check.notNull(demoService);
+        Check.notNull(loader);
 
         this.model = model;
-        this.demoService = demoService;
+        this.loader = loader;
 
         getStyleClass().add("empty-profile-view");
         setAlignment(Pos.CENTER);
@@ -135,10 +136,10 @@ public class EmptyProfileView extends VBox {
         return group;
     }
 
-    private Hyperlink createDemoLink(DemoFile demoFile) {
-        Hyperlink link = new Hyperlink(demoFile.getTitle());
+    private Hyperlink createDemoLink(DemoSurvey demoSurvey) {
+        Hyperlink link = new Hyperlink(demoSurvey.getTitle());
         link.getStyleClass().add("empty-profile-demo");
-        link.setOnAction(event -> onDemo(demoFile));
+        link.setOnAction(event -> openDemo(demoSurvey));
         return link;
     }
 
@@ -158,23 +159,16 @@ public class EmptyProfileView extends VBox {
         return link;
     }
 
-    private void onDemo(DemoFile demoFile) {
-        setDemoLinksDisabled(true);
-        demoService.openDemo(demoFile).whenComplete((result, error) -> {
-            Platform.runLater(() -> setDemoLinksDisabled(false));
-            if (error != null) {
-                Throwable cause = error instanceof CompletionException && error.getCause() != null
-                        ? error.getCause()
-                        : error;
-                log.error("Cannot open {}", demoFile.getTitle(), cause);
-                Dialogs.showError("Can't open " + demoFile.getTitle(), cause);
-            }
-        });
-    }
-
-    private void setDemoLinksDisabled(boolean disabled) {
-        gprDemoLink.setDisable(disabled);
-        csvDemoLink.setDisable(disabled);
+    private void openDemo(DemoSurvey demoSurvey) {
+        File file;
+        try {
+            file = demoSurvey.getFile();
+        } catch (NoSuchFileException e) {
+            log.error("Cannot open {}", demoSurvey.getTitle(), e);
+            Dialogs.showError("Can't open " + demoSurvey.getTitle(), e);
+            return;
+        }
+        loader.load(List.of(file));
     }
 
     private void updateVisibility() {

@@ -168,7 +168,7 @@ Locking, version checks and undo tracking are handled by `McpTools.callTool`.
 - `QuickSelect` — k-th element / median without sorting; `PrefixSum`, `SegmentTree`, `KdTree`
 - `PrincipalComponents` — principal axes of points, or of the steps of a path counted by their length
 - `FileTypes`, `FileNames`, `Templates` — file type detection, names, template name of a file
-- `UserPaths` — user home and the `~/.geohammer` folder for user settings, templates, scripts and demo copies
+- `UserPaths` — user home and the `~/.geohammer` folder for user settings, templates and scripts
 - `SphericalMercator`, `CoordinatesMath`, `UtmProjector` — coordinate math
 - `SinglePendingExecutor`, `ReentranceGuard` — last-wins tasks, re-entrance guard
 - `Views`, `Dialogs`, `Listeners`, `Bindings`, `UtilityWindow`, `PaintLimiter` — UI construction and wiring

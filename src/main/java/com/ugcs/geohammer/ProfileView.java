@@ -18,6 +18,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.ToolNode;
 import com.ugcs.geohammer.model.event.FileClosedEvent;
 import com.ugcs.geohammer.model.event.FileOpenedEvent;
+import com.ugcs.geohammer.model.event.FileRenameEvent;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
 import com.ugcs.geohammer.service.TraceTransform;
@@ -270,6 +271,11 @@ public class ProfileView implements InitializingBean {
 
 	@EventListener
 	private void fileOpened(FileOpenedEvent event) {
+		activateTools();
+	}
+
+	@EventListener
+	private void onFileRenamed(FileRenameEvent event) {
 		activateTools();
 	}
 

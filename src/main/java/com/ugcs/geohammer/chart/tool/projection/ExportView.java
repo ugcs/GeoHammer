@@ -5,6 +5,7 @@ import com.ugcs.geohammer.chart.tool.projection.model.ExportOptions;
 import com.ugcs.geohammer.chart.tool.projection.model.ExportScope;
 import com.ugcs.geohammer.chart.tool.projection.model.ProjectionModel;
 import com.ugcs.geohammer.format.TraceFile;
+import com.ugcs.geohammer.service.demo.DemoSurvey;
 import com.ugcs.geohammer.util.FileNames;
 import com.ugcs.geohammer.util.Strings;
 import com.ugcs.geohammer.view.Dialogs;
@@ -174,7 +175,7 @@ public class ExportView extends VBox {
     private void initPath() {
         ExportOptions exportOptions = projectionModel.getExportOptions();
         TraceFile traceFile = projectionModel.getSelection().getFile();
-        if (traceFile == null || traceFile.getFile() == null) {
+        if (traceFile == null || traceFile.getFile() == null || DemoSurvey.isDemoFile(traceFile)) {
             exportOptions.pathProperty().set(Strings.empty());
             return;
         }

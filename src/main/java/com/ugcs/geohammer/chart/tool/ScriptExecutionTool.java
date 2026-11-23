@@ -29,6 +29,7 @@ import com.ugcs.geohammer.model.Model;
 import com.ugcs.geohammer.model.event.FileSelectedEvent;
 import com.ugcs.geohammer.model.event.SeriesSelectedEvent;
 import com.ugcs.geohammer.model.event.WhatChanged;
+import com.ugcs.geohammer.service.demo.DemoSurvey;
 import com.ugcs.geohammer.service.script.CommandExecutionException;
 import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
@@ -434,7 +435,8 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 		HBox container = new HBox(Views.DEFAULT_SPACING);
 
 		String defaultFolderPath = initialValue;
-		if (Strings.isNullOrEmpty(defaultFolderPath) && selectedFile != null && selectedFile.getFile() != null) {
+		if (Strings.isNullOrEmpty(defaultFolderPath) && selectedFile != null && selectedFile.getFile() != null
+				&& !DemoSurvey.isDemoFile(selectedFile.getFile())) {
 			File parentDir = selectedFile.getFile().getParentFile();
 			if (parentDir != null) {
 				defaultFolderPath = parentDir.getAbsolutePath();

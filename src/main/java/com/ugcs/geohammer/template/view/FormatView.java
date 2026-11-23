@@ -1,5 +1,6 @@
 package com.ugcs.geohammer.template.view;
 
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.template.TemplateEditorController;
 import com.ugcs.geohammer.template.model.FileSample;
 import com.ugcs.geohammer.template.model.FormatModel;
@@ -37,11 +38,15 @@ public class FormatView extends VBox {
 
     private final TemplateEditorController templateEditorController;
 
+    private final PathSettings pathSettings;
+
     public FormatView(TemplateModel templateModel,
                       TemplateEditorController templateEditorController,
+                      PathSettings pathSettings,
                       SeparatorsView separatorsView) {
         this.templateModel = templateModel;
         this.templateEditorController = templateEditorController;
+        this.pathSettings = pathSettings;
 
         TextField nameInput = new TextField();
         nameInput.setMinWidth(100);
@@ -101,15 +106,18 @@ public class FormatView extends VBox {
         return group;
     }
 
-    // templates are saved next to the sample file
+    // templates are saved to the user templates folder, or next to the sample file when it is missing
     private void saveTemplateAs() {
         FileChooser fileSelector = new FileChooser();
         fileSelector.setTitle("Save template");
         fileSelector.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("Template files (*.yaml)", "*.yaml"));
 
-        FileSample fileSample = templateModel.getFileSample();
-        File directory = fileSample != null ? fileSample.file().getParentFile() : null;
+        File directory = pathSettings.getUserTemplatesPath().toFile();
+        if (!directory.isDirectory()) {
+            FileSample fileSample = templateModel.getFileSample();
+            directory = fileSample != null ? fileSample.file().getParentFile() : null;
+        }
         if (directory != null && directory.isDirectory()) {
             fileSelector.setInitialDirectory(directory);
         }

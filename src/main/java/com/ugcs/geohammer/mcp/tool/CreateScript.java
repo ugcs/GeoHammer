@@ -41,7 +41,7 @@ public class CreateScript extends ScriptTool {
     @Override
     public ObjectNode buildSchema() {
         ObjectNode tool = descriptor("Create (or overwrite) a reusable processing script in the "
-                + "GeoHammer scripts folder, making it available to {{run_script}} and to the Scripts tool "
+                + "GeoHammer user scripts folder, making it available to {{run_script}} and to the Scripts tool "
                 + "in the UI. "
                 + "ONLY use when the user explicitly asks to store an algorithm as a GeoHammer script; "
                 + "the usual case is that a result has already been achieved in the session and the "
@@ -193,14 +193,14 @@ public class CreateScript extends ScriptTool {
             parameter.validate();
         }
 
-        Path scriptsDir = scriptPaths.getScriptsPath();
-        Path scriptFile = scriptsDir.resolve(name + ".py");
-        Path metadataFile = scriptsDir.resolve(name + ".json");
+        Path userScriptsPath = scriptPaths.getUserScriptsPath();
+        Path scriptFile = userScriptsPath.resolve(name + ".py");
+        Path metadataFile = userScriptsPath.resolve(name + ".json");
         if (!overwrite && (Files.exists(scriptFile) || Files.exists(metadataFile))) {
             throw new IllegalArgumentException("Script already exists: " + name
                     + "; pass overwrite: true to replace it");
         }
-        Files.createDirectories(scriptsDir);
+        Files.createDirectories(userScriptsPath);
         // the Scripts panel discovers scripts by their .json, so the .py must be in place first
         Files.writeString(scriptFile, code);
         Files.writeString(metadataFile,

@@ -50,6 +50,7 @@ import com.ugcs.geohammer.mcp.tool.SplitLine;
 import com.ugcs.geohammer.mcp.tool.Undo;
 import com.ugcs.geohammer.mcp.tool.WriteSeries;
 import com.ugcs.geohammer.model.Model;
+import com.ugcs.geohammer.model.PathSettings;
 import com.ugcs.geohammer.model.undo.UndoFrame;
 import com.ugcs.geohammer.model.undo.UndoModel;
 import com.ugcs.geohammer.service.TraceTransform;
@@ -93,7 +94,7 @@ public class McpTools {
                     GriddingService griddingService, GriddingSettings griddingSettings, GridLayer gridLayer,
                     SurveyService surveyService,
                     ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader,
-                    ScriptPaths scriptPaths, PythonInterpreter pythonInterpreter,
+                    ScriptPaths scriptPaths, PathSettings pathSettings, PythonInterpreter pythonInterpreter,
                     EventSender eventSender, EventsFactory eventsFactory) {
         this.undoModel = undoModel;
 
@@ -134,7 +135,7 @@ public class McpTools {
         register(new GetScript(model, scriptMetadataLoader, scriptPaths));
         register(new RunScript(model, scriptMetadataLoader, scriptPaths, scriptCoordinator));
         register(new CreateScript(model, scriptMetadataLoader, scriptPaths, eventSender, eventsFactory));
-        register(new SetPythonPath(model, pythonInterpreter));
+        register(new SetPythonPath(model, pathSettings, pythonInterpreter));
     }
 
     private void register(McpTool tool) {

@@ -41,8 +41,7 @@ public class ListScripts extends ScriptTool {
 
     @Override
     public ObjectNode invoke(McpSession session, JsonNode args) throws Exception {
-        List<ScriptMetadata> scripts = scriptMetadataLoader
-                .loadScriptMetadata(scriptPaths.getScriptsPath());
+        List<ScriptMetadata> scripts = scriptMetadataLoader.loadScriptMetadata();
         ArrayNode result = mapper.createArrayNode();
         for (ScriptMetadata metadata : scripts) {
             result.add(describeScript(metadata));

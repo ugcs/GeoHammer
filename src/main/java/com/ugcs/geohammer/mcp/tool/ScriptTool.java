@@ -30,8 +30,7 @@ public abstract class ScriptTool extends McpTool {
 
     protected ScriptMetadata findScript(String name) throws IOException {
         String fileName = name.endsWith(".py") ? name : name + ".py";
-        List<ScriptMetadata> scripts = scriptMetadataLoader
-                .loadScriptMetadata(scriptPaths.getScriptsPath());
+        List<ScriptMetadata> scripts = scriptMetadataLoader.loadScriptMetadata();
         List<String> names = new ArrayList<>(scripts.size());
         for (ScriptMetadata metadata : scripts) {
             if (metadata.filename().equalsIgnoreCase(fileName)

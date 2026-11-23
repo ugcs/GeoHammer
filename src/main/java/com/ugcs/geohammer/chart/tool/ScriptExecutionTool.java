@@ -2,7 +2,6 @@ package com.ugcs.geohammer.chart.tool;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +34,6 @@ import com.ugcs.geohammer.service.script.ScriptCoordinator;
 import com.ugcs.geohammer.service.script.ScriptMetadata;
 import com.ugcs.geohammer.service.script.ScriptMetadataLoader;
 import com.ugcs.geohammer.service.script.ScriptParameter;
-import com.ugcs.geohammer.service.script.ScriptPaths;
 import com.ugcs.geohammer.service.script.ScriptRunListener;
 import com.ugcs.geohammer.service.script.ScriptValidationException;
 import com.ugcs.geohammer.util.FileNames;
@@ -82,8 +80,6 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 	private final ScriptCoordinator scriptCoordinator;
 
-	private final ScriptPaths scriptPaths;
-
 	private final ScriptMetadataLoader scriptMetadataLoader;
 
 	private final Status status;
@@ -102,15 +98,13 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 
 
 	public ScriptExecutionTool(Model model, ExecutorService executor, Status status, Settings settings,
-	                           ScriptCoordinator scriptCoordinator, ScriptPaths scriptPaths,
-	                           ScriptMetadataLoader scriptMetadataLoader) {
+	                           ScriptCoordinator scriptCoordinator, ScriptMetadataLoader scriptMetadataLoader) {
 		super(executor);
 
         this.model = model;
 		this.status = status;
 		this.settings = settings;
 		this.scriptCoordinator = scriptCoordinator;
-		this.scriptPaths = scriptPaths;
 		this.scriptMetadataLoader = scriptMetadataLoader;
 
 		scriptsMetadataSelector = new ComboBox<>();
@@ -234,9 +228,8 @@ public class ScriptExecutionTool extends FilterToolView implements ScriptRunList
 	}
 
 	private List<ScriptMetadata> loadScriptsFor(@Nullable SgyFile file) throws IOException {
-		Path scriptsPath = scriptPaths.getScriptsPath();
 		List<ScriptMetadata> osCompatibleScripts = new ArrayList<>();
-		for (ScriptMetadata metadata : scriptMetadataLoader.loadScriptMetadata(scriptsPath)) {
+		for (ScriptMetadata metadata : scriptMetadataLoader.loadScriptMetadata()) {
 			if (metadata.supportsCurrentOs()) {
 				osCompatibleScripts.add(metadata);
 			}
